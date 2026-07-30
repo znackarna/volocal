@@ -1,0 +1,17 @@
+# Normalise line endings so the repository looks the same everywhere.
+# Without this, git on Windows may rewrite every file on checkout and the
+# first `git status` shows the whole project as modified.
+* text=auto eol=lf
+
+# Windows batch files genuinely need CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Binary: never touch.
+*.png binary
+*.ico binary
+*.icns binary
+*.woff2 binary
+*.bin binary
+*.onnx binary
