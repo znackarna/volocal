@@ -1,10 +1,24 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type KeyboardEvent, type ReactNode } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
+import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { listen } from "@tauri-apps/api/event";
 import { api } from "./api";
+import InfoNote from "./InfoNote";
+import { LineIcon, type LineIconName } from "./icons";
 import Select from "./Select";
-import { COMPUTE_LABELS, FONTS, MODEL_DESCRIPTIONS, LANGUAGE_OPTIONS, modelName, applyFonts } from "./types";
-import type { ToolCheck, Settings, BenchmarkResult } from "./types";
+import { useI18n, type AppLanguage } from "./i18n";
+import { useUserMessage } from "./messages";
+import type { TranslationKey } from "./i18n";
+import { FONTS, applyFonts } from "./types";
+import { useFormats } from "./formats";
+import { useLabels } from "./labels";
+import type {
+  ToolCheck,
+  Settings,
+  BenchmarkResult,
+  DownloadComponent,
+  DictionaryEntry,
+} from "./types";
 
 interface Props {
   onComplete: () => void;
@@ -13,14 +27,50 @@ interface Props {
   onToModule: (module?: string) => void;
 }
 
+/** Which shared icon stands for which module row. */
 const MODULE_ICONS = {
-  model:
-    "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z",
-  compute:
-    "M8 8h8v8H8z M5 10V8a3 3 0 0 1 3-3h2 M19 10V8a3 3 0 0 0-3-3h-2 M5 14v2a3 3 0 0 0 3 3h2 M19 14v2a3 3 0 0 1-3 3h-2 M12 2v3 M12 19v3 M2 12h3 M19 12h3",
-  speakers:
-    "M9 11a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4Z M3 20v-1.2C3 16.1 5.7 14 9 14s6 2.1 6 4.8V20 M16.5 5.2a3.2 3.2 0 0 1 0 6.2 M17.5 14.3c2.1.5 3.5 2.1 3.5 4v1.7",
-} as const;
+  model: "model",
+  compute: "compute",
+  speakers: "speakers",
+  editor: "editor",
+} as const satisfies Record<string, LineIconName>;
+
+/** Only identifiers here: the names and descriptions are looked up inside the
+ *  components, so they follow a language change instead of freezing at import. */
+const EDITOR_CHOICES: ReadonlyArray<{
+  component: string;
+  model: string;
+  titleKey: TranslationKey;
+  descriptionKey: TranslationKey;
+}> = [
+  {
+    component: "editor-model-light",
+    model: "gemma-4-e2b-q4",
+    titleKey: "settings.editor.light.title",
+    descriptionKey: "settings.editor.light.description",
+  },
+  {
+    component: "editor-model-balanced",
+    model: "gemma-4-e4b-q4",
+    titleKey: "settings.editor.balanced.title",
+    descriptionKey: "settings.editor.balanced.description",
+  },
+  {
+    component: "editor-model-best",
+    model: "gemma-4-12b-q4",
+    titleKey: "settings.editor.best.title",
+    descriptionKey: "settings.editor.best.description",
+  },
+];
+
+/** Where transcription can run, in the order it is offered. `vychozi` is a
+ *  build with no acceleration chosen; it only appears when one is installed. */
+const COMPUTE_CHOICES: ReadonlyArray<{ value: string; descriptionKey: TranslationKey }> = [
+  { value: "auto", descriptionKey: "settings.performance.autoDescription" },
+  { value: "cuda", descriptionKey: "settings.performance.cudaDescription" },
+  { value: "vulkan", descriptionKey: "settings.performance.vulkanDescription" },
+  { value: "cpu", descriptionKey: "settings.performance.cpuDescription" },
+];
 
 /** Which downloadable module corresponds to which compute backend. */
 const COMPUTE_MODULES: Record<string, string> = {
@@ -30,12 +80,57 @@ const COMPUTE_MODULES: Record<string, string> = {
 };
 
 type ModuleStatus = "complete" | "missing" | "optional";
+type SettingsTab =
+  | "transcription"
+  | "dictionary"
+  | "performance"
+  | "appearance"
+  | "files";
 
-const STATUS_BADGES: Record<ModuleStatus, { label: string; className: string }> = {
-  complete: { label: "připraveno", className: "hotovo" },
-  missing: { label: "chybí", className: "nutny" },
-  optional: { label: "nestažené", className: "tichy" },
+const SETTINGS_TABS: SettingsTab[] = [
+  "transcription",
+  "dictionary",
+  "performance",
+  "appearance",
+  "files",
+];
+const SETTINGS_TAB_KEYS: Record<SettingsTab, TranslationKey> = {
+  transcription: "settings.tab.transcription",
+  dictionary: "settings.tab.dictionary",
+  performance: "settings.tab.performance",
+  appearance: "settings.tab.appearance",
+  files: "settings.tab.files",
 };
+
+const STATUS_BADGES: Record<ModuleStatus, { labelKey: TranslationKey; className: string }> = {
+  complete: { labelKey: "settings.modules.status.complete", className: "hotovo" },
+  missing: { labelKey: "settings.modules.status.missing", className: "nutny" },
+  optional: { labelKey: "settings.modules.status.optional", className: "tichy" },
+};
+
+/** Renders a translated sentence whose `{name}` placeholder carries markup.
+ *  The sentence stays whole in the dictionary; only its rendering is split, so
+ *  a translator can move the value anywhere inside the sentence. */
+function Filled({
+  message,
+  name,
+  children,
+}: {
+  message: string;
+  name: string;
+  children: ReactNode;
+}) {
+  const marker = `{${name}}`;
+  const at = message.indexOf(marker);
+  if (at < 0) return <>{message}</>;
+  return (
+    <>
+      {message.slice(0, at)}
+      {children}
+      {message.slice(at + marker.length)}
+    </>
+  );
+}
 
 /** One row of the module overview. */
 function ModuleTile({
@@ -44,35 +139,23 @@ function ModuleTile({
   value,
   status,
 }: {
-  icon: string;
+  icon: LineIconName;
   title: string;
   value: string;
   status: ModuleStatus;
 }) {
+  const { t } = useI18n();
   const badge = STATUS_BADGES[status];
   return (
     <div className={`modul-dlazdice ${status}`}>
       <span className="volba-ikona" aria-hidden>
-        <svg
-          width="22"
-          height="22"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.6"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          {icon.split(" M").map((segment, i) => (
-            <path key={i} d={i === 0 ? segment : `M${segment}`} />
-          ))}
-        </svg>
+        <LineIcon name={icon} />
       </span>
       <span className="modul-popis">
         <span className="modul-nazev">{title}</span>
         <span className="modul-hodnota">{value}</span>
       </span>
-      <em className={`odznak ${badge.className}`}>{badge.label}</em>
+      <em className={`odznak ${badge.className}`}>{t(badge.labelKey)}</em>
     </div>
   );
 }
@@ -111,9 +194,82 @@ function ModelMark({ id }: { id: string }) {
   );
 }
 
+/** One toggle pattern for section switches, field switches and card footers. */
+function SettingsToggle({
+  title,
+  description,
+  label,
+  checked,
+  onChange,
+  disabled = false,
+  heading = false,
+  separated = false,
+}: {
+  title?: string;
+  description: ReactNode;
+  label: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  disabled?: boolean;
+  heading?: boolean;
+  separated?: boolean;
+}) {
+  return (
+    <div className={`settings-toggle ${heading ? "section" : ""} ${separated ? "separated" : ""}`}>
+      <div className="settings-toggle-copy">
+        {title && (heading
+          ? <h2>{title}</h2>
+          : <strong className="settings-toggle-title">{title}</strong>)}
+        <InfoNote compact={!heading}>{description}</InfoNote>
+      </div>
+      <label className="vypinac settings-toggle-control" title={label}>
+        <input
+          type="checkbox"
+          checked={checked}
+          disabled={disabled}
+          onChange={(event) => onChange(event.target.checked)}
+          aria-label={label}
+        />
+        <span className="vypinac-drazka" aria-hidden />
+      </label>
+    </div>
+  );
+}
+
+/** Native disclosure shared by advanced transcription and module diagnostics. */
+function SettingsDisclosure({
+  title,
+  badge,
+  children,
+}: {
+  title: string;
+  badge?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <details className="settings-disclosure">
+      <summary>
+        <svg className="settings-disclosure-chevron" width="10" height="10"
+             viewBox="0 0 10 10" aria-hidden>
+          <path d="M3 1.5 6.5 5 3 8.5" fill="none" stroke="currentColor"
+                strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        <span>{title}</span>
+        {badge}
+      </summary>
+      <div className="settings-disclosure-content">{children}</div>
+    </details>
+  );
+}
+
 export default function SettingsScreen({ onComplete, onError, onToModule }: Props) {
+  const labels = useLabels();
+  const formats = useFormats();
+  const { language, setLanguage, t, tPlural, formatNumber } = useI18n();
+  const userMessage = useUserMessage();
   const [n, setN] = useState<Settings | null>(null);
   const [check, setCheck] = useState<ToolCheck | null>(null);
+  const [modules, setModules] = useState<DownloadComponent[]>([]);
   const [saved, setSaved] = useState(false);
   const [benchmark, setBenchmark] = useState<BenchmarkResult[] | null>(null);
   const [benchmarking, setBenchmarking] = useState(false);
@@ -121,16 +277,99 @@ export default function SettingsScreen({ onComplete, onError, onToModule }: Prop
   const [copying, setCopying] = useState(false);
   const [copiedFile, setCopiedFile] = useState("");
   const [copyComplete, setCopyComplete] = useState<number | null>(null);
+  const [dictionary, setDictionary] = useState<DictionaryEntry[]>([]);
+  const [entryFind, setEntryFind] = useState("");
+  const [entryReplace, setEntryReplace] = useState("");
+  const [activeTab, setActiveTab] = useState<SettingsTab>(() => {
+    const remembered = localStorage.getItem("settings-tab");
+    return SETTINGS_TABS.some((tab) => tab === remembered)
+      ? remembered as SettingsTab
+      : "transcription";
+  });
+
+  /* The dictionary is a list of corrections Whisper gets wrong the same way
+     every time — a name, a place, a term from the field. `find` is what comes
+     out of the recording, `replace` is what it should say. `prompt` also hands
+     the term to Whisper before it starts, which often prevents the mistake
+     instead of repairing it, but a long list of hints dilutes them, so it is
+     a choice rather than the rule.
+
+     A new entry hints. That is the useful default, and the row's own switch is
+     visible the moment the entry appears, so turning it off is one click in
+     the place you are already looking. There used to be a second switch above
+     the list carrying the same name; it only chose this default, was stored
+     nowhere, and read as a master switch over the column beneath it. */
+  const addEntry = useCallback(async () => {
+    const find = entryFind.trim();
+    const replace = entryReplace.trim();
+    if (!find || !replace) return;
+    try {
+      const entry = await api.addDictionaryEntry(find, replace);
+      setDictionary((current) => [...current, entry]);
+      setEntryFind("");
+      setEntryReplace("");
+    } catch (e) {
+      onError(userMessage(e));
+    }
+  }, [entryFind, entryReplace, onError, userMessage]);
+
+  const saveEntry = useCallback(async (entry: DictionaryEntry) => {
+    const find = entry.find.trim();
+    const replace = entry.replace.trim();
+    if (!find || !replace) return;
+    try {
+      await api.updateDictionaryEntry(entry.id, find, replace);
+    } catch (e) {
+      onError(userMessage(e));
+    }
+  }, [onError, userMessage]);
+
+  const editEntry = useCallback((id: string, change: Partial<DictionaryEntry>) => {
+    setDictionary((current) =>
+      current.map((entry) => (entry.id === id ? { ...entry, ...change } : entry))
+    );
+  }, []);
+
+  const removeEntry = useCallback(async (id: string) => {
+    try {
+      await api.deleteDictionaryEntry(id);
+      setDictionary((current) => current.filter((entry) => entry.id !== id));
+    } catch (e) {
+      onError(userMessage(e));
+    }
+  }, [onError, userMessage]);
+
+  const selectTab = useCallback((tab: SettingsTab) => {
+    localStorage.setItem("settings-tab", tab);
+    setActiveTab(tab);
+  }, []);
+
+  const handleTabKeyDown = useCallback((event: KeyboardEvent<HTMLButtonElement>) => {
+    const current = SETTINGS_TABS.findIndex((tab) => tab === activeTab);
+    let next = current;
+    if (event.key === "ArrowRight") next = (current + 1) % SETTINGS_TABS.length;
+    else if (event.key === "ArrowLeft") next = (current - 1 + SETTINGS_TABS.length) % SETTINGS_TABS.length;
+    else if (event.key === "Home") next = 0;
+    else if (event.key === "End") next = SETTINGS_TABS.length - 1;
+    else return;
+
+    event.preventDefault();
+    const tab = SETTINGS_TABS[next];
+    selectTab(tab);
+    requestAnimationFrame(() => document.getElementById(`settings-tab-${tab}`)?.focus());
+  }, [activeTab, selectTab]);
 
   const load = useCallback(async () => {
     try {
       setN(await api.loadSettings());
       setCheck(await api.checkTools());
+      setModules(await api.catalog());
       setMachine(await api.machineName());
+      setDictionary(await api.dictionary());
     } catch (e) {
-      onError(String(e));
+      onError(userMessage(e));
     }
-  }, [onError]);
+  }, [onError, userMessage]);
 
   const benchmarkVykon = useCallback(async () => {
     setBenchmarking(true);
@@ -140,11 +379,11 @@ export default function SettingsScreen({ onComplete, onError, onToModule }: Prop
       setN(await api.loadSettings());
       setCheck(await api.checkTools());
     } catch (e) {
-      onError(String(e));
+      onError(userMessage(e));
     } finally {
       setBenchmarking(false);
     }
-  }, [onError]);
+  }, [onError, userMessage]);
 
   useEffect(() => {
     load();
@@ -161,14 +400,17 @@ export default function SettingsScreen({ onComplete, onError, onToModule }: Prop
         setSaved(true);
         setTimeout(() => setSaved(false), 1400);
       } catch (e) {
-        onError(String(e));
+        onError(userMessage(e));
       }
     },
-    [onError]
+    [onError, userMessage]
   );
 
   const udelejKopii = useCallback(async () => {
-    const destination = await open({ directory: true, title: "Kam vytvořit přenosnou kopii" });
+    const destination = await open({
+      directory: true,
+      title: t("settings.portable.copyDestination"),
+    });
     if (typeof destination !== "string") return;
 
     setCopying(true);
@@ -179,16 +421,16 @@ export default function SettingsScreen({ onComplete, onError, onToModule }: Prop
     try {
       setCopyComplete(await api.createPortableCopy(destination));
     } catch (e) {
-      onError(String(e));
+      onError(userMessage(e));
     } finally {
       unlisten();
       setCopying(false);
       setCopiedFile("");
     }
-  }, [onError]);
+  }, [onError, t, userMessage]);
 
   const selectDirectory = useCallback(
-    async (key: "bin_directory" | "models_directory") => {
+    async (key: "bin_directory" | "models_directory" | "watch_folder") => {
       if (!n) return;
       const selected = await open({ directory: true });
       if (typeof selected === "string") save({ ...n, [key]: selected });
@@ -196,169 +438,377 @@ export default function SettingsScreen({ onComplete, onError, onToModule }: Prop
     [n, save]
   );
 
-  if (!n) return <main className="nastaveni"><p>Načítám…</p></main>;
+  if (!n) return <main className="nastaveni"><p>{t("common.loading")}</p></main>;
 
   const missingRequired = check?.issues ?? [];
   const downloadedBackends = check?.available_compute_backends ?? [];
+  // The plain build appears only where it exists, so nobody is offered a
+  // choice their installation cannot make.
+  const computeChoices = downloadedBackends.includes("vychozi")
+    ? [...COMPUTE_CHOICES, { value: "vychozi", descriptionKey: "settings.performance.defaultDescription" as TranslationKey }]
+    : COMPUTE_CHOICES;
   const hasDiarization = (check?.issues_diarization ?? []).length === 0;
+  const availableEditorChoices = EDITOR_CHOICES.filter((choice) =>
+    modules.some((module) => module.id === choice.component && module.complete)
+  );
+  const hasEditor = availableEditorChoices.length > 0;
   const missingCompute =
     !!n && n.compute !== "auto" && downloadedBackends.length > 0 && !downloadedBackends.includes(n.compute);
 
   return (
     <main className="nastaveni">
       <div className="nastaveni-hlava">
-        <h1>Nastavení</h1>
+        <h1>{t("settings.title")}</h1>
+        {/* A pill with a ring that empties as the pill's own time runs out.
+            The message and its lifetime are then the same object, so nothing
+            vanishes without having shown that it was about to. */}
         <span className={`ulozeno ${saved ? "vidno" : ""}`} aria-live="polite">
-          Uloženo
+          <svg className="ulozeno-odpocet" width="14" height="14" viewBox="0 0 16 16" aria-hidden>
+            <circle cx="8" cy="8" r="6.4" fill="none" stroke="currentColor"
+                    strokeOpacity="0.25" strokeWidth="1.7" />
+            <circle className="ulozeno-odpocet-drah" cx="8" cy="8" r="6.4" fill="none"
+                    stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"
+                    transform="rotate(-90 8 8)" />
+          </svg>
+          {t("common.saved")}
         </span>
       </div>
 
-      {check?.portable && (
-        <section className="prenosna-info">
-          <h2>Přenosný režim</h2>
+      <nav className="settings-tabs" role="tablist" aria-label={t("settings.groups")}>
+        {SETTINGS_TABS.map((tab) => (
+          <button
+            key={tab}
+            type="button"
+            role="tab"
+            id={`settings-tab-${tab}`}
+            aria-selected={activeTab === tab}
+            aria-controls="settings-panel"
+            className={activeTab === tab ? "active" : ""}
+            tabIndex={activeTab === tab ? 0 : -1}
+            onClick={() => selectTab(tab)}
+            onKeyDown={handleTabKeyDown}
+          >
+            <span>{t(SETTINGS_TAB_KEYS[tab])}</span>
+            {tab === "performance" && missingRequired.length > 0 && (
+              <span className="settings-tab-alert" aria-label={t("settings.missingRequired")} />
+            )}
+          </button>
+        ))}
+      </nav>
+
+      <div
+        className="settings-panels"
+        role="tabpanel"
+        id="settings-panel"
+        aria-labelledby={`settings-tab-${activeTab}`}
+      >
+
+      {activeTab === "files" && check?.portable && (
+        <section className="prenosna-info settings-card-portable">
+          <h2>{t("settings.portable.title")}</h2>
           <p>
-            Aplikace běží ze složky <code>{check.app_directory}</code>.
-            Přepisy, programy i modely jsou uložené tamtéž. Do systému se
-            nezapisuje nic.
+            <Filled message={t("settings.portable.description")} name="directory">
+              <code>{check.app_directory}</code>
+            </Filled>
           </p>
           <p className="drobne">
-            Počítač: <strong>{machine}</strong>
-            {check.webview2_bundled
-              ? " · zobrazovací jádro je přiložené"
-              : " · zobrazovací jádro není přiložené; na počítači bez WebView2 se okno neotevře"}
+            <Filled
+              message={t(
+                check.webview2_bundled
+                  ? "settings.portable.machineBundled"
+                  : "settings.portable.machineSeparate"
+              )}
+              name="machine"
+            >
+              <strong>{machine}</strong>
+            </Filled>
           </p>
         </section>
       )}
 
       {/* Moduly nepatří do hlavní nabídky — stahují se jednou a pak se k nim
           člověk vrací zřídka. Tady jsou po ruce a nepřekáží. */}
-      <section>
-        <h2>Moduly</h2>
-        <p className="drobne">
-          Programy a modely, ze kterých se přepis skládá. Stahují se jednou
-          a zůstávají v počítači.
+      {activeTab === "performance" && <section className="settings-card-modules">
+        <h2>{t("settings.modules.title")}</h2>
+        <p className="settings-section-description">
+          {t("settings.modules.description")}
         </p>
         <div className="moduly-mrizka">
           <ModuleTile
             icon={MODULE_ICONS.model}
-            title="Model přepisu"
-            value={modelName(n.model)}
+            title={t("settings.modules.model")}
+            value={labels.model(n.model)}
             status="complete"
           />
           <ModuleTile
             icon={MODULE_ICONS.compute}
-            title="Výpočet"
-            value={check ? COMPUTE_LABELS[check.compute] ?? check.compute : "—"}
+            title={t("settings.modules.compute")}
+            value={check ? labels.compute(check.compute) : "—"}
             status={downloadedBackends.length > 0 ? "complete" : "missing"}
           />
           <ModuleTile
-            icon={MODULE_ICONS.speakers}
-            title="Rozlišení mluvčích"
+            icon={MODULE_ICONS.editor}
+            title={t("settings.modules.editor")}
             value={
-              hasDiarization ? (n.diarization ? "Zapnuté" : "Připravené, vypnuté") : "Nestažené"
+              n.editor_model
+                ? (() => {
+                    const choice = EDITOR_CHOICES.find((c) => c.model === n.editor_model);
+                    return choice ? t(choice.titleKey) : n.editor_model;
+                  })()
+                : hasEditor
+                  ? t("settings.modules.editorReady")
+                  : t("settings.modules.editorMissing")
+            }
+            status={hasEditor ? "complete" : "optional"}
+          />
+          <ModuleTile
+            icon={MODULE_ICONS.speakers}
+            title={t("settings.modules.speakers")}
+            value={
+              hasDiarization
+                ? n.diarization
+                  ? t("settings.modules.speakersOn")
+                  : t("settings.modules.speakersReady")
+                : t("settings.modules.speakersMissing")
             }
             status={hasDiarization ? "complete" : "optional"}
           />
         </div>
 
-        <div className="moduly-akce">
-          <span className={missingRequired.length > 0 ? "varovne-radek" : "drobne"}>
-            {missingRequired.length > 0
-              ? `Chybí ${missingRequired.length} ${missingRequired.length === 1 ? "položka" : "položky"} nutné pro přepis.`
-              : "Vše potřebné je stažené."}
-          </span>
+        <div className="settings-action-row separated">
+          {missingRequired.length > 0 ? (
+            <span className="varovne-radek">
+              {tPlural("settings.modules.missingRequired", missingRequired.length)}
+            </span>
+          ) : (
+            <InfoNote compact>{t("settings.modules.complete")}</InfoNote>
+          )}
           <button
             className={`tlacitko ${missingRequired.length > 0 ? "hlavni" : ""}`}
             onClick={() => onToModule()}
           >
-            {missingRequired.length > 0 ? "Doplnit" : "Spravovat moduly"}
+            {missingRequired.length > 0
+              ? t("settings.modules.add")
+              : t("settings.modules.manage")}
           </button>
         </div>
-      </section>
+        {check && <ToolDiagnostics k={check} />}
+      </section>}
 
-      <section>
-        <h2>Výpočet</h2>
-        <p className="drobne">
-          Přepis probíhá na grafické kartě, případně na procesoru. Rate
-          se mezi počítači liší i několikanásobně.
+      {activeTab === "transcription" && <section className="settings-card-language-edit">
+        {/* The switch governs everything below it, so it belongs beside the
+            heading — the same section pattern as Mluvčí and Rychlé tipy. When
+            the feature is off the card collapses to that one row instead of
+            offering model cards that cannot take effect. */}
+        {hasEditor ? (
+          <SettingsToggle
+            title={t("settings.editor.title")}
+            label={t("settings.editor.title")}
+            checked={!!n.editor_model}
+            heading
+            description={t("settings.editor.description")}
+            onChange={(checked) => {
+              if (!checked) {
+                if (n.editor_model) {
+                  localStorage.setItem("last-editor-model", n.editor_model);
+                }
+                save({ ...n, editor_model: "" });
+                return;
+              }
+
+              const remembered = localStorage.getItem("last-editor-model");
+              const selected =
+                availableEditorChoices.find((choice) => choice.model === remembered) ??
+                availableEditorChoices.find((choice) => choice.model === "gemma-4-e4b-q4") ??
+                availableEditorChoices[0];
+              if (selected) {
+                localStorage.setItem("last-editor-model", selected.model);
+                save({ ...n, editor_model: selected.model });
+              }
+            }}
+          />
+        ) : (
+          <>
+            <h2>{t("settings.editor.title")}</h2>
+            <p className="settings-section-description">{t("settings.editor.description")}</p>
+          </>
+        )}
+
+        {hasEditor && !!n.editor_model && (
+          <>
+            <div className="volby volby-modelu">
+              {availableEditorChoices.map((choice) => (
+                <button
+                  key={choice.model}
+                  className={`volba s-ikonou ${n.editor_model === choice.model ? "zvolena" : ""}`}
+                  onClick={() => {
+                    localStorage.setItem("last-editor-model", choice.model);
+                    save({ ...n, editor_model: choice.model });
+                  }}
+                  aria-pressed={n.editor_model === choice.model}
+                >
+                  <span className="volba-ikona" aria-hidden>
+                    <LineIcon name="editor" />
+                  </span>
+                  <span className="volba-telo">
+                    <span className="volba-nazev">{t(choice.titleKey)}</span>
+                    <span className="drobne">{t(choice.descriptionKey)}</span>
+                  </span>
+                  {n.editor_model === choice.model && (
+                    <em className="odznak">{t("settings.badge.inUse")}</em>
+                  )}
+                </button>
+              ))}
+            </div>
+            <InfoNote compact>{t("settings.editor.enabledNote")}</InfoNote>
+          </>
+        )}
+
+        {!hasEditor && (
+          <div className="pole-vyzva">
+            <span>{t("settings.editor.missing")}</span>
+            <button className="tlacitko" onClick={() => onToModule("editor-model-balanced")}>
+              {t("common.download")}
+            </button>
+          </div>
+        )}
+      </section>}
+
+      {activeTab === "performance" && <section className="settings-card-performance">
+        <h2>{t("settings.performance.title")}</h2>
+        <p className="settings-section-description">
+          {t("settings.performance.description")}
         </p>
 
         <div className="pole">
-          <label>Position počítat</label>
-          {/* Nabídka ukazuje i to, co zatím není stažené. Dřív se chybějící
-              varianty prostě neobjevily a vypadalo to jako chyba. */}
-          <Select
-            value={n.compute}
-            onChange={(v) => save({ ...n, compute: v })}
-            items={[
-              { value: "auto", label: "Rozhodnout automaticky" },
-              ...["cuda", "vulkan", "cpu"].map((v) => ({
-                value: v,
-                label: COMPUTE_LABELS[v] ?? v,
-                note: downloadedBackends.includes(v) ? undefined : "není stažené",
-              })),
-              ...(downloadedBackends.includes("vychozi")
-                ? [{ value: "vychozi", label: COMPUTE_LABELS.default }]
-                : []),
-            ]}
-          />
+          <label>{t("settings.performance.compute")}</label>
+          {/* The same choice cards as the models above. A backend is a thing
+              you pick once and want to see the consequence of, which a
+              collapsed dropdown cannot show — least of all which of them are
+              even on this machine. */}
+          <div className="volby volby-modelu">
+            {computeChoices.map((choice) => {
+              const missing =
+                choice.value !== "auto" && !downloadedBackends.includes(choice.value);
+              const chosen = n.compute === choice.value;
+              // A card that is not installed does not offer to be chosen — it
+              // offers to be installed. Choosing it would badge it as in use
+              // while the transcription quietly ran somewhere else.
+              return (
+                <button
+                  key={choice.value}
+                  className={`volba s-ikonou ${chosen ? "zvolena" : ""} ${missing ? "chybi" : ""}`}
+                  onClick={() =>
+                    missing
+                      ? onToModule(COMPUTE_MODULES[choice.value])
+                      : save({ ...n, compute: choice.value })
+                  }
+                  aria-pressed={missing ? undefined : chosen}
+                >
+                  <span className="volba-ikona" aria-hidden>
+                    <LineIcon name="compute" />
+                  </span>
+                  <span className="volba-telo">
+                    <span className="volba-nazev">{labels.compute(choice.value)}</span>
+                    <span className="drobne">
+                      {t(missing ? "settings.performance.notDownloaded" : choice.descriptionKey)}
+                    </span>
+                  </span>
+                  {missing ? (
+                    <em className="odznak akce">{t("common.download")}</em>
+                  ) : chosen ? (
+                    <em className="odznak">{t("settings.badge.inUse")}</em>
+                  ) : null}
+                </button>
+              );
+            })}
+          </div>
           {missingCompute && (
-            <div className="pole-vyzva">
-              <span>
-                {COMPUTE_LABELS[n.compute] ?? n.compute} zatím není stažené.
-                Než se addí, poběží přepis v jiném režimu.
-              </span>
-              <button
-                className="tlacitko"
-                onClick={() => onToModule(COMPUTE_MODULES[n.compute])}
-              >
-                Stáhnout
-              </button>
-            </div>
+            <InfoNote compact>{t("settings.performance.selectedMissing")}</InfoNote>
           )}
           {check && (
             <p className="drobne">
-              Aktivní režim: <strong>{COMPUTE_LABELS[check.compute] ?? check.compute}</strong>.
-              Ovladač NVIDIA {check.nvidia_driver ? "nalezen" : "nenalezen"},
-              Vulkan {check.vulkan_driver ? "nalezen" : "nenalezen"}.
+              <Filled
+                message={t("settings.performance.mode", {
+                  nvidia: t(
+                    check.nvidia_driver ? "settings.performance.yes" : "settings.performance.no"
+                  ),
+                  vulkan: t(
+                    check.vulkan_driver ? "settings.performance.yes" : "settings.performance.no"
+                  ),
+                })}
+                name="mode"
+              >
+                <strong>{labels.compute(check.compute)}</strong>
+              </Filled>
             </p>
           )}
         </div>
 
-        <button className="tlacitko" onClick={benchmarkVykon} disabled={benchmarking}>
-          {benchmarking ? "Probíhá měření…" : "Změřit rychlost"}
-        </button>
-        <p className="drobne">
-          Test přepíše dvacetivteřinový úsek první nahrávky každým dostupným
-          režimem a nejrychlejší z nich setí.
-        </p>
+        <div className="pole">
+          <label>
+            {t("settings.performance.threads")} <em className="hodnota">
+              {n.threads === 0
+                ? t("settings.performance.threadsAuto")
+                : formatNumber(n.threads)}
+            </em>
+          </label>
+          <input
+            type="number"
+            min={0}
+            max={64}
+            value={n.threads}
+            onChange={(event) => save({ ...n, threads: Number(event.target.value) })}
+          />
+          <p className="drobne">{t("settings.performance.threadsNote")}</p>
+        </div>
+
+        <div className="settings-action-row separated">
+          <InfoNote compact>{t("settings.performance.benchmarkNote")}</InfoNote>
+          <button className="tlacitko" onClick={benchmarkVykon} disabled={benchmarking}>
+            {benchmarking
+              ? t("settings.performance.benchmarking")
+              : t("settings.performance.benchmark")}
+          </button>
+        </div>
 
         {benchmark && (
           <ul className="zkouska">
             {benchmark.map((v) => (
               <li key={v.compute} className={v.error ? "ne" : "ano"}>
-                <span>{COMPUTE_LABELS[v.compute] ?? v.compute}</span>
+                <span>{labels.compute(v.compute)}</span>
                 <span>
                   {v.error
-                    ? `nelze použít — ${v.error}`
-                    : `${v.realtime_factor.toFixed(1)}× realtime (${v.seconds.toFixed(1)} s)`}
+                    ? t("settings.performance.benchmarkFailed", {
+                        error: userMessage(v.error),
+                      })
+                    : t("settings.performance.benchmarkResult", {
+                        factor: formatNumber(v.realtime_factor, {
+                          minimumFractionDigits: 1,
+                          maximumFractionDigits: 1,
+                        }),
+                        seconds: formatNumber(v.seconds, {
+                          minimumFractionDigits: 1,
+                          maximumFractionDigits: 1,
+                        }),
+                      })}
                 </span>
               </li>
             ))}
           </ul>
         )}
-      </section>
+      </section>}
 
-      <section>
-        <h2>Umístění fileů</h2>
-        <p className="drobne">
-          {check?.portable
-            ? "Relativní cesty se vztahují ke složce s programem, takže nezáleží na písmenu disku."
-            : "Programy i modely se stahují automaticky. Cestu měňte jen v případě, že je potřebujete mít jinde."}
+      {activeTab === "performance" && <section className="settings-card-locations">
+        <h2>{t("settings.files.locations")}</h2>
+        <p className="settings-section-description">
+          {t(check?.portable
+            ? "settings.files.locationsPortable"
+            : "settings.files.locationsDescription")}
         </p>
 
         <div className="pole">
-          <label>Složka s programy</label>
+          <label>{t("settings.files.binDirectory")}</label>
           <div className="radka">
             <input
               value={n.bin_directory}
@@ -367,13 +817,13 @@ export default function SettingsScreen({ onComplete, onError, onToModule }: Prop
               onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
             />
             <button className="tlacitko" onClick={() => selectDirectory("bin_directory")}>
-              Vybrat…
+              {t("settings.files.choose")}
             </button>
           </div>
         </div>
 
         <div className="pole">
-          <label>Složka s modely</label>
+          <label>{t("settings.files.modelsDirectory")}</label>
           <div className="radka">
             <input
               value={n.models_directory}
@@ -382,61 +832,177 @@ export default function SettingsScreen({ onComplete, onError, onToModule }: Prop
               onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
             />
             <button className="tlacitko" onClick={() => selectDirectory("models_directory")}>
-              Vybrat…
+              {t("settings.files.choose")}
             </button>
           </div>
         </div>
 
-      </section>
+      </section>}
 
-      {check && <ToolDiagnostics k={check} />}
-
-      <section>
-        <h2>Vzhled</h2>
-        <p className="drobne">
-          Písma jsou součástí aplikace, vzhled je proto na všech počítačích shodný.
-        </p>
+      {activeTab === "dictionary" && <section className="settings-card-dictionary">
+        <h2>{t("settings.tab.dictionary")}</h2>
+        <p className="settings-section-description">{t("settings.dictionary.description")}</p>
 
         <div className="pole">
-          <label>Písmo rozhraní</label>
+          <label htmlFor="dictionary-find">{t("settings.dictionary.newEntry")}</label>
+          {/* One row, like every other field in Settings that ends in an
+              action. The two halves say what they are through their
+              placeholders; a second visible label above one of two boxes on
+              the same line reads as two separate fields. */}
+          <div className="radka dictionary-row">
+            <input
+              id="dictionary-find"
+              value={entryFind}
+              onChange={(event) => setEntryFind(event.target.value)}
+              placeholder={t("settings.dictionary.findPlaceholder")}
+              aria-label={t("settings.dictionary.find")}
+              spellCheck={false}
+            />
+            <span className="dictionary-arrow" aria-hidden>→</span>
+            <input
+              value={entryReplace}
+              onChange={(event) => setEntryReplace(event.target.value)}
+              placeholder={t("settings.dictionary.replacePlaceholder")}
+              aria-label={t("settings.dictionary.replace")}
+              spellCheck={false}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") void addEntry();
+              }}
+            />
+            <button
+              className="tlacitko hlavni"
+              onClick={() => void addEntry()}
+              disabled={!entryFind.trim() || !entryReplace.trim()}
+            >
+              {t("settings.dictionary.add")}
+            </button>
+          </div>
+        </div>
+
+        <div className="dictionary-saved">
+          {dictionary.length > 0 ? (
+            <>
+              {/* A saved row is two bare words and a switch; without a
+                  heading the reader has to work out which half is the error
+                  and which is the fix. The header sits on the same grid as
+                  the rows, so each label stands over its own column. */}
+              <div className="dictionary-head" aria-hidden>
+                <span>{t("settings.dictionary.find")}</span>
+                <span />
+                <span>{t("settings.dictionary.replace")}</span>
+                <span />
+              </div>
+              <ul className="dictionary-list">
+              {dictionary.map((entry) => (
+                <li key={entry.id}>
+                  <input
+                    value={entry.find}
+                    onChange={(event) => editEntry(entry.id, { find: event.target.value })}
+                    onBlur={() => void saveEntry(entry)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") event.currentTarget.blur();
+                    }}
+                    aria-label={t("settings.dictionary.find")}
+                    spellCheck={false}
+                  />
+                  <span className="dictionary-arrow" aria-hidden>→</span>
+                  <input
+                    value={entry.replace}
+                    onChange={(event) => editEntry(entry.id, { replace: event.target.value })}
+                    onBlur={() => void saveEntry(entry)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") event.currentTarget.blur();
+                    }}
+                    aria-label={t("settings.dictionary.replace")}
+                    spellCheck={false}
+                  />
+                  <span className="dictionary-row-actions">
+                  <button
+                    type="button"
+                    className="dictionary-remove"
+                    title={t("common.delete")}
+                    aria-label={t("common.delete")}
+                    onClick={() => void removeEntry(entry.id)}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden>
+                      <path d="M3 3l8 8M11 3l-8 8" fill="none" stroke="currentColor"
+                            strokeWidth="1.7" strokeLinecap="round" />
+                    </svg>
+                  </button>
+                  </span>
+                </li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <p className="drobne">{t("settings.dictionary.empty")}</p>
+          )}
+        </div>
+      </section>}
+
+      {activeTab === "appearance" && <section className="settings-card-appearance">
+        <h2>{t("settings.tab.appearance")}</h2>
+
+        <div className="pole">
+          <label>{t("settings.language.title")}</label>
+          <Select
+            value={language}
+            description={t("settings.language.label")}
+            onChange={(value) => setLanguage(value as AppLanguage)}
+            items={[
+              { value: "cs", label: t("domain.appLanguage.cs") },
+              { value: "en", label: t("domain.appLanguage.en") },
+            ]}
+          />
+          <p className="drobne">{t("settings.language.description")}</p>
+        </div>
+
+        <div className="pole">
+          <label>{t("settings.appearance.fontUi")}</label>
           <Select
             value={n.font_ui}
             onChange={(v) => save({ ...n, font_ui: v })}
             items={Object.entries(FONTS)
               .filter(([, p]) => p.category === "sans")
-              .map(([id, p]) => ({ value: id, label: p.title }))}
+              .map(([id]) => ({ value: id, label: labels.fontTitle(id) }))}
           />
         </div>
 
         <div className="pole">
-          <label>Písmo přepisu</label>
+          <label>{t("settings.appearance.fontText")}</label>
           <Select
             value={n.font_text}
             onChange={(v) => save({ ...n, font_text: v })}
             items={[
               ...Object.entries(FONTS)
                 .filter(([, p]) => p.category === "serif")
-                .map(([id, p]) => ({
+                .map(([id]) => ({
                   value: id,
-                  label: p.title,
-                  group: "Patkové (na čtení)",
+                  label: labels.fontTitle(id),
+                  group: t("settings.appearance.fontGroupSerif"),
                 })),
               ...Object.entries(FONTS)
                 .filter(([, p]) => p.category === "sans")
-                .map(([id, p]) => ({
+                .map(([id]) => ({
                   value: id,
-                  label: p.title,
-                  group: "Bezpatkové",
+                  label: labels.fontTitle(id),
+                  group: t("settings.appearance.fontGroupSans"),
                 })),
             ]}
           />
-          <p className="drobne">
-            Souvislý text se patkovým písmem čte snadněji.
-          </p>
         </div>
 
         <div className="pole">
-          <label>Velikost textu v přepisu <em className="hodnota">{n.transcript_font_size.toFixed(1)} px</em></label>
+          <label>
+            {t("settings.appearance.fontSize")} <em className="hodnota">
+              {t("settings.appearance.fontSizeValue", {
+                value: formatNumber(n.transcript_font_size, {
+                  minimumFractionDigits: 1,
+                  maximumFractionDigits: 1,
+                }),
+              })}
+            </em>
+          </label>
           <input
             type="range"
             min={14}
@@ -448,7 +1014,14 @@ export default function SettingsScreen({ onComplete, onError, onToModule }: Prop
         </div>
 
         <div className="pole">
-          <label>Řádkování <em className="hodnota">{n.transcript_line_height.toFixed(2)}</em></label>
+          <label>
+            {t("settings.appearance.lineHeight")} <em className="hodnota">
+              {formatNumber(n.transcript_line_height, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
+            </em>
+          </label>
           <input
             type="range"
             min={1.3}
@@ -460,23 +1033,17 @@ export default function SettingsScreen({ onComplete, onError, onToModule }: Prop
         </div>
 
         <div className="nahled-pisma">
-          <div className="nahled-mluvci">Radomil</div>
-          <p>
-            A tak se ten syn vrátil domů, k otci, kterého předtím opustil. Je
-            psáno v listu Efezským, v páté kapitole: „Muži, milujte své ženy.“
-            Otec ho uviděl už zdálky — 1 234 kroků daleko — a běžel mu naproti.
-          </p>
-          <p className="nahled-popisek">
-            Háčky a čárky: ě š č ř ž ý á í é ú ů ň ť ď
-          </p>
+          <div className="nahled-mluvci">{t("settings.appearance.previewSpeaker")}</div>
+          <p>{t("settings.appearance.previewText")}</p>
+          <p className="nahled-popisek">{t("settings.appearance.previewDiacritics")}</p>
         </div>
-      </section>
+      </section>}
 
-      <section>
-        <h2>Přepis</h2>
+      {activeTab === "transcription" && <section className="settings-card-transcription">
+        <h2>{t("settings.tab.transcription")}</h2>
 
         <div className="pole">
-          <label>Model</label>
+          <label>{t("settings.transcription.model")}</label>
           {/* Karty místo rozbalovací nabídky: modely se od sebe liší tím,
               co dělají s časem a přesností, a to se v jednom řádku neřekne. */}
           <div className="volby volby-modelu">
@@ -494,53 +1061,45 @@ export default function SettingsScreen({ onComplete, onError, onToModule }: Prop
                   <ModelMark id={m} />
                 </span>
                 <span className="volba-telo">
-                  <span className="volba-hlava">
-                    <span className="volba-nazev">{modelName(m)}</span>
-                    {n.model === m && <em className="odznak">používá se</em>}
+                  <span className="volba-nazev">{labels.model(m)}</span>
+                  <span className="drobne">
+                    {labels.modelDescription(m, t("settings.transcription.modelDescription"))}
                   </span>
-                  <span className="drobne">{MODEL_DESCRIPTIONS[m] ?? "Stažený model."}</span>
                 </span>
+                {/* Outside the text block, so it lands on the right edge like
+                    the status pill on a module tile rather than drifting with
+                    the length of the model's name. */}
+                {n.model === m && <em className="odznak">{t("settings.badge.inUse")}</em>}
               </button>
             ))}
           </div>
-          <p className="drobne">
-            Nabídka obsahuje pouze stažené modely. Další lze doplnit v Modulech.
-          </p>
+          <p className="drobne">{t("settings.transcription.modelNote")}</p>
         </div>
 
         <div className="pole">
-          <label>Jazyk</label>
+          <label>{t("settings.transcription.language")}</label>
           <Select
             value={n.language}
             onChange={(j) => save({ ...n, language: j })}
-            items={LANGUAGE_OPTIONS}
+            items={labels.languageOptions()}
           />
-          <p className="drobne">
-            Určuje, jak se má nahrávka číst. Zvolíte-li konkrétní jazyk a
-            nahrávka je v jiném, Whisper text přeloží místo přepsání.
-            U smíšeného materiálu ponechte rozpoznávání.
-          </p>
+          <p className="drobne">{t("settings.transcription.languageNote")}</p>
         </div>
 
+        <SettingsToggle
+          title={t("settings.transcription.vad")}
+          label={t("settings.transcription.vad")}
+          checked={n.vad}
+          onChange={(checked) => save({ ...n, vad: checked })}
+          description={t("settings.transcription.vadNote")}
+        />
+
         <div className="pole">
-          <label className="vypinac">
-            <input
-              type="checkbox"
-              checked={n.vad}
-              onChange={(e) => save({ ...n, vad: e.target.checked })}
-            />
-            <span className="vypinac-drazka" aria-hidden />
-            <span className="vypinac-popis">Detekce řeči</span>
+          <label>
+            {t("settings.transcription.beam")} <em className="hodnota">
+              {formatNumber(n.beam)}
+            </em>
           </label>
-          <p className="drobne">
-            Vynechává ticho a šum před vstupem do modelu. Bez ní se přepis
-            na začátku nahrávky často zacyklí a vynechá první věty.{" "}
-            <strong>Doporučeno ponechat zapnuté.</strong>
-          </p>
-        </div>
-
-        <div className="pole">
-          <label>Důkladnost hledání <em className="hodnota">{n.beam}</em></label>
           <input
             type="range"
             min={1}
@@ -548,36 +1107,64 @@ export default function SettingsScreen({ onComplete, onError, onToModule }: Prop
             value={n.beam}
             onChange={(e) => save({ ...n, beam: Number(e.target.value) })}
           />
-          <p className="drobne">
-            Vyšší hodnota zvyšuje přesnost a prodlužuje dobu přepisu.
-          </p>
+          <InfoNote>{t("settings.transcription.beamNote")}</InfoNote>
         </div>
 
         <DecodingSettings n={n} save={save} />
-      </section>
+      </section>}
 
-      <section>
-        <h2>Mluvčí</h2>
+      {activeTab === "files" && <section className="settings-card-watch-folder">
+        <h2>{t("settings.files.watchTitle")}</h2>
+        <p className="settings-section-description">
+          {t("settings.files.watchDescription")}
+        </p>
 
         <div className="pole">
-          <label className="vypinac">
+          <label>{t("settings.files.watchDirectory")}</label>
+          <div className="radka">
             <input
-              type="checkbox"
-              checked={n.diarization}
-              onChange={(e) => save({ ...n, diarization: e.target.checked })}
+              value={n.watch_folder}
+              readOnly
+              placeholder={t("settings.files.watchPlaceholder")}
+              aria-label={t("settings.files.watchTitle")}
             />
-            <span className="vypinac-drazka" aria-hidden />
-            <span className="vypinac-popis">Rozlišovat mluvčí</span>
-          </label>
-          <p className="drobne">
-            Rozdělí text mezi jednotlivé mluvčí. U nahrávek s jedním
-            mluvčím nemá využití.
-          </p>
+            <button className="tlacitko" onClick={() => selectDirectory("watch_folder")}>
+              {t("settings.files.choose")}
+            </button>
+            {n.watch_folder && (
+              <button
+                className="tlacitko tichy"
+                onClick={() => save({ ...n, watch_folder: "", watch_folder_enabled: false })}
+              >
+                {t("settings.files.watchRemove")}
+              </button>
+            )}
+          </div>
         </div>
+
+        <SettingsToggle
+          title={t("settings.files.watchToggle")}
+          label={t("settings.files.watchToggle")}
+          checked={n.watch_folder_enabled}
+          disabled={!n.watch_folder}
+          onChange={(checked) => save({ ...n, watch_folder_enabled: checked })}
+          description={t("settings.files.watchToggleNote")}
+        />
+      </section>}
+
+      {activeTab === "transcription" && <section className="settings-card-speakers">
+        <SettingsToggle
+          title={t("settings.speakers.title")}
+          label={t("settings.speakers.toggle")}
+          checked={n.diarization}
+          heading
+          onChange={(checked) => save({ ...n, diarization: checked })}
+          description={t("settings.speakers.description")}
+        />
 
         {n.diarization && (
           <div className="pole">
-            <label>Počet mluvčích</label>
+            <label>{t("settings.speakers.count")}</label>
             <input
               type="number"
               min={0}
@@ -585,86 +1172,197 @@ export default function SettingsScreen({ onComplete, onError, onToModule }: Prop
               value={n.speaker_count}
               onChange={(e) => save({ ...n, speaker_count: Number(e.target.value) })}
             />
-            <p className="drobne">
-              Nula znamená automatický estimate. Zadání skutečného počtu
-              výsledek výrazně zpřesňuje.
-            </p>
+            <p className="drobne">{t("settings.speakers.countNote")}</p>
           </div>
         )}
 
         {n.diarization && (
           <div className="pole">
-            <label>Jak podrobně hledat střídání</label>
+            <label>{t("settings.speakers.shift")}</label>
             <Select
               value={String(n.segmentation_window_shift)}
               onChange={(v) => save({ ...n, segmentation_window_shift: Number(v) })}
               items={[
-                { value: "0.4", label: "Rychle", note: "hrubší hranice" },
-                { value: "0.2", label: "Vyvážené" },
-                { value: "0.1", label: "Podrobně", note: "až dvakrát déle" },
+                {
+                  value: "0.4",
+                  label: t("settings.speakers.shiftFast"),
+                  note: t("settings.speakers.shiftFastNote"),
+                },
+                { value: "0.2", label: t("settings.speakers.shiftBalanced") },
+                {
+                  value: "0.1",
+                  label: t("settings.speakers.shiftDetailed"),
+                  note: t("settings.speakers.shiftDetailedNote"),
+                },
               ]}
             />
-            <p className="drobne">
-              Kolik se toho o nahrávce spočítá. Podrobnější hledání posadí
-              hranice mezi mluvčími přesněji, ale úměrně tomu trvá déle.
-            </p>
+            <p className="drobne">{t("settings.speakers.shiftNote")}</p>
           </div>
         )}
 
         {check && check.issues_diarization.length > 0 && n.diarization && (
           <ul className="problemy">
             {check.issues_diarization.map((p, i) => (
-              <li key={i}>{p}</li>
+              <li key={i}>{userMessage(p)}</li>
             ))}
           </ul>
         )}
-      </section>
+      </section>}
 
-      {!check?.portable && (
-        <section>
-          <h2>Copy na přenosný disk</h2>
-          <p className="drobne">
-            Zkopíruje aplikaci včetně modelů na zvolený disk. Na jiném
-            počítači pak stačí spustit <code>Whisp.exe</code>; nic se
-            neinstaluje a v systému nezůstanou žádné stopy.
+      {activeTab === "appearance" && <QuickTips />}
+
+      {activeTab === "files" && <Backups onError={onError} />}
+
+      {activeTab === "files" && !check?.portable && (
+        <section className="settings-card-portable-copy">
+          <h2>{t("settings.portable.copyTitle")}</h2>
+          <p className="settings-section-description">
+            <Filled message={t("settings.portable.copyDescription")} name="file">
+              {/* i18n-ignore: the name of the file on disk */}
+              <code>Whisp.exe</code>
+            </Filled>
           </p>
 
-          {copying ? (
-            <p className="drobne">Kopírování: {copiedFile}</p>
-          ) : (
-            <button className="tlacitko" onClick={udelejKopii}>
-              Vybrat disk a zkopírovat
+          <div className="settings-action-row separated">
+            <InfoNote compact>
+              {copying
+                ? t("settings.portable.copyingFile", { file: copiedFile })
+                : t("settings.portable.copyHint")}
+            </InfoNote>
+            <button className="tlacitko" onClick={udelejKopii} disabled={copying}>
+              {copying
+                ? t("settings.portable.copying")
+                : t("settings.portable.copyAction")}
             </button>
-          )}
+          </div>
 
           {copyComplete !== null && (
-            <p className="drobne" style={{ color: "var(--uspech)" }}>
-              Zkopírováno {copyComplete.toFixed(1)} GB.
+            <p className="drobne settings-success" role="status">
+              {t("settings.portable.copied", {
+                size: formats.dataSize(copyComplete * 1024),
+              })}
             </p>
           )}
 
-          <p className="drobne">
-            Čtení z flash disku je pomalé. Model se načítá před každým
-            přepisem, což přidá přibližně minutu.
-          </p>
         </section>
       )}
 
-      <section>
-        <h2>Výkon</h2>
-        <div className="pole">
-          <label>Počet jader procesoru <em className="hodnota">{n.threads === 0 ? "podle systému" : n.threads}</em></label>
-          <input
-            type="number"
-            min={0}
-            max={64}
-            value={n.threads}
-            onChange={(e) => save({ ...n, threads: Number(e.target.value) })}
-          />
-        </div>
-      </section>
-
+      </div>
     </main>
+  );
+}
+
+/**
+ * The strip of shortcuts under the player on the transcript screen.
+ *
+ * It can be dismissed there, and this is where it comes back from — otherwise
+ * closing it once would be final and nobody would guess where to look.
+ */
+function QuickTips() {
+  const { t } = useI18n();
+  const [visible, setVisible] = useState(
+    () => localStorage.getItem("rychle-tipy") !== "skryte"
+  );
+
+  const set = useCallback((wanted: boolean) => {
+    localStorage.setItem("rychle-tipy", wanted ? "viditelne" : "skryte");
+    setVisible(wanted);
+  }, []);
+
+  return (
+    <section className="settings-card-quick-tips">
+      <SettingsToggle
+        title={t("settings.tips.title")}
+        label={t("settings.tips.toggle")}
+        checked={visible}
+        heading
+        onChange={set}
+        description={t("settings.tips.description")}
+      />
+    </section>
+  );
+}
+
+/**
+ * Backups of the archive.
+ *
+ * The whole archive is one SQLite file. It is worth saying out loud where the
+ * copies are, because the moment anyone needs them is the moment they will not
+ * feel like hunting for a folder.
+ */
+function Backups({ onError }: { onError: (message: string) => void }) {
+  const { t, formatNumber } = useI18n();
+  const userMessage = useUserMessage();
+  const [status, setStatus] = useState<{
+    latest: string;
+    count: number;
+    directory: string;
+  } | null>(null);
+  const [running, setRunning] = useState(false);
+
+  const refresh = useCallback(() => {
+    api.backupStatus().then(setStatus).catch(() => setStatus(null));
+  }, []);
+
+  useEffect(refresh, [refresh]);
+
+  const backUpNow = useCallback(async () => {
+    setRunning(true);
+    try {
+      await api.backUpNow();
+      refresh();
+    } catch (e) {
+      onError(userMessage(e));
+    } finally {
+      setRunning(false);
+    }
+  }, [onError, refresh, userMessage]);
+
+  return (
+    <section className="settings-card-backups">
+      <h2>{t("settings.backups.title")}</h2>
+      <p className="settings-section-description">{t("settings.backups.description")}</p>
+
+      {/* Three facts about one thing, so they are one panel with one rule
+          between each: when, how many, where. The folder used to hang under
+          the pair as a loose monospace line with nothing naming it — it is a
+          row like the others now, and clicking it opens the folder, which is
+          the only reason anyone reads a path at all. */}
+      <dl className="zaloha-prehled">
+        <div className="zaloha-radek">
+          <dt>{t("settings.backups.latest")}</dt>
+          <dd>{status?.latest || t("settings.backups.none")}</dd>
+        </div>
+        <div className="zaloha-radek">
+          <dt>{t("settings.backups.count")}</dt>
+          <dd>{formatNumber(status?.count ?? 0)}</dd>
+        </div>
+        {status?.directory && (
+          <div className="zaloha-radek">
+            <dt>{t("settings.backups.directory")}</dt>
+            <dd>
+              <button
+                type="button"
+                className="zaloha-cesta"
+                title={t("settings.backups.reveal")}
+                onClick={() => {
+                  void revealItemInDir(status.directory).catch((e) => onError(userMessage(e)));
+                }}
+              >
+                <bdi>{status.directory}</bdi>
+              </button>
+            </dd>
+          </div>
+        )}
+      </dl>
+
+      <div className="settings-action-row separated">
+        <InfoNote compact>{t("settings.backups.note")}</InfoNote>
+        <button className="tlacitko" onClick={backUpNow} disabled={running}>
+          {running ? t("settings.backups.running") : t("settings.backups.action")}
+        </button>
+      </div>
+    </section>
   );
 }
 
@@ -692,95 +1390,77 @@ function DecodingSettings({
   n: Settings;
   save: (n: Settings) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const { t, formatNumber } = useI18n();
+
   const isCustom = (Object.keys(DEFAULT_DECODING) as Array<
     keyof typeof DEFAULT_DECODING
   >).some((k) => n[k] !== DEFAULT_DECODING[k]);
 
   const fields: Array<{
     key: keyof typeof DEFAULT_DECODING;
-    label: string;
+    labelKey: TranslationKey;
     min: number;
     max: number;
     step: number;
-    description: string;
+    descriptionKey: TranslationKey;
   }> = [
     {
       key: "threshold_silence",
-      label: "Práh ticha",
+      labelKey: "settings.decoding.silence",
       min: 0,
       max: 1,
       step: 0.05,
-      description:
-        "Nad touhle mírou jistoty Whisper prohlásí úsek za ticho a nic z něj nenapíše. Zvyš, když si vymýšlí text tam, kde nikdo nemluví. Sniž, když mizí tiše pronesené věty.",
+      descriptionKey: "settings.decoding.silenceNote",
     },
     {
       key: "threshold_confidence",
-      label: "Práh jistoty",
+      labelKey: "settings.decoding.confidence",
       min: -3,
       max: 0,
       step: 0.1,
-      description:
-        "Když si Whisper úsekem není jistý ani takhle, zahodí ho a zkusí to znovu jinak. Blíž k nule = přísnější a pomalejší.",
+      descriptionKey: "settings.decoding.confidenceNote",
     },
     {
       key: "entropy_threshold",
-      label: "Práh jednotvárnosti",
+      labelKey: "settings.decoding.entropy",
       min: 1,
       max: 5,
       step: 0.1,
-      description:
-        "Nejúčinnější páčka proti zacyklení, kdy se jedna věta opakuje dokola. Nižší číslo = dřív pozná, že se model zasekl.",
+      descriptionKey: "settings.decoding.entropyNote",
     },
     {
       key: "temperature",
-      label: "Teplota",
+      labelKey: "settings.decoding.temperature",
       min: 0,
       max: 1,
       step: 0.1,
-      description:
-        "Nula znamená vždy nejpravděpodobnější slovo. Vyšší hodnota vnáší náhodu — na přepis se nehodí, měň jen když všechno ostatní selhalo.",
+      descriptionKey: "settings.decoding.temperatureNote",
     },
     {
       key: "temperature_increment",
-      label: "Krok teploty",
+      labelKey: "settings.decoding.temperatureStep",
       min: 0,
       max: 0.5,
       step: 0.05,
-      description:
-        "O kolik se teplota zvedne při každém dalším pokusu o tentýž úsek. Nula opakování vypne — zacyklení pak nemá co přerušit.",
+      descriptionKey: "settings.decoding.temperatureStepNote",
     },
   ];
 
   return (
-    <div className="pokrocile">
-      <button
-        className="pokrocile-prepinac"
-        onClick={() => setOpen((o) => !o)}
-        aria-expanded={open}
-      >
-        <span className={`pokrocile-sipka ${open ? "dolu" : ""}`} aria-hidden>
-          <svg width="10" height="10" viewBox="0 0 10 10">
-            <path d="M3 1.5L6.5 5L3 8.5" fill="none" stroke="currentColor"
-                  strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </span>
-        Jemné ladění přepisu
-        {isCustom && <span className="odznak tichy">upraveno</span>}
-      </button>
-
-      {open && (
-        <div className="pokrocile-obsah">
-          <p className="drobne">
-            Meze, podle kterých Whisper pozná, že se mu úsek nepovedl, a zkusí
-            ho znovu. Bez potíží, kterou chceš vyřešit, sem nesahej —
-            výchozí hodnoty jsou ty, se kterými počítá sám Whisper.
-          </p>
+    <SettingsDisclosure
+      title={t("settings.decoding.title")}
+      badge={
+        isCustom ? (
+          <span className="odznak tichy">{t("settings.decoding.modified")}</span>
+        ) : undefined
+      }
+    >
+          <p className="drobne">{t("settings.decoding.note")}</p>
 
           {fields.map((p) => (
             <div className="pole" key={p.key}>
               <label>
-                {p.label} <em className="hodnota">{n[p.key]}</em>
+                {t(p.labelKey)} <em className="hodnota">{formatNumber(n[p.key])}</em>
               </label>
               <input
                 type="range"
@@ -790,7 +1470,7 @@ function DecodingSettings({
                 value={n[p.key]}
                 onChange={(e) => save({ ...n, [p.key]: Number(e.target.value) })}
               />
-              <p className="drobne">{p.description}</p>
+              <p className="drobne">{t(p.descriptionKey)}</p>
             </div>
           ))}
 
@@ -799,36 +1479,53 @@ function DecodingSettings({
             disabled={!isCustom}
             onClick={() => save({ ...n, ...DEFAULT_DECODING })}
           >
-            Zpět na výchozí
+            {t("settings.decoding.reset")}
           </button>
-        </div>
-      )}
-    </div>
+    </SettingsDisclosure>
   );
 }
 
 function ToolDiagnostics({ k }: { k: ToolCheck }) {
-  const rows: Array<[string, string | null]> = [
-    ["ffmpeg", k.ffmpeg],
-    ["ffprobe", k.ffprobe],
-    ["whisper-cli", k.whisper_cli],
-    ["model Whisperu", k.model_whisper],
-    ["model VAD", k.model_vad],
-    ["diarizace (program)", k.sherpa_diarization],
-    ["diarizace (segmentace)", k.segmentation_model],
-    ["diarizace (hlasové otisky)", k.embedding_model],
+  const { t } = useI18n();
+  /** Executable names are technical identifiers and stay as they are; the rest
+   *  names what the file is for and is looked up. */
+  const rows: Array<[string, TranslationKey | null, string | null]> = [
+    ["ffmpeg", null, k.ffmpeg],
+    ["ffprobe", null, k.ffprobe],
+    ["whisper-cli", null, k.whisper_cli],
+    ["model_whisper", "settings.diagnostics.modelWhisper", k.model_whisper],
+    ["model_vad", "settings.diagnostics.modelVad", k.model_vad],
+    ["diarization", "settings.diagnostics.diarizationProgram", k.sherpa_diarization],
+    ["segmentation", "settings.diagnostics.diarizationSegmentation", k.segmentation_model],
+    ["embedding", "settings.diagnostics.diarizationEmbedding", k.embedding_model],
   ];
   return (
-    <section>
-      <h2>Stav modulů</h2>
+    <SettingsDisclosure title={t("settings.diagnostics.title")}>
       <ul className="kontrola">
-        {rows.map(([title, path]) => (
-          <li key={title} className={path ? "ano" : "ne"}>
-            <span className="kontrola-nazev">{title}</span>
-            <span className="kontrola-cesta">{path ?? "nenalezeno"}</span>
+        {rows.map(([id, titleKey, path]) => (
+          <li key={id} className={path ? "ano" : "ne"}>
+            {/* The same circular mark the manual download list uses for a
+                component that is already on the machine. */}
+            <span className="kontrola-znak" aria-hidden>
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+                {path ? (
+                  <path d="M3 7.2 5.7 10 11 4.5" stroke="currentColor" strokeWidth="1.8"
+                        strokeLinecap="round" strokeLinejoin="round" />
+                ) : (
+                  <path d="M4 4l6 6M10 4l-6 6" stroke="currentColor" strokeWidth="1.8"
+                        strokeLinecap="round" />
+                )}
+              </svg>
+            </span>
+            <span className="kontrola-nazev">{titleKey ? t(titleKey) : id}</span>
+            {/* The whole path is in the tooltip: the line shows its end, which
+                is the part that says which file this actually is. */}
+            <span className="kontrola-cesta" title={path ?? undefined}>
+              {path ?? t("settings.diagnostics.notFound")}
+            </span>
           </li>
         ))}
       </ul>
-    </section>
+    </SettingsDisclosure>
   );
 }

@@ -4,8 +4,7 @@
 //! Keeping distinct names also avoids case-insensitive filename collisions on Windows.
 
 import { useEffect, useRef, useState } from "react";
-import type { MutableRefObject } from "react";
-import type { CSSProperties } from "react";
+import type { CSSProperties, MutableRefObject, ReactNode } from "react";
 import {
   drawBars,
   equalizerAtTime,
@@ -13,6 +12,7 @@ import {
   usePlayer,
 } from "./player";
 import type { Waveform } from "./player";
+import { useI18n } from "./i18n";
 import { formatTime } from "./types";
 
 const PLAYBACK_RATES = [0.75, 1, 1.25, 1.5, 2];
@@ -20,9 +20,24 @@ const PLAYBACK_RATES = [0.75, 1, 1.25, 1.5, 2];
 /** Approximate distance between visual bars on a wide timeline. */
 const BAR_SPACING = 7;
 
-/** Keep the waveform behind the controls while still making quiet passages
- * visible enough to be useful. */
-const AMPLITUDE_CEILING = 0.55;
+/** Diameter of the slider handle, matching the CSS. The handle never reaches
+ *  the very edge of the track, so its centre only travels between half that
+ *  and the width less half — the same inset the coloured bars have to use. */
+const THUMB = 13;
+
+/** How much of the half-height the bars may fill. */
+const AMPLITUDE_CEILING = 0.82;
+
+/** Shaping of the band values before they are drawn — see `emphasise`.
+ *
+ * The raw numbers say how much of a spectrum column ffmpeg lit up, and speech
+ * only ever occupies its lower half. Drawn as they are, the bars sat around a
+ * third of the height and moved by a few pixels — technically alive, visibly
+ * dead. Dropping the constant floor and lifting the rest spreads that narrow
+ * band across the whole strip. */
+const AMPLITUDE_GAMMA = 0.7;
+const AMPLITUDE_FLOOR = 0.04;
+const AMPLITUDE_PEAK = 0.55;
 
 /**
  * Real equalizer peaks behind the timeline.
@@ -33,24 +48,27 @@ const AMPLITUDE_CEILING = 0.55;
 function AudioBackdrop({
   waveform,
   readTime,
+  duration,
   isPlaying,
   geometry,
 }: {
   waveform: Waveform;
   readTime: () => number;
+  duration: number;
   isPlaying: boolean;
   /** Timeline dimensions determine the stable number and placement of bars. */
   geometry: PlayerGeometry;
 }) {
   const [canvas, setCanvas] = useState<HTMLCanvasElement | null>(null);
-  const liveState = useRef({ waveform, geometry, readTime });
-  liveState.current = { waveform, geometry, readTime };
+  const liveState = useRef({ waveform, geometry, readTime, duration });
+  liveState.current = { waveform, geometry, readTime, duration };
 
   useEffect(() => {
     const target = canvas;
     if (!target) return;
     let running = true;
     let color = "";
+    let playedColor = "";
     let colorReadAt = 0;
 
     const drawFrame = (now: number) => {
@@ -66,21 +84,42 @@ function AudioBackdrop({
         )
       ) {
         if (!color || now - colorReadAt > 500) {
-          color = getComputedStyle(target).color;
+          const styles = getComputedStyle(target);
+          color = styles.color;
+          // The accent lives in a custom property, so it survives a change of
+          // theme without anything here knowing about it.
+          playedColor = styles.getPropertyValue("--akcent").trim() || color;
           colorReadAt = now;
         }
         const barCount = Math.max(
           current.waveform.equalizerBandCount,
           Math.round(current.geometry.timelineWidth / BAR_SPACING)
         );
+        // Where the handle sits, as a fraction of the canvas. Its centre is
+        // inset by its own radius at both ends, so this is not a plain
+        // percentage of the duration — otherwise the colour would run ahead
+        // of the handle at the start and lag behind it at the end.
+        const width = current.geometry.timelineWidth;
+        const played = current.duration > 0
+          ? Math.min(1, Math.max(0, current.readTime() / current.duration))
+          : 0;
+        const handleRatio = width > 0
+          ? (THUMB / 2 + Math.max(0, width - THUMB) * played) / width
+          : played;
+
         drawBars(
           target,
           equalizerAtTime(current.waveform, current.readTime(), barCount),
           {
             ratio: pixelRatio,
             color,
-            gain: 1.45,
+            gain: 1,
             ceiling: AMPLITUDE_CEILING,
+            gamma: AMPLITUDE_GAMMA,
+            floor: AMPLITUDE_FLOOR,
+            peak: AMPLITUDE_PEAK,
+            playedRatio: handleRatio,
+            playedColor,
           }
         );
       }
@@ -122,8 +161,13 @@ function PlayButton({
   ring: MutableRefObject<SVGCircleElement | null>;
   onClick: () => void;
 }) {
+  const { t } = useI18n();
   return (
-    <button className="prehrat" onClick={onClick} aria-label={isPlaying ? "Pauza" : "Přehrát"}>
+    <button
+      className="prehrat"
+      onClick={onClick}
+      aria-label={isPlaying ? t("player.transport.pause") : t("player.transport.play")}
+    >
       <svg className="prehrat-prstenec" viewBox="0 0 44 44" aria-hidden>
         <circle className="prehrat-drazka" cx="22" cy="22" r="20" />
         <circle
@@ -295,6 +339,7 @@ export default function PlaybackControls({
   isPlaying,
   onPlayPauza,
   onSeek,
+  trailingControl,
 }: {
   /** Does the audio belong to this recording? Decides where time comes from. */
   isCurrentRecording: boolean;
@@ -306,7 +351,10 @@ export default function PlaybackControls({
   isPlaying: boolean;
   onPlayPauza: () => void;
   onSeek: (t: number) => void;
+  /** A screen-level action placed after playback speed controls. */
+  trailingControl?: ReactNode;
 }) {
+  const { t, formatNumber } = useI18n();
   const player = usePlayer();
   const ratio = duration > 0 ? Math.min(1, time / duration) : 0;
   const { track, centerLine, geometry } = usePlayerGeometry();
@@ -351,6 +399,7 @@ export default function PlaybackControls({
       <AudioBackdrop
         waveform={waveform}
         readTime={readTime}
+        duration={duration}
         isPlaying={isPlaying}
         geometry={geometry}
       />
@@ -366,7 +415,10 @@ export default function PlaybackControls({
       />
 
       <span className="cas">
-        {formatTime(time)} / {formatTime(duration)}
+        {t("player.timeline.position", {
+          current: formatTime(time),
+          total: formatTime(duration),
+        })}
       </span>
 
       <div className="rychlosti">
@@ -376,10 +428,17 @@ export default function PlaybackControls({
             className={`tlacitko drobne-tl ${player.rate === r ? "aktivni" : ""}`}
             onClick={() => player.setRate(r)}
           >
-            {r}×
+            {t("player.speed.rate", { value: formatNumber(r) })}
           </button>
         ))}
       </div>
+
+      {trailingControl && (
+        <div className="prehravac-konec">
+          {trailingControl}
+        </div>
+      )}
+
     </div>
   );
 }

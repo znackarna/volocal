@@ -4,7 +4,7 @@
 //! Work runs on a dedicated thread and emits incremental events so the UI can
 //! display live text instead of only a percentage.
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Result};
 use regex::Regex;
 use serde::Serialize;
 use std::collections::{HashMap, HashSet};
@@ -16,16 +16,22 @@ use tauri::{AppHandle, Emitter};
 
 use crate::db::{self, Segment, Settings};
 use crate::tools::{self, command};
+use crate::user_message::UserMessage;
+
+/// Result of anything that can end up in front of the user.
+type Reported<T> = std::result::Result<T, UserMessage>;
 
 // ---------------------------------------------------------------- udalosti
 
 #[derive(Serialize, Clone)]
 pub struct TranscriptionProgress {
     pub recording_id: String,
-    /// priprava | prepis | diarizace | ukladani | hotovo | chyba
+    /// preparation | playback | transcription | diarization | saving | complete | error
     pub phase: String,
     pub percent: u32,
-    pub description: String,
+    /// What is happening right now, or what went wrong. The window turns the
+    /// code into a sentence in the language it is running in.
+    pub description: UserMessage,
 }
 
 #[derive(Serialize, Clone)]
@@ -36,49 +42,99 @@ pub struct LiveSegment {
     pub text: String,
 }
 
-fn status(app: &AppHandle, id: &str, phase: &str, percent: u32, description: &str) {
+fn status(app: &AppHandle, id: &str, phase: &str, percent: u32, description: UserMessage) {
     let _ = app.emit(
         "transcription:status",
         TranscriptionProgress {
             recording_id: id.to_string(),
             phase: phase.to_string(),
             percent,
-            description: description.to_string(),
+            description,
         },
     );
 }
 
+/// The phase caption for a code that needs no values of its own.
+fn step(code: &str) -> UserMessage {
+    UserMessage::new(code)
+}
+
+// Percentages reported by whisper-cli describe only the transcription phase.
+// Map them into the shared end-to-end progress bar so changing phases can
+// never make the bar jump backwards.
+const TRANSCRIPTION_START_PERCENT: u32 = 10;
+const TRANSCRIPTION_END_PERCENT: u32 = 90;
+
+fn overall_transcription_percent(whisper_percent: u32) -> u32 {
+    TRANSCRIPTION_START_PERCENT
+        + whisper_percent.min(100) * (TRANSCRIPTION_END_PERCENT - TRANSCRIPTION_START_PERCENT) / 100
+}
+
 // ---------------------------------------------------------------- bezici prace
 
-/// Rozdelane prepisy. Drzime si spusteny proces, aby sel prerusit —
-/// whisper bezi minuty a uzivatel si to muze rozmyslet.
+/// Work in progress: which recordings have a worker, and what each one has
+/// running right now.
+///
+/// Cancelling used to be answered by the process registry — whether a `Child`
+/// happened to be sitting in a map. Only whisper was ever put there, so
+/// pressing `Zrušit` during preparation or during speaker recognition found
+/// nothing, reported that nothing was running, and *cleared its own request*,
+/// while the run carried on and finished. The registry now answers a different
+/// question than the one cancellation asks: `running` says whether there is a
+/// job, `processes` says what to kill.
 #[derive(Default, Clone)]
 pub struct TranscriptionTask {
-    processes: Arc<Mutex<HashMap<String, std::process::Child>>>,
+    /// Children spawned for a recording, newest last. A run passes through
+    /// several programs, so this is a list rather than one handle: replacing
+    /// a stored `Child` used to drop the previous one without killing it.
+    processes: Arc<Mutex<HashMap<String, Vec<std::process::Child>>>>,
+    /// Recordings with a live worker thread, whether it is transcribing or
+    /// only recognising speakers.
+    running: Arc<Mutex<HashSet<String>>>,
     cancellations: Arc<Mutex<HashSet<String>>>,
 }
 
 impl TranscriptionTask {
-    fn record_process(&self, id: &str, child: std::process::Child) {
-        self.processes.lock().unwrap().insert(id.to_string(), child);
+    fn begin(&self, id: &str) {
+        self.running.lock().unwrap().insert(id.to_string());
     }
-    fn forget(&self, id: &str) {
-        self.processes.lock().unwrap().remove(id);
+    /// Is a worker already busy with this recording? Asked before a second one
+    /// is started: the database row is not a reliable answer on its own,
+    /// because a run only reaches it a moment later.
+    pub fn is_running(&self, id: &str) -> bool {
+        self.running.lock().unwrap().contains(id)
+    }
+    fn record_process(&self, id: &str, child: std::process::Child) {
+        self.processes
+            .lock()
+            .unwrap()
+            .entry(id.to_string())
+            .or_default()
+            .push(child);
+    }
+    /// Takes back the most recently recorded child, to wait on it. Nothing is
+    /// there if cancellation already killed and removed it.
+    fn take_process(&self, id: &str) -> Option<std::process::Child> {
+        self.processes.lock().unwrap().get_mut(id)?.pop()
     }
     fn was_cancelled(&self, id: &str) -> bool {
         self.cancellations.lock().unwrap().contains(id)
     }
 
-    /// Stops a running transcription. Returns whether anything was running.
+    /// Stops a running job. Returns whether there was one.
+    ///
+    /// The flag is what stops the run; killing the child only saves the wait.
+    /// The flag is therefore never cleared here — only `cleanup` does that,
+    /// when the worker itself has finished.
     pub fn cancel(&self, id: &str) -> bool {
         self.cancellations.lock().unwrap().insert(id.to_string());
-        if let Some(mut child) = self.processes.lock().unwrap().remove(id) {
-            let _ = child.kill();
-            let _ = child.wait();
-            true
-        } else {
-            false
+        if let Some(children) = self.processes.lock().unwrap().remove(id) {
+            for mut child in children {
+                let _ = child.kill();
+                let _ = child.wait();
+            }
         }
+        self.is_running(id)
     }
 
     /// Clears the cancel flag without stopping anything.
@@ -88,20 +144,62 @@ impl TranscriptionTask {
 
     fn cleanup(&self, id: &str) {
         self.forget_cancellation(id);
-        self.forget(id);
+        self.processes.lock().unwrap().remove(id);
+        self.running.lock().unwrap().remove(id);
     }
 }
 
+/// Give up between stages when the run has been cancelled.
+///
+/// The message is never read: the worker checks the cancel flag before it
+/// looks at the result, and reports the run as cancelled rather than failed.
+fn stop_if_cancelled(task: &TranscriptionTask, id: &str) -> Reported<()> {
+    if task.was_cancelled(id) {
+        return Err(UserMessage::new("transcription.cancelled"));
+    }
+    Ok(())
+}
+
 // ---------------------------------------------------------------- vstupni bod
+
+/// Runs a job and turns a panic into a failure the interface can show.
+///
+/// A worker thread that panics prints to a console nobody has open and then
+/// simply stops: no progress, no error, no row written. That is indisputably
+/// the worst way for this application to fail, because the person watching
+/// has nothing to report but "it does not work". A panic is still a bug, but
+/// now it is a visible one.
+fn without_panicking<F>(work: F) -> Reported<usize>
+where
+    F: FnOnce() -> Reported<usize>,
+{
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(work)) {
+        Ok(result) => result,
+        Err(panic) => {
+            let text = panic
+                .downcast_ref::<&str>()
+                .map(|s| s.to_string())
+                .or_else(|| panic.downcast_ref::<String>().cloned())
+                .unwrap_or_else(|| "panic".to_string());
+            eprintln!("worker thread panicked: {text}");
+            Err(UserMessage::new("unknown").detail(text))
+        }
+    }
+}
 
 pub fn start_in_thread(
     app: AppHandle,
     db_path: PathBuf,
     recording_id: String,
     task: TranscriptionTask,
+    // How many people speak in this recording, when the user knows. It is asked
+    // per recording rather than kept in settings, because the answer belongs to
+    // the recording and not to the machine.
+    speaker_count: Option<i64>,
 ) {
     std::thread::spawn(move || {
-        let result = run(&app, &db_path, &recording_id, &task);
+        task.begin(&recording_id);
+        let result = without_panicking(|| run(&app, &db_path, &recording_id, &task, speaker_count));
         let connection = db::open(&db_path).ok();
         let cancelled = task.was_cancelled(&recording_id);
         task.cleanup(&recording_id);
@@ -113,7 +211,13 @@ pub fn start_in_thread(
                 let _ = db::delete_segments(s, &recording_id);
                 let _ = db::set_status(s, &recording_id, "nova", None);
             }
-            status(&app, &recording_id, "cancelled", 0, "Přepis přerušen");
+            status(
+                &app,
+                &recording_id,
+                "cancelled",
+                0,
+                step("transcription.cancelled"),
+            );
             let _ = app.emit("transcription:complete", recording_id.clone());
             return;
         }
@@ -128,16 +232,15 @@ pub fn start_in_thread(
                     &recording_id,
                     "complete",
                     100,
-                    &format!("{count} úseků"),
+                    UserMessage::new("transcription.complete").with("count", count),
                 );
                 let _ = app.emit("transcription:complete", recording_id.clone());
             }
-            Err(e) => {
-                let message = format!("{e:#}");
+            Err(message) => {
                 if let Some(s) = &connection {
-                    let _ = db::set_status(s, &recording_id, "chyba", Some(&message));
+                    let _ = db::set_status(s, &recording_id, "chyba", Some(&message.to_stored()));
                 }
-                status(&app, &recording_id, "error", 0, &message);
+                status(&app, &recording_id, "error", 0, message.clone());
                 let _ = app.emit("transcription:error", (recording_id.clone(), message));
             }
         }
@@ -147,10 +250,42 @@ pub fn start_in_thread(
 /// Runs diarization over an already finished transcript. No need to
 /// transcribe again — Whisper has done its part; this only fills in who
 /// said what.
-pub fn start_diarization_in_thread(app: AppHandle, db_path: PathBuf, recording_id: String) {
+pub fn start_diarization_in_thread(
+    app: AppHandle,
+    db_path: PathBuf,
+    recording_id: String,
+    task: TranscriptionTask,
+    // Same as for a transcription: the count belongs to the recording, and
+    // sherpa ignores its distance threshold entirely once it has one.
+    speaker_count: Option<i64>,
+) {
     std::thread::spawn(move || {
-        let result = run_diarization(&app, &db_path, &recording_id);
+        task.begin(&recording_id);
+        let result = without_panicking(|| {
+            run_diarization(&app, &db_path, &recording_id, &task, speaker_count)
+        });
         let connection = db::open(&db_path).ok();
+        let cancelled = task.was_cancelled(&recording_id);
+        task.cleanup(&recording_id);
+
+        if cancelled {
+            // The transcript itself was never in danger — recognising speakers
+            // only rewrites who said what, and it writes at the very end. So a
+            // cancelled run leaves the recording exactly as it found it.
+            if let Some(s) = &connection {
+                let _ = db::set_status(s, &recording_id, "hotova", None);
+            }
+            status(
+                &app,
+                &recording_id,
+                "cancelled",
+                0,
+                step("transcription.cancelled"),
+            );
+            let _ = app.emit("transcription:complete", recording_id.clone());
+            return;
+        }
+
         match result {
             Ok(count) => {
                 if let Some(s) = &connection {
@@ -161,57 +296,86 @@ pub fn start_diarization_in_thread(app: AppHandle, db_path: PathBuf, recording_i
                     &recording_id,
                     "complete",
                     100,
-                    &format!("{count} mluvčích"),
+                    UserMessage::new("diarization.complete").with("count", count),
                 );
                 let _ = app.emit("transcription:complete", recording_id.clone());
             }
-            Err(e) => {
-                let message = format!("{e:#}");
+            Err(message) => {
                 if let Some(s) = &connection {
                     let _ = db::set_status(s, &recording_id, "hotova", None);
                 }
-                status(&app, &recording_id, "error", 0, &message);
+                status(&app, &recording_id, "error", 0, message.clone());
                 let _ = app.emit("transcription:error", (recording_id.clone(), message));
             }
         }
     });
 }
 
-fn run_diarization(app: &AppHandle, db_path: &Path, recording_id: &str) -> Result<usize> {
+fn run_diarization(
+    app: &AppHandle,
+    db_path: &Path,
+    recording_id: &str,
+    task: &TranscriptionTask,
+    speaker_count: Option<i64>,
+) -> Reported<usize> {
     let connection = db::open(db_path)?;
-    let settings = db::load_settings(&connection)?;
+    let mut settings = db::load_settings(&connection)?;
+    if let Some(count) = speaker_count {
+        settings.speaker_count = count.max(0);
+    }
     let recording = db::recording(&connection, recording_id)?;
 
     let check = tools::check(&settings);
-    if !check.issues_diarization.is_empty() {
-        return Err(anyhow!(check.issues_diarization.join(" ")));
+    if let Some(issue) = check.issues_diarization.first() {
+        return Err(issue.clone());
     }
     let ffmpeg = check
         .ffmpeg
         .clone()
-        .ok_or_else(|| anyhow!("Chybí ffmpeg"))?;
+        .ok_or_else(|| UserMessage::new("tools.ffmpeg_missing"))?;
 
     db::set_status(&connection, recording_id, "prepisuje", None)?;
-    status(app, recording_id, "diarization", 5, "Připravuji zvuk");
+    status(
+        app,
+        recording_id,
+        "diarization",
+        5,
+        step("diarization.preparing_audio"),
+    );
 
     let working_directory = std::env::temp_dir()
         .join("whisp-speakers")
         .join(recording_id);
     std::fs::create_dir_all(&working_directory)?;
     let wav = working_directory.join("zvuk.wav");
-    tools::convert_to_wav(Path::new(&ffmpeg), Path::new(&recording.path), &wav)
-        .context("Převod zvuku selhal")?;
+    tools::convert_to_wav(Path::new(&ffmpeg), Path::new(&recording.path), &wav)?;
 
-    status(app, recording_id, "diarization", 25, "Rozlišuji mluvčí");
-    let turns = diarize(&settings, &check, &wav)?;
+    // No fixed percentage here: sherpa reports its own and `diarize` passes
+    // it straight through. Ten per cent is where the audio conversion ended.
+    status(
+        app,
+        recording_id,
+        "diarization",
+        10,
+        step("diarization.running"),
+    );
+    let turns = diarize(
+        &settings,
+        &check,
+        &wav,
+        task,
+        recording_id,
+        Some((app, recording_id, 10.0, 90.0)),
+    )?;
+    stop_if_cancelled(task, recording_id)?;
 
     let segments = db::segments(&connection, recording_id)?;
     if segments.is_empty() {
-        return Err(anyhow!("Nahrávka ještě není přepsaná."));
+        return Err(UserMessage::new("diarization.not_transcribed"));
     }
     let segments = assign_speakers(segments, &turns);
 
-    status(app, recording_id, "saving", 90, "Ukládám");
+    status(app, recording_id, "saving", 90, step("saving"));
 
     let mut key: Vec<String> = segments.iter().filter_map(|s| s.speakers.clone()).collect();
     key.sort_by_key(|k| order_key(k));
@@ -224,7 +388,7 @@ fn run_diarization(app: &AppHandle, db_path: &Path, recording_id: &str) -> Resul
     // All of it in one transaction. Diarization is a bonus — it would be cruel
     // for a finished transcript to vanish because a write failed midway.
     connection.execute_batch("BEGIN")?;
-    let save_result = (|| -> Result<()> {
+    let save_result = (|| -> Reported<()> {
         db::delete_speakers(&connection, recording_id)?;
         for (i, k) in key.iter().enumerate() {
             db::insert_speaker(
@@ -258,28 +422,38 @@ fn run(
     db_path: &Path,
     recording_id: &str,
     task: &TranscriptionTask,
-) -> Result<usize> {
+    speaker_count: Option<i64>,
+) -> Reported<usize> {
     // Vlastni spojeni pro toto vlakno - hlavni vlakno tak neceka minuty na zamek.
     let connection = db::open(db_path)?;
-    let settings = db::load_settings(&connection)?;
+    let mut settings = db::load_settings(&connection)?;
+    // An answer given for this recording wins over the stored default without
+    // changing it: the next recording asks again.
+    if let Some(count) = speaker_count {
+        settings.speaker_count = count.max(0);
+    }
     let recording = db::recording(&connection, recording_id)?;
     let dictionary = db::dictionary(&connection)?;
 
     db::set_status(&connection, recording_id, "prepisuje", None)?;
     db::set_model(&connection, recording_id, &settings.model)?;
-    db::delete_segments(&connection, recording_id)?;
 
     let check = tools::check(&settings);
-    if !check.issues.is_empty() {
-        return Err(anyhow!(check.issues.join(" ")));
+    if let Some(issue) = check.issues.first() {
+        return Err(issue.clone());
     }
+    stop_if_cancelled(task, recording_id)?;
 
     // ------------------------------------------------------------ priprava
-    status(app, recording_id, "preparation", 0, "Převádím zvuk");
+    status(
+        app,
+        recording_id,
+        "preparation",
+        0,
+        step("preparation.converting_audio"),
+    );
 
-    let working_directory = std::env::temp_dir()
-        .join("whisp")
-        .join(recording_id);
+    let working_directory = std::env::temp_dir().join("whisp").join(recording_id);
     std::fs::create_dir_all(&working_directory)?;
     let wav = working_directory.join("zvuk.wav");
 
@@ -287,8 +461,32 @@ fn run(
         Path::new(check.ffmpeg.as_ref().unwrap()),
         Path::new(&recording.path),
         &wav,
-    )
-    .context("Převod zvuku selhal")?;
+    )?;
+    // The preparation programs are not killed mid-run: each is bounded and
+    // short beside whisper or sherpa. Cancelling during one of them therefore
+    // takes effect here, at the end of that step, rather than instantly.
+    stop_if_cancelled(task, recording_id)?;
+
+    // Long VBR MP3 files need an indexed M4A playback copy for precise
+    // word-level seeking. Build it while the recording is already being
+    // prepared, not when the user later presses Play in a finished transcript.
+    // Playback preparation is deliberately best-effort: losing the cache must
+    // never throw away a transcription that can otherwise proceed normally.
+    if Path::new(&recording.path)
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("mp3"))
+    {
+        status(app, recording_id, "playback", 5, step("playback.preparing"));
+        if let Err(error) = tools::ensure_seekable_playback(
+            Path::new(check.ffmpeg.as_ref().unwrap()),
+            db_path,
+            recording_id,
+            Path::new(&recording.path),
+        ) {
+            eprintln!("playback preparation failed for {recording_id}: {error:#}");
+        }
+    }
 
     // Generate both the timeline waveform and frequency peaks while the
     // normalized WAV file is already available.
@@ -302,10 +500,15 @@ fn run(
     }
 
     // ------------------------------------------------------------ prepis
-    status(app, recording_id, "transcription", 0, "Přepisuji");
+    status(
+        app,
+        recording_id,
+        "transcription",
+        TRANSCRIPTION_START_PERCENT,
+        step("transcription.running"),
+    );
 
     let prefix = working_directory.join("vystup");
-    let prompt = build_prompt(&dictionary);
 
     // A per-recording choice beats the global setting.
     let language = if recording.language_choice.is_empty() {
@@ -322,7 +525,6 @@ fn run(
         &check,
         &wav,
         &prefix,
-        &prompt,
         task,
     )?;
 
@@ -331,7 +533,7 @@ fn run(
     if let Some(j) = language_from_json(&json_file) {
         db::set_language(&connection, recording_id, &j)?;
     }
-    let mut segments = load_segments_from_json(&json_file, recording_id).with_context(|| {
+    let mut segments = load_segments_from_json(&json_file, recording_id).map_err(|error| {
         // Report what whisper actually left behind; otherwise this is guesswork
         let remaining_files: Vec<String> = std::fs::read_dir(&working_directory)
             .into_iter()
@@ -339,58 +541,72 @@ fn run(
             .filter_map(|e| e.ok())
             .map(|e| e.file_name().to_string_lossy().to_string())
             .collect();
-        format!(
-            "Whisper doběhl, ale výstupní soubor nenapsal. V pracovní složce zůstalo: {}",
-            if remaining_files.is_empty() {
-                "nic".into()
-            } else {
-                remaining_files.join(", ")
-            }
-        )
+        let message = if remaining_files.is_empty() {
+            UserMessage::new("transcription.no_output_file_empty")
+        } else {
+            UserMessage::new("transcription.no_output_file")
+                .with("contents", remaining_files.join(", "))
+        };
+        message.detail(format!("{error:#}"))
     })?;
 
     if segments.is_empty() {
-        return Err(anyhow!(
-            "Whisper nevrátil žádný text. Zkontroluj, že v nahrávce je slyšet řeč."
-        ));
+        return Err(UserMessage::new("transcription.empty_result"));
     }
 
     // ------------------------------------------------------------ vety
-    segments = split_into_sentences(segments);
+    segments = rebuild_sentences(segments);
 
     // ------------------------------------------------------------ slovnik
     apply_dictionary(&mut segments, &dictionary);
 
     // ------------------------------------------------------------ diarizace
     if settings.diarization {
-        if check.issues_diarization.is_empty() {
-            status(app, recording_id, "diarization", 0, "Rozlišuji mluvčí");
-            match diarize(&settings, &check, &wav) {
-                Ok(turns) => segments = assign_speakers(segments, &turns),
-                Err(e) => {
-                    // Diarizace je bonus. Kdyz selze, prepis prece nezahodime.
-                    status(
-                        app,
-                        recording_id,
-                        "diarization",
-                        0,
-                        &format!("Rozlišení mluvčích selhalo: {e}"),
-                    );
-                }
-            }
+        if let Some(issue) = check.issues_diarization.first() {
+            status(
+                app,
+                recording_id,
+                "diarization",
+                TRANSCRIPTION_END_PERCENT,
+                issue.clone(),
+            );
         } else {
             status(
                 app,
                 recording_id,
                 "diarization",
-                0,
-                &check.issues_diarization.join(" "),
+                TRANSCRIPTION_END_PERCENT,
+                step("diarization.running"),
             );
+            match diarize(
+                &settings,
+                &check,
+                &wav,
+                task,
+                recording_id,
+                // Diarization owns 90..95; saving takes it from there.
+                Some((app, recording_id, TRANSCRIPTION_END_PERCENT as f64, 95.0)),
+            ) {
+                Ok(turns) => segments = assign_speakers(segments, &turns),
+                Err(error) => {
+                    // Diarizace je bonus. Kdyz selze, prepis prece nezahodime.
+                    // The reason itself is the caption: it is one finished
+                    // sentence, and the phase already says what was running.
+                    status(
+                        app,
+                        recording_id,
+                        "diarization",
+                        TRANSCRIPTION_END_PERCENT,
+                        error,
+                    );
+                }
+            }
         }
     }
 
     // ------------------------------------------------------------ ulozeni
-    status(app, recording_id, "saving", 95, "Ukládám");
+    stop_if_cancelled(task, recording_id)?;
+    status(app, recording_id, "saving", 95, step("saving"));
 
     let mut key: Vec<String> = segments.iter().filter_map(|s| s.speakers.clone()).collect();
     key.sort_by_key(|k| order_key(k));
@@ -410,9 +626,23 @@ fn run(
 
     // One transaction: either the whole transcript is stored or none of it.
     // A write failing midway must not leave half a text in the archive.
+    //
+    // The previous transcript is deleted here rather than at the start of the
+    // run. Deleting it up front meant that a missing model, a moved recording
+    // or a failing ffmpeg — the ordinary failures of this pipeline, all of
+    // them checked a few lines further down — destroyed a finished, corrected
+    // text before anything had been verified, and nothing was kept.
     connection.execute_batch("BEGIN")?;
-    for s in &segments {
-        db::insert_segment(&connection, s)?;
+    let save_result = (|| -> Reported<()> {
+        db::delete_segments(&connection, recording_id)?;
+        for s in &segments {
+            db::insert_segment(&connection, s)?;
+        }
+        Ok(())
+    })();
+    if let Err(e) = save_result {
+        let _ = connection.execute_batch("ROLLBACK");
+        return Err(e);
     }
     connection.execute_batch("COMMIT")?;
 
@@ -421,16 +651,6 @@ fn run(
 }
 
 // ---------------------------------------------------------------- whisper
-
-fn build_prompt(dictionary: &[db::DictionaryEntry]) -> String {
-    // Whisper bere prompt jako "co uz zaznelo" - staci vyjmenovat terminy carkami.
-    let terms: Vec<&str> = dictionary
-        .iter()
-        .filter(|p| p.prompt)
-        .map(|p| p.replace.as_str())
-        .collect();
-    terms.join(", ")
-}
 
 /// Name of the alignment preset for `--dtw`. whisper.cpp names them after
 /// the models, only with dots instead of hyphens.
@@ -486,9 +706,8 @@ fn start_whisper(
     check: &tools::ToolCheck,
     wav: &Path,
     prefix: &Path,
-    prompt: &str,
     task: &TranscriptionTask,
-) -> Result<()> {
+) -> Reported<()> {
     let program = Path::new(check.whisper_cli.as_ref().unwrap());
 
     // Find out what this particular build supports. whisper.cpp versions
@@ -576,10 +795,6 @@ fn start_whisper(
     if settings.threads > 0 {
         cmd.args(["-t", &settings.threads.to_string()]);
     }
-    if !prompt.is_empty() && supports("--prompt") {
-        cmd.args(["--prompt", prompt]);
-    }
-
     // VAD: bez ni Whisper na tichu opakuje jeden token dokola a spolkne zacatek reci.
     if settings.vad && supports("--vad ") {
         if let Some(vad) = &check.model_vad {
@@ -607,7 +822,7 @@ fn start_whisper(
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
-        .context("Nepodařilo se spustit whisper-cli")?;
+        .map_err(|error| UserMessage::new("transcription.whisper_launch_failed").detail(error))?;
 
     let stdout = child.stdout.take().unwrap();
     let stderr = child.stderr.take().unwrap();
@@ -622,13 +837,20 @@ fn start_whisper(
     let id2 = recording_id.to_string();
     let progress_thread = std::thread::spawn(move || {
         let re = Regex::new(r"progress\s*=\s*(\d+)\s*%").unwrap();
-        let mut last = 0u32;
+        let mut last = TRANSCRIPTION_START_PERCENT;
         for row in BufReader::new(stderr).lines().map_while(Result::ok) {
             if let Some(c) = re.captures(&row) {
                 if let Ok(p) = c[1].parse::<u32>() {
-                    if p != last {
-                        last = p;
-                        status(&app2, &id2, "transcription", p.min(94), "Přepisuji");
+                    let overall = overall_transcription_percent(p);
+                    if overall != last {
+                        last = overall;
+                        status(
+                            &app2,
+                            &id2,
+                            "transcription",
+                            overall,
+                            step("transcription.running"),
+                        );
                     }
                 }
             }
@@ -662,16 +884,14 @@ fn start_whisper(
     let _ = progress_thread.join();
     // take the process back out of the registry; if someone killed it in the
     // meantime it is gone from there, and we read that as a cancellation
-    let process_status = match task.processes.lock().unwrap().remove(recording_id) {
+    let process_status = match task.take_process(recording_id) {
         Some(mut child) => child.wait()?,
         None => return Ok(()),
     };
 
     if !process_status.success() {
-        return Err(anyhow!(
-            "whisper-cli skončil s chybou (kód {})",
-            process_status.code().unwrap_or(-1)
-        ));
+        return Err(UserMessage::new("transcription.whisper_failed")
+            .with("code", process_status.code().unwrap_or(-1)));
     }
     Ok(())
 }
@@ -771,6 +991,7 @@ fn load_segments_from_json(file: &Path, recording_id: &str) -> Result<Vec<Segmen
             confidence,
             edited: false,
             verified: false,
+            original: None,
             words,
         };
         db::align_word_timestamps(&mut segment);
@@ -851,95 +1072,815 @@ fn ends_sentence(word: &str, next: Option<&str>) -> bool {
     }
 }
 
-/// Splits segments into sentences.
+/// A natural sentence may run this long without being touched. Beyond this
+/// point a comma, clause mark or audible pause becomes a useful visual break.
+const SOFT_SENTENCE_SECONDS: f64 = 18.0;
+
+/// Even speech with no punctuation must not produce a block longer than this.
+const MAX_SENTENCE_SECONDS: f64 = 28.0;
+
+/// Avoid solving one long block by leaving an unreadable one-line remainder.
+const MIN_REMAINDER_SECONDS: f64 = 6.0;
+
+/// A forced split should not create a tiny leading fragment either.
+const MIN_BLOCK_SECONDS: f64 = 8.0;
+
+/// Word timestamps mark word starts rather than silence exactly. These values
+/// therefore describe unusually wide start-to-start gaps, not literal pauses.
+const NOTICEABLE_WORD_GAP_SECONDS: f64 = 0.75;
+const LONG_WORD_GAP_SECONDS: f64 = 1.1;
+
+/// Longest silence across which two segments are still treated as one
+/// sentence.
 ///
-/// Whisper divides the text as it pleases: for continuous speech without
-/// pauses it dumps a whole thirty-second window as one block, elsewhere it
-/// goes sentence by sentence. A long block is awkward in the editor and
-/// highlighting inside it is hard to follow. Times come from the stored word
-/// timings, so splitting shifts nothing.
-fn split_into_sentences(segments: Vec<Segment>) -> Vec<Segment> {
-    let mut output: Vec<Segment> = Vec::with_capacity(segments.len());
+/// Deliberately generous. The first attempt used two seconds, on the reasoning
+/// that a longer pause means the sentence ended and nobody wrote the full stop
+/// down. Real recordings said otherwise: a phrase as tight as "That'll mess |
+/// with them" came back split by 2.3 seconds, and eight such joins in a single
+/// ten-minute conversation would have been missed. Speakers pause mid-sentence
+/// for breath and for effect, and VAD widens the gap further by cutting the
+/// silence out.
+///
+/// So the text decides, not the clock: an unfinished sentence continuing in
+/// lower case is one sentence however long the pause. This is only a backstop
+/// against a genuinely dropped full stop.
+const MAX_JOIN_GAP: f64 = 10.0;
 
-    for s in segments {
-        let Some(json) = s.words.as_deref() else {
-            output.push(s);
-            continue;
-        };
-        let Ok(words) = serde_json::from_str::<Vec<serde_json::Value>>(json) else {
-            output.push(s);
-            continue;
-        };
-        if words.len() < 2 {
-            output.push(s);
-            continue;
-        }
+/// Stored segment layout is derived data. Incrementing this version rebuilds
+/// completed transcripts once from their preserved word timestamps without
+/// running Whisper again.
+const SENTENCE_LAYOUT_KEY: &str = "sentence-layout-version";
+const SENTENCE_LAYOUT_VERSION: &str = "2";
 
-        // Sentence boundaries: indices after which to cut.
-        let text_words = |i: usize| words[i]["s"].as_str().unwrap_or("");
-        let time_words = |i: usize| words[i]["t"].as_f64().unwrap_or(s.start);
+/// One word with the time it is spoken at.
+struct TimedWord {
+    text: String,
+    time: f64,
+}
 
-        let mut cuts: Vec<usize> = Vec::new();
-        for i in 0..words.len() - 1 {
-            if ends_sentence(text_words(i), Some(text_words(i + 1))) {
-                cuts.push(i);
-            }
-        }
-        if cuts.is_empty() {
-            output.push(s);
-            continue;
-        }
+/// How suitable the boundary after `word` is for a visual block break.
+/// Natural sentence endings are handled before this function; these are the
+/// softer places available when Whisper punctuates a long thought with commas.
+fn boundary_strength(word: &str, next: &str, gap: f64) -> u8 {
+    let trimmed = word
+        .trim_end_matches(|character: char| matches!(character, '"' | '»' | '“' | '”' | ')' | ']'));
+    let clause_mark = trimmed.ends_with([';', ':', '—', '–']);
+    let comma = trimmed.ends_with(',');
+    let next_core = next
+        .trim_matches(|character: char| !character.is_alphanumeric())
+        .to_lowercase();
+    let next_core_length = next_core.chars().count();
+    // A block beginning with one of these words almost always continues the
+    // preceding verb, noun or list item. The short cross-language core also
+    // covers common equivalents such as "of", "to", "in", "on" and "zu".
+    const DEPENDENT_OPENERS: &[&str] = &[
+        "v", "ve", "na", "do", "od", "z", "ze", "s", "se", "k", "ke", "o", "u", "po", "pro",
+        "před", "za", "pod", "nad", "mezi", "přes", "bez", "kvůli", "of", "to", "in", "on", "at",
+        "from", "with", "for", "by", "into", "zu", "im", "am", "an", "von", "mit", "für",
+    ];
+    let dependent_opener = next_core_length <= 2 || DEPENDENT_OPENERS.contains(&next_core.as_str());
 
-        let mut from = 0usize;
-        let mut order_offset = 0i64;
-        for end_sentences in cuts.into_iter().chain(std::iter::once(words.len() - 1)) {
-            if end_sentences < from {
-                continue;
-            }
-            let chunks: Vec<&str> = (from..=end_sentences).map(text_words).collect();
-            let text = chunks.join(" ").trim().to_string();
-            if text.is_empty() {
-                from = end_sentences + 1;
-                continue;
-            }
+    // Written structure is more dependable than a pause. Speakers regularly
+    // pause before a prepositional complement ("soustředíme | na ty malé"),
+    // while a comma remains a useful clause boundary even when spoken without
+    // silence. A pause or comma before a dependent opener is especially
+    // likely to sit inside one grammatical phrase or list, so it is demoted.
+    if clause_mark {
+        4
+    } else if comma && dependent_opener {
+        1
+    } else if comma {
+        3
+    } else if dependent_opener
+        && next
+            .chars()
+            .find(|character| character.is_alphanumeric())
+            .is_some_and(|character| character.is_lowercase())
+    {
+        0
+    } else if gap >= LONG_WORD_GAP_SECONDS {
+        2
+    } else if gap >= NOTICEABLE_WORD_GAP_SECONDS {
+        1
+    } else {
+        0
+    }
+}
 
-            let start = time_words(from);
-            let end = if end_sentences + 1 < words.len() {
-                time_words(end_sentences + 1)
-            } else {
-                s.end
-            };
-            let word_data: Vec<serde_json::Value> = (from..=end_sentences)
-                .map(|i| serde_json::json!({ "t": time_words(i), "s": text_words(i) }))
-                .collect();
-
-            output.push(Segment {
-                id: if from == 0 {
-                    s.id.clone()
-                } else {
-                    uuid::Uuid::new_v4().to_string()
-                },
-                recording_id: s.recording_id.clone(),
-                order: s.order * 1000 + order_offset,
-                start,
-                end: end.max(start),
-                text,
-                speakers: s.speakers.clone(),
-                confidence: s.confidence,
-                edited: s.edited,
-                verified: s.verified,
-                words: serde_json::to_string(&word_data).ok(),
-            });
-            order_offset += 1;
-            from = end_sentences + 1;
-        }
+/// Picks a readable boundary inside an over-long run of words.
+///
+/// Once the soft limit is reached, a real clause boundary may end the block.
+/// If no such boundary appears before the hard limit, the best earlier comma
+/// or pause wins; with no linguistic clue at all, cut nearest the soft target.
+fn readable_cut(words: &[TimedWord]) -> Option<usize> {
+    if words.len() < 2 {
+        return None;
     }
 
-    // The ordering had to spread out to fit the new segments. Tidy it up.
+    let start = words.first()?.time;
+    let last = words.last()?.time;
+    let span = last - start;
+    if span < SOFT_SENTENCE_SECONDS {
+        return None;
+    }
+
+    let target = start + SOFT_SENTENCE_SECONDS;
+    let hard_end = start + MAX_SENTENCE_SECONDS;
+    let latest_with_remainder = last - MIN_REMAINDER_SECONDS;
+
+    let score = |index: usize| {
+        let boundary = words[index + 1].time;
+        let gap = boundary - words[index].time;
+        let strength = boundary_strength(&words[index].text, &words[index + 1].text, gap) as f64;
+        // One quality step is worth ten seconds of distance from the target.
+        strength * 10.0 - (boundary - target).abs()
+    };
+
+    // A preferred break happens only after the soft limit and leaves enough
+    // speech for the next block. This prevents a comma near the beginning or
+    // end from creating a runt.
+    let preferred = (0..words.len() - 1)
+        .filter(|&index| {
+            let boundary = words[index + 1].time;
+            boundary >= target
+                && boundary <= hard_end
+                && boundary <= latest_with_remainder
+                // Soft splitting is deliberately limited to written clause
+                // boundaries. Choosing a pause as soon as it has six seconds
+                // of trailing context is greedy: a better comma can be the
+                // very next word but not yet have enough remainder itself.
+                && boundary_strength(
+                    &words[index].text,
+                    &words[index + 1].text,
+                    boundary - words[index].time,
+                ) >= 3
+        })
+        .max_by(|&left, &right| score(left).total_cmp(&score(right)));
+    if preferred.is_some() || span <= MAX_SENTENCE_SECONDS {
+        return preferred;
+    }
+
+    // The hard limit was crossed. Reconsider useful boundaries before the
+    // soft target as well, because a slightly short clause is better than a
+    // mechanical cut through the middle of one.
+    let forced_candidates: Vec<usize> = (0..words.len() - 1)
+        .filter(|&index| {
+            let boundary = words[index + 1].time;
+            boundary >= start + MIN_BLOCK_SECONDS && boundary <= hard_end
+        })
+        .collect();
+    if forced_candidates.is_empty() {
+        return Some(0);
+    }
+
+    forced_candidates
+        .iter()
+        .copied()
+        .filter(|&index| {
+            let boundary = words[index + 1].time;
+            boundary_strength(
+                &words[index].text,
+                &words[index + 1].text,
+                boundary - words[index].time,
+            ) > 0
+        })
+        .max_by(|&left, &right| score(left).total_cmp(&score(right)))
+        .or_else(|| {
+            forced_candidates.into_iter().min_by(|&left, &right| {
+                let left_distance = (words[left + 1].time - target).abs();
+                let right_distance = (words[right + 1].time - target).abs();
+                left_distance.total_cmp(&right_distance)
+            })
+        })
+}
+
+/// Rebuilds the transcript into sentences.
+///
+/// Whisper divides text by its own thirty-second window, not by meaning. Two
+/// things follow from that, and both need fixing:
+///
+/// * a stretch of speech with no pauses arrives as one long block, awkward to
+///   work with in the editor and hard to follow when highlighted;
+/// * a sentence that happens to straddle the end of a window is torn in two,
+///   so its last words appear at the start of the next segment.
+///
+/// Splitting alone fixed the first and left the second. So the words are put
+/// back into one stream and cut afresh at sentence ends. Times come from the
+/// stored word timings, so nothing moves.
+fn rebuild_sentences(segments: Vec<Segment>) -> Vec<Segment> {
+    let mut output: Vec<Segment> = Vec::with_capacity(segments.len());
+    let mut buffer: Vec<TimedWord> = Vec::new();
+    // The segment the buffered words started in — it lends its identity and
+    // its confidence to the sentences that come out.
+    let mut origin: Option<Segment> = None;
+    // Where the last segment that fed the buffer ended. Needed because a word
+    // timing marks a beginning, so the final word of a sentence would
+    // otherwise have no duration at all.
+    let mut collected_end = 0.0f64;
+
+    for s in segments {
+        let words: Vec<serde_json::Value> = s
+            .words
+            .as_deref()
+            .and_then(|j| serde_json::from_str(j).ok())
+            .unwrap_or_default();
+
+        // Without word timings there is nothing to cut by. A hand-edited or
+        // explicitly verified segment is user-owned and must keep its exact
+        // boundaries during a later layout upgrade. All three act as barriers.
+        if words.is_empty() || s.edited || s.verified {
+            flush(&mut buffer, &mut origin, &mut output, collected_end);
+            output.push(s);
+            continue;
+        }
+
+        let incoming: Vec<TimedWord> = words
+            .iter()
+            .filter_map(|w| {
+                Some(TimedWord {
+                    text: w["s"].as_str()?.to_string(),
+                    time: w["t"].as_f64().unwrap_or(s.start),
+                })
+            })
+            .collect();
+        if incoming.is_empty() {
+            flush(&mut buffer, &mut origin, &mut output, collected_end);
+            output.push(s);
+            continue;
+        }
+
+        // Does this segment continue the sentence being collected, or start
+        // its own? Whisper's source chunks are implementation windows, not
+        // grammatical units. In particular, their first token may be
+        // capitalised even when the window starts mid-sentence, so capital
+        // letters must not become hard barriers here.
+        //
+        // A change of speaker always ends the collection, whatever the
+        // wording says. Two people finishing each other's sentence is still
+        // two segments — merging them would credit one person's words to the
+        // other. Matters when this runs over an already diarized transcript;
+        // straight after transcription nobody has a speaker yet.
+        let different_speaker = origin
+            .as_ref()
+            .map(|o| o.speakers != s.speakers)
+            .unwrap_or(false);
+
+        if let (Some(last), Some(first_word)) = (buffer.last(), incoming.first()) {
+            let gap = first_word.time - last.time;
+
+            if different_speaker || gap > MAX_JOIN_GAP {
+                flush(&mut buffer, &mut origin, &mut output, collected_end);
+            }
+        }
+
+        if origin.is_none() {
+            origin = Some(s.clone());
+        }
+        buffer.extend(incoming);
+        collected_end = s.end;
+
+        // Everything up to the last complete sentence can be emitted now; the
+        // tail waits for the next segment to finish it.
+        emit_complete_sentences(&mut buffer, &mut origin, &mut output, s.end);
+    }
+    flush(&mut buffer, &mut origin, &mut output, collected_end);
+
+    // The ordering was only ever provisional. Renumber from scratch.
     for (i, s) in output.iter_mut().enumerate() {
         s.order = i as i64;
     }
     output
+}
+
+/// Emits every finished sentence from the buffer and keeps the rest.
+fn emit_complete_sentences(
+    buffer: &mut Vec<TimedWord>,
+    origin: &mut Option<Segment>,
+    output: &mut Vec<Segment>,
+    fallback_end: f64,
+) {
+    let mut last_cut = 0usize;
+    let mut cuts: Vec<usize> = Vec::new();
+    for i in 0..buffer.len().saturating_sub(1) {
+        if ends_sentence(&buffer[i].text, Some(&buffer[i + 1].text)) {
+            cuts.push(i);
+        }
+    }
+    for cut in cuts {
+        push_readable_run(
+            &buffer[last_cut..=cut],
+            buffer.get(cut + 1).map(|w| w.time).unwrap_or(fallback_end),
+            origin,
+            output,
+        );
+        last_cut = cut + 1;
+    }
+    if last_cut > 0 {
+        buffer.drain(0..last_cut);
+    }
+    // Once the buffer is empty, the next source segment must lend its own id
+    // and metadata. Previously the capital-letter barrier happened to reset
+    // this state; sentence completion now does so explicitly.
+    if buffer.is_empty() {
+        *origin = None;
+    }
+}
+
+/// Emits one complete sentence or barrier-delimited run, splitting it only
+/// when the adaptive readability limits require it.
+fn push_readable_run(
+    words: &[TimedWord],
+    end: f64,
+    origin: &mut Option<Segment>,
+    output: &mut Vec<Segment>,
+) {
+    let mut from = 0usize;
+    while let Some(relative_cut) = readable_cut(&words[from..]) {
+        let cut = from + relative_cut;
+        let boundary = words.get(cut + 1).map(|word| word.time).unwrap_or(end);
+        push_sentence(&words[from..=cut], boundary, origin, output);
+        from = cut + 1;
+    }
+    if from < words.len() {
+        push_sentence(&words[from..], end, origin, output);
+    }
+}
+
+/// Emits whatever is left, sentence end or not, and empties the buffer.
+fn flush(
+    buffer: &mut Vec<TimedWord>,
+    origin: &mut Option<Segment>,
+    output: &mut Vec<Segment>,
+    collected_end: f64,
+) {
+    if buffer.is_empty() {
+        *origin = None;
+        return;
+    }
+    // The end of the last segment that contributed, not the last word's own
+    // time. A word timing says when the word *starts*; using it as the end
+    // cut the final word off — the highlight never reached it and a subtitle
+    // disappeared while it was still being said.
+    let last_word = buffer.last().map(|w| w.time).unwrap_or(0.0);
+    push_readable_run(&buffer[..], collected_end.max(last_word), origin, output);
+    buffer.clear();
+    *origin = None;
+}
+
+/// Turns a run of words into one segment.
+fn push_sentence(
+    words: &[TimedWord],
+    end: f64,
+    origin: &mut Option<Segment>,
+    output: &mut Vec<Segment>,
+) {
+    let text = words
+        .iter()
+        .map(|w| w.text.as_str())
+        .collect::<Vec<_>>()
+        .join(" ")
+        .trim()
+        .to_string();
+    if text.is_empty() {
+        return;
+    }
+    let Some(template) = origin.as_mut() else {
+        return;
+    };
+
+    let start = words[0].time;
+    let word_data: Vec<serde_json::Value> = words
+        .iter()
+        .map(|w| serde_json::json!({ "t": w.time, "s": w.text }))
+        .collect();
+
+    // The first sentence out of a segment inherits its identity, so anything
+    // pointing at it still resolves; the rest get fresh ones. The identity is
+    // handed over exactly once — taking it empties it, which is cheaper and
+    // safer than searching the output for it every time.
+    let id = if template.id.is_empty() {
+        uuid::Uuid::new_v4().to_string()
+    } else {
+        std::mem::take(&mut template.id)
+    };
+
+    output.push(Segment {
+        id,
+        recording_id: template.recording_id.clone(),
+        order: output.len() as i64,
+        start,
+        end: end.max(start),
+        text,
+        speakers: template.speakers.clone(),
+        confidence: template.confidence,
+        edited: template.edited,
+        verified: template.verified,
+        words: serde_json::to_string(&word_data).ok(),
+        original: template.original.clone(),
+    });
+}
+
+fn same_sentence_layout(before: &[Segment], after: &[Segment]) -> bool {
+    before.len() == after.len()
+        && before.iter().zip(after).all(|(left, right)| {
+            (left.start - right.start).abs() < 0.001
+                && (left.end - right.end).abs() < 0.001
+                && left.text == right.text
+                && left.speakers == right.speakers
+                && left.edited == right.edited
+                && left.verified == right.verified
+        })
+}
+
+/// Whether the archive still contains segment layout produced by an older
+/// version of the sentence builder.
+pub fn sentence_layout_upgrade_needed(connection: &rusqlite::Connection) -> Result<bool> {
+    Ok(
+        db::metadata_value(connection, SENTENCE_LAYOUT_KEY)?.as_deref()
+            != Some(SENTENCE_LAYOUT_VERSION),
+    )
+}
+
+/// Rebuilds visual transcript blocks from already stored word timestamps.
+///
+/// This is intentionally one atomic transaction. The words, their times and
+/// the recording are not re-transcribed; only derived segment boundaries are
+/// replaced. Edited and verified segments remain hard barriers.
+pub fn upgrade_sentence_layout(connection: &mut rusqlite::Connection) -> Result<usize> {
+    if !sentence_layout_upgrade_needed(connection)? {
+        return Ok(0);
+    }
+
+    let transaction = connection.transaction()?;
+    let recording_ids = db::completed_recording_ids_with_segments(&transaction)?;
+    let mut changed = 0usize;
+
+    for recording_id in recording_ids {
+        let before = db::segments(&transaction, &recording_id)?;
+        let after = rebuild_sentences(before.clone());
+        if same_sentence_layout(&before, &after) {
+            continue;
+        }
+
+        db::delete_segments(&transaction, &recording_id)?;
+        for segment in &after {
+            db::insert_segment(&transaction, segment)?;
+        }
+        changed += 1;
+    }
+
+    db::save_metadata_value(&transaction, SENTENCE_LAYOUT_KEY, SENTENCE_LAYOUT_VERSION)?;
+    transaction.commit()?;
+    Ok(changed)
+}
+
+#[cfg(test)]
+mod sentence_block_tests {
+    use super::*;
+
+    fn segment(id: &str, speaker: Option<&str>, words: Vec<(f64, String)>, end: f64) -> Segment {
+        let start = words.first().map(|word| word.0).unwrap_or(0.0);
+        let text = words
+            .iter()
+            .map(|word| word.1.as_str())
+            .collect::<Vec<_>>()
+            .join(" ");
+        let word_data: Vec<serde_json::Value> = words
+            .iter()
+            .map(|(time, text)| serde_json::json!({ "t": time, "s": text }))
+            .collect();
+        Segment {
+            id: id.to_string(),
+            recording_id: "recording".to_string(),
+            order: 0,
+            start,
+            end,
+            text,
+            speakers: speaker.map(str::to_string),
+            confidence: Some(0.9),
+            edited: false,
+            verified: false,
+            words: serde_json::to_string(&word_data).ok(),
+            original: None,
+        }
+    }
+
+    fn plain_words(count: usize, comma_after: Option<usize>) -> Vec<(f64, String)> {
+        (0..count)
+            .map(|index| {
+                let suffix = if comma_after == Some(index) { "," } else { "" };
+                (index as f64, format!("slovo{index}{suffix}"))
+            })
+            .collect()
+    }
+
+    #[test]
+    fn keeps_short_natural_sentences_as_sentences() {
+        let input = segment(
+            "one",
+            None,
+            vec![
+                (0.0, "První".into()),
+                (1.0, "věta.".into()),
+                (2.0, "Druhá".into()),
+                (3.0, "věta.".into()),
+            ],
+            4.0,
+        );
+
+        let output = rebuild_sentences(vec![input]);
+
+        assert_eq!(output.len(), 2);
+        assert_eq!(output[0].text, "První věta.");
+        assert_eq!(output[1].text, "Druhá věta.");
+    }
+
+    #[test]
+    fn splits_a_long_comma_joined_thought_at_the_clause() {
+        let input = segment("one", None, plain_words(41, Some(19)), 41.0);
+
+        let output = rebuild_sentences(vec![input]);
+
+        assert_eq!(output.len(), 2);
+        assert_eq!(output[0].end, 20.0);
+        assert_eq!(output[1].start, 20.0);
+        assert!(output
+            .iter()
+            .all(|block| block.end - block.start <= MAX_SENTENCE_SECONDS));
+    }
+
+    #[test]
+    fn hard_limit_handles_speech_without_any_punctuation() {
+        let input = segment("one", None, plain_words(61, None), 61.0);
+
+        let output = rebuild_sentences(vec![input]);
+
+        assert!(output.len() >= 3);
+        assert!(output
+            .iter()
+            .all(|block| block.end - block.start <= MAX_SENTENCE_SECONDS));
+        let word_count: usize = output
+            .iter()
+            .map(|block| {
+                block
+                    .words
+                    .as_deref()
+                    .and_then(|words| serde_json::from_str::<Vec<serde_json::Value>>(words).ok())
+                    .map(|words| words.len())
+                    .unwrap_or(0)
+            })
+            .sum();
+        assert_eq!(word_count, 61);
+    }
+
+    #[test]
+    fn does_not_leave_a_tiny_remainder_after_a_soft_split() {
+        let input = segment("one", None, plain_words(23, Some(19)), 23.0);
+
+        let output = rebuild_sentences(vec![input]);
+
+        assert_eq!(output.len(), 1);
+    }
+
+    #[test]
+    fn waits_for_a_comma_instead_of_cutting_the_phrase_before_it() {
+        let mut words = vec![
+            TimedWord {
+                text: "začátek".into(),
+                time: 0.0,
+            },
+            TimedWord {
+                text: "pokračuje".into(),
+                time: 8.0,
+            },
+            TimedWord {
+                text: "z".into(),
+                time: 17.5,
+            },
+            TimedWord {
+                text: "jednoho".into(),
+                time: 18.0,
+            },
+            TimedWord {
+                text: "prostého".into(),
+                time: 18.5,
+            },
+            TimedWord {
+                text: "důvodu,".into(),
+                time: 19.6,
+            },
+            TimedWord {
+                text: "protože".into(),
+                time: 20.2,
+            },
+            TimedWord {
+                text: "pokračování".into(),
+                time: 25.7,
+            },
+        ];
+
+        // At this point only the pause before "důvodu" has enough following
+        // context. It must not win merely because the comma one word later is
+        // not eligible yet.
+        assert_eq!(readable_cut(&words), None);
+
+        words.push(TimedWord {
+            text: "dál".into(),
+            time: 26.3,
+        });
+        let cut = readable_cut(&words).expect("the comma should now be eligible");
+        assert_eq!(words[cut].text, "důvodu,");
+    }
+
+    #[test]
+    fn comma_outranks_a_pause_inside_a_prepositional_phrase() {
+        let words = vec![
+            TimedWord {
+                text: "začátek".into(),
+                time: 0.0,
+            },
+            TimedWord {
+                text: "pokračuje".into(),
+                time: 9.0,
+            },
+            TimedWord {
+                text: "boji,".into(),
+                time: 18.0,
+            },
+            TimedWord {
+                text: "o".into(),
+                time: 18.5,
+            },
+            TimedWord {
+                text: "čase,".into(),
+                time: 19.0,
+            },
+            TimedWord {
+                text: "o".into(),
+                time: 19.5,
+            },
+            TimedWord {
+                text: "tom,".into(),
+                time: 20.0,
+            },
+            TimedWord {
+                text: "že".into(),
+                time: 20.5,
+            },
+            TimedWord {
+                text: "to".into(),
+                time: 20.8,
+            },
+            TimedWord {
+                text: "nejde".into(),
+                time: 21.2,
+            },
+            TimedWord {
+                text: "hned,".into(),
+                time: 21.5,
+            },
+            TimedWord {
+                text: "ale".into(),
+                time: 22.0,
+            },
+            TimedWord {
+                text: "když".into(),
+                time: 22.5,
+            },
+            TimedWord {
+                text: "se".into(),
+                time: 23.0,
+            },
+            TimedWord {
+                text: "soustředíme".into(),
+                time: 24.0,
+            },
+            TimedWord {
+                text: "na".into(),
+                time: 25.2,
+            },
+            TimedWord {
+                text: "ty".into(),
+                time: 25.4,
+            },
+            TimedWord {
+                text: "malé,".into(),
+                time: 26.0,
+            },
+            TimedWord {
+                text: "tak".into(),
+                time: 26.4,
+            },
+            TimedWord {
+                text: "pokračujeme".into(),
+                time: 31.5,
+            },
+        ];
+
+        let cut = readable_cut(&words).expect("the long run needs a readable split");
+        assert_eq!(words[cut].text, "hned,");
+        assert_ne!(words[cut].text, "boji,");
+        assert_ne!(words[cut].text, "soustředíme");
+    }
+
+    #[test]
+    fn source_window_capitalization_does_not_break_an_unfinished_sentence() {
+        let first = segment(
+            "one",
+            None,
+            vec![
+                (0.0, "Tohle".into()),
+                (1.0, "je".into()),
+                (2.0, "nedokončené".into()),
+            ],
+            3.0,
+        );
+        let second = segment(
+            "two",
+            None,
+            vec![(3.1, "Pokračování".into()), (4.0, "věty.".into())],
+            5.0,
+        );
+
+        let output = rebuild_sentences(vec![first, second]);
+
+        assert_eq!(output.len(), 1);
+        assert_eq!(output[0].text, "Tohle je nedokončené Pokračování věty.");
+    }
+
+    #[test]
+    fn layout_upgrade_rebuilds_existing_segments_once() {
+        let mut connection = rusqlite::Connection::open_in_memory().unwrap();
+        connection
+            .execute_batch(
+                "CREATE TABLE nahravky (
+                    id TEXT PRIMARY KEY, stav TEXT NOT NULL, vytvoreno TEXT NOT NULL
+                 );
+                 CREATE TABLE segmenty (
+                    id TEXT PRIMARY KEY, nahravka_id TEXT NOT NULL, poradi INTEGER NOT NULL,
+                    zacatek REAL NOT NULL, konec REAL NOT NULL, text TEXT NOT NULL,
+                    mluvci TEXT, jistota REAL, upraveno INTEGER NOT NULL DEFAULT 0,
+                    slova TEXT, overeno INTEGER NOT NULL DEFAULT 0, puvodni TEXT
+                 );
+                 CREATE VIRTUAL TABLE segmenty_fts USING fts5(
+                    text, segment_id UNINDEXED, nahravka_id UNINDEXED
+                 );
+                 CREATE TABLE klice (klic TEXT PRIMARY KEY, hodnota TEXT NOT NULL);
+                 INSERT INTO nahravky (id, stav, vytvoreno)
+                 VALUES ('recording', 'hotova', '2026-08-02 00:00:00');",
+            )
+            .unwrap();
+
+        let first = segment(
+            "one",
+            None,
+            vec![
+                (0.0, "začátek".into()),
+                (8.0, "pokračuje".into()),
+                (17.5, "z".into()),
+                (18.0, "jednoho".into()),
+                (18.5, "prostého".into()),
+            ],
+            19.6,
+        );
+        let second = segment(
+            "two",
+            None,
+            vec![
+                (19.6, "důvodu,".into()),
+                (20.2, "protože".into()),
+                (25.7, "pokračování".into()),
+                (26.3, "jde".into()),
+                (30.5, "dál.".into()),
+            ],
+            31.0,
+        );
+        db::insert_segment(&connection, &first).unwrap();
+        db::insert_segment(&connection, &second).unwrap();
+
+        assert_eq!(upgrade_sentence_layout(&mut connection).unwrap(), 1);
+        let upgraded = db::segments(&connection, "recording").unwrap();
+        assert_eq!(upgraded.len(), 2);
+        assert!(upgraded[0].text.ends_with("prostého důvodu,"));
+        assert!(upgraded[1].text.starts_with("protože"));
+        assert_eq!(upgrade_sentence_layout(&mut connection).unwrap(), 0);
+    }
+
+    #[test]
+    fn a_speaker_change_remains_a_hard_boundary() {
+        let first = segment("one", Some("A"), plain_words(5, None), 5.0);
+        let second_words = plain_words(5, None)
+            .into_iter()
+            .map(|(time, text)| (time + 5.0, text))
+            .collect();
+        let second = segment("two", Some("B"), second_words, 10.0);
+
+        let output = rebuild_sentences(vec![first, second]);
+
+        assert_eq!(output.len(), 2);
+        assert_eq!(output[0].speakers.as_deref(), Some("A"));
+        assert_eq!(output[1].speakers.as_deref(), Some("B"));
+    }
 }
 
 fn apply_dictionary(segments: &mut [Segment], dictionary: &[db::DictionaryEntry]) {
@@ -1016,11 +1957,11 @@ fn waveform_from_wav(
     check: &tools::ToolCheck,
     wav: &Path,
     duration: f64,
-) -> Result<db::WaveformData> {
+) -> Reported<db::WaveformData> {
     let ffmpeg = check
         .ffmpeg
         .as_ref()
-        .ok_or_else(|| anyhow!("chybí ffmpeg"))?;
+        .ok_or_else(|| UserMessage::new("tools.ffmpeg_missing"))?;
     let (points_per_second, count) = waveform_density(duration);
     let points = tools::waveform_amplitude(Path::new(ffmpeg), wav, count)?;
     let equalizer = tools::equalizer_peaks(
@@ -1046,7 +1987,20 @@ struct SpeakerTurn {
     key: String,
 }
 
-fn diarize(settings: &Settings, check: &tools::ToolCheck, wav: &Path) -> Result<Vec<SpeakerTurn>> {
+/// Runs speaker diarization over a converted WAV.
+///
+/// `report` is the app handle, the recording id, and the percentage band this
+/// run occupies in whatever pipeline it belongs to. Sherpa's own 0–100 is
+/// mapped into that band, so the same function serves a standalone run and one
+/// inside a full transcription without either inventing numbers.
+fn diarize(
+    settings: &Settings,
+    check: &tools::ToolCheck,
+    wav: &Path,
+    task: &TranscriptionTask,
+    recording_id: &str,
+    report: Option<(&AppHandle, &str, f64, f64)>,
+) -> Reported<Vec<SpeakerTurn>> {
     let program = Path::new(check.sherpa_diarization.as_ref().unwrap());
 
     // Sherpa is built on the Kaldi option parser: an unknown flag is not an
@@ -1106,10 +2060,23 @@ fn diarize(settings: &Settings, check: &tools::ToolCheck, wav: &Path) -> Result<
 
     // Thread counts are set per model; this program has no shared
     // --num-threads flag.
+    //
+    // Automatic used to mean a flat four, on any machine. That is not a
+    // neutral guess — measured on this binary with a ten-minute recording on
+    // a two-core machine, four threads took 210 s against 88 s for two and
+    // 120 s for one. Asking for more parallelism than the machine has does not
+    // merely stop helping, it costs more than doing the work single-threaded.
+    //
+    // So automatic now means what the machine actually has. Going *beyond* the
+    // core count is the part that was measured and is avoided; whether some
+    // lower cap would be better on a very wide machine was not measured and is
+    // therefore not invented here.
     let threads = if settings.threads > 0 {
         settings.threads
     } else {
-        4
+        std::thread::available_parallelism()
+            .map(|cores| cores.get() as i64)
+            .unwrap_or(2)
     };
     if supports("--segmentation.num-threads") {
         cmd.arg(format!("--segmentation.num-threads={threads}"));
@@ -1119,13 +2086,73 @@ fn diarize(settings: &Settings, check: &tools::ToolCheck, wav: &Path) -> Result<
     }
     cmd.arg(wav);
 
-    let output = cmd.stdout(Stdio::piped()).stderr(Stdio::piped()).output()?;
+    // Read the output as it appears rather than waiting for the end.
+    //
+    // sherpa reports how far along it is on stderr ("progress 42.00%"), and
+    // that is the only honest source of progress there is: the run takes
+    // minutes on a long recording and nothing else says anything meanwhile.
+    // With `output()` all of it arrived at once, after the fact, and the bar
+    // stood still at whatever value we last guessed.
+    //
+    // stderr is consumed on a thread of its own. Both pipes have to be drained
+    // in parallel — read only one and the other's buffer fills up, at which
+    // point sherpa blocks on a write and neither side ever moves again.
+    let mut child = cmd
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|error| UserMessage::new("diarization.launch_failed").detail(error))?;
 
-    let text = format!(
-        "{}\n{}",
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr)
-    );
+    let stdout = child.stdout.take().unwrap();
+    let stderr = child.stderr.take().unwrap();
+    // Hand the child over so cancelling can actually kill it. Measured on this
+    // binary, 45 minutes of audio is around 447 s of work; until now nothing
+    // could stop it once it had started.
+    task.record_process(recording_id, child);
+
+    // This thread runs whether or not anyone wants progress, and that is the
+    // whole point.
+    //
+    // Sherpa writes `progress 42.00%` to stderr for the length of the run. If
+    // nothing drains that pipe, the operating system's buffer fills, sherpa
+    // blocks on the write, and neither side ever moves again — the deadlock the
+    // comment above the spawn warns about. Reporting is optional; draining is
+    // not. A 45-minute recording produced enough output to hit exactly that,
+    // while a 10-minute one still fit in the buffer and finished.
+    let progress = report.map(|(app, id, from, to)| (app.clone(), id.to_string(), from, to));
+    let reporter = std::thread::spawn(move || {
+        let re = Regex::new(r"progress\s+([0-9]+(?:\.[0-9]+)?)\s*%").unwrap();
+        let mut collected = String::new();
+        let mut last = u32::MAX;
+        for row in BufReader::new(stderr).lines().map_while(Result::ok) {
+            if let Some((app, id, from, to)) = progress.as_ref() {
+                if let Some(c) = re.captures(&row) {
+                    let done = (c[1].parse::<f64>().unwrap_or(0.0) / 100.0).clamp(0.0, 1.0);
+                    let overall = (from + (to - from) * done).round() as u32;
+                    if overall != last {
+                        last = overall;
+                        status(app, id, "diarization", overall, step("diarization.running"));
+                    }
+                }
+            }
+            collected.push_str(&row);
+            collected.push('\n');
+        }
+        collected
+    });
+
+    let mut text = String::new();
+    for row in BufReader::new(stdout).lines().map_while(Result::ok) {
+        text.push_str(&row);
+        text.push('\n');
+    }
+    if let Ok(errors) = reporter.join() {
+        text.push_str(&errors);
+    }
+    // Nothing to wait for when cancellation has already killed and removed it.
+    if let Some(mut child) = task.take_process(recording_id) {
+        child.wait()?;
+    }
 
     let re = Regex::new(r"([0-9]+\.[0-9]+)\s*--\s*([0-9]+\.[0-9]+)\s*(speaker_?\d+)").unwrap();
     let turns: Vec<SpeakerTurn> = re
@@ -1143,29 +2170,58 @@ fn diarize(settings: &Settings, check: &tools::ToolCheck, wav: &Path) -> Result<
         // If the program printed its help instead of a result, it rejected
         // one of the flags. Say so plainly rather than leaving it to the dump.
         if text.contains("PrintUsage") || text.contains("Usage example") {
-            return Err(anyhow!(
-                "Rozlišení mluvčích odmítlo předané volby a vypsalo nápovědu. \
-                 Nejspíš má jiná jména přepínačů než ta, se kterými počítáme."
-            ));
+            return Err(UserMessage::new("diarization.options_rejected"));
         }
-        return Err(anyhow!(
-            "sherpa-onnx nevrátil žádné úseky. Výstup: {}",
-            text.chars().take(300).collect::<String>()
-        ));
+        return Err(UserMessage::new("diarization.no_turns")
+            .with("output", text.chars().take(300).collect::<String>()));
     }
     Ok(turns)
 }
 
-/// Kratsi sled slov nez tolik se uvnitr jedne vety nepovazuje za stridani
-/// mluvcich, ale za nepresnou hranici.
+/// Kolik reci musi uvnitr jedne vety pripadnout na druheho mluvciho, aby se
+/// zmena povazovala za skutecne prevzeti slova a ne za nepresnou hranici.
+///
+/// Obe podminky plati zaroven. Samotny pocet slov nestaci: tri kratka slova
+/// jsou pul vteriny, coz zadne prevzeti slova neni. A samotna delka nestaci
+/// taky, protoze jedno slovo pred dlouhou pauzou muze mit vterinu a pul.
 ///
 /// Pozor, tohle plati jen *uvnitr* vety. Jednoslovne pritakani v rozhovoru
 /// nebo v telefonatu — „mhm“, „jasne“ — vraci Whisper jako samostatny usek,
 /// a ten touhle cestou vubec neprochazi: useky kratsi nez dve slova dostanou
-/// mluvciho prostym prekryvem a nikdo je nepohlti. Zahodit by se dalo jen
-/// jedno slovo vsazene doprostred cizi vety, a to je skoro vzdy chyba
-/// diarizace, ne skutecny vstup do reci.
-const MIN_SPEAKER_RUN: usize = 2;
+/// mluvciho prostym prekryvem a nikdo je nepohlti.
+const MIN_TURN_SECONDS: f64 = 1.4;
+const MIN_TURN_WORDS: usize = 3;
+
+/// O kolik slov se smi hranice mluvcich posunout, aby padla na interpunkci.
+///
+/// Sherpa vraci cas, Whisper vraci slova, a obe hranice jsou nepresne radove
+/// o desetiny vteriny — tedy prave o jedno dve slova. Kdyz uz se veta deli,
+/// at se deli tam, kde ma stejne konec vetny celek.
+const PUNCTUATION_SNAP: usize = 2;
+
+/// Souvisle sledy slov jednoho mluvciho, jako dvojice prvni a posledni index.
+fn speaker_runs(speakers: &[Option<String>]) -> Vec<(usize, usize)> {
+    let mut runs: Vec<(usize, usize)> = Vec::new();
+    let mut i = 0usize;
+    while i < speakers.len() {
+        let mut j = i;
+        while j + 1 < speakers.len() && speakers[j + 1] == speakers[i] {
+            j += 1;
+        }
+        runs.push((i, j));
+        i = j + 1;
+    }
+    runs
+}
+
+/// Konci slovo znamenkem, ktere uzavira vetu nebo vetny celek?
+fn ends_clause(word: &str) -> bool {
+    word.trim_end()
+        .chars()
+        .last()
+        .map(|c| matches!(c, ',' | '.' | '!' | '?' | '…' | ';' | ':'))
+        .unwrap_or(false)
+}
 
 /// Poradi mluvciho podle cisla v klici.
 ///
@@ -1265,33 +2321,111 @@ fn assign_speakers(segments: Vec<Segment>, turns: &[SpeakerTurn]) -> Vec<Segment
             }
         }
 
-        // Smoothing: a short island in the middle of someone else's speech is
-        // almost certainly an imprecise boundary, not a real handover. A run at
-        // the start of a sentence is absorbed by what follows; elsewhere by
-        // what precedes.
-        let mut i = 0usize;
-        while i < speakers_by_word.len() {
-            let mut j = i;
-            while j + 1 < speakers_by_word.len() && speakers_by_word[j + 1] == speakers_by_word[i] {
-                j += 1;
+        let word_end = |i: usize| {
+            if i + 1 < words.len() {
+                time_words(i + 1)
+            } else {
+                sentence_to
             }
-            let duration = j - i + 1;
-            if duration < MIN_SPEAKER_RUN {
-                let neighbor = if i > 0 {
-                    Some(speakers_by_word[i - 1].clone())
-                } else if j + 1 < speakers_by_word.len() {
-                    Some(speakers_by_word[j + 1].clone())
-                } else {
-                    // One-word sentence: nobody to lean on, leave it alone.
-                    None
-                };
-                if let Some(neighbor) = neighbor {
-                    for speaker in speakers_by_word.iter_mut().take(j + 1).skip(i) {
-                        *speaker = neighbor.clone();
+        };
+        let run_seconds = |from: usize, to: usize| (word_end(to) - time_words(from)).max(0.0);
+        let taken_over = |from: usize, to: usize| {
+            run_seconds(from, to) >= MIN_TURN_SECONDS && to - from + 1 >= MIN_TURN_WORDS
+        };
+
+        // Smoothing. A change of speaker inside one sentence is believed only
+        // when the newcomer holds the floor long enough to have actually taken
+        // it. Anything shorter is an imprecise boundary and goes back to
+        // whichever neighbour speaks more.
+        //
+        // One change is undone per pass, the least believable one first, and
+        // the runs are rebuilt each time: absorbing an island joins the speech
+        // on both sides of it, and the joined run may well clear the bar that
+        // neither half cleared alone.
+        for _ in 0..speakers_by_word.len() {
+            let runs = speaker_runs(&speakers_by_word);
+            if runs.len() < 2 {
+                break;
+            }
+            let weakest = runs
+                .iter()
+                .copied()
+                .enumerate()
+                .filter(|&(_, (from, to))| !taken_over(from, to))
+                .min_by(|&(_, (a, b)), &(_, (c, d))| {
+                    run_seconds(a, b).total_cmp(&run_seconds(c, d))
+                });
+            let Some((index, (from, to))) = weakest else {
+                break;
+            };
+            let before = index.checked_sub(1).map(|k| runs[k]);
+            let after = runs.get(index + 1).copied();
+            let host = match (before, after) {
+                (Some(b), Some(a)) => {
+                    if run_seconds(b.0, b.1) >= run_seconds(a.0, a.1) {
+                        Some(b)
+                    } else {
+                        Some(a)
                     }
                 }
+                (Some(b), None) => Some(b),
+                (None, Some(a)) => Some(a),
+                (None, None) => None,
+            };
+            let Some(host) = host else {
+                break;
+            };
+            let key = speakers_by_word[host.0].clone();
+            for speaker in speakers_by_word.iter_mut().take(to + 1).skip(from) {
+                *speaker = key.clone();
             }
-            i = j + 1;
+        }
+
+        // Whatever changes survived, put them where a clause ends.
+        //
+        // Sherpa returns a moment in time and Whisper returns words; both are
+        // imprecise by roughly the length of one or two of them, which is why
+        // the cut lands mid-phrase — `for 35 | years` — as often as not. The
+        // handover is audible at the comma either way, so the boundary is
+        // moved there when one is within reach.
+        let runs = speaker_runs(&speakers_by_word);
+        for pair in runs.windows(2) {
+            let (left, right) = (pair[0], pair[1]);
+            let boundary = left.1;
+            if ends_clause(&text_words(boundary)) {
+                continue;
+            }
+            let mut target = None;
+            for step in 1..=PUNCTUATION_SNAP {
+                // Neither side may be swallowed whole: this moves a boundary,
+                // it does not undo a change the pass above chose to keep.
+                if boundary >= step
+                    && boundary - step >= left.0
+                    && ends_clause(&text_words(boundary - step))
+                {
+                    target = Some(boundary - step);
+                    break;
+                }
+                if boundary + step < right.1 && ends_clause(&text_words(boundary + step)) {
+                    target = Some(boundary + step);
+                    break;
+                }
+            }
+            let Some(target) = target else { continue };
+            // Read the two keys off the boundary itself. An earlier pair may
+            // have moved its own boundary into this run's opening words, so
+            // `left.0` no longer reliably holds this run's speaker.
+            let (key, range) = if target < boundary {
+                (
+                    speakers_by_word[boundary + 1].clone(),
+                    target + 1..=boundary,
+                )
+            } else {
+                (speakers_by_word[boundary].clone(), boundary + 1..=target)
+            };
+            for index in range {
+                speakers_by_word[index] = key.clone();
+            }
         }
 
         // Boundaries between speakers inside the sentence.
@@ -1352,6 +2486,7 @@ fn assign_speakers(segments: Vec<Segment>, turns: &[SpeakerTurn]) -> Vec<Segment
                 edited: s.edited,
                 verified: s.verified,
                 words: serde_json::to_string(&word_data).ok(),
+                original: s.original.clone(),
             });
             order_offset += 1;
             from = end_parts + 1;
@@ -1362,4 +2497,223 @@ fn assign_speakers(segments: Vec<Segment>, turns: &[SpeakerTurn]) -> Vec<Segment
         s.order = i as i64;
     }
     output
+}
+
+#[cfg(test)]
+mod cancellation_tests {
+    use super::*;
+
+    /// The defect: pressing Zrušit while ffmpeg was converting found no child,
+    /// answered "nothing is running", and cleared the request it had just made.
+    #[test]
+    fn cancelling_between_programs_still_stops_the_run() {
+        let task = TranscriptionTask::default();
+        task.begin("a");
+        assert!(
+            task.cancel("a"),
+            "a worker is running, so there is something to cancel"
+        );
+        assert!(task.was_cancelled("a"), "the request must survive the call");
+        assert!(stop_if_cancelled(&task, "a").is_err());
+    }
+
+    #[test]
+    fn a_run_that_has_already_finished_reports_nothing_to_cancel() {
+        let task = TranscriptionTask::default();
+        task.begin("a");
+        task.cleanup("a");
+        assert!(!task.cancel("a"));
+    }
+
+    #[test]
+    fn a_new_run_does_not_inherit_the_previous_cancellation() {
+        let task = TranscriptionTask::default();
+        task.begin("a");
+        task.cancel("a");
+        task.cleanup("a");
+        task.begin("a");
+        assert!(!task.was_cancelled("a"));
+        assert!(stop_if_cancelled(&task, "a").is_ok());
+    }
+
+    /// One recording runs several programs in turn. Storing one handle per
+    /// recording dropped the previous `Child` without killing it, which is how
+    /// an orphaned whisper could keep writing while a second one started.
+    #[test]
+    fn every_program_of_a_run_is_kept_not_only_the_last() {
+        let task = TranscriptionTask::default();
+        let spawn = || {
+            std::process::Command::new(std::env::current_exe().unwrap())
+                .arg("--list")
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .spawn()
+                .unwrap()
+        };
+        task.record_process("a", spawn());
+        task.record_process("a", spawn());
+        for _ in 0..2 {
+            let mut child = task.take_process("a").expect("both children are kept");
+            let _ = child.wait();
+        }
+        assert!(task.take_process("a").is_none());
+
+        task.begin("a");
+        task.record_process("a", spawn());
+        assert!(task.cancel("a"));
+        assert!(
+            task.take_process("a").is_none(),
+            "cancelling kills and removes whatever was running"
+        );
+    }
+}
+
+#[cfg(test)]
+mod speaker_assignment_tests {
+    use super::*;
+
+    fn turn(start: f64, end: f64, key: &str) -> SpeakerTurn {
+        SpeakerTurn {
+            start,
+            end,
+            key: key.to_string(),
+        }
+    }
+
+    /// One word per second, the sentence ending one second after the last.
+    fn spoken(id: &str, words: &[&str]) -> Segment {
+        let word_data: Vec<serde_json::Value> = words
+            .iter()
+            .enumerate()
+            .map(|(index, text)| serde_json::json!({ "t": index as f64, "s": text }))
+            .collect();
+        Segment {
+            id: id.to_string(),
+            recording_id: "recording".to_string(),
+            order: 0,
+            start: 0.0,
+            end: words.len() as f64,
+            text: words.join(" "),
+            speakers: None,
+            confidence: Some(0.9),
+            edited: false,
+            verified: false,
+            words: serde_json::to_string(&word_data).ok(),
+            original: None,
+        }
+    }
+
+    /// The reported defect: two words in the middle of a sentence fell to the
+    /// other speaker and became a turn of their own, so one sentence left the
+    /// pipeline as three. Two words is well under the second and a half it
+    /// takes to claim the floor and give it back.
+    #[test]
+    fn a_two_word_island_does_not_break_the_sentence() {
+        let input = spoken(
+            "one",
+            &[
+                "Nepotřebují",
+                "další",
+                "obsah,",
+                "potřebují",
+                "obsah",
+                "proti",
+                "očekávání",
+                "a",
+                "to",
+                "vytváří",
+                "novou",
+                "cestu",
+            ],
+        );
+        let turns = vec![
+            turn(0.0, 7.0, "speaker_0"),
+            turn(7.0, 8.6, "speaker_1"),
+            turn(8.6, 12.0, "speaker_0"),
+        ];
+
+        let output = assign_speakers(vec![input], &turns);
+
+        assert_eq!(
+            output.len(),
+            1,
+            "a two-word island must not split a sentence"
+        );
+        assert_eq!(output[0].speakers.as_deref(), Some("speaker_0"));
+        assert_eq!(
+            output[0].text,
+            "Nepotřebují další obsah, potřebují obsah proti očekávání a to vytváří novou cestu"
+        );
+    }
+
+    /// The other half of the same rule: someone who really does take the floor
+    /// still gets their own segment.
+    #[test]
+    fn a_real_handover_still_splits_the_sentence() {
+        let input = spoken(
+            "one",
+            &[
+                "tak", "co", "chceš", "udělat", "je", "míň", "obsahu", "a", "přidat", "otázky",
+                "tam",
+            ],
+        );
+        let turns = vec![
+            turn(0.0, 4.0, "speaker_0"),
+            turn(4.0, 8.0, "speaker_1"),
+            turn(8.0, 11.0, "speaker_0"),
+        ];
+
+        let output = assign_speakers(vec![input], &turns);
+
+        assert_eq!(output.len(), 3);
+        assert_eq!(output[0].speakers.as_deref(), Some("speaker_0"));
+        assert_eq!(output[1].speakers.as_deref(), Some("speaker_1"));
+        assert_eq!(output[1].text, "je míň obsahu a");
+        assert_eq!(output[2].speakers.as_deref(), Some("speaker_0"));
+    }
+
+    /// The reported `for 35 | years` break: the change is real, its position is
+    /// off by a word, and a clause ends within reach.
+    #[test]
+    fn a_surviving_cut_moves_to_the_end_of_the_clause() {
+        let input = spoken(
+            "one",
+            &[
+                "Byl",
+                "jsem",
+                "kazatelem",
+                "pětatřicet",
+                "let,",
+                "z",
+                "toho",
+                "pětadvacet",
+                "ve",
+                "vlastním",
+                "sboru.",
+            ],
+        );
+        let turns = vec![turn(0.0, 4.0, "speaker_0"), turn(4.0, 11.0, "speaker_1")];
+
+        let output = assign_speakers(vec![input], &turns);
+
+        assert_eq!(output.len(), 2);
+        assert_eq!(
+            output[0].text, "Byl jsem kazatelem pětatřicet let,",
+            "the cut belongs after the comma, not between the number and its noun"
+        );
+        assert_eq!(output[1].text, "z toho pětadvacet ve vlastním sboru.");
+    }
+
+    /// A short reply Whisper returned as its own segment never reaches the
+    /// smoothing above, and must keep the speaker it overlaps.
+    #[test]
+    fn a_standalone_short_reply_keeps_its_own_speaker() {
+        let input = spoken("one", &["Jasně."]);
+        let turns = vec![turn(0.0, 0.4, "speaker_0"), turn(0.4, 1.0, "speaker_1")];
+
+        let output = assign_speakers(vec![input], &turns);
+
+        assert_eq!(output.len(), 1);
+        assert_eq!(output[0].speakers.as_deref(), Some("speaker_1"));
+    }
 }

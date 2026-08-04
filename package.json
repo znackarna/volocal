@@ -1,15 +1,21 @@
 {
   "name": "whisp",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.9.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "npm run i18n:check && tsc --noEmit && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
     "start": "tauri dev",
-    "installer": "tauri build"
+    "installer": "tauri build",
+    "i18n:check": "node scripts/i18n.mjs check",
+    "i18n:sync": "node scripts/i18n.mjs sync",
+    "i18n:new": "node scripts/i18n.mjs new",
+    "i18n:export": "node scripts/i18n.mjs export",
+    "i18n:import": "node scripts/i18n.mjs import",
+    "i18n:clear": "node scripts/i18n.mjs clear"
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.3.0",

@@ -1,3 +1,12 @@
+/** What Rust sends instead of a finished sentence: a stable code, the values
+ *  that belong in it, and a technical text for codes the dictionary does not
+ *  cover yet. `useUserMessage` in `messages.ts` turns it into words. */
+export interface UserMessage {
+  code: string;
+  params: Record<string, string>;
+  detail: string;
+}
+
 export type Status = "nova" | "prepisuje" | "hotova" | "chyba";
 
 export interface Recording {
@@ -11,6 +20,8 @@ export interface Recording {
   /** Language code the transcript ran in */
   language: string;
   language_choice: string;
+  /** Why the last attempt failed. A stored `UserMessage` in archives written
+   *  by this version, a finished Czech sentence in older ones. */
   error: string | null;
   segment_count: number;
 }
@@ -29,6 +40,10 @@ export interface Segment {
   verified: boolean;
   /** JSON with word timings: [{"t":1.23,"s":"word"}] */
   words: string | null;
+  /** What the machine wrote here, kept from the first manual rewrite.
+   *  Null for a segment nobody has touched — and for one edited before the
+   *  archive had somewhere to keep it. */
+  original: string | null;
 }
 
 export interface Speaker {
@@ -42,13 +57,17 @@ export interface DictionaryEntry {
   id: string;
   find: string;
   replace: string;
-  prompt: boolean;
 }
 
 export interface Settings {
   bin_directory: string;
   models_directory: string;
+  /** Optional directory that is checked for newly added media files. */
+  watch_folder: string;
+  watch_folder_enabled: boolean;
   model: string;
+  /** Optional local model used to turn a transcript into a readable document. */
+  editor_model: string;
   language: string;
   vad: boolean;
   vad_threshold: number;
@@ -80,8 +99,23 @@ export interface Settings {
   transcript_line_height: number;
 }
 
+export interface WatchFolderCandidate {
+  path: string;
+  name: string;
+  fingerprint: string;
+}
+
 /** Fonts ship with the app, so they work without an internet connection. */
-export const FONTS: Record<string, { title: string; stack: string; category: "sans" | "serif" }> = {
+export interface FontChoice {
+  /** Brand names are not translated. */
+  title: string;
+  /** Set when the name describes the font instead of naming it. */
+  titleKey?: string;
+  stack: string;
+  category: "sans" | "serif";
+}
+
+export const FONTS: Record<string, FontChoice> = {
   geist: {
     title: "Geist",
     stack: '"Geist Variable", system-ui, sans-serif',
@@ -98,7 +132,9 @@ export const FONTS: Record<string, { title: string; stack: string; category: "sa
     category: "sans",
   },
   system: {
+    // i18n-ignore: fallback only; the shown name is domain.font.system
     title: "Systémové (Segoe UI)",
+    titleKey: "domain.font.system",
     stack: '"Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif',
     category: "sans",
   },
@@ -138,6 +174,10 @@ export interface ToolCheck {
   sherpa_diarization: string | null;
   segmentation_model: string | null;
   embedding_model: string | null;
+  editor_cli: string | null;
+  editor_server: string | null;
+  editor_model: string | null;
+  editor_model_id: string | null;
   portable: boolean;
   app_directory: string;
   webview2_bundled: boolean;
@@ -146,14 +186,44 @@ export interface ToolCheck {
   nvidia_driver: boolean;
   vulkan_driver: boolean;
   found_models: string[];
-  issues: string[];
-  issues_diarization: string[];
+  issues: UserMessage[];
+  issues_diarization: UserMessage[];
+  issues_editor: UserMessage[];
+}
+
+export interface AiDocument {
+  recording_id: string;
+  source_hash: string;
+  model: string;
+  mode: "faithful" | "clean" | string;
+  text: string;
+  updated_at: string;
+  stale: boolean;
+}
+
+export interface AiOutput {
+  recording_id: string;
+  kind: "summary" | "translation" | string;
+  variant: string;
+  source_hash: string;
+  model: string;
+  text: string;
+  updated_at: string;
+}
+
+export interface AiEditProgress {
+  recording_id: string;
+  phase: "preparing" | "processing" | "complete" | "error" | "cancelled";
+  percent: number;
+  description: UserMessage;
 }
 
 export interface DownloadComponent {
   id: string;
-  title: string;
-  description: string;
+  /** Dictionary key for the name, `catalog.<id>.name`. */
+  name_code: string;
+  /** Dictionary key for the sentence under it, `catalog.<id>.description`. */
+  description_code: string;
   megabytes: number;
   group: "program" | "model" | "speakers" | string;
   required: boolean;
@@ -167,81 +237,62 @@ export interface DownloadProgress {
   downloaded_mb: number;
   total_mb: number;
   percent: number;
-  message: string;
+  message: UserMessage | null;
 }
 
 export interface BenchmarkResult {
   compute: string;
   seconds: number;
   realtime_factor: number;
-  error: string | null;
+  error: UserMessage | null;
 }
 
-export const COMPUTE_LABELS: Record<string, string> = {
-  cuda: "NVIDIA (CUDA)",
-  vulkan: "Grafická karta (Vulkan)",
-  cpu: "Procesor",
-  default: "Výchozí",
-  auto: "Rozhodnout automaticky",
-};
+/** Identifiers the backend uses for compute backends. Their names live in the
+ *  translation dictionary and are read through `useLabels`. */
+export const COMPUTE_IDS = ["cuda", "vulkan", "cpu", "default", "auto"] as const;
 
-/** Human-readable model names. The technical label ("large-v3-q5_0") means
- *  nothing to anyone — it belongs in a footnote at most. */
-export const MODEL_LABELS: Record<string, string> = {
-  "large-v3": "Nejvyšší kvalita",
-  "large-v3-q5_0": "Vyvážený",
-  "large-v3-turbo-q5_0": "Rychlý",
-  "large-v3-turbo": "Rychlý (plný)",
-  medium: "Starší",
-  "medium-q5_0": "Starší (zmenšený)",
-  small: "Náhledový",
-};
+/** Whisper models the interface knows how to name, in the order they are
+ *  offered. Unknown identifiers still work; they show their raw name. */
+export const MODEL_IDS = [
+  "large-v3",
+  "large-v3-q5_0",
+  "large-v3-turbo-q5_0",
+  "large-v3-turbo",
+  "medium",
+  "medium-q5_0",
+  "small",
+] as const;
 
-export const MODEL_DESCRIPTIONS: Record<string, string> = {
-  "large-v3": "Nejpřesnější čeština, největší a nejpomalejší (3,1 GB)",
-  "large-v3-q5_0": "Kvalita skoro jako nejvyšší, třetinová velikost (1,1 GB)",
-  "large-v3-turbo-q5_0": "Několikanásobně rychlejší, drobně méně přesný (575 MB)",
-  "large-v3-turbo": "Rychlý bez zmenšení (1,6 GB)",
-  medium: "Znatelně víc chyb ve jménech, nedoporučuje se (1,5 GB)",
-  "medium-q5_0": "Zmenšená starší generace (539 MB)",
-  small: "Jen na rychlý náhled, hodně chyb (488 MB)",
-};
-
-const LANGUAGES: Record<string, string> = {
-  cs: "čeština",
-  sk: "slovenština",
-  en: "angličtina",
-  de: "němčina",
-  pl: "polština",
-  uk: "ukrajinština",
-  ru: "ruština",
-  es: "španělština",
-  fr: "francouzština",
-  it: "italština",
-};
-
-export function languageName(code: string): string {
-  if (code === "auto") return "rozpoznaný";
-  return LANGUAGES[code] ?? code;
-}
-
-/** Language choices. "auto" detects the language from the first seconds. */
-export const LANGUAGE_OPTIONS = [
-  { value: "auto", label: "Rozpoznat automaticky" },
-  ...Object.entries(LANGUAGES).map(([value, label]) => ({
-    value,
-    label: label.charAt(0).toUpperCase() + label.slice(1),
-  })),
-];
-
-export function modelName(id: string): string {
-  return MODEL_LABELS[id] ?? id;
-}
+/** Spoken languages offered for transcription, in display order. */
+export const LANGUAGE_CODES = [
+  "cs",
+  "sk",
+  "en",
+  "de",
+  "pl",
+  "uk",
+  "ru",
+  "es",
+  "fr",
+  "it",
+] as const;
 
 export interface Detail {
   recording: Recording;
   segments: Segment[];
   speakers: Speaker[];
+  notes: RecordingNote[];
+}
+
+export interface RecordingNote {
+  id: string;
+  recording_id: string;
+  /** Where in the recording the note belongs, or null for a note about the
+   *  whole recording. Zero is a real position, so it cannot stand for "none". */
+  time: number | null;
+  text: string;
+  done: boolean;
+  created_at: string;
 }
 
 export interface SearchResult {
@@ -256,6 +307,7 @@ export interface TranscriptionProgress {
   recording_id: string;
   phase:
     | "preparation"
+    | "playback"
     | "transcription"
     | "diarization"
     | "saving"
@@ -263,7 +315,7 @@ export interface TranscriptionProgress {
     | "error"
     | "cancelled";
   percent: number;
-  description: string;
+  description: UserMessage;
 }
 
 export interface LiveSegment {
@@ -273,7 +325,7 @@ export interface LiveSegment {
   text: string;
 }
 
-/// Pod touto hranici prumerne jistoty se usek v editoru podtrhne.
+/** Below this average confidence a segment is underlined in the editor. */
 export const CONFIDENCE_THRESHOLD = 0.72;
 
 /** Picks just the file name, extension included, out of a full path. */

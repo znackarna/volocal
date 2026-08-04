@@ -35,6 +35,32 @@ export const EMPTY_WAVEFORM: Waveform = {
   equalizerBandCount: 24,
 };
 
+// One conversion promise per recording/source pair. The detail screen starts
+// it in the background; pressing a word while it is still running joins the
+// same promise instead of starting a second ffmpeg process.
+const playbackSourceRequests = new Map<string, Promise<string>>();
+
+function resolvedPlaybackSource(recordingId: string, path: string): Promise<string> {
+  if (!path.toLowerCase().endsWith(".mp3")) return Promise.resolve(path);
+  const key = `${recordingId}\u0000${path}`;
+  const existing = playbackSourceRequests.get(key);
+  if (existing) return existing;
+  const request = api.playbackSource(recordingId).catch((error) => {
+    playbackSourceRequests.delete(key);
+    throw error;
+  });
+  playbackSourceRequests.set(key, request);
+  return request;
+}
+
+/** Starts preparing precise MP3 seeking before the user presses a word. */
+export function preparePlaybackSource(recordingId: string, path: string): void {
+  void resolvedPlaybackSource(recordingId, path).catch(() => {
+    // Playback still falls back to the original below. Preloading is best
+    // effort and has nowhere useful to show an error of its own.
+  });
+}
+
 /**
  * Loads a recording waveform.
  *
@@ -133,9 +159,12 @@ interface Status {
   duration: number;
   time: number;
   isPlaying: boolean;
+  /** ffmpeg is creating the seek-accurate playback copy for a VBR MP3. */
+  isPreparing: boolean;
   rate: number;
   /** Loads a recording and plays it from the given time. Nothing else
-      přehrávání nepřepíná — otevřít jiný přepis zvuk nepřeruší. */
+      switches playback over — opening another transcript does not stop the
+      sound. */
   start: (
     recordingId: string,
     path: string,
@@ -147,14 +176,17 @@ interface Status {
   seek: (t: number) => void;
   shift: (o: number) => void;
   setRate: (r: number) => void;
+  /** Updates display copy without reloading audio or changing playback. */
+  updateTitle: (recordingId: string, title: string) => void;
   close: () => void;
   /** Waveform of the playing recording. ffmpeg computes it up front, see
-      poznámka u Web Audia níž. */
+      the note on Web Audio below. */
   waveform: Waveform;
   /** The source file could not be opened — most likely it is gone. */
   sourceMissing: boolean;
   /** Instantaneous playback position. Unlike the state value it triggers no
-      takže se z ní dá kreslit v každém snímku bez zátěže Reactu. */
+      re-render, so it can be drawn from on every frame without loading
+      React. */
   readTime: () => number;
 }
 
@@ -162,7 +194,7 @@ const PlayerContext = createContext<Status | null>(null);
 
 export function usePlayer(): Status {
   const k = useContext(PlayerContext);
-  if (!k) throw new Error("usePrehravac mimo PrehravacProvider");
+  if (!k) throw new Error("usePlayer must be used inside PlayerProvider");
   return k;
 }
 
@@ -174,11 +206,20 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [duration, setDuration] = useState(0);
   const [time, setTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isPreparing, setIsPreparing] = useState(false);
   const [rate, setRateState] = useState(1);
   const [waveform, setWaveform] = useState<Waveform>(EMPTY_WAVEFORM);
   const [sourceMissing, setSourceMissing] = useState(false);
   /** Which recording the waveform was last requested for; older replies are dropped. */
   const lastLoadedRecording = useRef<string | null>(null);
+  const sourceRequest = useRef(0);
+  const pendingSeek = useRef(0);
+  const preparing = useRef(false);
+
+  const markPreparing = useCallback((value: boolean) => {
+    preparing.current = value;
+    setIsPreparing(value);
+  }, []);
 
   // Note: analysing the audio through Web Audio (AnalyserNode) does not work
   // here. Tauri serves files from a different origin than the window, so the
@@ -207,6 +248,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     // does nothing: play() returns a rejected promise nobody reads.
     const handleError = () => {
       if (a.currentSrc) {
+        markPreparing(false);
         setSourceMissing(true);
         setIsPlaying(false);
       }
@@ -221,7 +263,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       a.removeEventListener("timeupdate", handleTimeUpdate);
       a.removeEventListener("loadedmetadata", handleLoadedMetadata);
     };
-  }, []);
+  }, [markPreparing]);
 
   // Word highlighting needs a finer step than `timeupdate` provides (that
   // fires roughly four times a second and words would light up late). Sixty
@@ -261,33 +303,64 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       const a = audio.current;
       if (!a) return;
 
-      if (id !== recordingId) {
+      pendingSeek.current = Math.max(0, fromTime);
+      const sameSource = id === recordingId && path === newPath;
+
+      if (sameSource && a.currentSrc && !preparing.current) {
+        a.currentTime = pendingSeek.current;
+        setTime(a.currentTime);
+        a.play().catch(() => setSourceMissing(true));
+        return;
+      }
+
+      const request = ++sourceRequest.current;
+
+      if (!sameSource) {
         a.pause();
+        a.removeAttribute("src");
+        a.load();
         setSourceMissing(false);
         setWaveform(EMPTY_WAVEFORM);
         // Write first, then call: the loader asks right at the start whether
         // anyone still wants the result.
         lastLoadedRecording.current = id;
         loadWaveform(id, setWaveform, () => id !== lastLoadedRecording.current);
-        a.src = convertFileSrc(newPath);
-        a.playbackRate = rate;
-        a.load();
         setRecordingId(id);
         setPath(newPath);
         setTitle(newTitle);
         setDuration(newDuration);
         setTime(fromTime);
       }
+      markPreparing(true);
 
-      // Seeking is only possible once the browser knows the track length.
-      const startPlayback = () => {
-        a.currentTime = Math.max(0, fromTime);
-        a.play().catch(() => setSourceMissing(true));
+      const loadAndPlay = (playbackPath: string) => {
+        if (sourceRequest.current !== request) return;
+        a.src = convertFileSrc(playbackPath);
+        a.playbackRate = rate;
+        a.load();
+
+        // Seeking is only possible once the browser knows the track length.
+        const startPlayback = () => {
+          if (sourceRequest.current !== request) return;
+          a.currentTime = pendingSeek.current;
+          setTime(a.currentTime);
+          markPreparing(false);
+          a.play().catch(() => setSourceMissing(true));
+        };
+        if (a.readyState >= 1) startPlayback();
+        else a.addEventListener("loadedmetadata", startPlayback, { once: true });
       };
-      if (a.readyState >= 1) startPlayback();
-      else a.addEventListener("loadedmetadata", startPlayback, { once: true });
+
+      void resolvedPlaybackSource(id, newPath)
+        .then(loadAndPlay)
+        .catch((error) => {
+          // Loss of ffmpeg or a full disk must not make the original recording
+          // unplayable. It may seek coarsely, but it remains available.
+          console.error("Could not prepare precise playback", error);
+          loadAndPlay(newPath);
+        });
     },
-    [recordingId, rate]
+    [markPreparing, path, rate, recordingId]
   );
 
   const readTime = useCallback(() => audio.current?.currentTime ?? 0, []);
@@ -303,7 +376,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const seek = useCallback((t: number) => {
     const a = audio.current;
     if (!a) return;
-    a.currentTime = Math.max(0, t);
+    pendingSeek.current = Math.max(0, t);
+    if (preparing.current || !a.currentSrc) {
+      setTime(pendingSeek.current);
+      return;
+    }
+    a.currentTime = pendingSeek.current;
     setTime(a.currentTime);
   }, []);
 
@@ -319,7 +397,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     if (audio.current) audio.current.playbackRate = r;
   }, []);
 
+  const updateTitle = useCallback((id: string, newTitle: string) => {
+    if (id === recordingId) setTitle(newTitle);
+  }, [recordingId]);
+
   const close = useCallback(() => {
+    sourceRequest.current += 1;
+    markPreparing(false);
     const a = audio.current;
     if (a) {
       a.pause();
@@ -333,7 +417,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setDuration(0);
     setWaveform(EMPTY_WAVEFORM);
     setSourceMissing(false);
-  }, []);
+  }, [markPreparing]);
 
   const value = useMemo<Status>(
     () => ({
@@ -343,12 +427,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       duration,
       time,
       isPlaying,
+      isPreparing,
       rate,
       start,
       togglePlayback,
       seek,
       shift,
       setRate,
+      updateTitle,
       close,
       waveform,
       sourceMissing,
@@ -361,12 +447,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       duration,
       time,
       isPlaying,
+      isPreparing,
       rate,
       start,
       togglePlayback,
       seek,
       shift,
       setRate,
+      updateTitle,
       close,
       waveform,
       sourceMissing,
@@ -469,7 +557,7 @@ export function fullWaveform(
  * line differently, so they end up different widths. The canvas is sized by the
  * pixel ratio and filled with an area, where rounding does not matter.
  */
-/** Volby kresby obrysu. */
+/** Options for drawing the outline. */
 export interface WaveformOptions {
   layers: number;
   mirrored: boolean;
@@ -477,7 +565,7 @@ export interface WaveformOptions {
   /** device pixel ratio */
   ratio: number;
   /** Line colour. When absent it is read from CSS, which is expensive and in
-      snímků se to nevyplatí, protože to nutí přepočítat styly. */
+      a frame loop does not pay off, because it forces a style recalculation. */
   color?: string;
 }
 
@@ -544,6 +632,30 @@ export function drawWaveform(
  * Cheaper than curves: the rectangles go into a single path and are filled at
  * once, whereas every arc is computed separately.
  */
+/**
+ * Stretches the part of the range speech actually occupies over the full bar.
+ *
+ * The stored values are absolute: how much of a 32-pixel-tall spectrum column
+ * ffmpeg lit up. Ordinary speech never comes near the top of that, so it lived
+ * between roughly a twentieth and a half — the bars were moving, but within a
+ * band too narrow for the eye to notice.
+ *
+ * Cutting at both ends is what does the work. `floor` throws away the constant
+ * hiss underneath; `peak` throws away the headroom above, which nothing ever
+ * reaches. What is left is stretched over the whole height, so the same speech
+ * swings across most of the strip instead of a third of it. `gamma` below one
+ * then softens the result so loud consonants do not slam into the ceiling.
+ */
+export function emphasise(
+  value: number,
+  gamma: number,
+  floor: number,
+  peak: number
+): number {
+  const above = (value - floor) / Math.max(0.001, peak - floor);
+  return above <= 0 ? 0 : Math.min(1, above ** gamma);
+}
+
 export function drawBars(
   c: HTMLCanvasElement,
   values: number[],
@@ -552,12 +664,26 @@ export function drawBars(
     color,
     gain = 1.6,
     ceiling = 1,
+    gamma = 1,
+    floor = 0,
+    peak = 1,
+    thickness = 2,
     anchoring = "center",
     startRatio = 0,
+    playedRatio = 0,
+    playedColor,
   }: {
     ratio: number;
     color?: string;
     gain?: number;
+    /** Below one, quiet passages are lifted. See `emphasise`. */
+    gamma?: number;
+    /** Values at or below this count as silence. */
+    floor?: number;
+    /** Value treated as a full bar. Below one, unused headroom is cut off. */
+    peak?: number;
+    /** Bar width in logical pixels before the device ratio is applied. */
+    thickness?: number;
     /** What share of the available height a bar may fill. A smaller number
      *  keeps the envelope lower without changing the drawing surface. */
     ceiling?: number;
@@ -568,6 +694,10 @@ export function drawBars(
      *  Above zero the envelope is limited to what is yet to be heard, leaving
      *  the area left of the handle empty. */
     startRatio?: number;
+    /** Bars up to this fraction of the width are painted in `playedColor`.
+     *  That is what shows the position — there is no separate track line. */
+    playedRatio?: number;
+    playedColor?: string;
   }
 ) {
   const widthPx = c.width;
@@ -578,10 +708,8 @@ export function drawBars(
   ctx.clearRect(0, 0, widthPx, heightPx);
   if (values.length === 0) return;
 
-  ctx.fillStyle = color ?? getComputedStyle(c).color;
-
   const fromBottom = anchoring === "bottom";
-  const widthBars = Math.max(1, Math.round(2 * ratio));
+  const widthBars = Math.max(1, Math.round(thickness * ratio));
   const step = widthPx / values.length;
   const centerLine = fromBottom ? heightPx : heightPx / 2;
   const maxHeight = (centerLine - Math.round(ratio)) * ceiling;
@@ -589,24 +717,46 @@ export function drawBars(
   const r = widthBars / 2;
 
   const fromX = startRatio > 0 ? startRatio * widthPx : 0;
+  const playedX = playedColor && playedRatio > 0 ? playedRatio * widthPx : -1;
 
-  ctx.beginPath();
-  for (let i = 0; i < values.length; i++) {
-    const height = Math.max(
-      minHeight,
-      Math.round(Math.min(1, values[i] * gain) * maxHeight)
-    );
-    const x = Math.round(i * step + (step - widthBars) / 2);
-    if (x < fromX) continue;
-    if (fromBottom) {
-      // No rounding at the bottom: the bar rests on the edge there and a
-      // curve would make it look as if it were not touching.
-      ctx.roundRect(x, centerLine - height, widthBars, height, [r, r, 0, 0]);
-    } else {
-      ctx.roundRect(x, centerLine - height, widthBars, height * 2, r);
+  /** Traces the bars in one range of x into a single path and fills it.
+   *  Two passes rather than a fill per bar: one path with a hundred
+   *  rectangles costs about the same as one rectangle. */
+  const paint = (from: number, to: number, fillStyle: string) => {
+    ctx.fillStyle = fillStyle;
+    ctx.beginPath();
+    let drawn = false;
+    for (let i = 0; i < values.length; i++) {
+      const x = Math.round(i * step + (step - widthBars) / 2);
+      if (x < fromX || x < from || x >= to) continue;
+      const shaped = gamma === 1 && floor === 0 && peak === 1
+        ? values[i]
+        : emphasise(values[i], gamma, floor, peak);
+      const height = Math.max(
+        minHeight,
+        Math.round(Math.min(1, shaped * gain) * maxHeight)
+      );
+      if (fromBottom) {
+        // No rounding at the bottom: the bar rests on the edge there and a
+        // curve would make it look as if it were not touching.
+        ctx.roundRect(x, centerLine - height, widthBars, height, [r, r, 0, 0]);
+      } else {
+        ctx.roundRect(x, centerLine - height, widthBars, height * 2, r);
+      }
+      drawn = true;
     }
+    if (drawn) ctx.fill();
+  };
+
+  const base = color ?? getComputedStyle(c).color;
+  if (playedX < 0) {
+    paint(0, widthPx, base);
+  } else {
+    // Everything the handle has passed takes the accent colour. That is the
+    // whole indication of position — the slider has no track of its own.
+    paint(0, playedX, playedColor!);
+    paint(playedX, widthPx, base);
   }
-  ctx.fill();
 }
 
 /** Sizes the canvas drawing surface by the pixel ratio. Returns whether it
@@ -635,25 +785,38 @@ export function Waveform({
   waveformStyle = "ribbon",
   anchoring = "center",
   ceiling = 1,
+  gamma = 1,
+  floor = 0,
+  peak = 1,
+  thickness = 2,
 }: {
-  /** hlasitost 0–1, zleva doprava */
+  /** loudness 0–1, from left to right */
   values: number[];
   className?: string;
   style?: CSSProperties;
   /** Draw downwards too, symmetrically around the horizontal centre line. */
   mirrored?: boolean;
   /** Loudness multiplier. Above one, quieter passages rise and loud ones
-      se zarazí o strop, takže je obrys výraznější. */
+      hit the ceiling, so the outline stands out more. */
   gain?: number;
   /** How many nested outlines the ribbon has. A wide surface needs fewer
-      vrstev — hustě položené skoro rovnoběžné čáry se rozvlní do moaré. */
+      layers — densely packed, nearly parallel lines ripple into a moire
+      pattern. */
   layers?: number;
   /** A continuous ribbon, or separate bars like an equalizer. */
   waveformStyle?: "ribbon" | "bars";
-  /** Jen pro sloupce: odkud rostou. */
+  /** Bars only: where they grow from. */
   anchoring?: "center" | "bottom";
   /** Bars only: what share of the height they may take. */
   ceiling?: number;
+  /** Bars only: shaping of the values before drawing — see `emphasise`.
+   *  Without it the mini player drew the raw numbers, which is why its bars
+   *  sat low and barely moved while the big one had come alive. */
+  gamma?: number;
+  floor?: number;
+  peak?: number;
+  /** Bars only: bar width in logical pixels. */
+  thickness?: number;
 }) {
   const container = useRef<HTMLSpanElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -693,6 +856,10 @@ export function Waveform({
         gain,
         ceiling,
         anchoring,
+        gamma,
+        floor,
+        peak,
+        thickness,
       });
     } else {
       drawWaveform(c, values, {
@@ -702,7 +869,7 @@ export function Waveform({
         ratio: size.ratio,
       });
     }
-  }, [values, size, layers, mirrored, gain, waveformStyle, anchoring, ceiling]);
+  }, [values, size, layers, mirrored, gain, waveformStyle, anchoring, ceiling, gamma, floor, peak, thickness]);
 
   return (
     <span ref={container} className={className} style={style} aria-hidden>

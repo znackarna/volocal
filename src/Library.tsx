@@ -1,14 +1,38 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "./api";
 import mark from "./mark.svg?raw";
-import { LANGUAGE_OPTIONS, formatTime, languageName, modelName, fileName } from "./types";
-import type { Recording, TranscriptionProgress, SearchResult, LiveSegment } from "./types";
+import InfoNote from "./InfoNote";
+import RecordingMetadataIcon from "./RecordingMetadataIcon";
+import type { RecordingMetadataKind } from "./RecordingMetadataIcon";
+import RecordingActionsMenu from "./RecordingActionsMenu";
+import Select from "./Select";
+import { formatTime, fileName } from "./types";
+import { useLabels } from "./labels";
+import { useFormats } from "./formats";
+import { useI18n } from "./i18n";
+import { useProgressMessage, useUserMessage } from "./messages";
+import type { TranslationKey } from "./i18n";
+import type {
+  AiEditProgress,
+  Recording,
+  TranscriptionProgress,
+  SearchResult,
+  LiveSegment,
+  UserMessage,
+  WatchFolderCandidate,
+} from "./types";
 
 interface Props {
   recordings: Recording[];
   progress: Record<string, TranscriptionProgress>;
+  aiProgress: Record<string, AiEditProgress>;
   liveSegments: Record<string, LiveSegment[]>;
-  issues: string[];
+  issues: UserMessage[];
+  watchCandidates: WatchFolderCandidate[];
+  watchDecisionRunning: boolean;
+  onTranscribeWatchCandidates: (files: WatchFolderCandidate[]) => void;
+  onIgnoreWatchCandidates: (files: WatchFolderCandidate[]) => void;
+  onAddWatchCandidates: (files: WatchFolderCandidate[]) => void;
   onOpen: (id: string, time?: number) => void;
   onDelete: (id: string) => void;
   onTranscription: (id: string) => void;
@@ -22,21 +46,386 @@ interface Props {
   onTranscriptionLanguage: (id: string, language: string) => void;
 }
 
-const PHASE_LABELS: Record<string, string> = {
-  preparation: "Připravuji zvuk",
-  transcription: "Přepisuji",
-  diarization: "Rozlišuji mluvčí",
-  saving: "Ukládám",
-  complete: "Hotovo",
-  error: "Chyba",
-  cancelled: "Přerušeno",
+/** Fallback captions for the moment before the first report arrives.
+ *
+ * Normally the caption is whatever the backend sent with the report — it is
+ * the only side that knows what it is actually doing. This table used to be
+ * consulted first, so the library and the detail screen could disagree about
+ * the same run. */
+const PHASE_KEYS: Record<string, TranslationKey> = {
+  preparation: "library.card.phase.preparation",
+  playback: "library.card.phase.playback",
+  transcription: "library.card.phase.transcription",
+  diarization: "library.card.phase.diarization",
+  saving: "library.card.phase.saving",
+  complete: "common.done",
+  error: "library.card.phase.error",
+  cancelled: "library.card.phase.cancelled",
 };
+
+const CALENDAR_MONTH_KEYS: readonly TranslationKey[] = [
+  "library.card.month.jan", "library.card.month.feb", "library.card.month.mar",
+  "library.card.month.apr", "library.card.month.may", "library.card.month.jun",
+  "library.card.month.jul", "library.card.month.aug", "library.card.month.sep",
+  "library.card.month.oct", "library.card.month.nov", "library.card.month.dec",
+];
+
+/** Monday first. The order is fixed rather than derived from the locale;
+ *  a locale-aware first day would need `Intl.Locale.prototype.getWeekInfo`. */
+const CALENDAR_WEEKDAY_KEYS: readonly TranslationKey[] = [
+  "library.calendar.weekday.mon",
+  "library.calendar.weekday.tue",
+  "library.calendar.weekday.wed",
+  "library.calendar.weekday.thu",
+  "library.calendar.weekday.fri",
+  "library.calendar.weekday.sat",
+  "library.calendar.weekday.sun",
+];
+
+type ArchivePeriod = "all" | "today" | "week" | "month";
+type ArchiveDateFilterValue = ArchivePeriod | `date:${string}`;
+type ArchiveOrder = "newest" | "oldest" | "title-asc" | "title-desc";
+type ArchiveView = "classic" | "compact";
+
+const ARCHIVE_PERIODS: ReadonlyArray<{ value: ArchivePeriod; labelKey: TranslationKey }> = [
+  { value: "all", labelKey: "library.filter.anytime" },
+  { value: "today", labelKey: "library.filter.today" },
+  { value: "week", labelKey: "library.filter.week" },
+  { value: "month", labelKey: "library.filter.month" },
+];
+
+const ARCHIVE_ORDERS: ReadonlyArray<{ value: ArchiveOrder; labelKey: TranslationKey }> = [
+  { value: "newest", labelKey: "library.sort.newest" },
+  { value: "oldest", labelKey: "library.sort.oldest" },
+  { value: "title-asc", labelKey: "library.sort.titleAsc" },
+  { value: "title-desc", labelKey: "library.sort.titleDesc" },
+];
+
+function recordingTimestamp(recording: Recording): number {
+  const timestamp = Date.parse(recording.created_at);
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function recordingDateKey(recording: Recording): string {
+  const storedDate = recording.created_at.match(/^(\d{4}-\d{2}-\d{2})/)?.[1];
+  if (storedDate) return storedDate;
+
+  const timestamp = recordingTimestamp(recording);
+  if (!timestamp) return "";
+  const date = new Date(timestamp);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+/** The date is written the way the active language writes dates, so the
+ *  formatter comes from the i18n context rather than from a fixed locale. */
+function formatArchiveDate(
+  value: string,
+  formatDate: (value: Date | number, options?: Intl.DateTimeFormatOptions) => string,
+  fallback: string
+): string {
+  const [year, month, day] = value.split("-").map(Number);
+  if (!year || !month || !day) return fallback;
+  return formatDate(new Date(year, month - 1, day), {
+    day: "numeric",
+    month: "numeric",
+    year: "numeric",
+  });
+}
+
+function localDateKey(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function dateFromKey(value: string): Date | null {
+  const [year, month, day] = value.split("-").map(Number);
+  if (!year || !month || !day) return null;
+  const date = new Date(year, month - 1, day);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function CalendarIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
+      <rect x="2" y="3.5" width="12" height="10.5" rx="2"
+            stroke="currentColor" strokeWidth="1.35" />
+      <path d="M2 6.5h12M5 2v3M11 2v3" stroke="currentColor"
+            strokeWidth="1.35" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function ArchiveDateFilter({
+  value,
+  onChange,
+}: {
+  value: ArchiveDateFilterValue;
+  onChange: (value: ArchiveDateFilterValue) => void;
+}) {
+  const { t, capitalize, formatDate } = useI18n();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [visibleMonth, setVisibleMonth] = useState(() => {
+    const today = new Date();
+    return new Date(today.getFullYear(), today.getMonth(), 1);
+  });
+  const selectedDate = value.startsWith("date:") ? value.slice(5) : "";
+  const items = [
+    ...ARCHIVE_PERIODS.map((period) => ({
+      value: period.value as string,
+      label: t(period.labelKey),
+    })),
+    ...(selectedDate
+      ? [{
+          value: value as string,
+          label: formatArchiveDate(selectedDate, formatDate, t("library.filter.anytime")),
+        }]
+      : []),
+    {
+      value: "pick",
+      label: selectedDate ? t("library.filter.pickAnotherDay") : t("library.filter.pickDay"),
+    },
+  ];
+
+  const openCalendar = () => {
+    const anchor = dateFromKey(selectedDate) ?? new Date();
+    setVisibleMonth(new Date(anchor.getFullYear(), anchor.getMonth(), 1));
+    setCalendarOpen(true);
+  };
+
+  const handleChange = (nextValue: string) => {
+    if (nextValue === "pick") {
+      openCalendar();
+      return;
+    }
+    setCalendarOpen(false);
+    onChange(nextValue as ArchiveDateFilterValue);
+  };
+
+  useEffect(() => {
+    if (!calendarOpen) return;
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (!containerRef.current?.contains(event.target as Node)) setCalendarOpen(false);
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setCalendarOpen(false);
+    };
+    document.addEventListener("mousedown", handleOutsideClick);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [calendarOpen]);
+
+  const year = visibleMonth.getFullYear();
+  const month = visibleMonth.getMonth();
+  const firstWeekday = (new Date(year, month, 1).getDay() + 6) % 7;
+  const dayCount = new Date(year, month + 1, 0).getDate();
+  const calendarCellCount = Math.ceil((firstWeekday + dayCount) / 7) * 7;
+  const todayKey = localDateKey(new Date());
+  const monthLabel = formatDate(visibleMonth, {
+    month: "long",
+    year: "numeric",
+  });
+
+  return (
+    <div className="archive-filter-select calendar" ref={containerRef}>
+      <span className="archive-filter-icon"><CalendarIcon /></span>
+      <Select
+        value={value}
+        items={items}
+        onChange={handleChange}
+        description={t("library.filter.description")}
+      />
+      {calendarOpen && (
+        <div className="archive-calendar-popover" role="dialog" aria-label={t("library.calendar.title")}>
+          <div className="archive-calendar-header">
+            <button
+              type="button"
+              className="archive-calendar-nav"
+              onClick={() => setVisibleMonth(new Date(year, month - 1, 1))}
+              aria-label={t("library.calendar.previousMonth")}
+            >
+              <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden>
+                <path d="m8.5 3-4 4 4 4" fill="none" stroke="currentColor"
+                      strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+            <strong>{capitalize(monthLabel)}</strong>
+            <button
+              type="button"
+              className="archive-calendar-nav"
+              onClick={() => setVisibleMonth(new Date(year, month + 1, 1))}
+              aria-label={t("library.calendar.nextMonth")}
+            >
+              <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden>
+                <path d="m5.5 3 4 4-4 4" fill="none" stroke="currentColor"
+                      strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+          </div>
+          <div className="archive-calendar-weekdays" aria-hidden>
+            {CALENDAR_WEEKDAY_KEYS.map((weekdayKey) => (
+              <span key={weekdayKey}>{t(weekdayKey)}</span>
+            ))}
+          </div>
+          <div className="archive-calendar-days" role="grid">
+            {Array.from({ length: calendarCellCount }, (_, index) => {
+              const day = index - firstWeekday + 1;
+              if (day < 1 || day > dayCount) {
+                return <span className="archive-calendar-empty" key={`empty-${index}`} />;
+              }
+              const date = new Date(year, month, day);
+              const dateKey = localDateKey(date);
+              const isSelected = dateKey === selectedDate;
+              const isToday = dateKey === todayKey;
+              const fullLabel = formatDate(date, {
+                weekday: "long",
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+              });
+              return (
+                <button
+                  key={dateKey}
+                  type="button"
+                  role="gridcell"
+                  className={`archive-calendar-day${isSelected ? " selected" : ""}${isToday ? " today" : ""}`}
+                  aria-label={fullLabel}
+                  aria-selected={isSelected}
+                  onClick={() => {
+                    onChange(`date:${dateKey}`);
+                    setCalendarOpen(false);
+                  }}
+                >
+                  {day}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ArchiveOrderSelect({
+  value,
+  items,
+  onChange,
+  description,
+}: {
+  value: string;
+  items: ReadonlyArray<{ value: string; label: string }>;
+  onChange: (value: string) => void;
+  description: string;
+}) {
+  return (
+    <div className="archive-filter-select order">
+      <span className="archive-filter-icon" aria-hidden>
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M3 4h7M3 8h5M3 12h3M12 3v10M10 11l2 2 2-2"
+                stroke="currentColor" strokeWidth="1.35"
+                strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </span>
+      <Select
+        value={value}
+        items={[...items]}
+        onChange={onChange}
+        description={description}
+      />
+    </div>
+  );
+}
+
+function ArchiveViewToggle({
+  value,
+  onChange,
+}: {
+  value: ArchiveView;
+  onChange: (value: ArchiveView) => void;
+}) {
+  const { t } = useI18n();
+  return (
+    <div
+      className="segmented-control archive-view-toggle"
+      role="group"
+      aria-label={t("library.view.description")}
+    >
+      <button
+        type="button"
+        className={value === "classic" ? "active" : ""}
+        onClick={() => onChange("classic")}
+        aria-pressed={value === "classic"}
+        aria-label={t("library.view.classic")}
+        title={t("library.view.classic")}
+      >
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
+          <rect x="2" y="2.5" width="12" height="4" rx="1.5" stroke="currentColor" strokeWidth="1.3" />
+          <rect x="2" y="9.5" width="12" height="4" rx="1.5" stroke="currentColor" strokeWidth="1.3" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        className={value === "compact" ? "active" : ""}
+        onClick={() => onChange("compact")}
+        aria-pressed={value === "compact"}
+        aria-label={t("library.view.compact")}
+        title={t("library.view.compact")}
+      >
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
+          <path d="M2.5 3.5h11M2.5 8h11M2.5 12.5h11" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+        </svg>
+      </button>
+    </div>
+  );
+}
+
+function RecordingMetadataItem({
+  kind,
+  label,
+  value,
+}: {
+  kind: RecordingMetadataKind;
+  label: string;
+  value: string;
+}) {
+  const { t } = useI18n();
+  return (
+    <span
+      className={`recording-metadata-item ${kind === "error" ? "error" : ""}`}
+      aria-label={t("library.card.metadata", { label, value })}
+      /* The value belongs in the tooltip too: in the compact list it is cut to
+         one line, and the label alone would then be the only place to look and
+         the one place with nothing to say. */
+      title={`${label}: ${value}`}
+    >
+      <RecordingMetadataIcon kind={kind} />
+      <span>{value}</span>
+    </span>
+  );
+}
+
+
 
 export default function Library({
   recordings,
   progress,
+  aiProgress,
   liveSegments,
   issues,
+  watchCandidates,
+  watchDecisionRunning,
+  onTranscribeWatchCandidates,
+  onIgnoreWatchCandidates,
+  onAddWatchCandidates,
   onOpen,
   onDelete,
   onTranscription,
@@ -49,8 +438,18 @@ export default function Library({
   onAutomatic,
   onTranscriptionLanguage,
 }: Props) {
+  const { t, compare } = useI18n();
+  const userMessage = useUserMessage();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[] | null>(null);
+  const [dateFilter, setDateFilter] = useState<ArchiveDateFilterValue>("all");
+  const [order, setOrder] = useState<ArchiveOrder>("newest");
+  const [view, setView] = useState<ArchiveView>(() =>
+    localStorage.getItem("archive-view") === "compact" ? "compact" : "classic"
+  );
+  const [dropZoneCompact, setDropZoneCompact] = useState(false);
+  const dropZoneCompactRef = useRef(false);
+  const scrollContentRef = useRef<HTMLDivElement>(null);
 
   // Hledani se spousti samo, ale az kdyz uzivatel na chvili prestane psat.
   useEffect(() => {
@@ -68,62 +467,176 @@ export default function Library({
     return () => clearTimeout(t);
   }, [query]);
 
+  useEffect(() => {
+    localStorage.setItem("archive-view", view);
+  }, [view]);
+
   const running = useMemo(
     () => recordings.filter((n) => n.status === "prepisuje"),
     [recordings]
   );
 
+  const visibleRecordings = useMemo(() => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const threshold = dateFilter === "today"
+      ? today
+      : dateFilter === "week"
+        ? now.getTime() - 7 * 24 * 60 * 60 * 1000
+        : dateFilter === "month"
+          ? now.getTime() - 30 * 24 * 60 * 60 * 1000
+          : 0;
+    const selectedDate = dateFilter.startsWith("date:") ? dateFilter.slice(5) : "";
+    const filtered = selectedDate
+      ? recordings.filter((recording) => recordingDateKey(recording) === selectedDate)
+      : dateFilter === "all"
+        ? [...recordings]
+        : recordings.filter((recording) => recordingTimestamp(recording) >= threshold);
+
+    return filtered.sort((a, b) => {
+      if (order === "oldest") return recordingTimestamp(a) - recordingTimestamp(b);
+      if (order === "title-asc") {
+        return compare(a.title, b.title);
+      }
+      if (order === "title-desc") {
+        return compare(b.title, a.title);
+      }
+      return recordingTimestamp(b) - recordingTimestamp(a);
+    });
+  }, [dateFilter, order, recordings, compare]);
+
+  const visibleResults = useMemo(() => {
+    if (results === null) return null;
+    const positions = new Map(visibleRecordings.map((recording, index) => [recording.id, index]));
+    return results
+      .filter((result) => positions.has(result.recording_id))
+      .sort((a, b) =>
+        (positions.get(a.recording_id) ?? Number.MAX_SAFE_INTEGER) -
+        (positions.get(b.recording_id) ?? Number.MAX_SAFE_INTEGER)
+      );
+  }, [results, visibleRecordings]);
+
   return (
-    <main className="knihovna">
+    <main
+      ref={scrollContentRef}
+      className="knihovna"
+      onScroll={(event) => {
+        const position = event.currentTarget.scrollTop;
+        // Scrolling can collapse the header, but never expands it. Changing
+        // the header height can alter scrollTop as the layout settles; if a
+        // zero position expanded here, both states would trigger each other.
+        // Expansion is handled only by an explicit upward wheel gesture.
+        if (!dropZoneCompactRef.current && position > 64) {
+          dropZoneCompactRef.current = true;
+          setDropZoneCompact(true);
+        }
+      }}
+      onWheel={(event) => {
+        const scroller = event.currentTarget;
+        const unit = event.deltaMode === 1
+          ? 16
+          : event.deltaMode === 2
+            ? scroller.clientHeight
+            : 1;
+        const scrollDelta = event.deltaY * unit;
+        const projectedPosition = Math.max(0, scroller.scrollTop + scrollDelta);
+
+        // A short archive may have no scroll range at all. The wheel gesture
+        // still expresses the same intent: reveal more of the list. Collapse
+        // on that intent instead of waiting for a scrollTop that cannot move.
+        // Consume this first gesture: resizing the sticky header and scrolling
+        // the list in the same frame would leave the first card half-covered.
+        if (event.deltaY > 4 && !dropZoneCompactRef.current) {
+          event.preventDefault();
+          scroller.scrollTop = 0;
+          dropZoneCompactRef.current = true;
+          setDropZoneCompact(true);
+        } else if (
+          event.deltaY < -4 &&
+          dropZoneCompactRef.current &&
+          projectedPosition <= 4
+        ) {
+          event.preventDefault();
+          scroller.scrollTop = 0;
+          dropZoneCompactRef.current = false;
+          setDropZoneCompact(false);
+        }
+      }}
+    >
+      <LibraryDropZone
+        onAdd={onAdd}
+        automatic={automatic}
+        onAutomatic={onAutomatic}
+        compact={dropZoneCompact}
+      />
+
+      <div className="archive-scroll-content">
       {issues.length > 0 && (
         <div className="upozorneni">
           <div>
-            <strong>Chybí položky nutné pro přepis</strong>
+            <strong>{t("library.issues.title")}</strong>
             <ul>
               {issues.map((p, i) => (
-                <li key={i}>{p}</li>
+                <li key={i}>{userMessage(p)}</li>
               ))}
             </ul>
           </div>
           <button className="tlacitko" onClick={onToSettings}>
-            Nastavení
+            {t("common.settings")}
           </button>
         </div>
+      )}
+
+      {watchCandidates.length > 0 && (
+        <WatchFolderNotice
+          files={watchCandidates}
+          running={watchDecisionRunning}
+          transcriptionDisabled={issues.length > 0}
+          onTranscribe={onTranscribeWatchCandidates}
+          onIgnore={onIgnoreWatchCandidates}
+          onAdd={onAddWatchCandidates}
+        />
       )}
 
       <div className="knihovna-lista">
         <div className="hledani">
           <input
             type="search"
-            placeholder="Hledat v přepisech…"
+            placeholder={t("library.search.placeholder")}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             spellCheck={false}
           />
         </div>
 
-        <label className="vypinac" title="Spustit přepis hned po přidání nahrávky">
-          <input
-            type="checkbox"
-            checked={automatic}
-            onChange={(e) => onAutomatic(e.target.checked)}
-          />
-          <span className="vypinac-drazka" aria-hidden />
-          <span className="vypinac-popis">Automatický přepis</span>
-        </label>
+        <ArchiveDateFilter
+          value={dateFilter}
+          onChange={setDateFilter}
+        />
+
+        <ArchiveOrderSelect
+          value={order}
+          items={ARCHIVE_ORDERS.map((archiveOrder) => ({
+            value: archiveOrder.value as string,
+            label: t(archiveOrder.labelKey),
+          }))}
+          onChange={(value) => setOrder(value as ArchiveOrder)}
+          description={t("library.sort.description")}
+        />
+
+        <ArchiveViewToggle value={view} onChange={setView} />
       </div>
 
-      {results !== null ? (
-        <SearchResults results={results} onOpen={onOpen} />
-      ) : recordings.length === 0 ? (
-        <EmptyLibrary onAdd={onAdd} automatic={automatic} />
-      ) : (
-        <ul className="seznam">
-          {recordings.map((n) => (
+      {visibleResults !== null ? (
+        <SearchResults results={visibleResults} onOpen={onOpen} />
+      ) : visibleRecordings.length > 0 ? (
+        <ul className={`seznam ${view === "compact" ? "compact" : ""}`}>
+          {visibleRecordings.map((n) => (
             <Row
               key={n.id}
               recording={n}
               progress={progress[n.id]}
+              aiProgress={aiProgress[n.id]}
               liveSegments={liveSegments[n.id] ?? []}
               onOpen={() => onOpen(n.id)}
               onDelete={() => onDelete(n.id)}
@@ -134,50 +647,226 @@ export default function Library({
               onRename={(title) => onRename(n.id, title)}
             />
           ))}
-          {/* Plocha na puštění souboru nesmí zmizet jen proto, že v archivu
-              už něco je — jinak není kam mířit. */}
-          <li>
-            <button className="pridat-pruh" onClick={onAdd}>
-              <svg width="15" height="15" viewBox="0 0 15 15" aria-hidden>
-                <path d="M7.5 2v11M2 7.5h11" fill="none" stroke="currentColor"
-                      strokeWidth="1.5" strokeLinecap="round" />
-              </svg>
-              Přetáhni sem další nahrávku nebo select file
-            </button>
-          </li>
         </ul>
-      )}
+      ) : recordings.length > 0 ? (
+        <p className="archive-filter-empty">{t("library.empty.filter")}</p>
+      ) : null}
 
       {running.length > 1 && (
         <p className="poznamka">
-          Souběžně probíhá {running.length} přepisů. Sdílejí jednu grafickou
-          kartu, postupné zpracování by bylo rychlejší.
+          {t("library.notice.concurrent", { count: running.length })}
         </p>
       )}
+      </div>
     </main>
   );
 }
 
-function EmptyLibrary({ onAdd, automatic }: { onAdd: () => void; automatic: boolean }) {
+function WatchFolderNotice({
+  files,
+  running,
+  transcriptionDisabled,
+  onTranscribe,
+  onIgnore,
+  onAdd,
+}: {
+  files: WatchFolderCandidate[];
+  running: boolean;
+  transcriptionDisabled: boolean;
+  onTranscribe: (files: WatchFolderCandidate[]) => void;
+  onIgnore: (files: WatchFolderCandidate[]) => void;
+  onAdd: (files: WatchFolderCandidate[]) => void;
+}) {
+  const { t, tPlural } = useI18n();
+  const fileKey = (file: WatchFolderCandidate) => `${file.path}:${file.fingerprint}`;
+  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(
+    () => new Set(files.map(fileKey))
+  );
+  const knownKeysRef = useRef(new Set(files.map(fileKey)));
+
+  useEffect(() => {
+    const nextKnownKeys = new Set(files.map(fileKey));
+    setSelectedKeys((current) => {
+      const next = new Set<string>();
+      for (const file of files) {
+        const key = fileKey(file);
+        if (current.has(key) || !knownKeysRef.current.has(key)) next.add(key);
+      }
+      return next;
+    });
+    knownKeysRef.current = nextKnownKeys;
+  }, [files]);
+
+  const selectedFiles = files.filter((file) => selectedKeys.has(fileKey(file)));
+  const allSelected = selectedFiles.length === files.length;
+  const toggleFile = (file: WatchFolderCandidate) => {
+    const key = fileKey(file);
+    setSelectedKeys((current) => {
+      const next = new Set(current);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
   return (
-    <div className="prazdno">
-      {/* Ohraničená plocha dává kompozici kotvu a zároveň říká,
-          kam se dá pustit soubor. Bez ní text jen plave uprostřed. */}
-      <div className="prazdno-plocha">
+    <section className="watch-folder-notice" aria-labelledby="watch-folder-title">
+      <header className="watch-folder-header">
+        <span className="watch-folder-icon" aria-hidden>
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path
+              d="M2.5 5.5h5l1.6 1.8h8.4v7.2a2 2 0 0 1-2 2h-11a2 2 0 0 1-2-2v-9Z"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinejoin="round"
+            />
+            <path d="M10 9.5v4M8 11.5h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+        </span>
+        <div className="watch-folder-copy">
+          <strong id="watch-folder-title">
+            {tPlural("library.watchFolder.title", files.length)}
+          </strong>
+          <p>{tPlural("library.watchFolder.question", files.length)}</p>
+        </div>
+      </header>
+
+      <div className="watch-folder-file-panel">
+        <div className="watch-folder-file-header">
+          <strong>{t("library.watchFolder.files")}</strong>
+          <button
+            type="button"
+            className="watch-folder-select-all"
+            onClick={() => setSelectedKeys(allSelected ? new Set() : new Set(files.map(fileKey)))}
+            disabled={running}
+          >
+            {allSelected ? t("library.watchFolder.clearSelection") : t("common.selectAll")}
+          </button>
+        </div>
+        <ul className="watch-folder-files">
+          {files.map((file) => (
+            <li key={fileKey(file)}>
+              {/* The label covers the checkbox and the name only. A `label`
+                  forwards every click inside it to its control, so a dismiss
+                  button placed within one would tick the box instead. */}
+              <label className="watch-folder-file" title={file.path}>
+                <input
+                  type="checkbox"
+                  checked={selectedKeys.has(fileKey(file))}
+                  onChange={() => toggleFile(file)}
+                  disabled={running}
+                />
+                <span className="watch-folder-checkbox" aria-hidden>
+                  <svg width="12" height="10" viewBox="0 0 12 10" fill="none">
+                    <path d="m1.5 5 3 3 6-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </span>
+                <span className="watch-folder-file-name">{file.name}</span>
+              </label>
+              <button
+                type="button"
+                className="watch-folder-dismiss"
+                onClick={() => onIgnore([file])}
+                disabled={running}
+                title={t("library.watchFolder.ignoreOne", { name: file.name })}
+                aria-label={t("library.watchFolder.ignoreOne", { name: file.name })}
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden>
+                  <path d="M3 3l8 8M11 3l-8 8" fill="none" stroke="currentColor"
+                        strokeWidth="1.7" strokeLinecap="round" />
+                </svg>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <InfoNote compact>
+        <span className="watch-folder-hint">{t("library.watchFolder.hint")}</span>
+      </InfoNote>
+
+      <footer className="watch-folder-footer">
+        <span className="watch-folder-selection">
+          {t("library.watchFolder.selection", {
+            selected: selectedFiles.length,
+            total: files.length,
+          })}
+        </span>
+        <div className="watch-folder-actions">
+          <button
+            className="tlacitko"
+            onClick={() => onAdd(selectedFiles)}
+            disabled={running || selectedFiles.length === 0}
+          >
+            {t("common.add")}
+          </button>
+          <button
+            className="tlacitko hlavni"
+            onClick={() => onTranscribe(selectedFiles)}
+            disabled={running || selectedFiles.length === 0 || transcriptionDisabled}
+            title={
+              transcriptionDisabled ? t("library.watchFolder.transcribeBlocked") : undefined
+            }
+          >
+            {running
+              ? t("library.watchFolder.processing")
+              : t("library.watchFolder.transcribe")}
+          </button>
+        </div>
+      </footer>
+    </section>
+  );
+}
+
+function LibraryDropZone({
+  onAdd,
+  automatic,
+  onAutomatic,
+  compact,
+}: {
+  onAdd: () => void;
+  automatic: boolean;
+  onAutomatic: (enabled: boolean) => void;
+  compact: boolean;
+}) {
+  const { t } = useI18n();
+  return (
+    <div className={`archive-drop-zone ${compact ? "compact" : ""}`}>
+      <div className="archive-drop-zone-surface">
         <span
-          className="prazdno-znak"
+          className="archive-drop-zone-mark"
           aria-hidden
           dangerouslySetInnerHTML={{ __html: mark }}
         />
-        <h1>Sem přetáhni nahrávku</h1>
-        <p>
-          {automatic
-            ? "Přepis začne automaticky. Žádná data neopustí tento počítač."
-            : "Přepis spustíte tlačítkem u nahrávky. Žádná data neopustí tento počítač."}
-        </p>
-        <button className="tlacitko hlavni" onClick={onAdd}>
-          Vybrat file
-        </button>
+        <div className="archive-drop-zone-copy">
+          <h1>{t("library.dropZone.title")}</h1>
+          <p>
+            {automatic
+              ? t("library.dropZone.automatic")
+              : t("library.dropZone.manual")}
+          </p>
+        </div>
+        <div className="archive-drop-zone-actions">
+          <button className="tlacitko hlavni" onClick={onAdd}>
+            <svg width="15" height="15" viewBox="0 0 15 15" aria-hidden>
+              <path d="M7.5 2v11M2 7.5h11" fill="none" stroke="currentColor"
+                    strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+            {t("library.dropZone.add")}
+          </button>
+          <label
+            className="vypinac archive-automatic-toggle"
+            title={t("library.dropZone.automatic.hint")}
+          >
+            <input
+              type="checkbox"
+              checked={automatic}
+              onChange={(event) => onAutomatic(event.target.checked)}
+            />
+            <span className="vypinac-drazka" aria-hidden />
+            <span className="vypinac-popis">{t("library.dropZone.automatic.label")}</span>
+          </label>
+        </div>
       </div>
     </div>
   );
@@ -186,6 +875,7 @@ function EmptyLibrary({ onAdd, automatic }: { onAdd: () => void; automatic: bool
 function Row({
   recording,
   progress,
+  aiProgress,
   liveSegments,
   onOpen,
   onDelete,
@@ -197,6 +887,7 @@ function Row({
 }: {
   recording: Recording;
   progress?: TranscriptionProgress;
+  aiProgress?: AiEditProgress;
   liveSegments: LiveSegment[];
   onOpen: () => void;
   onDelete: () => void;
@@ -206,10 +897,17 @@ function Row({
   onTranscriptionLanguage: (language: string) => void;
   onRename: (title: string) => void;
 }) {
+  const { t } = useI18n();
+  const userMessage = useUserMessage();
+  const progressMessage = useProgressMessage();
+  const labels = useLabels();
+  const formats = useFormats();
   const running = recording.status === "prepisuje";
+  const aiRunning = !!aiProgress && !["complete", "error", "cancelled"].includes(aiProgress.phase);
   const [renaming, setRenaming] = useState(false);
   const [newTitle, setNewTitle] = useState(recording.title);
   const last = liveSegments.slice(-3);
+  const phaseKey: TranslationKey | undefined = PHASE_KEYS[progress?.phase ?? ""];
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -217,106 +915,123 @@ function Row({
   }, [liveSegments.length]);
 
   return (
-    <li className={`radek ${running ? "bezi" : ""}`}>
+    <li className={`radek ${running || aiRunning ? "bezi" : ""}`}>
+      {/* While renaming, the field replaces the button rather than sitting
+          inside it. An <input> nested in a <button> is invalid HTML anyway —
+          a button may not contain interactive content — and once that button
+          was disabled the field stopped delivering its events, so the new name
+          was typed and then silently thrown away. */}
+      {renaming ? (
+        <div className="radek-hlavni radek-prejmenovani-obal">
+          <RecordingCalendar value={recording.created_at} />
+          <input
+            className="radek-prejmenovani"
+            value={newTitle}
+            autoFocus
+            onChange={(e) => setNewTitle(e.target.value)}
+            onBlur={() => {
+              const trimmed = newTitle.trim();
+              // An empty name would leave the row with nothing to show, and
+              // the backend refuses it anyway. Fall back to what it was.
+              if (trimmed && trimmed !== recording.title) onRename(trimmed);
+              else setNewTitle(recording.title);
+              setRenaming(false);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") e.currentTarget.blur();
+              if (e.key === "Escape") {
+                setNewTitle(recording.title);
+                setRenaming(false);
+              }
+            }}
+          />
+        </div>
+      ) : (
       <button
         className="radek-hlavni"
         onClick={onOpen}
-        disabled={renaming || (running && !liveSegments.length)}
+        disabled={running && !liveSegments.length}
       >
-        <span className={`znak ${recording.status}`} aria-hidden />
+        <RecordingCalendar value={recording.created_at} />
         <span className="radek-text">
-          {renaming ? (
-            <input
-              className="radek-prejmenovani"
-              value={newTitle}
-              autoFocus
-              onClick={(e) => e.stopPropagation()}
-              onChange={(e) => setNewTitle(e.target.value)}
-              onBlur={() => {
-                onRename(newTitle);
-                setRenaming(false);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") e.currentTarget.blur();
-                if (e.key === "Escape") {
-                  setNewTitle(recording.title);
-                  setRenaming(false);
-                }
-              }}
-            />
-          ) : (
-            <span className="radek-nazev">
-              {/* Výška ikony = výška verzálky písma, ne celého řádku.
-                  Jinak přeroste text a řádek se opticky rozpadne. */}
-              <svg className="ikona-souboru" viewBox="0 0 12 15" aria-hidden>
-                <path d="M1.6 1.1h5.1L10.4 4.8v9.1H1.6z" fill="none" stroke="currentColor"
-                      strokeWidth="1.15" strokeLinejoin="round" />
-                <path d="M6.7 1.1v3.7h3.7" fill="none" stroke="currentColor"
-                      strokeWidth="1.15" strokeLinejoin="round" />
-              </svg>
-              <span className="radek-jmeno">{fileName(recording.path) || recording.title}</span>
+          <span className="radek-nazev">
+            <span className="radek-status-icon" aria-hidden>
+              <span className={`znak ${recording.status}`} />
             </span>
-          )}
-          <span className="radek-meta">
-            {formatTime(recording.duration)}
-            {recording.language && ` · ${languageName(recording.language)}`}
-            {recording.model && ` · ${modelName(recording.model)}`}
-            {recording.status === "hotova" && ` · ${recording.segment_count} úseků`}
-            {recording.status === "chyba" && ` · ${recording.error ?? "chyba"}`}
+            <span className="radek-jmeno">{recording.title || fileName(recording.path)}</span>
+          </span>
+          <span className="recording-metadata">
+            <RecordingMetadataItem
+              kind="duration"
+              label={t("library.card.duration")}
+              value={formatTime(recording.duration)}
+            />
+            {recording.language && (
+              <RecordingMetadataItem
+                kind="language"
+                label={t("library.card.language")}
+                value={labels.languageCapitalized(recording.language)}
+              />
+            )}
+            {recording.model && (
+              <RecordingMetadataItem
+                kind="model"
+                label={t("library.card.model")}
+                value={labels.model(recording.model)}
+              />
+            )}
+            {recording.status === "hotova" && (
+              <RecordingMetadataItem
+                kind="segments"
+                label={t("library.card.segments")}
+                value={formats.segmentCount(recording.segment_count)}
+              />
+            )}
+            {recording.status === "chyba" && (
+              <RecordingMetadataItem
+                kind="error"
+                label={t("library.card.error")}
+                value={
+                  recording.error
+                    ? userMessage(recording.error)
+                    : t("library.card.unknownError")
+                }
+              />
+            )}
           </span>
         </span>
       </button>
+      )}
 
       <div className="radek-akce">
         {running ? (
           <button className="tlacitko" onClick={onCancel}>
-            Zrušit
+            {t("common.cancel")}
           </button>
         ) : (
           <>
             {recording.status === "nova" && (
               <button className="tlacitko" onClick={onTranscription}>
-                Přepsat
+                {t("library.card.transcribe")}
               </button>
             )}
             {recording.status === "chyba" && (
               <button className="tlacitko" onClick={onTranscription}>
-                Zkusit znovu
+                {t("common.retry")}
               </button>
             )}
             {recording.status === "hotova" && (
               <button className="tlacitko" onClick={onOpen}>
-                Otevřít
+                {t("common.open")}
               </button>
             )}
-            <Menu
-              items={[
-                {
-                  label: "Přejmenovat",
-                  icon: Icons.rename,
-                  action: () => setRenaming(true),
-                },
-                ...(recording.status === "hotova"
-                  ? [
-                      { label: "Přepsat znovu", icon: Icons.retranscribe, action: onTranscription },
-                      { label: "Smazat přepis", icon: Icons.deleteTranscript, action: onDeleteTranscription },
-                    ]
-                  : []),
-                {
-                  label: "Přepsat v jazyce",
-                  icon: Icons.language,
-                  children: LANGUAGE_OPTIONS.map((v) => ({
-                    label: v.label,
-                    action: () => onTranscriptionLanguage(v.value),
-                  })),
-                },
-                {
-                  label: "Odebrat z archivu",
-                  icon: Icons.remove,
-                  action: onDelete,
-                  warning: true,
-                },
-              ]}
+            <RecordingActionsMenu
+              status={recording.status}
+              onRename={() => setRenaming(true)}
+              onRetranscribe={onTranscription}
+              onDeleteTranscript={onDeleteTranscription}
+              onTranscribeInLanguage={onTranscriptionLanguage}
+              onRemove={onDelete}
             />
           </>
         )}
@@ -328,8 +1043,12 @@ function Row({
             <div className="prubeh-vypln" style={{ width: `${progress?.percent ?? 0}%` }} />
           </div>
           <div className="prubeh-popis">
-            <span>{PHASE_LABELS[progress?.phase ?? "preparation"] ?? "Pracuji"}</span>
-            <span>{progress?.percent ?? 0} %</span>
+            <span>
+              {(progress && progressMessage(progress.description)) ||
+                (phaseKey && t(phaseKey)) ||
+                t("library.card.phase.working")}
+            </span>
+            <span>{t("library.card.percent", { value: progress?.percent ?? 0 })}</span>
           </div>
 
           {last.length > 0 && (
@@ -342,146 +1061,46 @@ function Row({
           )}
         </div>
       )}
+
+      {aiRunning && (
+        <div className="prubeh prubeh-ai" aria-live="polite">
+          <div className="prubeh-lista">
+            <div className="prubeh-vypln" style={{ width: `${aiProgress.percent}%` }} />
+          </div>
+          <div className="prubeh-popis">
+            <span>
+              {progressMessage(aiProgress.description) || t("library.card.aiEditing")}
+            </span>
+            <span>{t("library.card.percent", { value: Math.round(aiProgress.percent) })}</span>
+          </div>
+        </div>
+      )}
     </li>
   );
 }
 
-/** Menu icons. Uniform 1.7 stroke on a 20 square, like the rest of the UI. */
-const Icons = {
-  rename: "M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17v3Z M13.5 6.5l4 4",
-  retranscribe: "M20 11a8 8 0 1 0-2.3 5.7 M20 5v6h-6",
-  deleteTranscript: "M6 4h8l4 4v12H6z M14 4v4h4 M9.5 12.5l5 5 M14.5 12.5l-5 5",
-  language: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z M3.6 9h16.8 M3.6 15h16.8 M12 3c2.3 2.4 3.5 5.6 3.5 9S14.3 18.6 12 21c-2.3-2.4-3.5-5.6-3.5-9S9.7 5.4 12 3Z",
-  remove: "M4 7h16 M10 4h4 M6 7l1 13h10l1-13 M10 11v6 M14 11v6",
-} as const;
-
-function FileMark({ path }: { path: string }) {
-  return (
-    <svg
-      className="nabidka-ikona"
-      width="20"
-      height="20"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.7"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      {path.split(" M").map((segment, i) => (
-        <path key={i} d={i === 0 ? segment : `M${segment}`} />
-      ))}
-    </svg>
-  );
-}
-
-interface ActionItem {
-  label: string;
-  action?: () => void;
-  warning?: boolean;
-  /** Path from the icon set. Second-level items do not have one. */
-  icon?: string;
-  /** Opens the second level instead of performing an action. */
-  children?: ActionItem[];
-}
-
-/** Overflow menu with secondary actions. The primary action stays beside it
- *  as a button; only rarely used things belong in the menu. */
-function Menu({ items }: { items: ActionItem[] }) {
-  const [open, setOpen] = useState(false);
-  // Second menu level. Ten languages in one flat list would be unbearable.
-  const [submenu, setSubmenu] = useState<ActionItem | null>(null);
-  const container = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) setSubmenu(null);
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    const handleOutsideClick = (e: MouseEvent) => {
-      if (!container.current?.contains(e.target as Node)) setOpen(false);
-    };
-    const handleKeyDown = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
-    document.addEventListener("mousedown", handleOutsideClick);
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", handleOutsideClick);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [open]);
+function RecordingCalendar({ value }: { value: string }) {
+  const { t, formatDate } = useI18n();
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+  const year = match?.[1] ?? "----";
+  const monthIndex = Math.max(0, Math.min(11, Number(match?.[2] ?? 1) - 1));
+  const day = match ? String(Number(match[3])) : "–";
+  const month = match ? t(CALENDAR_MONTH_KEYS[monthIndex]) : t("library.card.monthUnknown");
+  const label = match
+    ? t("library.card.addedOn", {
+        date: formatDate(
+          new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3])),
+          { day: "numeric", month: "numeric", year: "numeric" }
+        ),
+      })
+    : t("library.card.addedOnUnknown");
 
   return (
-    <div className="nabidka-akci" ref={container}>
-      <button
-        className="ikona-tlacitko"
-        onClick={() => setOpen((o) => !o)}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-label="Další akce"
-      >
-        <svg width="16" height="4" viewBox="0 0 16 4" aria-hidden>
-          <circle cx="2" cy="2" r="1.7" fill="currentColor" />
-          <circle cx="8" cy="2" r="1.7" fill="currentColor" />
-          <circle cx="14" cy="2" r="1.7" fill="currentColor" />
-        </svg>
-      </button>
-      {open && (
-        <div className="nabidka-akci-seznam" role="menu">
-          {submenu && (
-            <button className="nabidka-zpet" onClick={() => setSubmenu(null)}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-                <path
-                  d="M15 5l-7 7 7 7"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-              {submenu.label}
-            </button>
-          )}
-          {(submenu?.children ?? items).map((p) => (
-            <button
-              key={p.label}
-              role="menuitem"
-              className={p.warning ? "varovne" : ""}
-              onClick={() => {
-                if (p.children) {
-                  setSubmenu(p);
-                  return;
-                }
-                setOpen(false);
-                p.action?.();
-              }}
-            >
-              {p.icon && <FileMark path={p.icon} />}
-              <span className="nabidka-popisek">{p.label}</span>
-              {p.children && (
-                <svg
-                  className="nabidka-sipka"
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  aria-hidden
-                >
-                  <path
-                    d="M9 5l7 7-7 7"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              )}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+    <span className="recording-calendar" aria-label={label} title={label}>
+      <span className="recording-calendar-month">{month}</span>
+      <span className="recording-calendar-day">{day}</span>
+      <span className="recording-calendar-year">{year}</span>
+    </span>
   );
 }
 
@@ -492,8 +1111,9 @@ function SearchResults({
   results: SearchResult[];
   onOpen: (id: string, time?: number) => void;
 }) {
+  const { t } = useI18n();
   if (results.length === 0) {
-    return <p className="prazdny-vysledek">Žádné výsledky.</p>;
+    return <p className="prazdny-vysledek">{t("library.empty.results")}</p>;
   }
   return (
     <ul className="vysledky">
@@ -501,7 +1121,7 @@ function SearchResults({
         <li key={v.segment_id}>
           <button onClick={() => onOpen(v.recording_id, v.start)}>
             <span className="vysledek-kde">
-              {v.title} · {formatTime(v.start)}
+              {t("library.search.location", { title: v.title, time: formatTime(v.start) })}
             </span>
             <span className="vysledek-text">{highlight(v.text)}</span>
           </button>

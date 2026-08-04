@@ -1,20 +1,24 @@
 // Bez konzoloveho okna pri spusteni sestavene aplikace na Windows
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod ai_edit;
 mod db;
 mod download;
 mod export;
+mod online_import;
 mod tools;
 mod transcription;
+mod user_message;
 
 use anyhow::Result;
-use db::{DictionaryEntry, Recording, SearchResult, Segment, Settings, Speaker};
+use db::{DictionaryEntry, Recording, RecordingNote, SearchResult, Segment, Settings, Speaker};
 use rusqlite::Connection;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use tauri::{Manager, State};
+use user_message::UserMessage;
 
 // ---------------------------------------------------------------- stav aplikace
 
@@ -25,6 +29,10 @@ struct AppState {
     download_cancellation: Arc<AtomicBool>,
     /// Transcriptions in flight, so they can be cancelled
     bezici: transcription::TranscriptionTask,
+    /// Optional language-document generation, independent of transcription.
+    ai_edit: ai_edit::AiEditTask,
+    /// At most one cancellable online media import at a time.
+    online_import: online_import::OnlineImportTask,
 }
 
 /// Recordings whose waveform is being computed in the background. Without
@@ -40,63 +48,134 @@ fn waveform_jobs() -> &'static Mutex<std::collections::HashSet<String>> {
     WAVEFORM_JOBS.get_or_init(|| Mutex::new(std::collections::HashSet::new()))
 }
 
-/// Chyby z anyhow prevedeme na text - Tauri je posle do okna jako odmitnuty slib.
-fn stringify_error<T>(v: Result<T>) -> std::result::Result<T, String> {
-    v.map_err(|e| format!("{e:#}"))
+/// Result of a command whose failure is shown in the window.
+type Reported<T> = std::result::Result<T, UserMessage>;
+
+/// Failures from anyhow travel to the window as a message it can look up.
+/// Most of them have no code of their own yet, so the window prints the
+/// technical text they carry rather than nothing at all.
+fn reported<T>(v: Result<T>) -> Reported<T> {
+    v.map_err(UserMessage::from)
 }
 
 // ---------------------------------------------------------------- nastaveni
 
 #[tauri::command]
-fn load_settings(app: State<'_, AppState>) -> std::result::Result<Settings, String> {
+fn load_settings(app: State<'_, AppState>) -> Reported<Settings> {
     let db = app.db.lock().unwrap();
-    stringify_error(db::load_settings(&db))
+    let mut settings = reported(db::load_settings(&db))?;
+    if !settings.editor_model.is_empty() {
+        if let Some((resolved, _)) = tools::resolve_editor_model(&settings) {
+            if resolved != settings.editor_model {
+                settings.editor_model = resolved;
+                reported(db::save_settings(&db, &settings))?;
+            }
+        }
+    }
+    Ok(settings)
 }
 
 #[tauri::command]
-fn save_settings(app: State<'_, AppState>, settings: Settings) -> std::result::Result<(), String> {
+fn save_settings(app: State<'_, AppState>, settings: Settings) -> Reported<()> {
     let db = app.db.lock().unwrap();
-    stringify_error(db::save_settings(&db, &settings))
+    reported(db::save_settings(&db, &settings))
 }
 
 #[tauri::command]
-fn check_tools(app: State<'_, AppState>) -> std::result::Result<tools::ToolCheck, String> {
+fn check_tools(app: State<'_, AppState>) -> Reported<tools::ToolCheck> {
     let db = app.db.lock().unwrap();
-    let n = stringify_error(db::load_settings(&db))?;
+    let n = reported(db::load_settings(&db))?;
     Ok(tools::check(&n))
 }
 
 // ---------------------------------------------------------------- knihovna
 
 #[tauri::command]
-fn list_recordings(app: State<'_, AppState>) -> std::result::Result<Vec<Recording>, String> {
+fn list_recordings(app: State<'_, AppState>) -> Reported<Vec<Recording>> {
     let db = app.db.lock().unwrap();
-    stringify_error(db::list_recordings(&db))
+    reported(db::list_recordings(&db))
 }
 
-#[tauri::command]
-fn add_recording(app: State<'_, AppState>, path: String) -> std::result::Result<Recording, String> {
-    let db = app.db.lock().unwrap();
-    let settings = stringify_error(db::load_settings(&db))?;
+const SUPPORTED_MEDIA_EXTENSIONS: &[&str] = &[
+    "mp3", "wav", "m4a", "aac", "flac", "ogg", "opus", "wma", "mp4", "mkv", "mov", "webm",
+];
 
-    let file = PathBuf::from(&path);
+#[derive(Clone, Debug, Deserialize, Serialize)]
+struct WatchFolderCandidate {
+    path: String,
+    name: String,
+    fingerprint: String,
+}
+
+fn is_supported_media(path: &std::path::Path) -> bool {
+    path.extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| {
+            SUPPORTED_MEDIA_EXTENSIONS
+                .iter()
+                .any(|supported| extension.eq_ignore_ascii_case(supported))
+        })
+}
+
+fn watch_file_fingerprint(path: &std::path::Path) -> Result<String> {
+    let metadata = path.metadata()?;
+    let modified = metadata
+        .modified()
+        .ok()
+        .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|duration| duration.as_nanos())
+        .unwrap_or_default();
+    let created = metadata
+        .created()
+        .ok()
+        .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|duration| duration.as_nanos())
+        .unwrap_or_default();
+    Ok(format!("{}:{modified}:{created}", metadata.len()))
+}
+
+/// Revalidates a candidate returned to the window. The frontend is not a
+/// trusted filesystem boundary: only unchanged direct children of the active
+/// watched directory may be imported or ignored.
+fn validate_watch_candidate(
+    settings: &Settings,
+    candidate: &WatchFolderCandidate,
+) -> Reported<PathBuf> {
+    if !settings.watch_folder_enabled || settings.watch_folder.trim().is_empty() {
+        return Err(UserMessage::new("watch_folder.disabled"));
+    }
+    let directory = PathBuf::from(&settings.watch_folder);
+    let file = PathBuf::from(&candidate.path);
+    if !file.is_file() || !is_supported_media(&file) {
+        return Err(UserMessage::new("watch_folder.file_gone").with("name", &candidate.name));
+    }
+    let canonical_directory = directory.canonicalize()?;
+    let canonical_file = file.canonicalize()?;
+    if canonical_file.parent() != Some(canonical_directory.as_path()) {
+        return Err(UserMessage::new("watch_folder.file_outside").with("name", &candidate.name));
+    }
+    if watch_file_fingerprint(&file)? != candidate.fingerprint {
+        return Err(UserMessage::new("watch_folder.file_changed").with("name", &candidate.name));
+    }
+    Ok(file)
+}
+
+fn create_recording(db: &Connection, settings: &Settings, file: PathBuf) -> Reported<Recording> {
     if !file.is_file() {
-        return Err(format!("Soubor neexistuje: {path}"));
+        return Err(UserMessage::new("file.not_found").with("path", file.to_string_lossy()));
     }
 
-    let duration = tools::check(&settings)
+    let duration = tools::check(settings)
         .ffprobe
-        .and_then(|p| tools::audio_duration(std::path::Path::new(&p), &file).ok())
+        .and_then(|probe| tools::audio_duration(std::path::Path::new(&probe), &file).ok())
         .unwrap_or(0.0);
-
     let title = file
         .file_stem()
-        .map(|s| s.to_string_lossy().to_string())
+        .map(|stem| stem.to_string_lossy().to_string())
         .unwrap_or_else(|| "Bez názvu".into());
-
     let recording = Recording {
         id: uuid::Uuid::new_v4().to_string(),
-        path,
+        path: file.to_string_lossy().to_string(),
         title,
         duration,
         created_at: chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
@@ -107,14 +186,173 @@ fn add_recording(app: State<'_, AppState>, path: String) -> std::result::Result<
         error: None,
         segment_count: 0,
     };
-    stringify_error(db::insert_recording(&db, &recording))?;
+    db::insert_recording(db, &recording)?;
     Ok(recording)
 }
 
 #[tauri::command]
-fn delete_recording(app: State<'_, AppState>, id: String) -> std::result::Result<(), String> {
+fn add_recording(app: State<'_, AppState>, path: String) -> Reported<Recording> {
     let db = app.db.lock().unwrap();
-    stringify_error(db::delete_recording(&db, &id))
+    let settings = reported(db::load_settings(&db))?;
+    create_recording(&db, &settings, PathBuf::from(path))
+}
+
+/// Checks the configured directory once. Polling lives in the window so this
+/// feature stops naturally with the app and needs no background system
+/// service. Only direct children are considered: choosing one folder must not
+/// unexpectedly crawl an entire drive through nested directories.
+#[tauri::command]
+async fn scan_watch_folder(app: State<'_, AppState>) -> Reported<Vec<WatchFolderCandidate>> {
+    let (settings, db_path) = {
+        let db = app.db.lock().unwrap();
+        (reported(db::load_settings(&db))?, app.db_path.clone())
+    };
+    if !settings.watch_folder_enabled || settings.watch_folder.trim().is_empty() {
+        return Ok(Vec::new());
+    }
+
+    tauri::async_runtime::spawn_blocking(move || -> Reported<Vec<WatchFolderCandidate>> {
+        let directory = PathBuf::from(&settings.watch_folder);
+        if !directory.is_dir() {
+            return Err(UserMessage::new("watch_folder.not_available")
+                .with("path", directory.to_string_lossy()));
+        }
+
+        let mut files = std::fs::read_dir(&directory)?
+            .filter_map(|entry| entry.ok().map(|entry| entry.path()))
+            .filter(|path| path.is_file() && is_supported_media(path))
+            .collect::<Vec<_>>();
+        files.sort();
+
+        let db = db::open(&db_path)?;
+        let mut candidates = Vec::new();
+        for file in files {
+            let fingerprint = watch_file_fingerprint(&file)?;
+            let path = file.to_string_lossy().to_string();
+
+            // Already answered about — imported, added, or set aside. The
+            // record is keyed on the content as well as the path, so the same
+            // file put there afresh comes back on its own.
+            if db::watch_file_imported(&db, &path, &fingerprint)? {
+                continue;
+            }
+            // In the archive but never seen by the watcher: an ordinary drag
+            // and drop of a file that happens to live in the folder.
+            if db::recording_path_exists(&db, &path)? {
+                db::mark_watch_file_imported(&db, &path, &fingerprint)?;
+                continue;
+            }
+            if !db::watch_file_is_stable(&db, &path, &fingerprint)? {
+                continue;
+            }
+
+            candidates.push(WatchFolderCandidate {
+                name: file
+                    .file_name()
+                    .map(|name| name.to_string_lossy().to_string())
+                    .unwrap_or_else(|| "Nahrávka".into()),
+                path,
+                fingerprint,
+            });
+        }
+        Ok(candidates)
+    })
+    .await
+    .map_err(|error| UserMessage::new("watch_folder.scan_interrupted").detail(error))?
+}
+
+#[tauri::command]
+async fn import_watch_folder_files(
+    app: State<'_, AppState>,
+    files: Vec<WatchFolderCandidate>,
+) -> Reported<Vec<Recording>> {
+    let (settings, db_path) = {
+        let db = app.db.lock().unwrap();
+        (reported(db::load_settings(&db))?, app.db_path.clone())
+    };
+    tauri::async_runtime::spawn_blocking(move || -> Reported<Vec<Recording>> {
+        let db = db::open(&db_path)?;
+        let mut recordings = Vec::new();
+        for candidate in files {
+            let file = validate_watch_candidate(&settings, &candidate)?;
+            if db::watch_file_imported(&db, &candidate.path, &candidate.fingerprint)? {
+                continue;
+            }
+            if !db::watch_file_is_stable(&db, &candidate.path, &candidate.fingerprint)? {
+                continue;
+            }
+            if db::recording_path_exists(&db, &candidate.path)? {
+                db::mark_watch_file_imported(&db, &candidate.path, &candidate.fingerprint)?;
+                continue;
+            }
+            let recording = create_recording(&db, &settings, file)?;
+            db::mark_watch_file_imported(&db, &candidate.path, &candidate.fingerprint)?;
+            recordings.push(recording);
+        }
+        Ok(recordings)
+    })
+    .await
+    .map_err(|error| UserMessage::new("watch_folder.import_interrupted").detail(error))?
+}
+
+#[tauri::command]
+async fn ignore_watch_folder_files(
+    app: State<'_, AppState>,
+    files: Vec<WatchFolderCandidate>,
+) -> Reported<()> {
+    let (settings, db_path) = {
+        let db = app.db.lock().unwrap();
+        (reported(db::load_settings(&db))?, app.db_path.clone())
+    };
+    tauri::async_runtime::spawn_blocking(move || -> Reported<()> {
+        let db = db::open(&db_path)?;
+        for candidate in files {
+            validate_watch_candidate(&settings, &candidate)?;
+            db::mark_watch_file_imported(&db, &candidate.path, &candidate.fingerprint)?;
+        }
+        Ok(())
+    })
+    .await
+    .map_err(|error| UserMessage::new("watch_folder.ignore_interrupted").detail(error))?
+}
+
+#[tauri::command]
+async fn import_online_recording(
+    window: tauri::AppHandle,
+    app: State<'_, AppState>,
+    url: String,
+) -> Reported<Recording> {
+    let settings = {
+        let db = app.db.lock().unwrap();
+        reported(db::load_settings(&db))?
+    };
+    let db_path = app.db_path.clone();
+    let task = app.online_import.clone();
+    let cancellation = task.begin()?;
+    let worker_cancellation = cancellation.clone();
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        online_import::import(&window, &db_path, &settings, &url, worker_cancellation)
+    })
+    .await
+    .map_err(|error| UserMessage::new("online_import.interrupted").detail(error))
+    .and_then(|outcome| outcome);
+    task.finish(&cancellation);
+    result
+}
+
+#[tauri::command]
+fn cancel_online_import(app: State<'_, AppState>) {
+    app.online_import.cancel();
+}
+
+#[tauri::command]
+fn delete_recording(app: State<'_, AppState>, id: String) -> Reported<()> {
+    {
+        let db = app.db.lock().unwrap();
+        reported(db::delete_recording(&db, &id))?;
+    }
+    tools::remove_playback_proxies(&app.db_path, &id);
+    Ok(())
 }
 
 #[tauri::command]
@@ -122,18 +360,25 @@ fn start_transcription(
     window: tauri::AppHandle,
     app: State<'_, AppState>,
     id: String,
-) -> std::result::Result<(), String> {
+    speaker_count: Option<i64>,
+) -> Reported<()> {
     // Starting the same transcription twice would write the segments twice.
     // The status lives in the database, so a lock and a look are enough.
     {
         let db = app.db.lock().unwrap();
-        let n = stringify_error(db::recording(&db, &id))?;
+        let n = reported(db::recording(&db, &id))?;
         if n.status == "prepisuje" {
             return Ok(());
         }
-        stringify_error(db::set_status(&db, &id, "prepisuje", None))?;
+        reported(db::set_status(&db, &id, "prepisuje", None))?;
     }
-    transcription::start_in_thread(window, app.db_path.clone(), id, app.bezici.clone());
+    transcription::start_in_thread(
+        window,
+        app.db_path.clone(),
+        id,
+        app.bezici.clone(),
+        speaker_count,
+    );
     Ok(())
 }
 
@@ -144,52 +389,65 @@ fn transcribe_in_language(
     app: State<'_, AppState>,
     id: String,
     language: String,
-) -> std::result::Result<(), String> {
+    speaker_count: Option<i64>,
+) -> Reported<()> {
     {
         let db = app.db.lock().unwrap();
-        let n = stringify_error(db::recording(&db, &id))?;
+        let n = reported(db::recording(&db, &id))?;
         if n.status == "prepisuje" {
             return Ok(());
         }
-        stringify_error(db::set_language_choice(&db, &id, &language))?;
-        stringify_error(db::set_status(&db, &id, "prepisuje", None))?;
+        reported(db::set_language_choice(&db, &id, &language))?;
+        reported(db::set_status(&db, &id, "prepisuje", None))?;
     }
-    transcription::start_in_thread(window, app.db_path.clone(), id, app.bezici.clone());
+    transcription::start_in_thread(
+        window,
+        app.db_path.clone(),
+        id,
+        app.bezici.clone(),
+        speaker_count,
+    );
     Ok(())
 }
 
-/// Stops a running transcription. The recording returns to the untranscribed pile.
+/// Stops a running transcription or speaker recognition.
+///
+/// `cancel` answers whether a worker is running, not whether a program happens
+/// to be spawned at this instant. Between the stages of a run — converting
+/// audio, preparing playback, saving — there is no child to kill, and the old
+/// answer in that window was "nothing is running", which then threw away the
+/// cancellation the user had just asked for.
 #[tauri::command]
-fn cancel_transcription(app: State<'_, AppState>, id: String) -> std::result::Result<(), String> {
+fn cancel_transcription(app: State<'_, AppState>, id: String) -> Reported<()> {
     if !app.bezici.cancel(&id) {
-        // The process has already finished. Tidy up the status and, above
-        // all, clear the cancel flag — otherwise the next transcription of
-        // this recording would abort itself.
+        // Nothing is running: the work finished between the click and this
+        // call. Clear the flag, or the next transcription of this recording
+        // would abort itself, and tidy up a status left behind by a crash.
         app.bezici.forget_cancellation(&id);
         let db = app.db.lock().unwrap();
-        stringify_error(db::set_status(&db, &id, "nova", None))?;
+        if let Ok(recording) = db::recording(&db, &id) {
+            if recording.status == "prepisuje" {
+                reported(db::set_status(&db, &id, "nova", None))?;
+            }
+        }
     }
     Ok(())
 }
 
 /// Discards a finished transcript but keeps the recording in the archive.
 #[tauri::command]
-fn delete_transcription(app: State<'_, AppState>, id: String) -> std::result::Result<(), String> {
+fn delete_transcription(app: State<'_, AppState>, id: String) -> Reported<()> {
     let db = app.db.lock().unwrap();
-    stringify_error(db::delete_segments(&db, &id))?;
-    stringify_error(db::delete_speakers(&db, &id))?;
-    stringify_error(db::set_status(&db, &id, "nova", None))
+    reported(db::delete_segments(&db, &id))?;
+    reported(db::delete_speakers(&db, &id))?;
+    reported(db::set_status(&db, &id, "nova", None))
 }
 
 /// Renames a recording in the archive; the default comes from the file name.
 #[tauri::command]
-fn rename_recording(
-    app: State<'_, AppState>,
-    id: String,
-    title: String,
-) -> std::result::Result<(), String> {
+fn rename_recording(app: State<'_, AppState>, id: String, title: String) -> Reported<()> {
     let db = app.db.lock().unwrap();
-    stringify_error(db::rename_recording(&db, &id, title.trim()))
+    reported(db::rename_recording(&db, &id, title.trim()))
 }
 
 #[tauri::command]
@@ -197,15 +455,22 @@ fn diarize_speakers(
     window: tauri::AppHandle,
     app: State<'_, AppState>,
     id: String,
-) -> std::result::Result<(), String> {
+    speaker_count: Option<i64>,
+) -> Reported<()> {
     {
         let db = app.db.lock().unwrap();
-        let n = stringify_error(db::recording(&db, &id))?;
+        let n = reported(db::recording(&db, &id))?;
         if n.status == "prepisuje" {
-            return Err("Počkej, až doběhne přepis.".into());
+            return Err(UserMessage::new("transcription.still_running"));
         }
     }
-    transcription::start_diarization_in_thread(window, app.db_path.clone(), id);
+    transcription::start_diarization_in_thread(
+        window,
+        app.db_path.clone(),
+        id,
+        app.bezici.clone(),
+        speaker_count,
+    );
     Ok(())
 }
 
@@ -216,26 +481,83 @@ struct Detail {
     recording: Recording,
     segments: Vec<Segment>,
     speakers: Vec<Speaker>,
+    notes: Vec<RecordingNote>,
 }
 
 #[tauri::command]
-fn detail(app: State<'_, AppState>, id: String) -> std::result::Result<Detail, String> {
+fn detail(app: State<'_, AppState>, id: String) -> Reported<Detail> {
     let db = app.db.lock().unwrap();
     Ok(Detail {
-        recording: stringify_error(db::recording(&db, &id))?,
-        segments: stringify_error(db::segments(&db, &id))?,
-        speakers: stringify_error(db::speakers(&db, &id))?,
+        recording: reported(db::recording(&db, &id))?,
+        segments: reported(db::segments(&db, &id))?,
+        speakers: reported(db::speakers(&db, &id))?,
+        notes: reported(db::recording_notes(&db, &id))?,
     })
 }
 
+/// A note may sit anywhere in the recording or nowhere at all, but never at a
+/// position that does not exist.
+fn check_note_time(time: Option<f64>) -> Reported<()> {
+    match time {
+        Some(seconds) if !seconds.is_finite() || seconds < 0.0 => {
+            Err(UserMessage::new("note.invalid_time"))
+        }
+        _ => Ok(()),
+    }
+}
+
 #[tauri::command]
-fn update_segment(
+fn add_recording_note(
+    app: State<'_, AppState>,
+    recording_id: String,
+    time: Option<f64>,
+    text: String,
+) -> Reported<RecordingNote> {
+    let text = text.trim();
+    if text.is_empty() {
+        return Err(UserMessage::new("note.empty"));
+    }
+    check_note_time(time)?;
+    let note = RecordingNote {
+        id: uuid::Uuid::new_v4().to_string(),
+        recording_id,
+        time,
+        text: text.to_string(),
+        done: false,
+        created_at: chrono::Utc::now().to_rfc3339(),
+    };
+    let db = app.db.lock().unwrap();
+    reported(db::insert_recording_note(&db, &note))?;
+    Ok(note)
+}
+
+#[tauri::command]
+fn update_recording_note(
     app: State<'_, AppState>,
     id: String,
+    time: Option<f64>,
     text: String,
-) -> std::result::Result<(), String> {
+    done: bool,
+) -> Reported<()> {
+    let text = text.trim();
+    if text.is_empty() {
+        return Err(UserMessage::new("note.empty"));
+    }
+    check_note_time(time)?;
     let db = app.db.lock().unwrap();
-    stringify_error(db::update_segment(&db, &id, &text))
+    reported(db::update_recording_note(&db, &id, time, text, done))
+}
+
+#[tauri::command]
+fn delete_recording_note(app: State<'_, AppState>, id: String) -> Reported<()> {
+    let db = app.db.lock().unwrap();
+    reported(db::delete_recording_note(&db, &id))
+}
+
+#[tauri::command]
+fn update_segment(app: State<'_, AppState>, id: String, text: String) -> Reported<()> {
+    let db = app.db.lock().unwrap();
+    reported(db::update_segment(&db, &id, &text))
 }
 
 /// Is the source file still where it was? The transcript lives in the
@@ -245,25 +567,108 @@ fn file_exists(path: String) -> bool {
     std::path::Path::new(&path).is_file()
 }
 
+/// A media source with an accurate timeline for word-level seeking.
+///
+/// Long VBR MP3 files are converted once to a cached M4A. This command is
+/// asynchronous because encoding must never block Tauri's UI/IPC thread.
+#[tauri::command]
+async fn playback_source(app: State<'_, AppState>, id: String) -> Reported<String> {
+    let (recording, settings, db_path) = {
+        let db = app.db.lock().unwrap();
+        (
+            reported(db::recording(&db, &id))?,
+            reported(db::load_settings(&db))?,
+            app.db_path.clone(),
+        )
+    };
+
+    let source = std::path::PathBuf::from(&recording.path);
+    let is_mp3 = source
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("mp3"));
+    if !is_mp3 {
+        return Ok(recording.path);
+    }
+
+    let ffmpeg = tools::check(&settings)
+        .ffmpeg
+        .ok_or_else(|| UserMessage::new("playback.ffmpeg_missing"))?;
+    let recording_id = recording.id;
+    let proxy = tauri::async_runtime::spawn_blocking(move || {
+        tools::ensure_seekable_playback(
+            std::path::Path::new(&ffmpeg),
+            &db_path,
+            &recording_id,
+            &source,
+        )
+    })
+    .await
+    .map_err(|error| UserMessage::new("playback.preparation_interrupted").detail(error))?;
+    proxy.map(|path| path.to_string_lossy().to_string())
+}
+
 /// Repoints a recording at a different file, in case it has moved.
 #[tauri::command]
-fn change_recording_path(
-    app: State<'_, AppState>,
-    id: String,
-    path: String,
-) -> std::result::Result<(), String> {
+fn change_recording_path(app: State<'_, AppState>, id: String, path: String) -> Reported<()> {
     if !std::path::Path::new(&path).is_file() {
-        return Err("Takový soubor neexistuje.".into());
+        return Err(UserMessage::new("recording.path_not_found"));
     }
     let db = app.db.lock().unwrap();
-    let settings = stringify_error(db::load_settings(&db))?;
+    let settings = reported(db::load_settings(&db))?;
     let duration = tools::check(&settings)
         .ffprobe
         .and_then(|p| {
             tools::audio_duration(std::path::Path::new(&p), std::path::Path::new(&path)).ok()
         })
         .unwrap_or(0.0);
-    stringify_error(db::set_path(&db, &id, &path, duration))
+    reported(db::set_path(&db, &id, &path, duration))?;
+    drop(db);
+    tools::remove_playback_proxies(&app.db_path, &id);
+    Ok(())
+}
+
+// ---------------------------------------------------------------- backups
+
+#[derive(Serialize)]
+struct BackupStatus {
+    /// Newest backup, formatted for display. Empty when there is none yet.
+    latest: String,
+    count: usize,
+    directory: String,
+}
+
+#[tauri::command]
+fn backup_status(app: State<'_, AppState>) -> BackupStatus {
+    let backups = db::list_backups(&app.db_path);
+    let latest = backups
+        .first()
+        .and_then(|p| p.metadata().ok())
+        .and_then(|m| m.modified().ok())
+        .map(|t| {
+            let when: chrono::DateTime<chrono::Local> = t.into();
+            when.format("%-d. %-m. %Y %H:%M").to_string()
+        })
+        .unwrap_or_default();
+    BackupStatus {
+        latest,
+        count: backups.len(),
+        directory: db::backup_directory(&app.db_path)
+            .to_string_lossy()
+            .to_string(),
+    }
+}
+
+/// Backs the archive up right now and reports where it landed.
+///
+/// This one does hold the lock: the user asked for it and is watching, so
+/// waiting is the honest behaviour — unlike the automatic backup at startup,
+/// which nobody asked for and must not get in the way.
+#[tauri::command]
+fn back_up_now(app: State<'_, AppState>) -> Reported<String> {
+    let db = app.db.lock().unwrap();
+    let written = reported(db::back_up_and_rotate(&db, &app.db_path))?;
+    Ok(written.to_string_lossy().to_string())
 }
 
 /// Waveform for the player. Read from the database; when it is not there
@@ -304,10 +709,7 @@ impl Waveform {
 /// instant, began to stall. Now it is computed aside and the window returns
 /// for the result.
 #[tauri::command]
-fn recording_waveform(
-    app: State<'_, AppState>,
-    id: String,
-) -> std::result::Result<Waveform, String> {
+fn recording_waveform(app: State<'_, AppState>, id: String) -> Reported<Waveform> {
     let (recording, settings, cached) = {
         let db = app.db.lock().unwrap();
         let cached = db::waveform(&db, &id).unwrap_or_default();
@@ -315,8 +717,8 @@ fn recording_waveform(
             return Ok(Waveform::from_data(cached, false));
         }
         (
-            stringify_error(db::recording(&db, &id))?,
-            stringify_error(db::load_settings(&db))?,
+            reported(db::recording(&db, &id))?,
+            reported(db::load_settings(&db))?,
             cached,
         )
     };
@@ -376,19 +778,15 @@ fn recording_waveform(
 
 /// Runs the dictionary over a finished transcript. Returns the change count.
 #[tauri::command]
-fn apply_dictionary(app: State<'_, AppState>, id: String) -> std::result::Result<usize, String> {
+fn apply_dictionary(app: State<'_, AppState>, id: String) -> Reported<usize> {
     let db = app.db.lock().unwrap();
-    stringify_error(transcription::apply_dictionary_to_recording(&db, &id))
+    reported(transcription::apply_dictionary_to_recording(&db, &id))
 }
 
 #[tauri::command]
-fn mark_verified(
-    app: State<'_, AppState>,
-    id: String,
-    verified: bool,
-) -> std::result::Result<(), String> {
+fn mark_verified(app: State<'_, AppState>, id: String, verified: bool) -> Reported<()> {
     let db = app.db.lock().unwrap();
-    stringify_error(db::mark_verified(&db, &id, verified))
+    reported(db::mark_verified(&db, &id, verified))
 }
 
 #[tauri::command]
@@ -396,9 +794,9 @@ fn set_segment_speaker(
     app: State<'_, AppState>,
     id: String,
     speakers: Option<String>,
-) -> std::result::Result<(), String> {
+) -> Reported<()> {
     let db = app.db.lock().unwrap();
-    stringify_error(db::set_segment_speaker(&db, &id, speakers.as_deref()))
+    reported(db::set_segment_speaker(&db, &id, speakers.as_deref()))
 }
 
 #[tauri::command]
@@ -407,9 +805,9 @@ fn rename_speaker(
     recording_id: String,
     key: String,
     name: String,
-) -> std::result::Result<(), String> {
+) -> Reported<()> {
     let db = app.db.lock().unwrap();
-    stringify_error(db::rename_speaker(&db, &recording_id, &key, &name))
+    reported(db::rename_speaker(&db, &recording_id, &key, &name))
 }
 
 #[tauri::command]
@@ -418,17 +816,17 @@ fn merge_speakers(
     recording_id: String,
     from_key: String,
     to_key: String,
-) -> std::result::Result<(), String> {
+) -> Reported<()> {
     let db = app.db.lock().unwrap();
-    stringify_error(db::merge_speakers(&db, &recording_id, &from_key, &to_key))
+    reported(db::merge_speakers(&db, &recording_id, &from_key, &to_key))
 }
 
 // ---------------------------------------------------------------- slovnik
 
 #[tauri::command]
-fn dictionary(app: State<'_, AppState>) -> std::result::Result<Vec<DictionaryEntry>, String> {
+fn dictionary(app: State<'_, AppState>) -> Reported<Vec<DictionaryEntry>> {
     let db = app.db.lock().unwrap();
-    stringify_error(db::dictionary(&db))
+    reported(db::dictionary(&db))
 }
 
 #[tauri::command]
@@ -436,51 +834,52 @@ fn add_dictionary_entry(
     app: State<'_, AppState>,
     find: String,
     replace: String,
-    prompt: bool,
-) -> std::result::Result<DictionaryEntry, String> {
+) -> Reported<DictionaryEntry> {
     let db = app.db.lock().unwrap();
     let p = DictionaryEntry {
         id: uuid::Uuid::new_v4().to_string(),
         find,
         replace,
-        prompt,
     };
-    stringify_error(db::add_dictionary_entry(&db, &p))?;
+    reported(db::add_dictionary_entry(&db, &p))?;
     Ok(p)
 }
 
 #[tauri::command]
-fn delete_dictionary_entry(
+fn update_dictionary_entry(
     app: State<'_, AppState>,
     id: String,
-) -> std::result::Result<(), String> {
+    find: String,
+    replace: String,
+) -> Reported<DictionaryEntry> {
     let db = app.db.lock().unwrap();
-    stringify_error(db::delete_dictionary_entry(&db, &id))
+    let entry = DictionaryEntry { id, find, replace };
+    reported(db::update_dictionary_entry(&db, &entry))?;
+    Ok(entry)
+}
+
+#[tauri::command]
+fn delete_dictionary_entry(app: State<'_, AppState>, id: String) -> Reported<()> {
+    let db = app.db.lock().unwrap();
+    reported(db::delete_dictionary_entry(&db, &id))
 }
 
 // ---------------------------------------------------------------- hledani
 
 #[tauri::command]
-fn search(
-    app: State<'_, AppState>,
-    query: String,
-) -> std::result::Result<Vec<SearchResult>, String> {
+fn search(app: State<'_, AppState>, query: String) -> Reported<Vec<SearchResult>> {
     let db = app.db.lock().unwrap();
-    stringify_error(db::search(&db, &query))
+    reported(db::search(&db, &query))
 }
 
 // ---------------------------------------------------------------- export
 
 #[tauri::command]
-fn export_preview(
-    app: State<'_, AppState>,
-    id: String,
-    format: String,
-) -> std::result::Result<String, String> {
+fn export_preview(app: State<'_, AppState>, id: String, format: String) -> Reported<String> {
     let db = app.db.lock().unwrap();
-    let recording = stringify_error(db::recording(&db, &id))?;
-    let segments = stringify_error(db::segments(&db, &id))?;
-    let speakers = stringify_error(db::speakers(&db, &id))?;
+    let recording = reported(db::recording(&db, &id))?;
+    let segments = reported(db::segments(&db, &id))?;
+    let speakers = reported(db::speakers(&db, &id))?;
     Ok(export::create(&format, &recording, &segments, &speakers))
 }
 
@@ -490,20 +889,17 @@ fn save_export(
     id: String,
     format: String,
     path: String,
-) -> std::result::Result<String, String> {
+) -> Reported<String> {
     let contents = export_preview(app, id, format)?;
-    std::fs::write(&path, contents).map_err(|e| format!("Zápis selhal: {e}"))?;
+    std::fs::write(&path, contents)
+        .map_err(|error| UserMessage::new("file.write_failed").detail(error))?;
     Ok(path)
 }
 
 #[tauri::command]
-fn suggested_name(
-    app: State<'_, AppState>,
-    id: String,
-    format: String,
-) -> std::result::Result<String, String> {
+fn suggested_name(app: State<'_, AppState>, id: String, format: String) -> Reported<String> {
     let db = app.db.lock().unwrap();
-    let n = stringify_error(db::recording(&db, &id))?;
+    let n = reported(db::recording(&db, &id))?;
     let cisty: String = n
         .title
         .chars()
@@ -512,26 +908,257 @@ fn suggested_name(
     Ok(format!("{}.{}", cisty, export::extension(&format)))
 }
 
+// ---------------------------------------------------------- language editing
+
+#[derive(Serialize)]
+struct AiEditStatus {
+    document: Option<db::AiDocument>,
+    outputs: Vec<db::AiOutput>,
+    running: bool,
+    progress: Option<ai_edit::AiEditProgress>,
+}
+
+#[tauri::command]
+fn ai_edit_status(app: State<'_, AppState>, id: String) -> Reported<AiEditStatus> {
+    let db = app.db.lock().unwrap();
+    let mut document = reported(db::ai_document(&db, &id))?;
+    let mut outputs = reported(db::ai_outputs(&db, &id))?;
+    if let Some(document) = document.as_mut() {
+        let source = reported(ai_edit::transcript_source(&db, &id))?;
+        let settings = reported(db::load_settings(&db))?;
+        let recording = reported(db::recording(&db, &id))?;
+        let source_language = ai_edit::effective_language(&recording);
+        let resolved_model = tools::resolve_editor_model(&settings).map(|(id, _)| id);
+        document.stale = document.source_hash != ai_edit::source_hash(&source)
+            || resolved_model.is_some_and(|model| document.model != model);
+        // Hide summaries produced by the former direct-to-Czech pipeline. The
+        // row is overwritten when the user generates that length again.
+        outputs.retain(|output| {
+            output.source_hash
+                == ai_edit::output_source_hash(&document.text, &output.kind, &source_language)
+        });
+    }
+    Ok(AiEditStatus {
+        document,
+        outputs,
+        running: app.ai_edit.is_running(&id),
+        progress: app.ai_edit.current_progress(&id),
+    })
+}
+
+#[tauri::command]
+fn start_ai_edit(
+    window: tauri::AppHandle,
+    app: State<'_, AppState>,
+    id: String,
+    mode: String,
+) -> Reported<()> {
+    if mode != "faithful" && mode != "clean" {
+        return Err(UserMessage::new("ai.unknown_mode"));
+    }
+    let settings = {
+        let db = app.db.lock().unwrap();
+        reported(db::load_settings(&db))?
+    };
+    app.ai_edit
+        .start(window, app.db_path.clone(), settings, id, mode)
+}
+
+#[tauri::command]
+fn cancel_ai_edit(app: State<'_, AppState>, id: String) {
+    app.ai_edit.cancel(&id);
+}
+
+#[tauri::command]
+fn start_ai_output(
+    window: tauri::AppHandle,
+    app: State<'_, AppState>,
+    id: String,
+    kind: String,
+    variant: String,
+) -> Reported<()> {
+    let valid = match kind.as_str() {
+        "summary" => matches!(variant.as_str(), "short" | "standard" | "detailed"),
+        "translation" => matches!(
+            variant.as_str(),
+            "cs" | "en" | "de" | "sk" | "pl" | "fr" | "es" | "it" | "uk"
+        ),
+        _ => false,
+    };
+    if !valid {
+        return Err(UserMessage::new("ai.unknown_output"));
+    }
+    let settings = {
+        let db = app.db.lock().unwrap();
+        reported(db::load_settings(&db))?
+    };
+    app.ai_edit
+        .start_output(window, app.db_path.clone(), settings, id, kind, variant)
+}
+
+#[tauri::command]
+fn delete_ai_document(app: State<'_, AppState>, id: String) -> Reported<()> {
+    let db = app.db.lock().unwrap();
+    reported(db::delete_ai_document(&db, &id))
+}
+
+#[tauri::command]
+fn save_ai_document(
+    app: State<'_, AppState>,
+    id: String,
+    format: String,
+    path: String,
+) -> Reported<String> {
+    let db = app.db.lock().unwrap();
+    let recording = reported(db::recording(&db, &id))?;
+    let document = reported(db::ai_document(&db, &id))?
+        .ok_or_else(|| UserMessage::new("ai.document_missing"))?;
+    let contents = match format.as_str() {
+        "txt" => format!("{}\n", document.text.trim()),
+        "md" => format!(
+            "# {}\n\n*Text vylepšil místní model {}*\n\n---\n\n{}\n",
+            recording.title,
+            document.model,
+            document.text.trim()
+        ),
+        _ => return Err(UserMessage::new("ai.unsupported_document_format")),
+    };
+    std::fs::write(&path, contents)
+        .map_err(|error| UserMessage::new("file.write_failed").detail(error))?;
+    Ok(path)
+}
+
+#[tauri::command]
+fn save_ai_output(
+    app: State<'_, AppState>,
+    id: String,
+    kind: String,
+    variant: String,
+    format: String,
+    path: String,
+) -> Reported<String> {
+    let db = app.db.lock().unwrap();
+    let recording = reported(db::recording(&db, &id))?;
+    let output = reported(db::ai_outputs(&db, &id))?
+        .into_iter()
+        .find(|output| output.kind == kind && output.variant == variant)
+        .ok_or_else(|| UserMessage::new("ai.output_missing"))?;
+    let title = if kind == "summary" {
+        match variant.as_str() {
+            "short" => "Stručné shrnutí".to_string(),
+            "detailed" => "Podrobné shrnutí".to_string(),
+            _ => "Shrnutí".to_string(),
+        }
+    } else {
+        let language = match variant.as_str() {
+            "cs" => "češtiny",
+            "en" => "angličtiny",
+            "de" => "němčiny",
+            "sk" => "slovenštiny",
+            "pl" => "polštiny",
+            "fr" => "francouzštiny",
+            "es" => "španělštiny",
+            "it" => "italštiny",
+            "uk" => "ukrajinštiny",
+            _ => "zvoleného jazyka",
+        };
+        format!("Překlad do {language}")
+    };
+    let contents = match format.as_str() {
+        "txt" => format!("{}\n", output.text.trim()),
+        "md" => format!(
+            "# {} – {}\n\n*Vytvořeno místním modelem {}*\n\n---\n\n{}\n",
+            recording.title,
+            title,
+            output.model,
+            output.text.trim()
+        ),
+        _ => return Err(UserMessage::new("ai.unsupported_output_format")),
+    };
+    std::fs::write(&path, contents)
+        .map_err(|error| UserMessage::new("file.write_failed").detail(error))?;
+    Ok(path)
+}
+
+#[tauri::command]
+fn suggested_ai_output_name(
+    app: State<'_, AppState>,
+    id: String,
+    kind: String,
+    variant: String,
+    format: String,
+) -> Reported<String> {
+    let db = app.db.lock().unwrap();
+    let recording = reported(db::recording(&db, &id))?;
+    let clean: String = recording
+        .title
+        .chars()
+        .map(|character| {
+            if r#"\/:*?"<>|"#.contains(character) {
+                '-'
+            } else {
+                character
+            }
+        })
+        .collect();
+    let suffix = if kind == "summary" {
+        match variant.as_str() {
+            "short" => "stručné shrnutí".to_string(),
+            "detailed" => "podrobné shrnutí".to_string(),
+            _ => "shrnutí".to_string(),
+        }
+    } else {
+        match variant.as_str() {
+            "cs" => "český překlad",
+            "en" => "anglický překlad",
+            "de" => "německý překlad",
+            "sk" => "slovenský překlad",
+            "pl" => "polský překlad",
+            "fr" => "francouzský překlad",
+            "es" => "španělský překlad",
+            "it" => "italský překlad",
+            "uk" => "ukrajinský překlad",
+            _ => "překlad",
+        }
+        .to_string()
+    };
+    let extension = if format == "md" { "md" } else { "txt" };
+    Ok(format!("{clean} – {suffix}.{extension}"))
+}
+
+#[tauri::command]
+fn suggested_ai_name(app: State<'_, AppState>, id: String, format: String) -> Reported<String> {
+    let db = app.db.lock().unwrap();
+    let recording = reported(db::recording(&db, &id))?;
+    let clean: String = recording
+        .title
+        .chars()
+        .map(|character| {
+            if r#"\/:*?"<>|"#.contains(character) {
+                '-'
+            } else {
+                character
+            }
+        })
+        .collect();
+    let extension = if format == "md" { "md" } else { "txt" };
+    Ok(format!("{clean} – vylepšený.{extension}"))
+}
+
 // ---------------------------------------------------------------- stahovani
 
 #[tauri::command]
-fn catalog(
-    app: State<'_, AppState>,
-) -> std::result::Result<Vec<download::DownloadComponent>, String> {
+fn catalog(app: State<'_, AppState>) -> Reported<Vec<download::DownloadComponent>> {
     let db = app.db.lock().unwrap();
-    let settings = stringify_error(db::load_settings(&db))?;
+    let settings = reported(db::load_settings(&db))?;
     Ok(download::catalog(&settings))
 }
 
 #[tauri::command]
-fn download(
-    window: tauri::AppHandle,
-    app: State<'_, AppState>,
-    ids: Vec<String>,
-) -> std::result::Result<(), String> {
+fn download(window: tauri::AppHandle, app: State<'_, AppState>, ids: Vec<String>) -> Reported<()> {
     let settings = {
         let db = app.db.lock().unwrap();
-        stringify_error(db::load_settings(&db))?
+        reported(db::load_settings(&db))?
     };
     app.download_cancellation.store(false, Ordering::Relaxed);
     download::install_bundle(window, settings, ids, app.download_cancellation.clone());
@@ -548,13 +1175,12 @@ fn create_portable_copy(
     window: tauri::AppHandle,
     app: State<'_, AppState>,
     path: String,
-) -> std::result::Result<f64, String> {
+) -> Reported<f64> {
     let settings = {
         let db = app.db.lock().unwrap();
-        stringify_error(db::load_settings(&db))?
+        reported(db::load_settings(&db))?
     };
-    let bytes = download::create_portable_copy(&window, &settings, std::path::Path::new(&path))
-        .map_err(|e| format!("{e:#}"))?;
+    let bytes = download::create_portable_copy(&window, &settings, std::path::Path::new(&path))?;
     Ok(bytes as f64 / 1_073_741_824.0)
 }
 
@@ -566,7 +1192,8 @@ struct BenchmarkResult {
     seconds: f64,
     /// how many times faster than real time
     realtime_factor: f64,
-    error: Option<String>,
+    /// Why this backend did not finish. Absent when it did.
+    error: Option<UserMessage>,
 }
 
 /// The flash drive travels between machines. On each new one it pays to
@@ -576,15 +1203,15 @@ struct BenchmarkResult {
 fn benchmark_compute(
     app: State<'_, AppState>,
     recording_id: Option<String>,
-) -> std::result::Result<Vec<BenchmarkResult>, String> {
+) -> Reported<Vec<BenchmarkResult>> {
     use std::path::Path;
 
     let (settings, source) = {
         let db = app.db.lock().unwrap();
-        let settings = stringify_error(db::load_settings(&db))?;
+        let settings = reported(db::load_settings(&db))?;
         let source = match &recording_id {
-            Some(id) => stringify_error(db::recording(&db, id))?.path,
-            None => stringify_error(db::list_recordings(&db))?
+            Some(id) => reported(db::recording(&db, id))?.path,
+            None => reported(db::list_recordings(&db))?
                 .first()
                 .map(|x| x.path.clone())
                 .unwrap_or_default(),
@@ -593,22 +1220,25 @@ fn benchmark_compute(
     };
 
     if source.is_empty() || !Path::new(&source).is_file() {
-        return Err(
-            "Přidej nejdřív nějakou nahrávku — zkouška potřebuje kus skutečného zvuku.".into(),
-        );
+        return Err(UserMessage::new("benchmark.no_recording"));
     }
 
     let root = tools::check(&settings);
-    let ffmpeg = root.ffmpeg.clone().ok_or("Chybí ffmpeg")?;
-    let model = root.model_whisper.clone().ok_or("Chybí model")?;
+    let ffmpeg = root
+        .ffmpeg
+        .clone()
+        .ok_or_else(|| UserMessage::new("tools.ffmpeg_missing"))?;
+    let model = root
+        .model_whisper
+        .clone()
+        .ok_or_else(|| UserMessage::new("tools.model_missing"))?;
 
     let working_directory = std::env::temp_dir().join("whisp-benchmark");
-    std::fs::create_dir_all(&working_directory).map_err(|e| e.to_string())?;
+    std::fs::create_dir_all(&working_directory)?;
     let sample = working_directory.join("sample.wav");
 
     // 20 seconds is enough to compare and holds nobody up
-    tools::clip(Path::new(&ffmpeg), Path::new(&source), &sample, 20.0)
-        .map_err(|e| format!("{e:#}"))?;
+    tools::clip(Path::new(&ffmpeg), Path::new(&source), &sample, 20.0)?;
 
     let bin = tools::expand(&settings.bin_directory);
     let mut results = Vec::new();
@@ -643,19 +1273,18 @@ fn benchmark_compute(
                 compute: backend,
                 seconds,
                 realtime_factor: 0.0,
-                error: Some(
-                    String::from_utf8_lossy(&v.stderr)
-                        .lines()
-                        .last()
-                        .unwrap_or("neznámá chyba")
-                        .to_string(),
-                ),
+                // The last line the program printed is the only thing that
+                // says anything here, and it comes from the program itself.
+                error: Some(match String::from_utf8_lossy(&v.stderr).lines().last() {
+                    Some(line) => UserMessage::new("benchmark.backend_failed").detail(line),
+                    None => UserMessage::new("benchmark.unknown_failure"),
+                }),
             }),
             Err(e) => results.push(BenchmarkResult {
                 compute: backend,
                 seconds: 0.0,
                 realtime_factor: 0.0,
-                error: Some(e.to_string()),
+                error: Some(UserMessage::new("benchmark.launch_failed").detail(e)),
             }),
         }
     }
@@ -669,10 +1298,10 @@ fn benchmark_compute(
         .max_by(|a, b| a.realtime_factor.partial_cmp(&b.realtime_factor).unwrap())
     {
         let db = app.db.lock().unwrap();
-        let mut settings = stringify_error(db::load_settings(&db))?;
+        let mut settings = reported(db::load_settings(&db))?;
         settings.compute = best.compute.clone();
         settings.last_machine = name_machine();
-        stringify_error(db::save_settings(&db, &settings))?;
+        reported(db::save_settings(&db, &settings))?;
     }
 
     results.sort_by(|a, b| b.realtime_factor.partial_cmp(&a.realtime_factor).unwrap());
@@ -706,6 +1335,11 @@ fn main() {
             check_tools,
             list_recordings,
             add_recording,
+            scan_watch_folder,
+            import_watch_folder_files,
+            ignore_watch_folder_files,
+            import_online_recording,
+            cancel_online_import,
             delete_recording,
             start_transcription,
             transcribe_in_language,
@@ -714,8 +1348,12 @@ fn main() {
             rename_recording,
             diarize_speakers,
             detail,
+            add_recording_note,
+            update_recording_note,
+            delete_recording_note,
             update_segment,
             file_exists,
+            playback_source,
             change_recording_path,
             recording_waveform,
             apply_dictionary,
@@ -725,29 +1363,134 @@ fn main() {
             merge_speakers,
             dictionary,
             add_dictionary_entry,
+            update_dictionary_entry,
             delete_dictionary_entry,
             search,
             export_preview,
             save_export,
             suggested_name,
+            ai_edit_status,
+            start_ai_edit,
+            start_ai_output,
+            cancel_ai_edit,
+            delete_ai_document,
+            save_ai_document,
+            save_ai_output,
+            suggested_ai_name,
+            suggested_ai_output_name,
             benchmark_compute,
             name_machine,
             catalog,
             download,
             cancel_download,
             create_portable_copy,
+            backup_status,
+            back_up_now,
         ])
         .run(tauri::generate_context!())
         .expect("failed to start the application");
 }
 
+/// Which archive to open, given where this mode says it belongs and the only
+/// other place one can be.
+///
+/// An empty folder is indistinguishable from a first run: `db::open` creates
+/// the whole schema in it and the Archive comes up blank and plausible. So
+/// before starting a new archive, look at the other candidate. If a real one
+/// is sitting there, open that instead. Losing sight of a year of transcripts
+/// must take more than a folder appearing beside the executable.
+fn archive_to_open(chosen: &std::path::Path, other: &std::path::Path) -> std::path::PathBuf {
+    let preferred = chosen.join("whisp.db");
+    if preferred.is_file() {
+        return preferred;
+    }
+    let alternative = other.join("whisp.db");
+    if alternative.is_file() {
+        eprintln!(
+            "opening the existing archive at {} instead of starting an empty one at {}",
+            alternative.display(),
+            preferred.display()
+        );
+        return alternative;
+    }
+    preferred
+}
+
 fn connect_database(app: &tauri::App) -> Result<()> {
     // Prenosny rezim: databaze lezi vedle programu, nic se nezapisuje
     // do profilu uzivatele na cizim pocitaci.
-    let directory = tools::data_directory(app.path().app_data_dir()?);
-    std::fs::create_dir_all(&directory)?;
-    let db_path = directory.join("whisp.db");
-    let connection = db::open(&db_path)?;
+    let profile = app.path().app_data_dir()?;
+    let directory = tools::data_directory(profile.clone());
+    let other = if directory == profile {
+        tools::app_directory().join("data")
+    } else {
+        profile
+    };
+    let db_path = archive_to_open(&directory, &other);
+    if let Some(parent) = db_path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    let mut connection = db::open(&db_path)?;
+
+    // Anything still marked as running belongs to a session that never
+    // finished. Without this the recording would sit there for ever showing a
+    // progress bar that goes nowhere, with no way to start over.
+    match db::recover_interrupted(&connection) {
+        Ok(0) => {}
+        Ok(n) => eprintln!("recovered {n} interrupted transcription(s)"),
+        Err(e) => eprintln!("could not recover interrupted transcriptions: {e:#}"),
+    }
+
+    // Measured, not guessed — see the change log. Changing the default alone
+    // would only reach new installations, and an existing one would keep
+    // finding sixteen speakers in a conversation between two people.
+    match db::raise_cluster_threshold_once(&connection) {
+        Ok(true) => eprintln!("raised speaker clustering threshold to the new default"),
+        Ok(false) => {}
+        Err(e) => eprintln!("could not raise the clustering threshold: {e:#}"),
+    }
+
+    // Sentence blocks are derived from preserved word timestamps, so layout
+    // improvements can be applied to existing transcripts without running
+    // Whisper again. Back up an archive with existing transcripts first; the
+    // rebuild itself is one transaction and leaves edited or verified blocks
+    // untouched.
+    if transcription::sentence_layout_upgrade_needed(&connection)? {
+        let has_existing_transcripts =
+            !db::completed_recording_ids_with_segments(&connection)?.is_empty();
+        let backup_ready = !has_existing_transcripts
+            || match db::back_up_and_rotate(&connection, &db_path) {
+                Ok(path) => {
+                    eprintln!(
+                        "backed up archive before sentence layout upgrade: {}",
+                        path.display()
+                    );
+                    true
+                }
+                Err(error) => {
+                    eprintln!("sentence layout upgrade skipped because backup failed: {error:#}");
+                    false
+                }
+            };
+        if backup_ready {
+            match transcription::upgrade_sentence_layout(&mut connection) {
+                Ok(0) => {}
+                Ok(count) => eprintln!("upgraded sentence layout in {count} recording(s)"),
+                Err(error) => eprintln!("sentence layout upgrade failed: {error:#}"),
+            }
+        }
+    }
+
+    // The same crash also leaves the converted audio in the temp folder —
+    // roughly 115 MB per hour of recording. Nothing can be using those folders
+    // at this point, so clearing them is safe.
+    let reclaimed = tools::clear_leftover_temporary();
+    if reclaimed > 0 {
+        eprintln!(
+            "reclaimed {} MB of leftover temporary files",
+            reclaimed / 1_000_000
+        );
+    }
 
     // The default paths are relative ("bin", "models") and are resolved
     // against the tools root: next to the executable in portable mode,
@@ -767,12 +1510,77 @@ fn connect_database(app: &tauri::App) -> Result<()> {
         db::save_settings(&connection, &settings)?;
     }
 
+    // A backup on every application start, made on a thread of its own.
+    //
+    // The archive is a single SQLite file; if it breaks, everything ever
+    // transcribed is gone. Backing up on startup rather than on a timer is
+    // deliberate: the app is opened far more often than it is left running,
+    // and a copy from every session is more useful than a precise schedule.
+    // On a large archive this takes seconds, hence the thread and its own
+    // connection — the window must not wait for it.
+    let path = db_path.clone();
+    std::thread::spawn(move || match db::open(&path) {
+        Ok(own) => {
+            if let Err(e) = db::back_up_and_rotate(&own, &path) {
+                eprintln!("backup failed: {e:#}");
+            }
+        }
+        Err(e) => eprintln!("backup could not open the database: {e:#}"),
+    });
+
     app.manage(AppState {
         db: Mutex::new(connection),
         db_path,
         download_cancellation: Arc::new(AtomicBool::new(false)),
         bezici: transcription::TranscriptionTask::default(),
+        ai_edit: ai_edit::AiEditTask::default(),
+        online_import: online_import::OnlineImportTask::default(),
     });
     Ok(())
 }
 
+#[cfg(test)]
+mod archive_location_tests {
+    use super::*;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    static COUNTER: AtomicUsize = AtomicUsize::new(0);
+
+    fn scratch(name: &str) -> std::path::PathBuf {
+        let id = COUNTER.fetch_add(1, Ordering::Relaxed);
+        let dir = std::env::temp_dir().join(format!("whisp-archive-test-{id}-{name}"));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn archive(dir: &std::path::Path) {
+        std::fs::write(dir.join("whisp.db"), b"not really sqlite").unwrap();
+    }
+
+    #[test]
+    fn the_place_for_this_mode_wins_when_it_holds_an_archive() {
+        let chosen = scratch("chosen");
+        let other = scratch("other");
+        archive(&chosen);
+        archive(&other);
+        assert_eq!(archive_to_open(&chosen, &other), chosen.join("whisp.db"));
+    }
+
+    /// The defect this exists for: portability flipped, and the archive was
+    /// suddenly somewhere else and empty.
+    #[test]
+    fn an_existing_archive_elsewhere_is_opened_rather_than_a_new_empty_one() {
+        let chosen = scratch("empty");
+        let other = scratch("has-the-archive");
+        archive(&other);
+        assert_eq!(archive_to_open(&chosen, &other), other.join("whisp.db"));
+    }
+
+    #[test]
+    fn a_genuine_first_run_still_starts_where_it_belongs() {
+        let chosen = scratch("first-run");
+        let other = scratch("also-empty");
+        assert_eq!(archive_to_open(&chosen, &other), chosen.join("whisp.db"));
+    }
+}

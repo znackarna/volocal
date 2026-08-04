@@ -4,7 +4,7 @@
 //! default is LOCALAPPDATA; portable mode uses directories beside the
 //! executable and does not require administrator privileges.
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::io::{Read, Write};
 use std::path::Path;
@@ -13,16 +13,22 @@ use std::sync::Arc;
 use tauri::{AppHandle, Emitter};
 
 use crate::tools;
+use crate::user_message::UserMessage;
+
+/// Result of anything that can end up in front of the user.
+type Reported<T> = std::result::Result<T, UserMessage>;
 
 // ---------------------------------------------------------------- katalog
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct DownloadComponent {
     pub id: String,
-    pub title: String,
-    pub description: String,
+    /// Dictionary key for the name shown in the wizard and in Modules.
+    pub name_code: String,
+    /// Dictionary key for the sentence under the name.
+    pub description_code: String,
     pub megabytes: u64,
-    /// program | model | mluvci
+    /// program | model | speakers | editor
     pub group: String,
     /// Bez ni prepis vubec nepobezi
     pub required: bool,
@@ -60,10 +66,11 @@ enum Destination {
     AsFile(String),
 }
 
+/// Names and descriptions are not written here. The window shows them in the
+/// active language, so the catalogue only says which dictionary entry belongs
+/// to each item; the identifier is the key both sides agree on.
 fn raw_catalog() -> Vec<DownloadComponent> {
     let k = |id: &str,
-             title: &str,
-             description: &str,
              mb: u64,
              group: &str,
              required: bool,
@@ -71,8 +78,8 @@ fn raw_catalog() -> Vec<DownloadComponent> {
              source: Source,
              destination: Destination| DownloadComponent {
         id: id.into(),
-        title: title.into(),
-        description: description.into(),
+        name_code: format!("catalog.{id}.name"),
+        description_code: format!("catalog.{id}.description"),
         megabytes: mb,
         group: group.into(),
         required,
@@ -87,8 +94,6 @@ fn raw_catalog() -> Vec<DownloadComponent> {
         // ---------------------------------------------------------- programy
         k(
             "whisper-vulkan",
-            "Přepis na grafické kartě",
-            "Funguje na AMD, Intel i NVIDIA.",
             18,
             "program",
             false,
@@ -98,8 +103,6 @@ fn raw_catalog() -> Vec<DownloadComponent> {
         ),
         k(
             "whisper-cpu",
-            "Přepis na procesoru",
-            "Záložní varianta pro počítače bez použitelné grafiky.",
             17,
             "program",
             false,
@@ -113,8 +116,6 @@ fn raw_catalog() -> Vec<DownloadComponent> {
         ),
         k(
             "whisper-cuda",
-            "Přepis na kartě NVIDIA",
-            "Na kartách NVIDIA znatelně rychlejší než Vulkan. Velký kvůli knihovnám.",
             457,
             "program",
             false,
@@ -128,8 +129,6 @@ fn raw_catalog() -> Vec<DownloadComponent> {
         ),
         k(
             "ffmpeg",
-            "Zpracování zvuku",
-            "Připraví zvuk pro přepis. Bez něj to nepoběží.",
             85,
             "program",
             true,
@@ -137,11 +136,33 @@ fn raw_catalog() -> Vec<DownloadComponent> {
             Source::Url("https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip".into()),
             Destination::ProgramsInto("bin".into()),
         ),
+        k(
+            "yt-dlp",
+            18,
+            "program",
+            false,
+            "bin/yt-dlp.exe",
+            Source::Url(
+                "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe".into(),
+            ),
+            Destination::AsFile("bin/yt-dlp.exe".into()),
+        ),
+        k(
+            "deno",
+            38,
+            "program",
+            false,
+            "bin/deno.exe",
+            Source::Github {
+                repo: "denoland/deno".into(),
+                pattern: "^deno-x86_64-pc-windows-msvc\\.zip$".into(),
+                exclude: "aarch64|denort|sha256".into(),
+            },
+            Destination::ProgramsInto("bin".into()),
+        ),
         // ---------------------------------------------------------- modely
         k(
             "vad",
-            "Detekce řeči",
-            "Vynechá ticho a šum. Bez ní se přepis na začátku zasekne v opakování.",
             2,
             "model",
             true,
@@ -151,8 +172,6 @@ fn raw_catalog() -> Vec<DownloadComponent> {
         ),
         k(
             "model-turbo",
-            "Rychlý model",
-            "Několikanásobně rychlejší. Volba pro slabší počítače.",
             575,
             "model",
             false,
@@ -162,8 +181,6 @@ fn raw_catalog() -> Vec<DownloadComponent> {
         ),
         k(
             "model-large-q5",
-            "Vyvážený model",
-            "Kvalita skoro jako nejvyšší, třetinová velikost.",
             1080,
             "model",
             false,
@@ -173,8 +190,6 @@ fn raw_catalog() -> Vec<DownloadComponent> {
         ),
         k(
             "model-large",
-            "Model s nejvyšší kvalitou",
-            "Nejpřesnější čeština. Vyplatí se na výkonném počítači.",
             3095,
             "model",
             false,
@@ -182,11 +197,63 @@ fn raw_catalog() -> Vec<DownloadComponent> {
             Source::Url("https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3.bin".into()),
             Destination::AsFile("models/ggml-large-v3.bin".into()),
         ),
+        // ---------------------------------------------------- language editing
+        k(
+            "editor-vulkan",
+            150,
+            "editor",
+            false,
+            "bin/editor-vulkan/llama-cli.exe",
+            Source::Github {
+                repo: "ggml-org/llama.cpp".into(),
+                pattern: "^llama-.*-bin-win-vulkan-x64\\.zip$".into(),
+                exclude: "".into(),
+            },
+            Destination::ProgramsInto("bin/editor-vulkan".into()),
+        ),
+        k(
+            "editor-cpu",
+            45,
+            "editor",
+            false,
+            "bin/editor-cpu/llama-cli.exe",
+            Source::Github {
+                repo: "ggml-org/llama.cpp".into(),
+                pattern: "^llama-.*-bin-win-cpu-x64\\.zip$".into(),
+                exclude: "".into(),
+            },
+            Destination::ProgramsInto("bin/editor-cpu".into()),
+        ),
+        k(
+            "editor-model-light",
+            3350,
+            "editor",
+            false,
+            "models/editor/gemma-4-e2b-q4.gguf",
+            Source::Url("https://huggingface.co/google/gemma-4-E2B-it-qat-q4_0-gguf/resolve/main/gemma-4-E2B_q4_0-it.gguf".into()),
+            Destination::AsFile("models/editor/gemma-4-e2b-q4.gguf".into()),
+        ),
+        k(
+            "editor-model-balanced",
+            5150,
+            "editor",
+            false,
+            "models/editor/gemma-4-e4b-q4.gguf",
+            Source::Url("https://huggingface.co/google/gemma-4-E4B-it-qat-q4_0-gguf/resolve/main/gemma-4-E4B_q4_0-it.gguf".into()),
+            Destination::AsFile("models/editor/gemma-4-e4b-q4.gguf".into()),
+        ),
+        k(
+            "editor-model-best",
+            6980,
+            "editor",
+            false,
+            "models/editor/gemma-4-12b-q4.gguf",
+            Source::Url("https://huggingface.co/google/gemma-4-12B-it-qat-q4_0-gguf/resolve/main/gemma-4-12b-it-qat-q4_0.gguf".into()),
+            Destination::AsFile("models/editor/gemma-4-12b-q4.gguf".into()),
+        ),
         // ---------------------------------------------------------- mluvci
         k(
             "sherpa",
-            "Rozlišení mluvčích",
-            "Pozná, kdo zrovna mluví. Užitečné u rozhovorů.",
             35,
             "speakers",
             false,
@@ -202,8 +269,6 @@ fn raw_catalog() -> Vec<DownloadComponent> {
         ),
         k(
             "model-segmentace",
-            "Rozpoznání střídání mluvčích",
-            "Určuje, kdy se mluvčí střídají.",
             6,
             "speakers",
             false,
@@ -211,20 +276,30 @@ fn raw_catalog() -> Vec<DownloadComponent> {
             Source::Url("https://github.com/k2-fsa/sherpa-onnx/releases/download/speaker-segmentation-models/sherpa-onnx-pyannote-segmentation-3-0.tar.bz2".into()),
             Destination::ExtractInto("models".into()),
         ),
-        // Puvodne tu byl model 3dspeaker ... sv_zh-cn ..., natrenovany na
-        // cinstine. Hlasy v cestine rozlisoval spatne — otisky lezely bliz
-        // u sebe, nez by mely, a shlukovani je pak michalo dohromady.
-        // CAM++ z VoxCelebu je trenovany na siroke smesi jazyku a je i mensi.
+        // Historie tohohle radku, aby ho nikdo nevracel dozadu:
+        //
+        // 1. Nejdriv tu byl 3dspeaker ... sv_zh-cn ..., natrenovany jen na
+        //    cinstine. Hlasy v cestine rozlisoval spatne.
+        // 2. Pak CAM++ z VoxCelebu, trenovany na siroke smesi jazyku.
+        // 3. Ted CAM++ „zh_en common advanced“, trenovany na zh i en a na
+        //    radove vetsim poctu mluvcich. Nema s bodem 1 spolecneho nic nez
+        //    jmeno rodiny — ten byl jednojazycny, tenhle neni.
+        //
+        // Zmereno na skutecnych nahravkach uzivatele, ne odhadnuto. Cely
+        // rozbor je v CLAUDE.md; ve zkratce, pri vynucenych dvou mluvcich
+        // dal VoxCeleb 65 prepnuti a pomer hlasu 55/45, zatimco tenhle 17
+        // prepnuti a 94/6 — a to same na anglicke i ceske verzi tehoz
+        // rozhovoru. Je pritom o megabajt mensi a stejne rychly.
         k(
             "model-hlasy",
-            "Rozpoznání hlasů",
-            "Spojí stejný hlas napříč celou nahrávkou.",
             28,
             "speakers",
             false,
-            "models/3dspeaker_speech_campplus_sv_en_voxceleb_16k.onnx",
-            Source::Url("https://github.com/k2-fsa/sherpa-onnx/releases/download/speaker-recongition-models/3dspeaker_speech_campplus_sv_en_voxceleb_16k.onnx".into()),
-            Destination::AsFile("models/3dspeaker_speech_campplus_sv_en_voxceleb_16k.onnx".into()),
+            "models/3dspeaker_speech_campplus_sv_zh_en_16k-common_advanced.onnx",
+            Source::Url("https://github.com/k2-fsa/sherpa-onnx/releases/download/speaker-recongition-models/3dspeaker_speech_campplus_sv_zh_en_16k-common_advanced.onnx".into()),
+            Destination::AsFile(
+                "models/3dspeaker_speech_campplus_sv_zh_en_16k-common_advanced.onnx".into(),
+            ),
         ),
     ]
 }
@@ -247,6 +322,8 @@ pub fn catalog(settings: &crate::db::Settings) -> Vec<DownloadComponent> {
                 "whisper-vulkan" => has_vulkan && !has_nvidia,
                 // bez ovladacu grafiky zbyva procesor
                 "whisper-cpu" => !has_nvidia && !has_vulkan,
+                "editor-vulkan" => has_vulkan,
+                "editor-cpu" => !has_vulkan,
                 _ => false,
             };
             k
@@ -264,7 +341,8 @@ pub struct DownloadProgress {
     pub downloaded_mb: f64,
     pub total_mb: f64,
     pub percent: u32,
-    pub message: String,
+    /// Absent while only the numbers matter.
+    pub message: Option<UserMessage>,
 }
 
 fn emit_progress(app: &AppHandle, p: DownloadProgress) {
@@ -283,7 +361,7 @@ fn client() -> Result<reqwest::blocking::Client> {
 /// U GitHubu se nazvy souboru mezi verzemi meni, proto je hledame v seznamu
 /// vydani misto hadani adresy. Prochazime vic vydani zpatky - projektum obcas
 /// spadne sestaveni pro jednu platformu a v poslednim vydani ten soubor chybi.
-fn resolve_url(source: &Source) -> Result<String> {
+fn resolve_url(source: &Source) -> Reported<String> {
     match source {
         Source::Url(url) => Ok(url.clone()),
         Source::Github {
@@ -293,9 +371,10 @@ fn resolve_url(source: &Source) -> Result<String> {
         } => {
             // reqwest has default features off (for size), so we parse the
             // response ourselves instead of the convenient .json()
-            let download = |url: String| -> Result<serde_json::Value> {
+            let download = |url: String| -> Reported<serde_json::Value> {
                 let body = client()?.get(&url).send()?.error_for_status()?.text()?;
-                serde_json::from_str(&body).context("GitHub vrátil odpověď, které nerozumím")
+                serde_json::from_str(&body)
+                    .map_err(|error| UserMessage::new("download.github_unreadable").detail(error))
             };
 
             // Ask for "latest" first. Some projects (sherpa-onnx) publish
@@ -314,8 +393,9 @@ fn resolve_url(source: &Source) -> Result<String> {
 
             let empty = vec![];
 
-            let requested = regex::Regex::new(pattern)
-                .map_err(|_| anyhow!("Chybný vzor pro hledání: {pattern}"))?;
+            let requested = regex::Regex::new(pattern).map_err(|_| {
+                UserMessage::new("download.invalid_pattern").with("pattern", pattern)
+            })?;
             let excluded = if exclude.is_empty() {
                 None
             } else {
@@ -351,14 +431,13 @@ fn resolve_url(source: &Source) -> Result<String> {
             }
 
             found.ok_or_else(|| {
-                anyhow!(
-                    "V posledních vydáních {repo} není soubor pro Windows odpovídající „{pattern}“.{}",
-                    if seen.is_empty() {
-                        String::new()
-                    } else {
-                        format!(" Vyloučené podobné soubory: {}", seen.join(", "))
-                    }
-                )
+                let message = if seen.is_empty() {
+                    UserMessage::new("download.asset_not_found")
+                } else {
+                    UserMessage::new("download.asset_not_found_with_excluded")
+                        .with("excluded", seen.join(", "))
+                };
+                message.with("repository", repo).with("pattern", pattern)
             })
         }
     }
@@ -370,13 +449,17 @@ fn download_file(
     url: &str,
     target: &Path,
     cancellation: &Arc<AtomicBool>,
-) -> Result<()> {
+) -> Reported<()> {
     let mut response = client()?
         .get(url)
         .send()
-        .with_context(|| format!("Nepodařilo se spojit se serverem ({url})"))?
+        .map_err(|error| {
+            UserMessage::new("download.connection_failed")
+                .with("url", url)
+                .detail(error)
+        })?
         .error_for_status()
-        .context("Server odmítl soubor vydat")?;
+        .map_err(|error| UserMessage::new("download.rejected").detail(error))?;
 
     let total = response.content_length().unwrap_or(0);
     let total_mb = total as f64 / 1_048_576.0;
@@ -396,7 +479,7 @@ fn download_file(
         if cancellation.load(Ordering::Relaxed) {
             drop(file);
             let _ = std::fs::remove_file(&partial);
-            return Err(anyhow!("Zrušeno"));
+            return Err(UserMessage::new("download.cancelled"));
         }
         let bytes_read = response.read(&mut buffer)?;
         if bytes_read == 0 {
@@ -420,7 +503,7 @@ fn download_file(
                     } else {
                         0
                     },
-                    message: String::new(),
+                    message: None,
                 },
             );
         }
@@ -437,7 +520,7 @@ fn download_file(
 
 // ---------------------------------------------------------------- rozbaleni
 
-fn extract_zip(archive: &Path, destination: &Path) -> Result<()> {
+fn extract_zip(archive: &Path, destination: &Path) -> Reported<()> {
     let file = std::fs::File::open(archive)?;
     let mut zip = zip::ZipArchive::new(file)?;
     for i in 0..zip.len() {
@@ -460,7 +543,7 @@ fn extract_zip(archive: &Path, destination: &Path) -> Result<()> {
 }
 
 /// .tar.bz2 umi rozbalit tar.exe, ktery je soucasti Windows 10 a novejsich.
-fn extract_tar(archive: &Path, destination: &Path) -> Result<()> {
+fn extract_tar(archive: &Path, destination: &Path) -> Reported<()> {
     std::fs::create_dir_all(destination)?;
     let status = tools::command("tar")
         .arg("-xf")
@@ -468,14 +551,14 @@ fn extract_tar(archive: &Path, destination: &Path) -> Result<()> {
         .arg("-C")
         .arg(destination)
         .status()
-        .context("Nepodařilo se spustit tar (je součástí Windows 10 a novějších)")?;
+        .map_err(|error| UserMessage::new("download.tar_launch_failed").detail(error))?;
     if !status.success() {
-        return Err(anyhow!("Rozbalení archivu selhalo"));
+        return Err(UserMessage::new("download.extract_failed"));
     }
     Ok(())
 }
 
-fn extract(archive: &Path, destination: &Path) -> Result<()> {
+fn extract(archive: &Path, destination: &Path) -> Reported<()> {
     let name = archive
         .file_name()
         .unwrap_or_default()
@@ -511,7 +594,7 @@ fn list_tree(root: &Path, limit: usize) -> Vec<String> {
 
 /// Picks only the executables and libraries out of the unpacked pile.
 /// Archivy maji ruzne hluboke struktury, tohle je zplosti.
-fn collect_programs(source: &Path, destination: &Path) -> Result<usize> {
+fn collect_programs(source: &Path, destination: &Path) -> Reported<usize> {
     std::fs::create_dir_all(destination)?;
     let mut count = 0;
     let mut pending = vec![source.to_path_buf()];
@@ -544,11 +627,11 @@ pub fn install_component(
     settings: &crate::db::Settings,
     id: &str,
     cancellation: Arc<AtomicBool>,
-) -> Result<()> {
+) -> Reported<()> {
     let component = raw_catalog()
         .into_iter()
         .find(|x| x.id == id)
-        .ok_or_else(|| anyhow!("Neznámý modul: {id}"))?;
+        .ok_or_else(|| UserMessage::new("download.unknown_component").with("component", id))?;
 
     // The destination follows the settings rather than a fixed folder;
     // otherwise downloads would land somewhere the app never looks.
@@ -562,7 +645,7 @@ pub fn install_component(
             downloaded_mb: 0.0,
             total_mb: component.megabytes as f64,
             percent: 0,
-            message: "Navazuji spojení".into(),
+            message: Some(UserMessage::new("download.connecting")),
         },
     );
 
@@ -590,7 +673,7 @@ pub fn install_component(
                     downloaded_mb: component.megabytes as f64,
                     total_mb: component.megabytes as f64,
                     percent: 100,
-                    message: "Rozbaluji".into(),
+                    message: Some(UserMessage::new("download.extracting")),
                 },
             );
 
@@ -603,15 +686,13 @@ pub fn install_component(
                     if count == 0 {
                         let contents = list_tree(&extracted, 12);
                         let _ = std::fs::remove_dir_all(&extracted);
-                        return Err(anyhow!(
-                            "Archiv {} neobsahuje žádný program. Bylo v něm: {}",
-                            name,
-                            if contents.is_empty() {
-                                "nic".into()
-                            } else {
-                                contents.join(", ")
-                            }
-                        ));
+                        let message = if contents.is_empty() {
+                            UserMessage::new("download.archive_without_programs_empty")
+                        } else {
+                            UserMessage::new("download.archive_without_programs")
+                                .with("contents", contents.join(", "))
+                        };
+                        return Err(message.with("archive", name));
                     }
                     let _ = std::fs::remove_dir_all(&extracted);
                 }
@@ -650,15 +731,12 @@ pub fn install_component(
             .collect();
         found.sort();
 
-        return Err(anyhow!(
-            "Staženo, ale {} v archivu není. Programy, které tam byly: {}",
-            component.verification_path,
-            if found.is_empty() {
-                "žádné".to_string()
-            } else {
-                found.join(", ")
-            }
-        ));
+        let message = if found.is_empty() {
+            UserMessage::new("download.file_not_in_archive_empty")
+        } else {
+            UserMessage::new("download.file_not_in_archive").with("programs", found.join(", "))
+        };
+        return Err(message.with("file", &component.verification_path));
     }
 
     emit_progress(
@@ -669,7 +747,7 @@ pub fn install_component(
             downloaded_mb: component.megabytes as f64,
             total_mb: component.megabytes as f64,
             percent: 100,
-            message: String::new(),
+            message: None,
         },
     );
     Ok(())
@@ -693,7 +771,7 @@ pub fn install_bundle(
                         downloaded_mb: 0.0,
                         total_mb: 0.0,
                         percent: 0,
-                        message: "Zrušeno".into(),
+                        message: Some(UserMessage::new("download.cancelled")),
                     },
                 );
                 break;
@@ -712,7 +790,7 @@ pub fn install_bundle(
                         downloaded_mb: 0.0,
                         total_mb: 0.0,
                         percent: 0,
-                        message: format!("{e:#}"),
+                        message: Some(e),
                     },
                 );
             }
@@ -755,7 +833,7 @@ pub fn create_portable_copy(
     std::fs::create_dir_all(destination.join("data"))?;
     std::fs::write(
         destination.join("prenosna.txt"),
-        "Podle tohoto souboru Přemysl pozná, že má všechno hledat u sebe\r\n\
+        "Podle tohoto souboru Whisp pozná, že má všechno hledat u sebe\r\n\
          a nic nezapisovat do počítače. Nemazat.\r\n",
     )?;
 

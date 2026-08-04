@@ -11,6 +11,12 @@ src-tauri/gen/
 bin/
 models/
 
+# Translation hand-off files, written by `npm run i18n:export`.
+i18n/
+
+# Delivery archives handed over during a session. Working files, not source.
+_to_delete/
+
 *.local
 .DS_Store
 Thumbs.db

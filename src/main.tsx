@@ -10,6 +10,7 @@ import "@fontsource-variable/literata/wght.css";
 import "@fontsource-variable/source-serif-4/wght.css";
 
 import App from "./App";
+import { I18nProvider } from "./i18n";
 import { PlayerProvider } from "./player";
 import "./styles.css";
 
@@ -26,8 +27,10 @@ document.addEventListener("contextmenu", (e) => {
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <PlayerProvider>
-      <App />
-    </PlayerProvider>
+    <I18nProvider>
+      <PlayerProvider>
+        <App />
+      </PlayerProvider>
+    </I18nProvider>
   </React.StrictMode>
 );

@@ -2,8 +2,10 @@
 //! FTS5 provides full-text search across the transcript archive.
 
 use anyhow::Result;
-use rusqlite::{params, Connection};
+use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
+
+use crate::user_message::UserMessage;
 
 // ---------------------------------------------------------------- data types
 
@@ -27,7 +29,7 @@ pub struct Recording {
     pub segment_count: i64,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct Segment {
     pub id: String,
     pub recording_id: String,
@@ -43,6 +45,10 @@ pub struct Segment {
     /// Per-word timings as JSON `[{"t":1.23,"s":"word"}]`. Whisper knows
     /// them, so there is no reason to guess them from the text length.
     pub words: Option<String>,
+    /// What the machine wrote here, kept from the first manual rewrite.
+    /// `None` for a segment nobody has touched — and for one edited before
+    /// the column existed.
+    pub original: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -57,7 +63,21 @@ pub struct WaveformData {
 /// VAD keeps segment offsets on the original audio timeline, but some
 /// whisper.cpp versions report token offsets on the silence-compressed
 /// timeline. The difference accumulates throughout a recording. Preserve the
-/// token spacing and move the complete word sequence back to its segment.
+/// spacing between tokens and move the whole sequence back to its segment.
+///
+/// Only a shift, deliberately.
+///
+/// Stretching the words to fill the segment's real span was tried and had to
+/// be taken out again. It rests on the words filling the segment, and they do
+/// not: VAD pads every segment with a quarter second of silence at each end,
+/// and whisper's segment end sits past the final word anyway. Stretching to
+/// the end therefore pushed everything late, and any sentence starting in the
+/// middle of a segment took its timestamp with it — the one thing that had
+/// always been reliable.
+///
+/// Moving the sequence keeps one thing true and claims nothing more: the first
+/// word starts where the segment starts. Whatever drift remains inside is
+/// smaller than the error introduced by guessing.
 pub fn align_word_timestamps(segment: &mut Segment) {
     let Some(serialized) = segment.words.as_deref() else {
         return;
@@ -96,13 +116,23 @@ pub struct Speaker {
     pub color: String,
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+pub struct RecordingNote {
+    pub id: String,
+    pub recording_id: String,
+    /// Where in the recording the note belongs, when it belongs anywhere.
+    /// A note about the recording as a whole has none.
+    pub time: Option<f64>,
+    pub text: String,
+    pub done: bool,
+    pub created_at: String,
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct DictionaryEntry {
     pub id: String,
     pub find: String,
     pub replace: String,
-    /// zda se termin posila Whisperu jako napoveda predem
-    pub prompt: bool,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -111,7 +141,18 @@ pub struct Settings {
     pub bin_directory: String,
     #[serde(alias = "modely_slozka")]
     pub models_directory: String,
+    /// Optional directory polled for newly added media files while the app is
+    /// running. Empty and disabled by default, so upgrades never start an
+    /// import without an explicit choice.
+    #[serde(default)]
+    pub watch_folder: String,
+    #[serde(default)]
+    pub watch_folder_enabled: bool,
     pub model: String,
+    /// Optional local language-editing model. Empty means that the feature was
+    /// skipped and no background model is downloaded or loaded.
+    #[serde(default)]
+    pub editor_model: String,
     #[serde(alias = "jazyk")]
     pub language: String,
     pub vad: bool,
@@ -221,14 +262,22 @@ impl Default for Settings {
             // takze je jedno, jake pismeno flaska dostane.
             bin_directory: "bin".into(),
             models_directory: "models".into(),
+            watch_folder: String::new(),
+            watch_folder_enabled: false,
             model: "large-v3".into(),
+            editor_model: String::new(),
             language: "auto".into(),
             // VAD je zapnuta natvrdo: bez ni Whisper na tichu halucinuje
             vad: true,
             vad_threshold: 0.5,
             diarization: false,
             speaker_count: 0,
-            cluster_threshold: 0.5,
+            // Sherpovska vychozi hodnota je 0.5 a mensi cislo znamena vic
+            // shluku. Na skutecnych nahravkach delala z dvouclenneho rozhovoru
+            // sestnact mluvcich. Na 0.8 klesl pocet prepnuti z 119 na 20 a
+            // pomer hlasu sedl na to, co je v nahravce slyset. Podrobne
+            // v CLAUDE.md.
+            cluster_threshold: 0.8,
             segmentation_window_shift: default_segmentation_window_shift(),
             beam: 5,
             threads: 0,
@@ -287,7 +336,8 @@ pub fn open(path: &std::path::Path) -> Result<Connection> {
             jistota      REAL,
             upraveno     INTEGER NOT NULL DEFAULT 0,
             slova        TEXT,
-            overeno      INTEGER NOT NULL DEFAULT 0
+            overeno      INTEGER NOT NULL DEFAULT 0,
+            puvodni      TEXT
         );
         CREATE INDEX IF NOT EXISTS idx_segmenty_nahravka ON segmenty(nahravka_id, poradi);
 
@@ -299,6 +349,25 @@ pub fn open(path: &std::path::Path) -> Result<Connection> {
             PRIMARY KEY (klic, nahravka_id)
         );
 
+        CREATE TABLE IF NOT EXISTS poznamky (
+            id           TEXT PRIMARY KEY,
+            nahravka_id  TEXT NOT NULL REFERENCES nahravky(id) ON DELETE CASCADE,
+            cas          REAL NOT NULL DEFAULT 0,
+            text         TEXT NOT NULL,
+            hotovo       INTEGER NOT NULL DEFAULT 0,
+            vytvoreno    TEXT NOT NULL,
+            -- Whether `cas` means anything. The column cannot be made nullable
+            -- without rebuilding the table, and zero is a real position in a
+            -- recording, so the flag carries the distinction instead.
+            pinned       INTEGER NOT NULL DEFAULT 1
+        );
+        CREATE INDEX IF NOT EXISTS idx_poznamky_nahravka
+            ON poznamky(nahravka_id, cas, vytvoreno);
+
+        -- `napoveda` is dead: the entry used to be handed to Whisper before
+        -- transcription, which only ever conditioned the first window. The
+        -- column stays so a fresh archive has the same shape as an old one,
+        -- and because SQLite cannot drop a column without rebuilding the table.
         CREATE TABLE IF NOT EXISTS slovnik (
             id           TEXT PRIMARY KEY,
             hledat       TEXT NOT NULL,
@@ -320,6 +389,47 @@ pub fn open(path: &std::path::Path) -> Result<Connection> {
             hodnota      TEXT NOT NULL
         );
 
+        CREATE TABLE IF NOT EXISTS ai_documents (
+            recording_id  TEXT PRIMARY KEY REFERENCES nahravky(id) ON DELETE CASCADE,
+            source_hash   TEXT NOT NULL,
+            model         TEXT NOT NULL,
+            mode          TEXT NOT NULL,
+            text          TEXT NOT NULL,
+            updated_at    TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS ai_outputs (
+            recording_id  TEXT NOT NULL REFERENCES ai_documents(recording_id) ON DELETE CASCADE,
+            kind          TEXT NOT NULL,
+            variant       TEXT NOT NULL,
+            source_hash   TEXT NOT NULL,
+            model         TEXT NOT NULL,
+            text          TEXT NOT NULL,
+            updated_at    TEXT NOT NULL,
+            PRIMARY KEY (recording_id, kind, variant)
+        );
+
+        -- What the watched folder has already been answered about. The record
+        -- outlives the archive card: deleting a recording is a decision about
+        -- the archive, not an instruction to offer its source file again.
+        -- Keyed on the fingerprint as well as the path, so the same file put
+        -- there afresh — which changes its modification time — comes back.
+        CREATE TABLE IF NOT EXISTS watch_folder_files (
+            path          TEXT NOT NULL,
+            fingerprint   TEXT NOT NULL,
+            imported_at   TEXT NOT NULL,
+            PRIMARY KEY (path, fingerprint)
+        );
+
+        -- A file has to keep the same fingerprint for two scans before it is
+        -- imported. This prevents reading a recording while it is still being
+        -- copied into the watched directory.
+        CREATE TABLE IF NOT EXISTS watch_folder_observations (
+            path          TEXT PRIMARY KEY,
+            fingerprint   TEXT NOT NULL,
+            observed_at   TEXT NOT NULL
+        );
+
         CREATE VIRTUAL TABLE IF NOT EXISTS segmenty_fts USING fts5(
             text,
             segment_id   UNINDEXED,
@@ -333,6 +443,128 @@ pub fn open(path: &std::path::Path) -> Result<Connection> {
     Ok(db)
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct AiDocument {
+    pub recording_id: String,
+    pub source_hash: String,
+    pub model: String,
+    pub mode: String,
+    pub text: String,
+    pub updated_at: String,
+    pub stale: bool,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct AiOutput {
+    pub recording_id: String,
+    pub kind: String,
+    pub variant: String,
+    pub source_hash: String,
+    pub model: String,
+    pub text: String,
+    pub updated_at: String,
+}
+
+pub fn ai_document(db: &Connection, recording_id: &str) -> Result<Option<AiDocument>> {
+    let mut statement = db.prepare(
+        "SELECT recording_id, source_hash, model, mode, text, updated_at
+         FROM ai_documents WHERE recording_id = ?1",
+    )?;
+    let mut rows = statement.query(params![recording_id])?;
+    let Some(row) = rows.next()? else {
+        return Ok(None);
+    };
+    Ok(Some(AiDocument {
+        recording_id: row.get(0)?,
+        source_hash: row.get(1)?,
+        model: row.get(2)?,
+        mode: row.get(3)?,
+        text: row.get(4)?,
+        updated_at: row.get(5)?,
+        stale: false,
+    }))
+}
+
+pub fn save_ai_document(db: &Connection, document: &AiDocument) -> Result<()> {
+    db.execute(
+        "INSERT INTO ai_documents
+         (recording_id, source_hash, model, mode, text, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+         ON CONFLICT(recording_id) DO UPDATE SET
+           source_hash = excluded.source_hash,
+           model = excluded.model,
+           mode = excluded.mode,
+           text = excluded.text,
+           updated_at = excluded.updated_at",
+        params![
+            document.recording_id,
+            document.source_hash,
+            document.model,
+            document.mode,
+            document.text,
+            document.updated_at,
+        ],
+    )?;
+    // Summaries and translations derive from the edited document, not the
+    // timed transcript. A newly generated document invalidates all of them.
+    db.execute(
+        "DELETE FROM ai_outputs WHERE recording_id = ?1",
+        params![document.recording_id],
+    )?;
+    Ok(())
+}
+
+pub fn ai_outputs(db: &Connection, recording_id: &str) -> Result<Vec<AiOutput>> {
+    let mut statement = db.prepare(
+        "SELECT recording_id, kind, variant, source_hash, model, text, updated_at
+         FROM ai_outputs WHERE recording_id = ?1 ORDER BY kind, variant",
+    )?;
+    let rows = statement.query_map(params![recording_id], |row| {
+        Ok(AiOutput {
+            recording_id: row.get(0)?,
+            kind: row.get(1)?,
+            variant: row.get(2)?,
+            source_hash: row.get(3)?,
+            model: row.get(4)?,
+            text: row.get(5)?,
+            updated_at: row.get(6)?,
+        })
+    })?;
+    rows.collect::<std::result::Result<Vec<_>, _>>()
+        .map_err(Into::into)
+}
+
+pub fn save_ai_output(db: &Connection, output: &AiOutput) -> Result<()> {
+    db.execute(
+        "INSERT INTO ai_outputs
+         (recording_id, kind, variant, source_hash, model, text, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+         ON CONFLICT(recording_id, kind, variant) DO UPDATE SET
+           source_hash = excluded.source_hash,
+           model = excluded.model,
+           text = excluded.text,
+           updated_at = excluded.updated_at",
+        params![
+            output.recording_id,
+            output.kind,
+            output.variant,
+            output.source_hash,
+            output.model,
+            output.text,
+            output.updated_at,
+        ],
+    )?;
+    Ok(())
+}
+
+pub fn delete_ai_document(db: &Connection, recording_id: &str) -> Result<()> {
+    db.execute(
+        "DELETE FROM ai_documents WHERE recording_id = ?1",
+        params![recording_id],
+    )?;
+    Ok(())
+}
+
 /// Bring databases created by earlier releases up to the current schema.
 ///
 /// SQLite reports a duplicate-column error when a migration has already run,
@@ -343,6 +575,10 @@ fn migrate_legacy_schema(db: &Connection) {
         "ALTER TABLE segmenty ADD COLUMN overeno INTEGER NOT NULL DEFAULT 0",
         [],
     );
+    // What the machine wrote, kept the first time a human rewrites a segment.
+    // Segments edited before this column existed keep NULL: the original is
+    // simply not knowable for them, and guessing one would be worse.
+    let _ = db.execute("ALTER TABLE segmenty ADD COLUMN puvodni TEXT", []);
     let _ = db.execute(
         "ALTER TABLE nahravky ADD COLUMN jazyk TEXT NOT NULL DEFAULT ''",
         [],
@@ -365,6 +601,11 @@ fn migrate_legacy_schema(db: &Connection) {
     );
     let _ = db.execute(
         "ALTER TABLE krivky ADD COLUMN equalizer_band_count INTEGER NOT NULL DEFAULT 24",
+        [],
+    );
+    // Notes written before this existed all had a position, so they stay pinned.
+    let _ = db.execute(
+        "ALTER TABLE poznamky ADD COLUMN pinned INTEGER NOT NULL DEFAULT 1",
         [],
     );
 }
@@ -439,12 +680,101 @@ pub fn insert_recording(db: &Connection, recording: &Recording) -> Result<()> {
     Ok(())
 }
 
+pub fn recording_path_exists(db: &Connection, path: &str) -> Result<bool> {
+    Ok(db.query_row(
+        "SELECT EXISTS(SELECT 1 FROM nahravky WHERE cesta = ?1)",
+        params![path],
+        |row| row.get(0),
+    )?)
+}
+
+/// Returns true after the same file fingerprint has been seen on a previous
+/// scan. A changed or new file is only remembered and must survive one more
+/// scan before the caller may import it.
+/// Whether this exact file, with this exact content, has already been answered
+/// about — imported, added, or set aside.
+pub fn watch_file_imported(db: &Connection, path: &str, fingerprint: &str) -> Result<bool> {
+    Ok(db.query_row(
+        "SELECT EXISTS(
+            SELECT 1 FROM watch_folder_files WHERE path = ?1 AND fingerprint = ?2
+         )",
+        params![path, fingerprint],
+        |row| row.get(0),
+    )?)
+}
+
+pub fn mark_watch_file_imported(db: &Connection, path: &str, fingerprint: &str) -> Result<()> {
+    db.execute(
+        "INSERT OR IGNORE INTO watch_folder_files (path, fingerprint, imported_at)
+         VALUES (?1, ?2, ?3)",
+        params![
+            path,
+            fingerprint,
+            chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string()
+        ],
+    )?;
+    Ok(())
+}
+
+/// Returns true after the same file fingerprint has been seen on a previous
+/// scan. A changed or new file is only remembered and must survive one more
+/// scan before the caller may import it.
+pub fn watch_file_is_stable(db: &Connection, path: &str, fingerprint: &str) -> Result<bool> {
+    let previous: Option<String> = db
+        .query_row(
+            "SELECT fingerprint FROM watch_folder_observations WHERE path = ?1",
+            params![path],
+            |row| row.get(0),
+        )
+        .optional()?;
+    if previous.as_deref() == Some(fingerprint) {
+        return Ok(true);
+    }
+    db.execute(
+        "INSERT INTO watch_folder_observations (path, fingerprint, observed_at)
+         VALUES (?1, ?2, ?3)
+         ON CONFLICT(path) DO UPDATE SET
+           fingerprint = excluded.fingerprint,
+           observed_at = excluded.observed_at",
+        params![
+            path,
+            fingerprint,
+            chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string()
+        ],
+    )?;
+    Ok(false)
+}
+
 pub fn set_status(db: &Connection, id: &str, status: &str, error: Option<&str>) -> Result<()> {
     db.execute(
         "UPDATE nahravky SET stav = ?2, chyba = ?3 WHERE id = ?1",
         params![id, status, error],
     )?;
     Ok(())
+}
+
+/// Cleans up transcriptions that were cut short by the app going away.
+///
+/// A transcription only ever runs inside this process, so at startup — before
+/// anything can have been started — any recording still marked as running is
+/// by definition a leftover from a crash, a forced quit or a power cut. That
+/// makes a timestamp column unnecessary: the state itself is the evidence.
+///
+/// They are moved to the error state rather than quietly back to untranscribed,
+/// so it is visible that something went wrong. The library already offers
+/// "Zkusit znovu" for that state.
+///
+/// Returns how many recordings were rescued.
+///
+/// Caveat: two instances of the app over one archive would have the second one
+/// declare the first one's work interrupted. Sharing an archive between two
+/// running copies is a worse problem than this one, so it is left alone.
+pub fn recover_interrupted(db: &Connection) -> Result<usize> {
+    let count = db.execute(
+        "UPDATE nahravky SET stav = 'chyba', chyba = ?1 WHERE stav = 'prepisuje'",
+        params![UserMessage::new("transcription.interrupted").to_stored()],
+    )?;
+    Ok(count)
 }
 
 pub fn rename_recording(db: &Connection, id: &str, title: &str) -> Result<()> {
@@ -511,6 +841,36 @@ pub fn list_recordings(db: &Connection) -> Result<Vec<Recording>> {
     Ok(rows.filter_map(|r| r.ok()).collect())
 }
 
+/// Completed recordings that have a timed transcript available for a
+/// one-time layout migration.
+pub fn completed_recording_ids_with_segments(db: &Connection) -> Result<Vec<String>> {
+    let mut statement = db.prepare(
+        "SELECT n.id FROM nahravky n
+         WHERE n.stav = 'hotova'
+           AND EXISTS (SELECT 1 FROM segmenty s WHERE s.nahravka_id = n.id)
+         ORDER BY n.vytvoreno",
+    )?;
+    let rows = statement.query_map([], |row| row.get(0))?;
+    Ok(rows.filter_map(|row| row.ok()).collect())
+}
+
+/// Small version and migration markers stored beside the application
+/// settings. The legacy table name is kept for database compatibility.
+pub fn metadata_value(db: &Connection, key: &str) -> Result<Option<String>> {
+    let mut statement = db.prepare("SELECT hodnota FROM klice WHERE klic = ?1")?;
+    let mut rows = statement.query(params![key])?;
+    Ok(rows.next()?.map(|row| row.get(0)).transpose()?)
+}
+
+pub fn save_metadata_value(db: &Connection, key: &str, value: &str) -> Result<()> {
+    db.execute(
+        "INSERT INTO klice (klic, hodnota) VALUES (?1, ?2)
+         ON CONFLICT(klic) DO UPDATE SET hodnota = excluded.hodnota",
+        params![key, value],
+    )?;
+    Ok(())
+}
+
 pub fn recording(db: &Connection, id: &str) -> Result<Recording> {
     let sql = format!("{RECORDING_SELECT_SQL} WHERE n.id = ?1");
     Ok(db.query_row(&sql, params![id], recording_from_row)?)
@@ -522,6 +882,73 @@ pub fn delete_recording(db: &Connection, id: &str) -> Result<()> {
         params![id],
     )?;
     db.execute("DELETE FROM nahravky WHERE id = ?1", params![id])?;
+    Ok(())
+}
+
+// ---------------------------------------------------------------- poznamky a ukoly
+
+pub fn recording_notes(db: &Connection, recording_id: &str) -> Result<Vec<RecordingNote>> {
+    // Notes about the whole recording come first in the order they were
+    // written; the ones tied to a moment follow it. Mixing them by time would
+    // bury a general remark somewhere in the middle of the recording.
+    let mut statement = db.prepare(
+        "SELECT id, nahravka_id, cas, text, hotovo, vytvoreno, pinned
+         FROM poznamky WHERE nahravka_id = ?1
+         ORDER BY pinned, CASE WHEN pinned = 1 THEN cas END, vytvoreno",
+    )?;
+    let rows = statement.query_map(params![recording_id], |row| {
+        let pinned = row.get::<_, i64>(6)? != 0;
+        Ok(RecordingNote {
+            id: row.get(0)?,
+            recording_id: row.get(1)?,
+            time: if pinned { Some(row.get(2)?) } else { None },
+            text: row.get(3)?,
+            done: row.get::<_, i64>(4)? != 0,
+            created_at: row.get(5)?,
+        })
+    })?;
+    Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
+}
+
+pub fn insert_recording_note(db: &Connection, note: &RecordingNote) -> Result<()> {
+    db.execute(
+        "INSERT INTO poznamky (id, nahravka_id, cas, text, hotovo, vytvoreno, pinned)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+        params![
+            note.id,
+            note.recording_id,
+            note.time.unwrap_or(0.0),
+            note.text,
+            note.done as i64,
+            note.created_at,
+            note.time.is_some() as i64,
+        ],
+    )?;
+    Ok(())
+}
+
+pub fn update_recording_note(
+    db: &Connection,
+    id: &str,
+    time: Option<f64>,
+    text: &str,
+    done: bool,
+) -> Result<()> {
+    db.execute(
+        "UPDATE poznamky SET cas = ?1, text = ?2, hotovo = ?3, pinned = ?4 WHERE id = ?5",
+        params![
+            time.unwrap_or(0.0),
+            text,
+            done as i64,
+            time.is_some() as i64,
+            id
+        ],
+    )?;
+    Ok(())
+}
+
+pub fn delete_recording_note(db: &Connection, id: &str) -> Result<()> {
+    db.execute("DELETE FROM poznamky WHERE id = ?1", params![id])?;
     Ok(())
 }
 
@@ -555,7 +982,7 @@ pub fn insert_segment(db: &Connection, s: &Segment) -> Result<()> {
 
 pub fn segments(db: &Connection, recording_id: &str) -> Result<Vec<Segment>> {
     let mut st = db.prepare(
-        "SELECT id, nahravka_id, poradi, zacatek, konec, text, mluvci, jistota, upraveno, slova, overeno
+        "SELECT id, nahravka_id, poradi, zacatek, konec, text, mluvci, jistota, upraveno, slova, overeno, puvodni
          FROM segmenty WHERE nahravka_id = ?1 ORDER BY poradi",
     )?;
     let rows = st.query_map(params![recording_id], |r| {
@@ -571,6 +998,7 @@ pub fn segments(db: &Connection, recording_id: &str) -> Result<Vec<Segment>> {
             edited: r.get::<_, i64>(8)? != 0,
             words: r.get(9).ok(),
             verified: r.get::<_, i64>(10).unwrap_or(0) != 0,
+            original: r.get(11).ok().flatten(),
         })
     })?;
     let mut segments: Vec<Segment> = rows.filter_map(|r| r.ok()).collect();
@@ -583,8 +1011,14 @@ pub fn segments(db: &Connection, recording_id: &str) -> Result<Vec<Segment>> {
 pub fn update_segment(db: &Connection, id: &str, text: &str) -> Result<()> {
     // After a manual edit the stored word timings no longer match the new
     // text. Whoever rewrote the segment has also reviewed it.
+    // `COALESCE` is the whole rule: the first rewrite records what the machine
+    // wrote, every later one leaves that record alone. The interesting
+    // comparison is always against the transcript, not against the previous
+    // attempt at fixing it.
     db.execute(
-        "UPDATE segmenty SET text = ?2, upraveno = 1, overeno = 1, slova = NULL WHERE id = ?1",
+        "UPDATE segmenty SET puvodni = COALESCE(puvodni, text), text = ?2,
+                upraveno = 1, overeno = 1, slova = NULL
+         WHERE id = ?1",
         params![id, text],
     )?;
     db.execute(
@@ -763,14 +1197,13 @@ pub fn merge_speakers(
 // ---------------------------------------------------------------- slovnik
 
 pub fn dictionary(db: &Connection) -> Result<Vec<DictionaryEntry>> {
-    let mut st =
-        db.prepare("SELECT id, hledat, nahradit, napoveda FROM slovnik ORDER BY hledat")?;
+    // `napoveda` is not read any more; see the note on the table above.
+    let mut st = db.prepare("SELECT id, hledat, nahradit FROM slovnik ORDER BY hledat")?;
     let rows = st.query_map([], |r| {
         Ok(DictionaryEntry {
             id: r.get(0)?,
             find: r.get(1)?,
             replace: r.get(2)?,
-            prompt: r.get::<_, i64>(3)? != 0,
         })
     })?;
     Ok(rows.filter_map(|r| r.ok()).collect())
@@ -778,8 +1211,21 @@ pub fn dictionary(db: &Connection) -> Result<Vec<DictionaryEntry>> {
 
 pub fn add_dictionary_entry(db: &Connection, entry: &DictionaryEntry) -> Result<()> {
     db.execute(
-        "INSERT INTO slovnik (id, hledat, nahradit, napoveda) VALUES (?1, ?2, ?3, ?4)",
-        params![entry.id, entry.find, entry.replace, entry.prompt as i64],
+        "INSERT INTO slovnik (id, hledat, nahradit) VALUES (?1, ?2, ?3)",
+        params![entry.id, entry.find, entry.replace],
+    )?;
+    Ok(())
+}
+
+/// Rewrites an entry in place, keeping its id.
+///
+/// Without this, changing what a word should become would mean deleting the
+/// entry and writing it again, which is a strange thing to ask of someone
+/// fixing a typo.
+pub fn update_dictionary_entry(db: &Connection, entry: &DictionaryEntry) -> Result<()> {
+    db.execute(
+        "UPDATE slovnik SET hledat = ?2, nahradit = ?3 WHERE id = ?1",
+        params![entry.id, entry.find, entry.replace],
     )?;
     Ok(())
 }
@@ -822,9 +1268,239 @@ pub fn search(db: &Connection, query: &str) -> Result<Vec<SearchResult>> {
     Ok(rows.filter_map(|r| r.ok()).collect())
 }
 
+// ---------------------------------------------------------------- backups
+
+/// How many backups to keep. Three covers "I broke it yesterday" without the
+/// folder quietly growing to the size of the archive several times over.
+const BACKUPS_KEPT: usize = 3;
+/// Beyond those, one backup per day is kept for this many days. Three copies
+/// alone is a window measured in launches, not in time: this application is
+/// opened far more often than it is left running, so four launches in one
+/// morning could overwrite every copy of yesterday's good state — which is
+/// exactly the state someone reaches for after a bad afternoon.
+const DAILY_BACKUPS_KEPT: usize = 7;
+
+/// The timestamp out of a name this module wrote, or nothing.
+///
+/// Only `whisp-YYYY-MM-DD-HHMMSS.db` counts. A file somebody parked in the
+/// folder themselves — `whisp-pred-upgradem.db`, an exported copy — is not
+/// ours to rotate away, and the extension alone does not say whose it is.
+fn backup_stamp(path: &std::path::Path) -> Option<String> {
+    let name = path.file_name()?.to_str()?;
+    let stamp = name.strip_prefix("whisp-")?.strip_suffix(".db")?;
+    let shape = "0000-00-00-000000";
+    if stamp.len() != shape.len() {
+        return None;
+    }
+    let matches = stamp.chars().zip(shape.chars()).all(|(c, s)| match s {
+        '-' => c == '-',
+        _ => c.is_ascii_digit(),
+    });
+    matches.then(|| stamp.to_string())
+}
+
+/// Which of these backups to throw away, given their stamps newest first.
+///
+/// Kept: the newest `BACKUPS_KEPT` whatever their date, and then the newest
+/// backup of each of the last `DAILY_BACKUPS_KEPT` days. Everything else goes.
+fn rotation_plan(stamps: &[String]) -> Vec<usize> {
+    let mut days: Vec<&str> = Vec::new();
+    let mut discard = Vec::new();
+    for (index, stamp) in stamps.iter().enumerate() {
+        let day = stamp.get(..10).unwrap_or(stamp.as_str());
+        let first_of_its_day = !days.contains(&day);
+        if first_of_its_day {
+            days.push(day);
+        }
+        if index < BACKUPS_KEPT {
+            continue;
+        }
+        if first_of_its_day && days.len() <= DAILY_BACKUPS_KEPT {
+            continue;
+        }
+        discard.push(index);
+    }
+    discard
+}
+
+/// Where backups live: a folder beside the database itself. In portable mode
+/// that travels with the flash drive, which is the point.
+pub fn backup_directory(db_path: &std::path::Path) -> std::path::PathBuf {
+    db_path
+        .parent()
+        .unwrap_or_else(|| std::path::Path::new("."))
+        .join("backups")
+}
+
+/// Writes a copy of the whole database to `destination`.
+///
+/// `VACUUM INTO` rather than a file copy: the archive runs in WAL mode, so at
+/// any moment part of the data sits in a side file and a plain copy could
+/// capture a torn state. This produces one consistent, already compacted file,
+/// and SQLite does the locking for us.
+///
+/// The destination must not exist — SQLite refuses to overwrite, which is a
+/// feature here: a timestamped name can never clobber an older backup.
+pub fn back_up(db: &Connection, destination: &std::path::Path) -> Result<()> {
+    if let Some(parent) = destination.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    // The path goes into SQL as a literal, so single quotes have to be doubled.
+    let quoted = destination.to_string_lossy().replace('\'', "''");
+    db.execute_batch(&format!("VACUUM INTO '{quoted}'"))?;
+    Ok(())
+}
+
+/// Backups this module wrote, newest first.
+///
+/// Ordered by the stamp in the name rather than by the file's own time. The
+/// stamp is fixed width and zero padded, so comparing the text is comparing
+/// the moment. A copied or restored folder can carry any modification time it
+/// likes; the name is what the writer actually recorded.
+pub fn list_backups(db_path: &std::path::Path) -> Vec<std::path::PathBuf> {
+    let Ok(entries) = std::fs::read_dir(backup_directory(db_path)) else {
+        return Vec::new();
+    };
+    let mut found: Vec<(String, std::path::PathBuf)> = entries
+        .filter_map(|e| e.ok())
+        .filter_map(|e| Some((backup_stamp(&e.path())?, e.path())))
+        .collect();
+    found.sort_by(|a, b| b.0.cmp(&a.0));
+    found.into_iter().map(|(_, p)| p).collect()
+}
+
+/// Makes a backup and throws away all but the newest few.
+///
+/// Returns the file that was written. Runs on whatever thread calls it and can
+/// take a while on a large archive, so don't call it from the UI thread.
+pub fn back_up_and_rotate(
+    db: &Connection,
+    db_path: &std::path::Path,
+) -> Result<std::path::PathBuf> {
+    let stamp = chrono::Local::now().format("%Y-%m-%d-%H%M%S");
+    let destination = backup_directory(db_path).join(format!("whisp-{stamp}.db"));
+    back_up(db, &destination)?;
+
+    let existing = list_backups(db_path);
+    let stamps: Vec<String> = existing.iter().filter_map(|p| backup_stamp(p)).collect();
+    for index in rotation_plan(&stamps) {
+        let _ = std::fs::remove_file(&existing[index]);
+    }
+    Ok(destination)
+}
+
+#[cfg(test)]
+mod backup_rotation_tests {
+    use super::*;
+
+    fn stamps(list: &[&str]) -> Vec<String> {
+        list.iter().map(|s| s.to_string()).collect()
+    }
+
+    /// Four launches in one morning must not take yesterday's copy with them.
+    #[test]
+    fn several_launches_in_one_day_do_not_reach_an_older_day() {
+        let all = stamps(&[
+            "2026-08-04-104500",
+            "2026-08-04-101500",
+            "2026-08-04-093000",
+            "2026-08-04-081500",
+            "2026-08-03-190000",
+            "2026-07-28-090000",
+        ]);
+        let discard = rotation_plan(&all);
+        // Only the fourth copy of today goes: it is neither among the three
+        // newest nor the first of its day.
+        assert_eq!(discard, vec![3]);
+    }
+
+    /// The daily window has an end, or the folder grows for ever.
+    #[test]
+    fn days_beyond_the_window_are_discarded() {
+        let mut all = Vec::new();
+        for day in (1..=12).rev() {
+            all.push(format!("2026-08-{day:02}-120000"));
+        }
+        let discard = rotation_plan(&all);
+        // Twelve days, one copy each: the seven newest days survive.
+        assert_eq!(discard, vec![7, 8, 9, 10, 11]);
+    }
+
+    /// A file the user parked there is not ours to delete.
+    #[test]
+    fn only_our_own_names_are_rotated() {
+        assert_eq!(
+            backup_stamp(std::path::Path::new("/x/whisp-2026-08-04-071530.db")),
+            Some("2026-08-04-071530".to_string())
+        );
+        for foreign in [
+            "/x/whisp-pred-upgradem.db",
+            "/x/archiv.db",
+            "/x/whisp-2026-08-04.db",
+            "/x/whisp-2026-08-04-071530.db.bak",
+        ] {
+            assert_eq!(
+                backup_stamp(std::path::Path::new(foreign)),
+                None,
+                "{foreign}"
+            );
+        }
+    }
+}
+
+#[cfg(test)]
+mod cluster_threshold_migration_tests {
+    use super::*;
+
+    fn archive() -> Connection {
+        let db = Connection::open_in_memory().unwrap();
+        db.execute(
+            "CREATE TABLE klice (klic TEXT PRIMARY KEY, hodnota TEXT)",
+            [],
+        )
+        .unwrap();
+        db
+    }
+
+    #[test]
+    fn an_untouched_threshold_is_raised_once() {
+        let db = archive();
+        let mut settings = Settings::default();
+        settings.cluster_threshold = 0.5;
+        save_settings(&db, &settings).unwrap();
+
+        assert!(raise_cluster_threshold_once(&db).unwrap());
+        assert_eq!(load_settings(&db).unwrap().cluster_threshold, 0.8);
+
+        // Idempotent: a second start must not touch it again, and must not
+        // undo a value the user has since chosen.
+        let mut chosen = load_settings(&db).unwrap();
+        chosen.cluster_threshold = 0.62;
+        save_settings(&db, &chosen).unwrap();
+        assert!(!raise_cluster_threshold_once(&db).unwrap());
+        assert_eq!(load_settings(&db).unwrap().cluster_threshold, 0.62);
+    }
+
+    #[test]
+    fn a_deliberately_chosen_threshold_is_left_alone() {
+        let db = archive();
+        let mut settings = Settings::default();
+        settings.cluster_threshold = 0.35;
+        save_settings(&db, &settings).unwrap();
+
+        assert!(!raise_cluster_threshold_once(&db).unwrap());
+        assert_eq!(load_settings(&db).unwrap().cluster_threshold, 0.35);
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{align_word_timestamps, migrate_legacy_schema, waveform, Segment, WaveformData};
+    use super::{
+        ai_outputs, align_word_timestamps, delete_recording_note, insert_recording_note,
+        migrate_legacy_schema, recording_notes, save_ai_document, save_ai_output,
+        update_recording_note, watch_file_imported, watch_file_is_stable, waveform, AiDocument,
+        AiOutput, RecordingNote, Segment, WaveformData,
+    };
     use rusqlite::{params, Connection};
 
     fn segment(start: f64, end: f64, words: &str) -> Segment {
@@ -840,6 +1516,7 @@ mod tests {
             edited: false,
             verified: false,
             words: Some(words.into()),
+            original: None,
         }
     }
 
@@ -867,6 +1544,135 @@ mod tests {
         align_word_timestamps(&mut value);
 
         assert_eq!(value.words.as_deref(), Some(original));
+    }
+
+    #[test]
+    fn watch_file_must_be_unchanged_between_two_scans() {
+        let db = Connection::open_in_memory().unwrap();
+        db.execute_batch(
+            "CREATE TABLE watch_folder_observations (
+               path TEXT PRIMARY KEY,
+               fingerprint TEXT NOT NULL,
+               observed_at TEXT NOT NULL
+             );",
+        )
+        .unwrap();
+
+        assert!(!watch_file_is_stable(&db, "recording.mp3", "10:100").unwrap());
+        assert!(watch_file_is_stable(&db, "recording.mp3", "10:100").unwrap());
+        assert!(!watch_file_is_stable(&db, "recording.mp3", "20:200").unwrap());
+        assert!(watch_file_is_stable(&db, "recording.mp3", "20:200").unwrap());
+    }
+
+    #[test]
+    fn watch_folder_remembers_every_imported_fingerprint() {
+        let db = Connection::open_in_memory().unwrap();
+        db.execute_batch(
+            "CREATE TABLE watch_folder_files (
+               path TEXT NOT NULL,
+               fingerprint TEXT NOT NULL,
+               imported_at TEXT NOT NULL,
+               PRIMARY KEY (path, fingerprint)
+             );
+             INSERT INTO watch_folder_files (path, fingerprint, imported_at)
+             VALUES ('recording.mp3', '10:100', 'now');",
+        )
+        .unwrap();
+
+        assert!(watch_file_imported(&db, "recording.mp3", "10:100").unwrap());
+        // The same file put there afresh has a new modification time, so it is
+        // a different fingerprint and must be offered again.
+        assert!(!watch_file_imported(&db, "recording.mp3", "20:200").unwrap());
+        assert!(!watch_file_imported(&db, "another.mp3", "10:100").unwrap());
+    }
+
+    #[test]
+    fn recording_notes_are_persisted_updated_and_deleted() {
+        let db = Connection::open_in_memory().unwrap();
+        db.execute_batch(
+            "PRAGMA foreign_keys = ON;
+             CREATE TABLE nahravky (id TEXT PRIMARY KEY);
+             CREATE TABLE poznamky (
+               id TEXT PRIMARY KEY,
+               nahravka_id TEXT NOT NULL REFERENCES nahravky(id) ON DELETE CASCADE,
+               cas REAL NOT NULL DEFAULT 0,
+               text TEXT NOT NULL,
+               hotovo INTEGER NOT NULL DEFAULT 0,
+               vytvoreno TEXT NOT NULL,
+               pinned INTEGER NOT NULL DEFAULT 1
+             );
+             INSERT INTO nahravky (id) VALUES ('recording');",
+        )
+        .unwrap();
+
+        let note = RecordingNote {
+            id: "note".into(),
+            recording_id: "recording".into(),
+            time: Some(12.5),
+            text: "Ověřit jméno".into(),
+            done: false,
+            created_at: "now".into(),
+        };
+        insert_recording_note(&db, &note).unwrap();
+        assert_eq!(recording_notes(&db, "recording").unwrap(), vec![note]);
+
+        update_recording_note(&db, "note", Some(18.0), "Jméno ověřeno", true).unwrap();
+        let updated = recording_notes(&db, "recording").unwrap();
+        assert_eq!(updated[0].time, Some(18.0));
+        assert_eq!(updated[0].text, "Jméno ověřeno");
+        assert!(updated[0].done);
+
+        // Unpinning must not leave the old position behind as a zero, which
+        // would read as "at the very beginning" rather than "nowhere".
+        update_recording_note(&db, "note", None, "Jméno ověřeno", true).unwrap();
+        assert_eq!(recording_notes(&db, "recording").unwrap()[0].time, None);
+
+        delete_recording_note(&db, "note").unwrap();
+        assert!(recording_notes(&db, "recording").unwrap().is_empty());
+    }
+
+    #[test]
+    fn notes_without_a_position_are_listed_first() {
+        let db = Connection::open_in_memory().unwrap();
+        db.execute_batch(
+            "CREATE TABLE nahravky (id TEXT PRIMARY KEY);
+             CREATE TABLE poznamky (
+               id TEXT PRIMARY KEY,
+               nahravka_id TEXT NOT NULL,
+               cas REAL NOT NULL DEFAULT 0,
+               text TEXT NOT NULL,
+               hotovo INTEGER NOT NULL DEFAULT 0,
+               vytvoreno TEXT NOT NULL,
+               pinned INTEGER NOT NULL DEFAULT 1
+             );
+             INSERT INTO nahravky (id) VALUES ('recording');",
+        )
+        .unwrap();
+
+        let make = |id: &str, time: Option<f64>, created: &str| RecordingNote {
+            id: id.into(),
+            recording_id: "recording".into(),
+            time,
+            text: id.into(),
+            done: false,
+            created_at: created.into(),
+        };
+        // Deliberately inserted out of order, including a pinned note at zero
+        // seconds, which must not be mistaken for a note with no position.
+        insert_recording_note(&db, &make("pinned-late", Some(90.0), "3")).unwrap();
+        insert_recording_note(&db, &make("loose-second", None, "2")).unwrap();
+        insert_recording_note(&db, &make("pinned-zero", Some(0.0), "4")).unwrap();
+        insert_recording_note(&db, &make("loose-first", None, "1")).unwrap();
+
+        let ids: Vec<String> = recording_notes(&db, "recording")
+            .unwrap()
+            .into_iter()
+            .map(|note| note.id)
+            .collect();
+        assert_eq!(
+            ids,
+            ["loose-first", "loose-second", "pinned-zero", "pinned-late"]
+        );
     }
 
     #[test]
@@ -898,4 +1704,81 @@ mod tests {
             })
         );
     }
+
+    #[test]
+    fn derived_ai_outputs_are_saved_and_invalidated_with_a_new_document() {
+        let db = Connection::open_in_memory().unwrap();
+        db.execute_batch(
+            "PRAGMA foreign_keys = ON;
+             CREATE TABLE nahravky (id TEXT PRIMARY KEY);
+             CREATE TABLE ai_documents (
+               recording_id TEXT PRIMARY KEY REFERENCES nahravky(id) ON DELETE CASCADE,
+               source_hash TEXT NOT NULL, model TEXT NOT NULL, mode TEXT NOT NULL,
+               text TEXT NOT NULL, updated_at TEXT NOT NULL
+             );
+             CREATE TABLE ai_outputs (
+               recording_id TEXT NOT NULL REFERENCES ai_documents(recording_id) ON DELETE CASCADE,
+               kind TEXT NOT NULL, variant TEXT NOT NULL, source_hash TEXT NOT NULL,
+               model TEXT NOT NULL, text TEXT NOT NULL, updated_at TEXT NOT NULL,
+               PRIMARY KEY (recording_id, kind, variant)
+             );
+             INSERT INTO nahravky (id) VALUES ('recording');",
+        )
+        .unwrap();
+        let mut document = AiDocument {
+            recording_id: "recording".into(),
+            source_hash: "transcript-one".into(),
+            model: "editor".into(),
+            mode: "faithful".into(),
+            text: "Vylepšený text".into(),
+            updated_at: "now".into(),
+            stale: false,
+        };
+        save_ai_document(&db, &document).unwrap();
+        save_ai_output(
+            &db,
+            &AiOutput {
+                recording_id: "recording".into(),
+                kind: "summary".into(),
+                variant: "standard".into(),
+                source_hash: "document-one".into(),
+                model: "editor".into(),
+                text: "Shrnutí".into(),
+                updated_at: "now".into(),
+            },
+        )
+        .unwrap();
+        assert_eq!(ai_outputs(&db, "recording").unwrap().len(), 1);
+
+        document.text = "Nově vylepšený text".into();
+        save_ai_document(&db, &document).unwrap();
+        assert!(ai_outputs(&db, "recording").unwrap().is_empty());
+    }
+}
+
+/// Jednorazove zvedne prah shlukovani mluvcich na novou vychozi hodnotu.
+///
+/// Zmena vychozi hodnoty sama o sobe plati jen pro nove instalace — kdo uz
+/// aplikaci spustil, ma v `klice` ulozenou celou strukturu nastaveni vcetne
+/// stareho 0.5, a ten by si sestnact mluvcich nechal navzdy.
+///
+/// Posune se jen hodnota, ktera se rovna byvale vychozi. Kdo si prah vedome
+/// prestavil na neco jineho, si to nechava; jeho volba je novejsi informace
+/// nez nas odhad.
+pub fn raise_cluster_threshold_once(db: &Connection) -> Result<bool> {
+    const MARK: &str = "cluster-threshold-version";
+    const OLD_DEFAULT: f64 = 0.5;
+    const NEW_DEFAULT: f64 = 0.8;
+
+    if metadata_value(db, MARK)?.as_deref() == Some("2") {
+        return Ok(false);
+    }
+    let mut settings = load_settings(db)?;
+    let moved = (settings.cluster_threshold - OLD_DEFAULT).abs() < f64::EPSILON;
+    if moved {
+        settings.cluster_threshold = NEW_DEFAULT;
+        save_settings(db, &settings)?;
+    }
+    save_metadata_value(db, MARK, "2")?;
+    Ok(moved)
 }

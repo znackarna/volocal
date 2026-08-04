@@ -1,9 +1,11 @@
 import { useEffect, useRef } from "react";
 
+import { useI18n } from "./i18n";
+
 export interface ConfirmationRequest {
   nadpis: string;
   text: string;
-  /** Label of the confirming button, for example "Odebrat" */
+  /** Label of the confirming button, for example "Remove" */
   confirm: string;
   /** An irreversible action is set apart by colour */
   nicive?: boolean;
@@ -23,6 +25,7 @@ export default function ConfirmationDialog({
   query: ConfirmationRequest | null;
   onZavri: () => void;
 }) {
+  const { t } = useI18n();
   const confirmButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -54,7 +57,7 @@ export default function ConfirmationDialog({
         <p>{query.text}</p>
         <div className="dialog-patka">
           <button className="tlacitko" onClick={onZavri} autoFocus>
-            Zrušit
+            {t("common.cancel")}
           </button>
           <button
             ref={confirmButtonRef}
