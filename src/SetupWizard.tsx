@@ -140,17 +140,21 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
   const [wantsSpeakers, setWantsSpeakers] = useState(false);
   const [editingQuality, setEditingQuality] = useState<EditingQuality>("balanced");
   const [manual, setManual] = useState(false);
+  const [manualFrom, setManualFrom] = useState<number | null>(null);
   const [manualSelect, setManualSelect] = useState<Set<string>>(new Set());
 
   const [progress, setProgress] = useState<Record<string, DownloadProgress>>({});
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  /** Skip the remaining questions and go straight to the component list. */
+  /** Skip the remaining questions and go straight to the component list.
+   *  Remembers where it was pressed, so `Zpět` from the list returns to the
+   *  question that was being answered rather than to a step nobody walked. */
   const chooseByHand = useCallback(() => {
+    setManualFrom(step);
     setManual(true);
     setStep(4);
-  }, []);
+  }, [step]);
 
   const load = useCallback(async () => {
     try {
@@ -716,13 +720,16 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
               <div className="krok-patka">
                 <button
                   className="tlacitko tichy"
-                  onClick={() => missingModule ? onBack() : setStep(3)}
+                  onClick={() => missingModule ? onBack() : setStep(manualFrom ?? 3)}
                 >
                   {t("common.back")}
                 </button>
                 <ManualSelectionButton
                   label={t(manual ? "wizard.manual.switchToSimple" : "wizard.manual.switchToManual")}
-                  onClick={() => setManual((r) => !r)}
+                  onClick={() => {
+                    setManual((r) => !r);
+                    setManualFrom(null);
+                  }}
                 />
                 {selected.length === 0 ? (
                   <button

@@ -7780,3 +7780,77 @@ be signed.
 - Verified on both compilers, in one run: `npx tsc --noEmit` fails on 5.9.3
   before the change with exactly Jakub's error, and passes on 5.9.3 and 5.6.3
   after it. `node scripts/i18n.mjs check`; `cargo test` (73 passed).
+
+### 2026-08-06 — The licence page is written the way NSIS reads it
+
+- `LICENSE.txt` was written UTF-8 without a BOM and with plain LF endings,
+  which is right for every other file in this repository and wrong for the one
+  file NSIS reads.
+- NSIS's own documentation for `LicenseData` says the text file must be in DOS
+  format (`\r\n`). And a Unicode `makensis` recognises UTF-8 by its BOM;
+  without one it reads the file in the system code page, so on a Czech Windows
+  every diacritic on the first page of the installer would have arrived as
+  mojibake — `LicenÄnÃ­ ujednÃ¡nÃ­`. Half of that page is Czech.
+- Changed: the file carries a BOM and CRLF. `.gitattributes` gets
+  `src-tauri/LICENSE.txt text eol=crlf`, beside the rule that already exists
+  for `.bat`, `.cmd` and `.ps1` — without it the repository's blanket
+  `* text=auto eol=lf` would put the LF endings straight back on the next
+  checkout.
+- Files: `src-tauri/LICENSE.txt`, `.gitattributes`.
+- Verified: the bytes, not the intent — the file begins `EF BB BF`, holds 103
+  CRLF line endings and no bare LF, and still decodes as UTF-8.
+- Honest limit: the CRLF requirement is from the documentation and the BOM is
+  the ordinary behaviour of a Unicode `makensis`, but neither was tried against
+  a real build here. The first page of the installer answers it at a glance.
+
+### 2026-08-06 — Leaving the setup is allowed; losing it is not
+
+- Jakub's report: the first-run setup has a route into Settings, and somebody
+  who takes it does not know how to get back. His question was how to make the
+  setup run to the end with no detours; his answer, when asked, was that
+  *"teď ne, jen se chci podívat"* should stay possible. That settles the shape:
+  the defect is not that the door exists, it is that it opens one way.
+- **The route he meant was mislabelled, not missing.** The Archive already
+  shows a red strip when transcription cannot run, and its button already
+  opened the wizard — but the button read `Nastavení` and its prop was called
+  `onToSettings`. So the one control that finishes the job announced itself as
+  the detour that loses people. It now reads `Dokončit nastavení`, is the
+  primary button rather than a quiet one, and the prop is `onFinishSetup`.
+- **Found by rendering it, and worse than the label:** that strip lived inside
+  `archive-scroll-content`, *below* a 389 px hero. On a first run the whole
+  screen was the hero — and the hero cheerfully said `Přepis se spustí
+  automaticky. Data neopustí počítač.` over an installation with no ffmpeg and
+  no model. The one sentence a new reader is certain to read was a promise the
+  application could not keep, and the sentence correcting it was off the fold.
+- Changed: the strip is the first thing on the screen, above the pinned block,
+  with the hero's own 40 px inset. It is not a row in the list; it is the state
+  of the application.
+- Changed: while anything required is missing the hero says
+  `Nahrávku můžete přidat, přepsat ji ale Slobot zatím neumí.` — which is both
+  true and useful, since adding still works and the recording will simply wait.
+- Changed: the required wizard keeps the ordinary back button in the header.
+  One deliberate door, in the same corner as on every other screen, instead of
+  a screen that pretends to have none while three accidental exits stay open.
+  That is only safe because of the strip above — the way back is now the most
+  prominent thing in the Archive for exactly as long as it is needed.
+- Changed: `Vybrat ručně` remembers which step it was pressed from, so `Zpět`
+  from the component list returns to the question that was being answered
+  instead of dropping the reader on step 3, which they never walked.
+- Considered and rejected, though it was my own proposal: deriving
+  `wizardRequired` from the tool check on every reload, so the wizard reasserts
+  itself and no exit can be forgotten. It is the more robust shape and it is
+  the wrong one here — it makes "just let me look around" impossible, and Jakub
+  asked for that explicitly. The same robustness is bought instead by making
+  the way *back* impossible to miss, which does not cost the reader anything.
+- Files: `src/App.tsx`, `src/Library.tsx`, `src/SetupWizard.tsx`,
+  `src/styles.css`, `src/locales/cs/library.ts`, `src/locales/en/library.ts`.
+- Verified: the real `Library` bundled with esbuild against stubbed Tauri
+  modules and driven in a browser against the real stylesheet, in both states
+  and both languages. With components missing: the strip is at y 40, fully
+  visible at 1360×760 and at the window's own 1000×660 minimum, sits entirely
+  above the hero, its button is `Dokončit nastavení` and clicking it fires
+  `onFinishSetup`; the hero reads the blocked sentence. With nothing missing:
+  no strip, the hero back at y 0 at its usual 388 px with its usual sentence,
+  so the healthy screen is untouched. No horizontal overflow at either width.
+  `npx tsc --noEmit`; `node scripts/i18n.mjs check` — which stopped the two
+  reworded Czech strings until their English was confirmed.

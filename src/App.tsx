@@ -1013,9 +1013,11 @@ export default function App() {
         </button>
 
         {/* Back navigation follows the brand and precedes the current screen
-            context. The required setup wizard omits it until transcription can run. */}
-        {(screen !== "library" || openFolder !== null) &&
-          !(screen === "wizard" && wizardRequired) && (
+            context. The required setup wizard keeps it: an errand nobody can
+            leave is worse than one they can, as long as the way back in is
+            obvious — and it is, because the Archive says what is missing and
+            offers to finish for as long as transcription cannot run. */}
+        {(screen !== "library" || openFolder !== null) && (
           <button
             className="tlacitko tichy"
             onClick={() => {
@@ -1187,7 +1189,7 @@ export default function App() {
             setAddRecordingView("source");
             setAddRecordingOpen(true);
           }}
-          onToSettings={() => {
+          onFinishSetup={() => {
             setWizardRequired(true);
             setWizardReturnScreen("library");
             setScreen("wizard");

@@ -375,6 +375,10 @@ button, input, select, textarea { font: inherit; color: inherit; }
   background: var(--vystraha-svetla);
   border-radius: var(--r-velky); padding: 15px 18px; margin-bottom: 20px;
 }
+/* Standing above the hero rather than inside the list, the notice is the first
+   thing under the application bar and needs the hero's own inset — 40 px. It
+   keeps its 20 px below, which is what separates it from the hero's 40. */
+.knihovna > .upozorneni { margin-top: 40px; }
 .upozorneni strong { font-weight: 700; }
 .upozorneni ul { margin: 6px 0 0; padding-left: 18px; color: var(--text-tichy); }
 

@@ -8,6 +8,12 @@
 *.cmd text eol=crlf
 *.ps1 text eol=crlf
 
+# So does the licence NSIS shows before installing: its own documentation says
+# the file must be in DOS text format. It also carries a UTF-8 BOM, which is
+# how a Unicode makensis knows not to read it in the system code page — the
+# bytes are content, so git leaves them alone either way.
+src-tauri/LICENSE.txt text eol=crlf
+
 # Binary: never touch.
 *.png binary
 *.ico binary

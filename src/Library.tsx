@@ -53,7 +53,9 @@ interface Props {
   onDeleteTranscription: (id: string) => void;
   onRename: (id: string, title: string) => void;
   onAdd: () => void;
-  onToSettings: () => void;
+  /** Opens the setup wizard, which is what finishes an unfinished install.
+   *  Not Settings: getting there is the detour that loses people. */
+  onFinishSetup: () => void;
   automatic: boolean;
   onAutomatic: (enabled: boolean) => void;
   onTranscriptionLanguage: (id: string, language: string) => void;
@@ -455,7 +457,7 @@ export default function Library({
   onDeleteTranscription,
   onRename,
   onAdd,
-  onToSettings,
+  onFinishSetup,
   automatic,
   onAutomatic,
   onTranscriptionLanguage,
@@ -633,12 +635,32 @@ export default function Library({
           offset is never a number somebody has to keep in step with the
           hero's height. What passes underneath dissolves into it through the
           blur below its edge rather than being cut in half. */}
+      {/* Above the hero, not under it. This says the application cannot do its
+          job; a 388 px hero standing in front of it is how somebody leaves the
+          setup and never finds the way back. It is also the way back. */}
+      {issues.length > 0 && (
+        <div className="upozorneni">
+          <div>
+            <strong>{t("library.issues.title")}</strong>
+            <ul>
+              {issues.map((p, i) => (
+                <li key={i}>{userMessage(p)}</li>
+              ))}
+            </ul>
+          </div>
+          <button className="tlacitko hlavni" onClick={onFinishSetup}>
+            {t("library.issues.finish")}
+          </button>
+        </div>
+      )}
+
       <div className={`archive-sticky ${listScrolled ? "zasunute" : ""}`.trim()}>
         <LibraryDropZone
           onAdd={onAdd}
           automatic={automatic}
           onAutomatic={onAutomatic}
           compact={dropZoneCompact}
+          blocked={issues.length > 0}
         />
         <div className="knihovna-lista">
           <div className="hledani">
@@ -671,22 +693,6 @@ export default function Library({
       </div>
 
       <div className="archive-scroll-content">
-      {issues.length > 0 && (
-        <div className="upozorneni">
-          <div>
-            <strong>{t("library.issues.title")}</strong>
-            <ul>
-              {issues.map((p, i) => (
-                <li key={i}>{userMessage(p)}</li>
-              ))}
-            </ul>
-          </div>
-          <button className="tlacitko" onClick={onToSettings}>
-            {t("common.settings")}
-          </button>
-        </div>
-      )}
-
       {watchCandidates.length > 0 && (
         <WatchFolderNotice
           files={watchCandidates}
@@ -1011,11 +1017,16 @@ function LibraryDropZone({
   automatic,
   onAutomatic,
   compact,
+  blocked,
 }: {
   onAdd: () => void;
   automatic: boolean;
   onAutomatic: (enabled: boolean) => void;
   compact: boolean;
+  /** Nothing can be transcribed yet. The hero must not say otherwise —
+   *  `Přepis se spustí automaticky` over a missing whisper is a promise the
+   *  application cannot keep, and it is the sentence a first-run reader sees. */
+  blocked: boolean;
 }) {
   const { t } = useI18n();
   return (
@@ -1029,9 +1040,11 @@ function LibraryDropZone({
         <div className="archive-drop-zone-copy">
           <h1>{t("library.dropZone.title")}</h1>
           <p>
-            {automatic
-              ? t("library.dropZone.automatic")
-              : t("library.dropZone.manual")}
+            {blocked
+              ? t("library.dropZone.blocked")
+              : automatic
+                ? t("library.dropZone.automatic")
+                : t("library.dropZone.manual")}
           </p>
         </div>
         <div className="archive-drop-zone-actions">
