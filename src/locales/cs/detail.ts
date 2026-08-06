@@ -57,7 +57,7 @@ export const csDetail = {
   "detail.tips.clickAction": "posun ve zvuku",
   "detail.tips.doubleClickKey": "dvojklik",
   "detail.tips.doubleClickAction": "úprava textu",
-  "detail.tips.tabKey": "Tab",
+  "detail.tips.tabKey": "F3",
   "detail.tips.tabAction": "další místo ke kontrole",
   "detail.tips.hide": "Skrýt rychlé tipy",
   "detail.tips.hideHint": "Skrýt. Vrátit se dají v nastavení.",
@@ -245,8 +245,8 @@ export const csDetailContext: Partial<Record<keyof typeof csDetail, string>> = {
   "detail.tips.clickAction": "Co udělá klik na slovo: přehrávání skočí na dané místo.",
   "detail.tips.doubleClickKey": "Dvojité kliknutí.",
   "detail.tips.doubleClickAction": "Co udělá dvojklik: otevře text k ruční opravě.",
-  "detail.tips.tabKey": "Název klávesy Tab. Na klávesnicích se nepřekládá.",
-  "detail.tips.tabAction": "Co udělá Tab: skočí na další úsek, kterým si přepis není jistý.",
+  "detail.tips.tabKey": "Název klávesy F3. Na klávesnicích se nepřekládá.",
+  "detail.tips.tabAction": "Co udělá F3: skočí na další úsek, kterým si přepis není jistý.",
   "detail.tips.hideHint":
     "Popisek křížku. Druhá věta říká, že se proužek dá znovu zapnout v nastavení.",
 

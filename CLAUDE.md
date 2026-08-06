@@ -7391,3 +7391,149 @@ opens it, and the card takes the paper yellow the notes already use.
   has to name its own end of it.
 - Files: `src/locales/{cs,en}/domain.ts`, `CLAUDE.md`.
 - Verified: `npx tsc --noEmit`; `node scripts/i18n.mjs check` (no problems).
+
+### 2026-08-06 — Recognising speakers no longer wipes every correction
+
+- The one defect in the audit that destroys work, and it is mine, from
+  2026-08-04. `insert_segment` writes eleven columns. The table has twelve:
+  `puvodni`, the machine's original wording, added that day so the `Opravy`
+  list could show `před → po`. `segments()` selects it, so it was read back —
+  it was simply never written.
+- Why that is worse than a missing column: two paths delete every segment of a
+  recording and insert them again from values that already carry `puvodni` —
+  `run_diarization` (`transcription.rs:542`) and the one-time sentence-layout
+  upgrade (`:1671`). Both round-trip through this function. So **recognising
+  speakers on a recording that had been corrected by hand threw away the whole
+  record of what was corrected**: the `Opravy` list emptied, and every dashed
+  underline in the transcript went with it. Silently, in a transaction that
+  reported success.
+- The corrected *text* survives — it is in `text`, which is written. What is
+  destroyed is the memory of what the machine had said before, which cannot be
+  recovered from anywhere.
+- Fixed: the column is in the INSERT, with a comment naming the two callers so
+  the next person to add a column knows why this list is not free to fall
+  behind the table.
+- Files: `src-tauri/src/db.rs`.
+- Verified: `cargo fmt --all`; `cargo check` with no warnings; `cargo test`
+  (73 passed — two new: a segment keeps every column it was given, and
+  rewriting the speakers of a corrected recording keeps the corrections). The
+  guard was proven by making it fail: with the old eleven-column INSERT put
+  back, exactly those two failed and the other 71 passed. A test fixture now
+  holds the full `segmenty` schema, which is the second place that duplicates
+  the real `CREATE TABLE` — both are noted in the file.
+
+### 2026-08-06 — A screen does not stay lit for a question that was answered No
+
+- What it looked like: pressing `Přepsat` on a transcript detail, then
+  answering `Zrušit` to the confirmation or closing the speaker-count dialog,
+  left the screen permanently busy — the status said `přepisuje`, the player
+  was gone, the recording's own actions were hidden, and nothing was running.
+  Only leaving the detail and coming back cleared it.
+- Cause: `Detail` set `status("prepisuje")` optimistically the instant the
+  button was pressed, on the assumption that pressing a button starts a run.
+  It does not: `beginTranscription` may ask first — about overwriting a
+  finished transcript, or about how many people speak — and the answer arrives
+  much later, or never.
+- Changed: starting a transcription now reports whether a run actually began.
+  `beginTranscription` returns `Promise<boolean>` — `false` for its early
+  exits and `false` when it opened a dialog instead of running — and both
+  start paths in `Detail` set the status only when it says yes.
+- Changed with it: `running` on the detail no longer rests on that local flag
+  alone; it also derives from the live progress phase, so a run started from
+  anywhere else lights the screen and a terminal phase clears it.
+- Files: `src/App.tsx`, `src/Detail.tsx`.
+- Verified: `npx tsc --noEmit`; `node scripts/i18n.mjs check`; every caller of
+  `onTranscribe` was read against the new type rather than trusted to the
+  compiler — the type change catches a forgotten `await`, not a caller that
+  ignores the answer.
+
+### 2026-08-06 — A dropped file asks the same questions as one chosen from the picker
+
+- Fixed: dropping a file into the window with automatic transcription on never
+  asked how many people speak. The question is `App`'s and every path was
+  supposed to go through it; this one went through a *frozen copy* of it.
+- Cause: `acceptFiles` is a `useCallback` with `[]` as its dependencies,
+  because the window's drop listener is registered once and must not be torn
+  down and rebuilt on every render. It therefore closed over the
+  `beginTranscription` from the first render — a function whose own closure
+  holds the first render's settings, where speaker recognition is off because
+  the settings have not arrived from the backend yet. A stale closure, not a
+  missing call.
+- Changed: a ref holds the current `beginTranscription` and `acceptFiles` calls
+  through it. The listener stays registered once and the function it reaches is
+  always the current one.
+- Changed with it: a batch asks once, for the whole batch. The obvious fix — a
+  call per file — would have had each `setPendingTranscription` overwrite the
+  last, so four dropped files would have produced one dialog governing one of
+  them.
+- Files: `src/App.tsx`.
+- Verified: `npx tsc --noEmit`; `node scripts/i18n.mjs check`. Not driven end
+  to end: dropping a file needs the real window, so the first run should drop
+  two files at once with speaker recognition on and see one dialog whose answer
+  covers both.
+
+### 2026-08-06 — The transcript does not eat Tab and the space bar
+
+- Fixed: the detail's window key handler claimed `Tab` for walking the
+  uncertain spots and `Space` for play/pause, and it did so for **every**
+  keystroke in the window. Tab therefore could not move focus anywhere on that
+  screen — including inside an open dialog, where it made the keyboard unable
+  to reach a confirmation's buttons — and Space could not press a focused
+  button, tick a checkbox, or type a space into a field the handler did not
+  recognise.
+- Changed: the handler stands aside for the things a key already belongs to —
+  a text field or a `contenteditable` (it did check those), and now also a
+  control (`button, a[href], select, summary, [role="button"], [tabindex]`)
+  and any open dialog, found by asking the DOM for `.prekryv-dialogu` rather
+  than by listing the modals, so the next one is covered for free.
+- Changed, and this is a copy decision I made rather than one that was asked
+  for: the uncertain-spot walker moved from `Tab` to `F3`. `Tab` is the
+  keyboard's own way of moving between controls and cannot be borrowed
+  politely — even guarded, it would still be swallowed everywhere the guards do
+  not reach. `F3` is the conventional *find next* and collides with nothing in
+  this window. The Quick Tips strip and the wizard's tip say `F3`, in both
+  languages.
+- Files: `src/Detail.tsx`, `src/SetupWizard.tsx`,
+  `src/locales/cs/detail.ts`, `src/locales/en/detail.ts`,
+  `src/locales/cs/wizard.ts`.
+- Verified: `npx tsc --noEmit`; `node scripts/i18n.mjs check` (the wizard's
+  `F3` literal keeps its `i18n-ignore`, and both Czech translator notes now
+  name the new key — a key's name is the same in every language); the guard
+  conditions were read against the dialog markup that produces
+  `.prekryv-dialogu`, which is the one selector they depend on.
+
+### 2026-08-06 — Cancelling a download is not something to be congratulated for
+
+- Fixed: cancelling a download in the setup wizard ended on the screen that
+  says everything is ready, and the wizard then let itself be finished with
+  the component missing.
+- Cause: the backend emits `cancelled` for the run and then `download:complete`
+  unconditionally — completion means *the batch has stopped*, not *the batch
+  succeeded*. The wizard counted only `error` as a failure, so a cancelled
+  download was indistinguishable from a finished one.
+- Changed: `failedIds` counts `error` and `cancelled` alike. A cancelled
+  component is offered again, exactly like one that failed.
+- Files: `src/SetupWizard.tsx`.
+- Verified: `npx tsc --noEmit`; `node scripts/i18n.mjs check`; the two events
+  were read against `download.rs` rather than remembered — the `complete` emit
+  is outside the success branch, which is what makes this necessary.
+
+### 2026-08-06 — The veil behind a dialog is dark in the dark theme too
+
+- Fixed: `.prekryv-dialogu` was `hsl(var(--ds-foreground) / 0.35)`.
+  `--ds-foreground` is the *text* colour, which in the dark palette is nearly
+  white — so opening any dialog in the dark theme washed the window in white
+  haze instead of dimming it, and the dialog sat on a background lighter than
+  itself.
+- Changed: a token of its own, `--zaves`, in both palettes —
+  `hsl(240 7% 11% / 0.35)` light, `rgb(0 0 0 / 0.55)` dark. A scrim is its own
+  decision, not a tint of something else; deriving it from a foreground colour
+  is what let it invert.
+- Files: `src/styles.css`.
+- Verified: the real `ConfirmationDialog` bundled with esbuild and driven in a
+  browser against the real stylesheet in both palettes, with the resolved
+  colours and their relative luminance read out rather than judged from a
+  screenshot — light: scrim `rgba(26, 26, 30, 0.35)` at 0.103 against a dialog
+  at 1.00; dark: scrim `rgba(0, 0, 0, 0.55)` at 0.00 against a dialog at 0.154.
+  The dialog is lighter than its veil in both, which is the whole point, and
+  the dark screenshot was read to confirm the depth reads correctly.

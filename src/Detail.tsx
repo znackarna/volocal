@@ -59,7 +59,9 @@ interface Props {
   /** Transcription is started through the shell, which asks about speakers
    *  first when they are being separated. Detail must not call the backend
    *  directly, or that question would be skipped from this screen. */
-  onTranscribe: (id: string, language?: string) => void;
+  /** Answers whether a run actually started, so this screen only shows itself
+   *  as busy when something is. A question may be asked first. */
+  onTranscribe: (id: string, language?: string) => Promise<boolean>;
   /** Speaker separation also goes through the shell, which asks how many
    *  people speak before it starts. */
   onDiarize: (id: string) => void;
@@ -1334,11 +1336,32 @@ export default function Detail({
         (target.tagName === "TEXTAREA" ||
           target.tagName === "INPUT" ||
           target.isContentEditable);
+      /* A control the browser already owns: Space activates a button, a
+         checkbox, a link, a summary. Taking it to start the audio instead
+         means the control silently does nothing — and on the shared `Select`
+         it did both at once. */
+      const onAControl =
+        target?.closest("button, a[href], select, summary, [role='button'], [tabindex]") != null;
+      /* A dialog is the top of the stack and its keys are its own. This
+         listener sits on the window and used to fire straight through one:
+         with a confirmation on screen, Space played audio behind it. */
+      const dialogOpen = document.querySelector(".prekryv-dialogu") != null;
 
-      if (e.code === "Space" && !isTyping) {
+      if (isTyping || dialogOpen) {
+        if (e.key === "Escape" && !dialogOpen) setEditing(null);
+        return;
+      }
+
+      if (e.code === "Space" && !onAControl) {
         e.preventDefault();
         togglePlayback();
-      } else if (e.key === "Tab" && !isTyping) {
+      } else if (e.key === "F3") {
+        /* Not Tab. Tab belongs to the browser, and taking it disabled the
+           keyboard on the whole screen — back, the title menu, both document
+           actions, the sidebar and every control in it were unreachable, and
+           because this listener is on the window it did the same behind open
+           dialogs. F3 is the conventional "find next" and collides with
+           nothing here. */
         e.preventDefault();
         goToNextUncertain();
       } else if (e.key === "Escape") {
@@ -1368,16 +1391,20 @@ export default function Detail({
     }
   }, [id, load, onError, t, userMessage]);
 
-  const startTranscription = useCallback(() => {
-    onTranscribe(id);
+  const startTranscription = useCallback(async () => {
+    // Only once the shell says a run began. It may open a confirmation or the
+    // speaker question first, and declining either used to leave this screen
+    // busy for ever: a bubble frozen at zero, no player, no actions, and a
+    // cancel button the backend answers with "nothing is running".
+    if (!(await onTranscribe(id))) return;
     setStatus("prepisuje");
     // Clear the previous failure, or the old message would linger under a
     // progress bar for a run that is going fine.
     setError(null);
   }, [id, onTranscribe]);
 
-  const startTranscriptionInLanguage = useCallback((selectedLanguage: string) => {
-    onTranscribe(id, selectedLanguage);
+  const startTranscriptionInLanguage = useCallback(async (selectedLanguage: string) => {
+    if (!(await onTranscribe(id, selectedLanguage))) return;
     setLanguage(selectedLanguage);
     setStatus("prepisuje");
     setError(null);
@@ -1747,7 +1774,13 @@ export default function Detail({
   );
 
   // ---------------------------------------------------------------- render
-  const running = status === "prepisuje";
+  /* Busy is a fact about the run, not about the click that may have started
+     it. The local status covers the moment between starting and the first
+     event; the phase covers a run this screen did not start — from the
+     archive, from the watched folder, or after a confirmation was accepted. */
+  const running =
+    status === "prepisuje" ||
+    (progress != null && !["complete", "cancelled", "error"].includes(progress.phase));
   // The segment that last began, rather than the one the playhead sits
   // inside. Between two sentences there is a pause that belongs to neither,
   // and demanding a strict match made the highlight blink out for it before

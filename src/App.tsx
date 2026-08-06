@@ -319,16 +319,20 @@ export default function App() {
     async (ids: string[], language?: string) => {
       if (!speakerSetup.separates) {
         await runTranscription(ids, language, null);
-        return;
+        return true;
       }
       setPendingTranscription({ ids, language });
+      return false;
     },
     [runTranscription, speakerSetup.separates]
   );
 
+  /** Returns whether a run actually started. `false` means a question was
+   *  asked first — a screen that lights itself up on the strength of the click
+   *  would then stay lit for ever if the answer is Cancel. */
   const beginTranscription = useCallback(
-    async (ids: string[], language?: string) => {
-      if (ids.length === 0) return;
+    async (ids: string[], language?: string): Promise<boolean> => {
+      if (ids.length === 0) return false;
       /* Transcribing again replaces the text, and with it every manual
          correction and every uncertain spot already signed off. Deleting the
          transcript from the same menu asks first; doing it as a side effect of
@@ -351,9 +355,9 @@ export default function App() {
           nicive: true,
           action: () => void askAboutSpeakers(ids, language),
         });
-        return;
+        return false;
       }
-      await askAboutSpeakers(ids, language);
+      return await askAboutSpeakers(ids, language);
     },
     [askAboutSpeakers, recordings, t, tPlural]
   );
@@ -541,6 +545,16 @@ export default function App() {
     [reportError, userMessage]
   );
 
+  /* `acceptFiles` is held by the window's drop listener, so it has to keep one
+     identity — and it therefore cannot list `beginTranscription` among its
+     dependencies without re-arming that listener on every recording list
+     change. A ref gives it the current one, exactly as `automaticRef` does
+     beside it. Without this it froze on the first render's callback, which had
+     closed over `separates: false`, so a dropped file never asked how many
+     people speak while the microphone and the online import both did. */
+  const beginTranscriptionRef = useRef(beginTranscription);
+  beginTranscriptionRef.current = beginTranscription;
+
   const acceptFiles = useCallback(
     async (paths: string[]) => {
       const audio = paths.filter((c) => SUPPORTED_EXTENSIONS.includes(c.split(".").pop()?.toLowerCase() ?? ""));
@@ -549,12 +563,13 @@ export default function App() {
         return;
       }
       let added = 0;
+      const fresh: string[] = [];
       for (const c of audio) {
         try {
           const n = await api.addRecording(c);
           added += 1;
+          fresh.push(n.id);
           await fileIntoOpenFolder([n.id]);
-          if (automaticRef.current) await beginTranscription([n.id]);
           // The status changes on the backend side, so the list has to be
           // reloaded. Without it the row keeps looking untranscribed even
           // while a transcription is running.
@@ -562,6 +577,13 @@ export default function App() {
         } catch (e) {
           reportError(userMessage(e));
         }
+      }
+      // One call for the whole drop, after the loop. Per file it would open
+      // the speaker question once per recording and each would replace the
+      // one before it, so only the last file would ever be transcribed.
+      if (automaticRef.current && fresh.length > 0) {
+        await beginTranscriptionRef.current(fresh);
+        await loadRecordings();
       }
       /* Say it out loud (Jakub's ask): from a detail, an added file lands in
          an archive that is not on screen, so without this notice nothing
@@ -1208,7 +1230,7 @@ export default function App() {
           }}
           onError={reportError}
           onInfo={reportInfo}
-          onTranscribe={(id, language) => void beginTranscription([id], language)}
+          onTranscribe={(id, language) => beginTranscription([id], language)}
           onDiarize={beginDiarization}
           diarizing={diarizingIds.includes(selectedId)}
           onToModule={(module) => {

@@ -179,7 +179,7 @@ export const csWizardContext: Partial<Record<keyof typeof csWizard, string>> = {
     "Nadpis skupiny v ručním výběru: modely, které hotový přepis upraví do čitelného textu.",
 
   "wizard.done.tabHint":
-    "{key} je název klávesy Tab, vypisuje se tučně a nepřekládá se.",
+    "{key} je název klávesy F3, vypisuje se tučně a nepřekládá se.",
   "wizard.done.almostTitle":
     "Nadpis závěru, když se nepodařilo stáhnout jen doplňkové součásti a přepisovat už jde.",
   "wizard.done.failedTitle": "Nadpis závěru, když chybí něco, bez čeho přepis nefunguje.",

@@ -289,8 +289,17 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
     }
   }, [items, selected, userMessage]);
 
+  /* `cancelled` counts as unfinished, not as done. The backend emits it for
+     the component that was interrupted and for every one after it, and then
+     emits `download:complete` regardless — so counting only `error` made the
+     wizard congratulate a user who pressed Stop during the first model on a
+     fresh installation: "Everything is ready", with nothing installed. */
   const failedIds = useMemo(
-    () => selected.filter((id) => progress[id]?.phase === "error"),
+    () =>
+      selected.filter((id) => {
+        const phase = progress[id]?.phase;
+        return phase === "error" || phase === "cancelled";
+      }),
     [selected, progress]
   );
 
@@ -745,8 +754,8 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
               <p className="krok-uvod">{t("wizard.done.introReady")}</p>
               <p className="drobne">
                 {tabHint[0]}
-                {/* i18n-ignore: the key is labelled Tab on every keyboard */}
-                <strong>Tab</strong>
+                {/* i18n-ignore: the key is labelled F3 on every keyboard */}
+                <strong>F3</strong>
                 {tabHint[1] ?? ""}
               </p>
               <div className="krok-patka">

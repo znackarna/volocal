@@ -45,6 +45,9 @@
   --hover-ease: ease;
   --app-footer-height: 30px;
 
+  /* The veil behind a dialog. Dark in both palettes on purpose — see
+     `.prekryv-dialogu`. */
+  --zaves: hsl(240 7% 11% / 0.35);
   --stin: 0 1px 4px hsl(var(--ds-foreground) / 0.08);
   --stin-vysoky: 0 12px 32px hsl(var(--ds-foreground) / 0.14), 0 2px 8px hsl(var(--ds-foreground) / 0.06);
 
@@ -90,6 +93,7 @@
   --listek-pole: hsl(46 12% 15%);
   --akcent-svetly: hsl(var(--ds-petrol) / 0.14);
   --zvyrazneni: hsl(var(--ds-amber) / 0.28);
+  --zaves: rgb(0 0 0 / 0.55);
   --stin: 0 1px 4px rgb(0 0 0 / 0.3);
   --stin-vysoky: 0 12px 32px rgb(0 0 0 / 0.45), 0 2px 8px rgb(0 0 0 / 0.3);
 }
@@ -1741,7 +1745,12 @@ mark { background: var(--zvyrazneni); color: inherit; padding: 0 2px; border-rad
 
 .prekryv-dialogu {
   position: fixed; inset: 0; z-index: 60;
-  background: hsl(var(--ds-foreground) / 0.35);
+  /* A veil is dark in both palettes. It used to be `--ds-foreground / 0.35`,
+     which is the *text* colour — dark on the light palette, and near-white on
+     the dark one, where it lightened the page by 35 % behind a dialog that is
+     darker than its own scrim. The depth cue inverted: the dialog read as a
+     hole punched under a haze. */
+  background: var(--zaves);
   display: flex; align-items: center; justify-content: center;
   padding: 24px;
 }

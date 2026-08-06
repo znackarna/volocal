@@ -47,7 +47,7 @@ export const enDetail: Partial<Record<keyof typeof csDetail, string>> = {
   "detail.tips.clickAction": "jump in audio",
   "detail.tips.doubleClickKey": "double-click",
   "detail.tips.doubleClickAction": "edit text",
-  "detail.tips.tabKey": "Tab",
+  "detail.tips.tabKey": "F3",
   "detail.tips.tabAction": "next spot to check",
   "detail.tips.hide": "Hide quick tips",
   "detail.tips.hideHint": "Hide. You can bring them back in settings.",

@@ -1089,11 +1089,18 @@ pub fn delete_segments(db: &Connection, recording_id: &str) -> Result<()> {
 }
 
 pub fn insert_segment(db: &Connection, s: &Segment) -> Result<()> {
+    // `puvodni` belongs in this list. Two paths delete every segment of a
+    // recording and insert them again from values that already carry it —
+    // `run_diarization` and the one-time sentence-layout upgrade. Leaving the
+    // column out of the INSERT meant that recognising speakers on a
+    // hand-corrected transcript silently emptied its `Opravy` list, which
+    // shows only the segments whose original is known. The pencil marks
+    // survived, so it read as a rendering fault rather than as deletion.
     db.execute(
-        "INSERT INTO segmenty (id, nahravka_id, poradi, zacatek, konec, text, mluvci, jistota, upraveno, slova, overeno)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+        "INSERT INTO segmenty (id, nahravka_id, poradi, zacatek, konec, text, mluvci, jistota, upraveno, slova, overeno, puvodni)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
         params![s.id, s.recording_id, s.order, s.start, s.end, s.text, s.speakers,
-                s.confidence, s.edited as i64, s.words, s.verified as i64],
+                s.confidence, s.edited as i64, s.words, s.verified as i64, s.original],
     )?;
     db.execute(
         "INSERT INTO segmenty_fts (text, segment_id, nahravka_id) VALUES (?1, ?2, ?3)",
@@ -1619,10 +1626,10 @@ mod cluster_threshold_migration_tests {
 mod tests {
     use super::{
         ai_outputs, align_word_timestamps, create_folder, delete_folder, delete_recording_note,
-        folder_recording_ids, folders, insert_recording_note, migrate_legacy_schema,
-        move_to_folder, recording_notes, save_ai_document, save_ai_output, update_recording_note,
-        watch_file_imported, watch_file_is_stable, waveform, AiDocument, AiOutput, RecordingNote,
-        Segment, WaveformData,
+        delete_segments, folder_recording_ids, folders, insert_recording_note, insert_segment,
+        migrate_legacy_schema, move_to_folder, recording_notes, save_ai_document, save_ai_output,
+        segments, update_recording_note, watch_file_imported, watch_file_is_stable, waveform,
+        AiDocument, AiOutput, RecordingNote, Segment, WaveformData,
     };
     use rusqlite::{params, Connection};
 
@@ -1642,6 +1649,91 @@ mod tests {
             original: None,
         }
     }
+
+    /// Every column `segments()` reads has to be one `insert_segment` writes.
+    /// `run_diarization` and the sentence-layout upgrade both delete a
+    /// recording's segments and put them back from values they already hold,
+    /// so a column missing from the INSERT is not a gap — it is deletion.
+    #[test]
+    fn a_segment_keeps_every_column_it_was_given() {
+        let db = Connection::open_in_memory().unwrap();
+        db.execute_batch(SEGMENT_SCHEMA).unwrap();
+
+        let mut written = segment(1.0, 2.0, r#"[{"s":"ahoj","t":1.0}]"#);
+        written.text = "Ahoj světe".into();
+        written.speakers = Some("Mluvčí 1".into());
+        written.confidence = Some(0.71);
+        written.edited = true;
+        written.verified = true;
+        written.original = Some("Ahoj světe".into());
+        insert_segment(&db, &written).unwrap();
+
+        let read = segments(&db, "recording").unwrap();
+        assert_eq!(read.len(), 1);
+        assert_eq!(read[0].text, written.text);
+        assert_eq!(read[0].speakers, written.speakers);
+        assert_eq!(read[0].confidence, written.confidence);
+        assert_eq!(read[0].edited, written.edited);
+        assert_eq!(read[0].verified, written.verified);
+        assert_eq!(read[0].words, written.words);
+        assert_eq!(
+            read[0].original, written.original,
+            "what the machine wrote is what the corrections list is built from"
+        );
+    }
+
+    /// Recognising speakers rewrites who said what and nothing else. It does
+    /// that by deleting every segment and inserting them again, so this is the
+    /// path where a hand-corrected transcript is most easily damaged.
+    #[test]
+    fn rewriting_the_speakers_does_not_lose_the_corrections() {
+        let db = Connection::open_in_memory().unwrap();
+        db.execute_batch(SEGMENT_SCHEMA).unwrap();
+
+        let mut corrected = segment(1.0, 2.0, r#"[{"s":"ahoj","t":1.0}]"#);
+        corrected.text = "součást DNA".into();
+        corrected.original = Some("součas DNA".into());
+        corrected.edited = true;
+        insert_segment(&db, &corrected).unwrap();
+
+        // What `run_diarization` does: read, assign speakers, delete, re-insert.
+        let mut again = segments(&db, "recording").unwrap();
+        again[0].speakers = Some("Mluvčí 2".into());
+        delete_segments(&db, "recording").unwrap();
+        for s in &again {
+            insert_segment(&db, s).unwrap();
+        }
+
+        let read = segments(&db, "recording").unwrap();
+        assert_eq!(read[0].speakers.as_deref(), Some("Mluvčí 2"));
+        assert_eq!(read[0].text, "součást DNA");
+        assert_eq!(
+            read[0].original.as_deref(),
+            Some("součas DNA"),
+            "the correction survives a round trip through the speaker pass"
+        );
+    }
+
+    /// The two columns `segments()` selects beyond the obvious ones. Kept
+    /// beside the tests rather than reaching for the real `open()`, which
+    /// would bring the whole schema and eleven migrations with it.
+    const SEGMENT_SCHEMA: &str = "CREATE TABLE segmenty (
+           id           TEXT PRIMARY KEY,
+           nahravka_id  TEXT NOT NULL,
+           poradi       INTEGER NOT NULL,
+           zacatek      REAL NOT NULL,
+           konec        REAL NOT NULL,
+           text         TEXT NOT NULL,
+           mluvci       TEXT,
+           jistota      REAL,
+           upraveno     INTEGER NOT NULL DEFAULT 0,
+           slova        TEXT,
+           overeno      INTEGER NOT NULL DEFAULT 0,
+           puvodni      TEXT
+         );
+         CREATE VIRTUAL TABLE segmenty_fts USING fts5(
+           text, segment_id UNINDEXED, nahravka_id UNINDEXED
+         );";
 
     #[test]
     fn aligns_vad_compressed_word_timestamps_to_segment_start() {
