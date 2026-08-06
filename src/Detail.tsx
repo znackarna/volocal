@@ -21,6 +21,7 @@ import { localMessage, useProgressMessage, useUserMessage } from "./messages";
 import type { TranslationKey } from "./i18n";
 import { useLabels } from "./labels";
 import { CONFIDENCE_THRESHOLD, formatTime, fileName } from "./types";
+import ProgressBubble from "./ProgressBubble";
 import type {
   AiDocument,
   AiEditProgress,
@@ -490,68 +491,6 @@ function StickyTime({
 }
 
 /** One compact status surface for every long-running job on the detail screen. */
-function DetailProgressBubble({
-  variant,
-  description,
-  percent,
-  onCancel,
-  cancelLabel,
-}: {
-  variant: "transcription" | "language";
-  description: string;
-  percent: number;
-  onCancel?: () => void;
-  cancelLabel?: string;
-}) {
-  const { t } = useI18n();
-  const safePercent = Number.isFinite(percent)
-    ? Math.max(0, Math.min(100, percent))
-    : 0;
-
-  return (
-    <div className="detail-progress-bubble">
-      <span className="detail-progress-icon" aria-hidden>
-        {variant === "language" ? (
-          "✦"
-        ) : (
-          <svg width="19" height="16" viewBox="0 0 19 16" fill="none">
-            <path
-              d="M1.5 8h2l1.35-4.5L7.2 13l2.15-10 2.3 8 1.5-5 1.25 2H17.5"
-              stroke="currentColor"
-              strokeWidth="1.45"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        )}
-      </span>
-      <div className="detail-progress-body" role="status" aria-live="polite">
-        <div className="detail-progress-row">
-          <span>{description}</span>
-          <span>{t("detail.progress.percent", { value: Math.round(safePercent) })}</span>
-        </div>
-        <div className="prubeh-lista">
-          <div className="prubeh-vypln" style={{ width: `${safePercent}%` }} />
-        </div>
-      </div>
-      {onCancel && (
-        <button
-          type="button"
-          className="detail-progress-cancel"
-          onClick={onCancel}
-          aria-label={cancelLabel ?? t("common.cancel")}
-          title={t("common.cancel")}
-        >
-          <svg width="12" height="12" viewBox="0 0 14 14" aria-hidden>
-            <path d="M3 3l8 8M11 3l-8 8" stroke="currentColor"
-                  strokeWidth="1.7" strokeLinecap="round" />
-          </svg>
-        </button>
-      )}
-    </div>
-  );
-}
-
 /** A single button with a format menu. */
 function ExportMenu({
   disabled,
@@ -2027,7 +1966,7 @@ export default function Detail({
       </div>
 
       {running || diarizing ? (
-        <DetailProgressBubble
+        <ProgressBubble
           variant="transcription"
           description={
             progress
@@ -2048,7 +1987,7 @@ export default function Detail({
           }
         />
       ) : aiRunning ? (
-        <DetailProgressBubble
+        <ProgressBubble
           variant="language"
           description={
             aiProgress ? progressMessage(aiProgress.description) : t("detail.progress.editing")

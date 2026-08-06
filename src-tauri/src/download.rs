@@ -754,13 +754,41 @@ pub fn install_component(
 }
 
 /// Nainstaluje seznam soucasti za sebou. Bezi ve vlastnim vlakne.
+/// Whether a bundle is being installed right now.
+///
+/// One flag for the whole application, because the thing being protected is
+/// the destination on disk, not a screen: two runs fetching the same component
+/// write to the same file and both report progress for the same id, which is
+/// what made the progress jump between two values. The second call is refused
+/// rather than queued — the first one is already fetching exactly this.
+static INSTALLING: AtomicBool = AtomicBool::new(false);
+
+pub fn is_installing() -> bool {
+    INSTALLING.load(Ordering::Relaxed)
+}
+
+/// Returns whether this call took the work. `false` means one was already
+/// running and nothing was started.
 pub fn install_bundle(
     app: AppHandle,
     settings: crate::db::Settings,
     ids: Vec<String>,
     cancellation: Arc<AtomicBool>,
-) {
+) -> bool {
+    if INSTALLING.swap(true, Ordering::SeqCst) {
+        return false;
+    }
     std::thread::spawn(move || {
+        // Whatever happens below, the flag comes down — including on a panic,
+        // which is why it is a guard and not a line at the end.
+        struct Done;
+        impl Drop for Done {
+            fn drop(&mut self) {
+                INSTALLING.store(false, Ordering::SeqCst);
+            }
+        }
+        let _done = Done;
+
         for id in ids {
             if cancellation.load(Ordering::Relaxed) {
                 emit_progress(
@@ -797,6 +825,7 @@ pub fn install_bundle(
         }
         let _ = app.emit("download:complete", ());
     });
+    true
 }
 
 // ---------------------------------------------------------------- prenosna kopie
@@ -861,4 +890,41 @@ fn copy_tree(app: &AppHandle, source: &Path, destination: &Path) -> Result<u64> 
         }
     }
     Ok(bytes_copied)
+}
+
+#[cfg(test)]
+mod install_guard_tests {
+    use super::*;
+
+    /// The reported defect: starting a download, leaving Settings and coming
+    /// back started a second one. Two runs then fetched the same component
+    /// into the same file and both reported progress for it, so the bar jumped
+    /// between two values.
+    ///
+    /// The flag is what the command asks before it clears the cancellation —
+    /// which is the other half of the defect: the second call used to wipe the
+    /// stop request the first run was watching.
+    #[test]
+    fn a_second_install_is_refused_while_one_is_running() {
+        assert!(!is_installing(), "nothing running to begin with");
+
+        // What `install_bundle` does on the way in, without needing a window.
+        assert!(
+            !INSTALLING.swap(true, Ordering::SeqCst),
+            "this call takes it"
+        );
+        assert!(is_installing());
+        assert!(
+            INSTALLING.swap(true, Ordering::SeqCst),
+            "a second call finds it taken and must not start"
+        );
+
+        INSTALLING.store(false, Ordering::SeqCst);
+        assert!(!is_installing(), "the flag comes down when the run ends");
+        assert!(
+            !INSTALLING.swap(true, Ordering::SeqCst),
+            "and the next download is allowed again"
+        );
+        INSTALLING.store(false, Ordering::SeqCst);
+    }
 }

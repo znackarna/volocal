@@ -117,6 +117,7 @@ export const csErrors = {
 
   // Downloading modules.
   "errors.download.unknown_component": "Neznámý modul: {component}",
+  "errors.download.already_running": "Stahování už běží.",
   "errors.download.cancelled": "Zrušeno",
   "errors.download.connection_failed": "Nepodařilo se spojit se serverem ({url})",
   "errors.download.rejected": "Server odmítl soubor vydat",

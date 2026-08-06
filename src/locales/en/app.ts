@@ -4,6 +4,8 @@ import type { csApp } from "../cs/app";
 export const enApp: Partial<Record<keyof typeof csApp, string>> = {
   "app.name": "Speech to text",
   "app.newTranscript": "New transcript",
+  "app.download.running": "Downloading {name}",
+  "app.download.cancel": "Cancel the download",
   "app.shell.statusBar": "Application status",
   "app.shell.statusItem": "{label}: {value}",
   "app.shell.transcriptCount": "Transcripts",

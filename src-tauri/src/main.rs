@@ -1401,8 +1401,17 @@ fn download(window: tauri::AppHandle, app: State<'_, AppState>, ids: Vec<String>
         let db = app.db.lock().unwrap();
         reported(db::load_settings(&db))?
     };
+    // Asked before the flag is cleared: a second call used to reset the
+    // cancellation the first run was watching, so pressing Stop and then
+    // starting again left the first thread downloading with its stop request
+    // wiped. The same shape as the transcription `cancel` defect.
+    if download::is_installing() {
+        return Err(UserMessage::new("download.already_running"));
+    }
     app.download_cancellation.store(false, Ordering::Relaxed);
-    download::install_bundle(window, settings, ids, app.download_cancellation.clone());
+    if !download::install_bundle(window, settings, ids, app.download_cancellation.clone()) {
+        return Err(UserMessage::new("download.already_running"));
+    }
     Ok(())
 }
 

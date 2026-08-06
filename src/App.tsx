@@ -17,6 +17,7 @@ import Tooltips from "./Tooltips";
 import AddRecordingDialog from "./AddRecordingDialog";
 import SpeakerCountDialog from "./SpeakerCountDialog";
 import RecordingMetadataIcon from "./RecordingMetadataIcon";
+import ProgressBubble from "./ProgressBubble";
 import type { CSSProperties } from "react";
 import type { RecordingMetadataKind } from "./RecordingMetadataIcon";
 // inlined into the page rather than via <img>, for sharpness and colours
@@ -30,6 +31,8 @@ import { useLabels } from "./labels";
 import { useFormats } from "./formats";
 import type {
   AiEditProgress,
+  DownloadComponent,
+  DownloadProgress,
   ToolCheck,
   UserMessage,
   Recording,
@@ -136,7 +139,7 @@ function keepsMovingForward(
 }
 
 export default function App() {
-  const { t, tPlural } = useI18n();
+  const { t, tPlural, tDynamic } = useI18n();
   const labels = useLabels();
   const formats = useFormats();
   const [screen, setScreen] = useState<
@@ -176,6 +179,13 @@ export default function App() {
   const [recordings, setRecordings] = useState<Recording[]>([]);
   const [progress, setProgress] = useState<Record<string, TranscriptionProgress>>({});
   const [aiProgress, setAiProgress] = useState<Record<string, AiEditProgress>>({});
+  /* A download outlives the screen that started it, so the application holds
+     it rather than the wizard. Without this, walking out of Settings hid the
+     work and the obvious next move was to start it again. */
+  const [downloading, setDownloading] = useState<DownloadProgress | null>(null);
+  /* Only so the bubble can say which component, by the name the catalogue
+     gives it rather than by its id. */
+  const [catalogItems, setCatalogItems] = useState<DownloadComponent[]>([]);
   const [liveSegments, setLiveSegments] = useState<Record<string, LiveSegment[]>>({});
   const [watchCandidates, setWatchCandidates] = useState<WatchFolderCandidate[]>([]);
   const [watchDecisionRunning, setWatchDecisionRunning] = useState(false);
@@ -424,6 +434,9 @@ export default function App() {
     loadRecordings();
     // With tools missing, showing an empty archive and waiting for the user
     // to find Settings makes no sense. Open the wizard straight away.
+    // Names for the download bubble. One call at start-up; the catalogue is a
+    // constant list compiled into the backend, not something that changes.
+    api.catalog().then(setCatalogItems).catch(() => {});
     loadToolCheck().then((k) => {
       if (k && k.issues.length > 0) {
         setWizardRequired(true);
@@ -508,6 +521,24 @@ export default function App() {
           return updated;
         });
         if (next.phase === "error") reportError(progressMessage(next.description));
+      })
+    );
+
+    add(
+      listen<DownloadProgress>("download:progress", (u) => {
+        const next = u.payload;
+        // `complete` here is one component of the bundle finishing, not the
+        // bundle — only `download:complete` says that. Keeping the last
+        // component up until then is what stops the bubble flickering off and
+        // on between files.
+        setDownloading(["error", "cancelled"].includes(next.phase) ? null : next);
+      })
+    );
+
+    add(
+      listen("download:complete", () => {
+        setDownloading(null);
+        loadToolCheck();
       })
     );
 
@@ -1421,6 +1452,29 @@ export default function App() {
         onClose={() => setFolderDialog(null)}
         onSubmit={(name) => void submitFolderDialog(name)}
       />
+
+      {/* Not on the wizard: that screen lists every component with its own
+          progress, and a bubble repeating one of them would be noise. */}
+      {downloading && screen !== "wizard" && (
+        <ProgressBubble
+          variant="download"
+          description={t("app.download.running", {
+            name:
+              catalogItems.find((item) => item.id === downloading.id)?.name_code
+                ? tDynamic(
+                    catalogItems.find((item) => item.id === downloading.id)!.name_code,
+                    downloading.id
+                  )
+                : downloading.id,
+          })}
+          percent={downloading.percent}
+          onCancel={() => {
+            void api.cancelDownload();
+            setDownloading(null);
+          }}
+          cancelLabel={t("app.download.cancel")}
+        />
+      )}
 
       <ConfirmationDialog
         query={query}

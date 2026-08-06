@@ -8089,3 +8089,48 @@ carries `readTime()` whole.
   timeout — the pipe closes when the process ends and not before — so the death
   is observed rather than inferred. Against the forgetting version it fails
   with `program 0 was still running after kill_all`.
+
+### 2026-08-06 — A download outlives the screen that started it
+
+- What Jakub saw: he started downloading a model, left Settings, came back —
+  and it began downloading again, after which the progress jumped between two
+  values.
+- **Cause, and it is the backend.** `install_bundle` spawned a thread and
+  guarded nothing. A second call therefore fetched the same components into the
+  same destination while the first was still writing them, and both reported
+  `download:progress` for the same id — which is the jumping. Worse, the
+  command's first act was `download_cancellation.store(false)`, so starting a
+  second download **wiped the stop request the first one was watching**. That
+  is the same shape as the transcription `cancel` defect from 2026-08-04.
+- Fixed: one `INSTALLING` flag for the whole application, taken with a `swap`
+  so the check and the claim are one step, and dropped by a guard rather than a
+  line at the end so a panic cannot leave it standing. The command asks it
+  before clearing the cancellation, and a refused call says
+  `Stahování už běží.` rather than starting a rival.
+- The flag belongs to the application, not to a screen: what it protects is a
+  destination on disk.
+- **And the reason a person reached for the button twice.** The download was
+  invisible the moment they left the wizard, so starting it again was the
+  obvious move. Jakub's ask: a bubble in the lower right, like the other
+  progress the application shows. There is now one — the same bubble the
+  transcript detail uses, moved into `src/ProgressBubble.tsx` and shared rather
+  than copied, with a third variant whose mark is an arrow into a tray. It
+  names the component from the catalogue (`Stahuji Precizní model`), shows the
+  percentage, and its cross cancels.
+- Deliberately hidden on the wizard: that screen lists every component with its
+  own progress, and a bubble repeating one of them would be noise.
+- `download:progress` with a phase of `complete` means one component of the
+  bundle, not the bundle. The bubble stays up until `download:complete`, which
+  is what stops it flickering off and on between files.
+- Files: `src-tauri/src/download.rs`, `src-tauri/src/main.rs`,
+  `src/ProgressBubble.tsx` (new), `src/Detail.tsx`, `src/App.tsx`,
+  `src/locales/{cs,en}/{app,errors}.ts`.
+- Verified: `cargo fmt --all`; `cargo check --all-targets` with warnings as
+  errors; `cargo test` (83 passed, one new over the guard). `npx tsc --noEmit`;
+  `node scripts/i18n.mjs check`. The bubble was driven in a browser against the
+  real `App` and the real stylesheet, with the Tauri event channel stubbed so
+  progress could be fired by hand: absent before any event, then
+  `Stahuji Precizní model · 20 %` 22 px from the right and 52 px from the
+  bottom — clear of the status footer — the bar following to 70 %, the cross
+  both hiding it and reaching `cancel_download`, and `download:complete`
+  taking it away.

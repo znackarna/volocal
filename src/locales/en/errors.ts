@@ -78,6 +78,7 @@ export const enErrors: Partial<Record<keyof typeof csErrors, string>> = {
   "errors.online_import.download_failed_details": "The online video could not be downloaded:\n{details}",
   "errors.online_import.no_media_file": "The download finished, but no audio file was found",
   "errors.download.unknown_component": "Unknown module: {component}",
+  "errors.download.already_running": "A download is already running.",
   "errors.download.cancelled": "Cancelled",
   "errors.download.connection_failed": "Could not connect to the server ({url})",
   "errors.download.rejected": "The server refused to hand over the file",
