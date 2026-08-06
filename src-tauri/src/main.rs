@@ -1546,6 +1546,60 @@ fn name_machine() -> String {
 
 // ---------------------------------------------------------------- start
 
+/// Answers WebView2's microphone permission request without asking again.
+///
+/// WebView2 treats the application as a web page and prompts in the name of the
+/// origin it is served from, which on Windows is `tauri.localhost`. That name
+/// cannot be changed — a page that could choose how it is announced would make
+/// the prompt worthless — so the only way to stop a person being asked by a
+/// stranger is not to raise the prompt at all.
+///
+/// The consent is not skipped, it is moved to where it means something: the
+/// recorder is opened deliberately, and its own dialog says the microphone is
+/// being opened and that not a word leaves the computer. The system prompt only
+/// repeated that question in a name nobody recognises.
+///
+/// Only `MICROPHONE` is answered. Every other kind — camera, location,
+/// notifications, clipboard — is left untouched and still prompts. This webview
+/// loads nothing but the bundled interface, so there is no third-party page
+/// that could be the one asking.
+#[cfg(windows)]
+fn allow_microphone(window: &tauri::WebviewWindow) {
+    use webview2_com::Microsoft::Web::WebView2::Win32::{
+        COREWEBVIEW2_PERMISSION_KIND_MICROPHONE, COREWEBVIEW2_PERMISSION_KIND_UNKNOWN_PERMISSION,
+        COREWEBVIEW2_PERMISSION_STATE_ALLOW,
+    };
+    use webview2_com::PermissionRequestedEventHandler;
+
+    let registered = window.with_webview(|webview| {
+        let core = match unsafe { webview.controller().CoreWebView2() } {
+            Ok(core) => core,
+            Err(error) => {
+                eprintln!("microphone: WebView2 unreachable, prompt stays: {error}");
+                return;
+            }
+        };
+        let handler = PermissionRequestedEventHandler::create(Box::new(|_sender, args| {
+            let Some(args) = args else { return Ok(()) };
+            let mut kind = COREWEBVIEW2_PERMISSION_KIND_UNKNOWN_PERMISSION;
+            unsafe { args.PermissionKind(&mut kind)? };
+            if kind == COREWEBVIEW2_PERMISSION_KIND_MICROPHONE {
+                unsafe { args.SetState(COREWEBVIEW2_PERMISSION_STATE_ALLOW)? };
+            }
+            Ok(())
+        }));
+        // The token is only needed to unsubscribe, and this handler lives as
+        // long as the window does.
+        let mut token = 0i64;
+        if let Err(error) = unsafe { core.add_PermissionRequested(&handler, &mut token) } {
+            eprintln!("microphone: handler not registered, prompt stays: {error}");
+        }
+    });
+    if let Err(error) = registered {
+        eprintln!("microphone: no webview to attach to, prompt stays: {error}");
+    }
+}
+
 fn main() {
     // Must happen before Tauri creates the window.
     tools::set_webview2();
@@ -1558,6 +1612,10 @@ fn main() {
             connect_database(app).map_err(|e| e.to_string())?;
             // The title is a constant now that the version is out of it, so it
             // lives in tauri.conf.json and nothing sets it at runtime.
+            #[cfg(windows)]
+            if let Some(window) = tauri::Manager::get_webview_window(app, "main") {
+                allow_microphone(&window);
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

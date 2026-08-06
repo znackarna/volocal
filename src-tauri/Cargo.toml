@@ -8,6 +8,11 @@ rust-version = "1.77"
 # Not a crate anybody publishes; the guard is here so nobody does by accident.
 publish = false
 
+# Windows only, and pinned to exactly what wry 0.55 already links: two copies of
+# these COM bindings in one binary would be two unrelated types with one name.
+[target.'cfg(windows)'.dependencies]
+webview2-com = "0.38.2"
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 

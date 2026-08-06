@@ -7906,3 +7906,53 @@ be signed.
   checkbox with its label, and that is also the moment to look at the two
   pages nobody has seen in Czech yet — install over an existing copy to reach
   the maintenance page.
+
+### 2026-08-06 — The microphone is not asked for by a stranger
+
+- What Jakub saw when he started a recording: WebView2's permission prompt,
+  asking on behalf of **tauri.localhost**.
+- Why that name and not `Slobot`: WebView2 treats the application as a web page
+  and prompts in the name of the origin serving it. On Windows Tauri serves
+  from `http://tauri.localhost`, and the host is not configurable — the only
+  related setting, `useHttpsScheme`, chooses the scheme and nothing else. Nor
+  *should* it be configurable: a page that could choose how it is announced in
+  a permission prompt would make the prompt worthless.
+- So the name cannot be changed and the prompt can only be answered before it
+  is raised. `allow_microphone` registers a `PermissionRequested` handler on
+  the WebView2 controller and sets `MICROPHONE` to `ALLOW`.
+- The consent is not skipped, it is moved to where it means something. The
+  recorder is opened on purpose, and its own dialog says the microphone is
+  being opened and that `ani slovo neopustí váš počítač`. The system prompt
+  repeated that question in a name the person has never seen.
+- Scope, deliberately narrow: only `MICROPHONE` is answered. Camera, location,
+  notifications and clipboard fall through untouched and still prompt. This
+  webview loads nothing but the bundled interface, so there is no third-party
+  page that could be the one asking — which is also why the handler does not
+  bother parsing the requesting URI, and the comment says so rather than
+  leaving the next reader to wonder.
+- Dependency: `webview2-com` at exactly `0.38.2`, Windows-only, which is the
+  version `wry 0.55` already links. Two copies of these COM bindings in one
+  binary would be two unrelated types sharing a name, and the error message for
+  that is famously unhelpful.
+- Files: `src-tauri/src/main.rs`, `src-tauri/Cargo.toml`, `src-tauri/Cargo.lock`.
+- Verified as far as this session can: `cargo tree --target
+  x86_64-pc-windows-msvc -i webview2-com` resolves **one** version, 0.38.2,
+  shared by `slobot`, `tauri`, `tauri-runtime` and `wry` — the version skew
+  above is ruled out, and it was the likeliest way this breaks. `Cargo.lock`
+  gains exactly one line. Every name and signature the new code uses was read
+  out of the vendored sources rather than remembered: `PlatformWebview::
+  controller()` in `tauri 2.11.5`, `CoreWebView2()` and
+  `add_PermissionRequested(handler, *mut i64)` in `webview2-com-sys 0.38.2`,
+  `PermissionRequestedEventHandler::create(EventClosure<Option<ICoreWebView2>,
+  Option<ICoreWebView2PermissionRequestedEventArgs>>)` from the
+  `#[event_callback]` macro, and `COREWEBVIEW2_PERMISSION_KIND` deriving
+  `Default` and `PartialEq`. `cargo fmt --all --check`, `cargo check
+  --all-targets` with warnings as errors and `cargo test` (73 passed) all pass
+  on Linux.
+- **Not compiled, and this is the honest limit.** The new code is behind
+  `#[cfg(windows)]`, so nothing here has type-checked it: `rustup target add
+  x86_64-pc-windows-msvc` cannot reach `static.rust-lang.org` from this
+  session, and without that target's `rust-std` even `cargo check` refuses.
+  This is the same shape of gap that let the TypeScript version skew through
+  earlier today — recorded plainly rather than glossed. The build on Windows is
+  the first thing that will read this code.

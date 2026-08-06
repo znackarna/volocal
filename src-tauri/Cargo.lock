@@ -3555,6 +3555,7 @@ dependencies = [
  "tauri-plugin-dialog",
  "tauri-plugin-opener",
  "uuid",
+ "webview2-com",
  "zip",
 ]
 
