@@ -16,6 +16,9 @@ src-tauri/LICENSE.txt text eol=crlf
 *.nsh text eol=crlf
 
 # Binary: never touch.
+# NSIS reads these as 24-bit BMP. Without this line the blanket `* text=auto`
+# above would treat them as text and rewrite bytes that look like line endings.
+*.bmp binary
 *.png binary
 *.ico binary
 *.icns binary

@@ -43,6 +43,8 @@
         "customLanguageFiles": {
           "Czech": "nsis/Czech.nsh"
         },
+        "sidebarImage": "nsis/sidebar.bmp",
+        "headerImage": "nsis/header.bmp",
         "displayLanguageSelector": false,
         "installMode": "currentUser"
       },

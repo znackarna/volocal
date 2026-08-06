@@ -7956,3 +7956,39 @@ be signed.
   This is the same shape of gap that let the TypeScript version skew through
   earlier today — recorded plainly rather than glossed. The build on Windows is
   the first thing that will read this code.
+
+### 2026-08-06 — The installer carries the brand
+
+- Jakub asked whether the installer's graphics can be changed and supplied two
+  artworks made for it: a portrait lockup — cube, `Slobot™`, and the značkárna
+  mark at the foot — and a horizontal one for the header.
+- NSIS has three image slots and Tauri exposes all three. Two are now filled:
+  `sidebarImage` (the panel on the welcome and finish pages, replacing MUI's
+  default blue) and `headerImage` (the strip in the header of every other page).
+  `installerIcon` is left alone; the setup executable already takes the
+  application's own icon.
+- The artworks arrived at the right proportions, which is why they need no
+  cropping: the horizontal one is 300 × 114, exactly twice the header's
+  150 × 57, and the portrait one is 328 × 632 against the panel's 164 × 314 —
+  0.519 to the panel's 0.522, so it fits by height with half a pixel of white
+  either side. Nothing is stretched and nothing is cut.
+- Format is not a preference here: NSIS reads **24-bit uncompressed BMP** and
+  nothing else. The files were verified by reading their own headers back —
+  164 × 314 and 150 × 57, 24 bpp, compression 0.
+- `.gitattributes` gains `*.bmp binary`, and that line matters more than it
+  looks. The repository normalises everything with `* text=auto eol=lf`; a BMP
+  is full of bytes that happen to equal CR and LF, and git would have rewritten
+  them on checkout. The image would have arrived corrupt on a fresh clone and
+  the build would still have succeeded.
+- Not used, and worth recording so nobody hunts for it: an earlier pass built
+  candidate panels from `src/logo.svg` and `src/wordmark.svg`. Those are
+  `řečník` — a name this application has not had for a long time, kept in the
+  repository and referenced by nothing.
+- Files: `src-tauri/nsis/sidebar.bmp`, `src-tauri/nsis/header.bmp`,
+  `src-tauri/tauri.conf.json`, `.gitattributes`.
+- Verified: both bitmaps' headers, and both slots rendered into a mock of the
+  welcome page and the header bar at 2× to check the artwork sits where MUI
+  will put it. `tauri.conf.json` still parses, and `sidebarImage` and
+  `headerImage` are `sidebar_image` and `header_image` in `tauri-utils 2.9.3`.
+- Not verified: the build. The welcome page is the first thing the next
+  `npm run tauri build` will show.
