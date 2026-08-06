@@ -164,14 +164,17 @@ button, input, select, textarea { font: inherit; color: inherit; }
 /* The mark is an upright isometric cube; 24 px suits it in the bar. */
 .logotyp { display: block; }
 .logotyp svg { height: 24px; width: auto; display: block; }
-/* The product's name beside its mark. Quiet — it names the window, it is not
-   a heading. The version and the description live in the window's own title
-   bar, where the operating system already asks what this program is. */
+/* The product's name beside its mark, in the archive's header. It is the same
+   size and weight as the recording's name in the detail header (`.detail-hlavicka
+   h1`, 15/700) — the two headers are the same bar, and what stands after the
+   cube is the title of whatever screen you are on. Change them together.
+   The version and the description live in the window's own title bar, where
+   the operating system already asks what this program is. */
 .header-brand-name {
   display: inline-flex; align-items: baseline;
   margin-left: 8px;
-  color: var(--text); font-size: 13.5px; font-weight: 650;
-  letter-spacing: -0.01em; white-space: nowrap;
+  color: var(--text); font-size: 15px; font-weight: 700;
+  white-space: nowrap;
 }
 .lista-levo { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .lista-pravo { display: flex; align-items: center; gap: 4px; }

@@ -6855,3 +6855,24 @@ opens it, and the card takes the paper yellow the notes already use.
   warnings; `cargo test` (66 passed); `npx tsc --noEmit`;
   `node scripts/i18n.mjs check`. The lock file picked the new name up on its
   own; there is no `package-lock.json` in this project.
+
+### 2026-08-06 — The wordmark is the size of a recording's name
+
+- Changed, Jakub's ask with two screenshots side by side: `Slobot` in the
+  archive header is 15 px / 700, exactly `.detail-hlavicka h1` — the recording's
+  name in the detail header. It was 13.5 px / 650 with `letter-spacing:
+  -0.01em`, which is gone with it.
+- Why it is right rather than merely asked for: the two bars are the same bar.
+  Whatever stands after the cube is the title of the screen you are on — the
+  product in the archive, the recording in a detail — and one of them being a
+  size and a weight smaller made the archive look like the lesser screen.
+- The comment above the rule now names `.detail-hlavicka h1` and says to change
+  them together, because two numbers meant to be equal in two places is how
+  they stop being equal.
+- Files: `src/styles.css`, `CLAUDE.md`.
+- Verified: the real `App` and the real `Detail` bundled with esbuild against
+  stubbed Tauri modules and driven in one browser page against the real
+  stylesheet at 2×, so both headers were measured in the same render: wordmark
+  and recording name both `15px` / `700` / `normal` tracking / `Geist Variable`
+  / `rgb(26, 26, 30)` with a 22.5 px line box; both cubes 24 px; both bars
+  57 px. No console error.
