@@ -479,6 +479,15 @@ export default function Library({
 
   const [dropZoneCompact, setDropZoneCompact] = useState(false);
   const dropZoneCompactRef = useRef(false);
+  /* Whether anything is actually passing under the pinned block. The glass
+     below its edge is drawn only then: at the top of the list there is
+     nothing to dissolve, and a permanent blurred strip would sit over the
+     first row for ever — which is what it did. */
+  const [listScrolled, setListScrolled] = useState(false);
+  const listScrolledRef = useRef(false);
+  /* The position the previous scroll event reported, which is what tells a
+     genuine return to the top from a layout that merely settled at zero. */
+  const lastPositionRef = useRef(0);
   const scrollContentRef = useRef<HTMLDivElement>(null);
 
   // Hledani se spousti samo, ale az kdyz uzivatel na chvili prestane psat.
@@ -568,13 +577,24 @@ export default function Library({
       className="knihovna"
       onScroll={(event) => {
         const position = event.currentTarget.scrollTop;
-        // Scrolling can collapse the header, but never expands it. Changing
-        // the header height can alter scrollTop as the layout settles; if a
-        // zero position expanded here, both states would trigger each other.
-        // Expansion is handled only by an explicit upward wheel gesture.
+        const scrolled = position > 2;
+        if (scrolled !== listScrolledRef.current) {
+          listScrolledRef.current = scrolled;
+          setListScrolled(scrolled);
+        }
+        const previous = lastPositionRef.current;
+        lastPositionRef.current = position;
         if (!dropZoneCompactRef.current && position > 64) {
           dropZoneCompactRef.current = true;
           setDropZoneCompact(true);
+        } else if (dropZoneCompactRef.current && position === 0 && previous > 0) {
+          // A real return to the beginning, whichever way it was made — the
+          // wheel, the scrollbar, Home. The two conditions cannot chase each
+          // other: collapsing needs 64 px and expanding needs exactly zero
+          // *after* a positive position, so a layout that settles at zero on
+          // its own does not reopen the header.
+          dropZoneCompactRef.current = false;
+          setDropZoneCompact(false);
         }
       }}
       onWheel={(event) => {
@@ -613,7 +633,7 @@ export default function Library({
           offset is never a number somebody has to keep in step with the
           hero's height. What passes underneath dissolves into it through the
           blur below its edge rather than being cut in half. */}
-      <div className="archive-sticky">
+      <div className={`archive-sticky ${listScrolled ? "zasunute" : ""}`.trim()}>
         <LibraryDropZone
           onAdd={onAdd}
           automatic={automatic}

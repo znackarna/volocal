@@ -7170,3 +7170,35 @@ opens it, and the card takes the paper yellow the notes already use.
   text blurs and fades out instead of ending in a line. The date filter's
   popover was opened over the strip and stays sharp and opaque, because
   `.knihovna-lista` keeps its own stacking context above the two glass layers.
+
+### 2026-08-06 — Correcting entry: the glass was there when there was nothing to dissolve
+
+- What Jakub saw, and the folder screenshot is what made it obvious: a folder
+  with nothing in it, scrolled to the very top, and its own name — `Jakostní
+  přepisy zeleniny` — blurred and faded under the filter row. Same at the top
+  of the archive. His words: it stays tucked in even when I scroll all the way
+  up.
+- Cause, mine, from the entry above: the two glass layers were painted always.
+  They sit 60 px below the pinned block whatever the scroll position, so at the
+  top of the list — where nothing is passing under anything — they lay over the
+  first row and dimmed it. The blur is meant to say *this is going under the
+  header*; sitting still, it said the first row was damaged.
+- Changed: the glass is drawn only while the list is genuinely scrolled
+  (`scrollTop > 2`), fading in and out over 160 ms. At the top there is nothing
+  to dissolve, so there is nothing there.
+- Changed, from the same report: the hero expands again on a real return to the
+  beginning made *any* way — the scrollbar, Home, a fling — not only by an
+  upward wheel gesture whose projection reaches the top. Two conditions that
+  cannot chase each other: collapsing needs 64 px of scroll, expanding needs
+  exactly zero *after* a positive position, so a layout settling at zero on its
+  own still cannot reopen the header. That was the fear behind the wheel-only
+  rule, and it is now met by remembering the previous position instead.
+- Files: `src/Library.tsx`, `src/styles.css`, `CLAUDE.md`.
+- Verified: the real `Library` bundled with esbuild against stubbed Tauri
+  modules and driven in a browser against the real stylesheet. Four states
+  measured, with the pseudo-elements' computed opacity read rather than judged
+  from a screenshot: at rest 0, collapsed but still at the top 0, scrolled 1,
+  back at the top 0 — and unchanged after settling, so it does not flap. An
+  empty folder opened at the top reports the glass off and its breadcrumb
+  sharp. The scrollbar route was driven by setting `scrollTop` directly, with
+  no wheel event at all, and the hero came back.
