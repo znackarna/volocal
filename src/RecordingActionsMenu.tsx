@@ -2,10 +2,20 @@ import { useEffect, useRef, useState } from "react";
 
 import { useI18n } from "./i18n";
 import { useLabels } from "./labels";
+import type { Folder } from "./types";
+import { LINE_ICONS } from "./icons";
 
 interface Props {
   status: string;
   onRename: () => void;
+  /** Save the recording's own audio file somewhere the person can find it. */
+  onExportAudio: () => void;
+  /** The folders on offer, and where this recording sits — null is the root. */
+  folders: Folder[];
+  folder: string | null;
+  /** `folder` of null takes it back out into the archive's root. */
+  onMoveToFolder: (folder: string | null) => void;
+  onCreateFolderFor: () => void;
   onRetranscribe: () => void;
   onDeleteTranscript: () => void;
   onTranscribeInLanguage: (language: string) => void;
@@ -17,6 +27,11 @@ interface Props {
 export default function RecordingActionsMenu({
   status,
   onRename,
+  onExportAudio,
+  folders,
+  folder,
+  onMoveToFolder,
+  onCreateFolderFor,
   onRetranscribe,
   onDeleteTranscript,
   onTranscribeInLanguage,
@@ -34,6 +49,18 @@ export default function RecordingActionsMenu({
             icon: Icons.retranscribe,
             action: onRetranscribe,
           },
+          /* Transcribing again and transcribing again in another language are
+             the same act with one extra decision, so they stand together
+             (Jakub's call) rather than with a submenu's worth of list between
+             them. */
+          {
+            label: t("dialogs.recordingMenu.transcribeInLanguage"),
+            icon: Icons.language,
+            children: labels.languageOptions().map((language) => ({
+              label: language.label,
+              action: () => onTranscribeInLanguage(language.value),
+            })),
+          },
           {
             label: t("dialogs.recordingMenu.deleteTranscript"),
             icon: Icons.deleteTranscript,
@@ -42,12 +69,39 @@ export default function RecordingActionsMenu({
         ]
       : []),
     {
-      label: t("dialogs.recordingMenu.transcribeInLanguage"),
-      icon: Icons.language,
-      children: labels.languageOptions().map((language) => ({
-        label: language.label,
-        action: () => onTranscribeInLanguage(language.value),
-      })),
+      /* A submenu, like the language one below: the folders that exist, a way
+         to make one on the spot, and — only when it is in a folder — the way
+         back out. */
+      label: t("dialogs.recordingMenu.moveToFolder"),
+      icon: Icons.folder,
+      children: [
+        ...folders
+          .filter((item) => item.id !== folder)
+          .map((item) => ({
+            label: item.name,
+            icon: Icons.folder,
+            action: () => onMoveToFolder(item.id),
+          })),
+        {
+          label: t("dialogs.recordingMenu.newFolder"),
+          icon: Icons.folderNew,
+          action: onCreateFolderFor,
+        },
+        ...(folder
+          ? [
+              {
+                label: t("dialogs.recordingMenu.outOfFolder"),
+                icon: Icons.folderOut,
+                action: () => onMoveToFolder(null),
+              },
+            ]
+          : []),
+      ],
+    },
+    {
+      label: t("dialogs.recordingMenu.exportAudio"),
+      icon: Icons.exportAudio,
+      action: onExportAudio,
     },
     {
       label: t("dialogs.recordingMenu.remove"),
@@ -64,9 +118,24 @@ export default function RecordingActionsMenu({
 const Icons = {
   rename: "M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17v3Z M13.5 6.5l4 4",
   retranscribe: "M20 11a8 8 0 1 0-2.3 5.7 M20 5v6h-6",
-  deleteTranscript: "M6 4h8l4 4v12H6z M14 4v4h4 M9.5 12.5l5 5 M14.5 12.5l-5 5",
+  /* An eraser, not a document with a cross: what goes is the text, while the
+     recording itself stays in the archive. The trash can belongs to the item
+     below, which removes the recording. */
+  deleteTranscript:
+    "M7.5 17.5l7-7a2 2 0 0 1 2.9 0l2.1 2.1a2 2 0 0 1 0 2.9L16 19H9l-1.5-1.5Z M11.5 13.5l4.5 4.5 M4 20h16",
   language: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z M3.6 9h16.8 M3.6 15h16.8 M12 3c2.3 2.4 3.5 5.6 3.5 9S14.3 18.6 12 21c-2.3-2.4-3.5-5.6-3.5-9S9.7 5.4 12 3Z",
   remove: "M4 7h16 M10 4h4 M6 7l1 13h10l1-13 M10 11v6 M14 11v6",
+  /* From the shared registry: three places draw a folder, and they must not
+     drift apart. */
+  folder: LINE_ICONS.folder,
+  /* The same drawer with a plus in it, and with an arrow lifting out of it.
+     A submenu of folder names needs its two actions to read as actions
+     without leaving the folder's own shape behind. */
+  folderNew: `${LINE_ICONS.folder} M12 11.5v5 M9.5 14h5`,
+  folderOut: `${LINE_ICONS.folder} M12 16.5v-5 M9.5 14l2.5-2.5 2.5 2.5`,
+  /* A note over a tray: the audio itself, saved out of the archive. */
+  exportAudio:
+    "M8.5 17.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z M11 15V5l7 2v8 M18 15a2.5 2.5 0 1 1-5 0 M4 20h16",
 } as const;
 
 function MenuIcon({ path }: { path: string }) {
@@ -81,7 +150,7 @@ function MenuIcon({ path }: { path: string }) {
   );
 }
 
-interface ActionItem {
+export interface ActionItem {
   label: string;
   action?: () => void;
   warning?: boolean;
@@ -89,7 +158,13 @@ interface ActionItem {
   children?: ActionItem[];
 }
 
-function ActionMenu({ items, className }: { items: ActionItem[]; className: string }) {
+export function ActionMenu({
+  items,
+  className = "",
+}: {
+  items: ActionItem[];
+  className?: string;
+}) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [submenu, setSubmenu] = useState<ActionItem | null>(null);
@@ -163,3 +238,5 @@ function ActionMenu({ items, className }: { items: ActionItem[]; className: stri
     </div>
   );
 }
+
+export { Icons as MENU_ICONS };

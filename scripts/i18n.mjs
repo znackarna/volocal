@@ -211,11 +211,15 @@ function hardcodedText() {
       if (!excused(line)) found.push({ file: name, line, text });
     };
 
-    for (const match of raw.matchAll(/(["'`])((?:[^\\]|\\.)*?)\1/gs)) {
+    /* Scanned over the comment-blanked copy, not over the raw source. An
+       apostrophe inside a comment — `the archive's root` — opens a string in
+       the raw text that runs to the next quote anywhere in the file, and the
+       whole span between them was reported as one literal at the wrong line.
+       Blanked comments cannot start one, so the desynchronisation is gone;
+       offsets are preserved, which is what keeps the line numbers right. */
+    for (const match of code.matchAll(/(["'`])((?:[^\\]|\\.)*?)\1/gs)) {
       if (!CZECH_LETTER.test(match[2])) continue;
-      // The literal has to be live code, not a sentence inside a comment.
-      if (code[match.index] === " ") continue;
-      report(lineOf(raw, match.index), match[2]);
+      report(lineOf(code, match.index), match[2]);
     }
 
     // Only text that ends at a closing tag, and only when it contains none of
@@ -445,6 +449,64 @@ function createNamespace(namespace) {
 }
 
 // ---------------------------------------------------------------- check
+/** Words that address one person informally (tykání).
+ *
+ *  The application speaks to the reader formally, so an imperative or a verb
+ *  in the second person singular is a defect rather than a matter of taste —
+ *  and it is the kind that spreads, because the next sentence is written to
+ *  match the ones around it.
+ */
+const INFORMAL_WORDS = new Set([
+  // pronouns and possessives
+  "ti", "tě", "tebe", "tobě", "tebou", "tvůj", "tvoje", "tvá", "tvé", "tvého",
+  "tvému", "tvým", "tvých", "tvou", "tvoji", "tvojí", "tvůjm",
+  // the auxiliary and the reflexive pair that only exist in the singular
+  "jsi", "sis", "ses",
+  // imperatives. Only the singular forms; the plural is what we want.
+  "vyber", "zvol", "nech", "nechej", "přetáhni", "pusť", "klikni", "stiskni",
+  "napiš", "zadej", "vlož", "zkus", "ulož", "spusť", "přidej", "doplň",
+  "otevři", "zavři", "změň", "měň", "zvyš", "sniž", "počkej", "zkontroluj",
+  "použij", "vytvoř", "přesuň", "odstraň", "smaž", "přejmenuj", "nastav",
+  "zapni", "vypni", "potvrď", "vrať", "opakuj", "stáhni", "najdi", "vyplň",
+  "podrž", "označ", "pojmenuj", "napovídej", "přepni", "přeskoč", "vyzkoušej",
+]);
+
+/** Endings of the second person singular. Adverbs and nouns share them, so the
+ *  ones that do are named rather than guessed at. */
+const INFORMAL_ENDING = /(?:eš|íš|áš|ješ)$/;
+const NOT_A_VERB = new Set([
+  "výš", "níž", "spíš", "nejspíš", "dřív", "koš", "myš", "veš", "tíž", "blíž",
+]);
+
+/** Reports every Czech source string that speaks to one person informally.
+ *
+ *  Only the value maps are read. The `*Context` notes below them are written
+ *  to a translator, not to the reader, and address them informally on purpose.
+ */
+function informalAddress() {
+  const found = [];
+  for (const namespace of namespaces) {
+    const file = join(localesDir, "cs", `${namespace}.ts`);
+    const raw = readFileSync(file, "utf8");
+    const end = raw.indexOf("} as const;");
+    const code = withoutComments(end > 0 ? raw.slice(0, end) : raw);
+    const lines = raw.split("\n");
+    for (const match of code.matchAll(/[\p{L}]+/gu)) {
+      const word = match[0].toLowerCase();
+      const informal =
+        INFORMAL_WORDS.has(word) ||
+        (INFORMAL_ENDING.test(word) && !NOT_A_VERB.has(word) && word.length > 3);
+      if (!informal) continue;
+      const line = lineOf(code, match.index);
+      const here = lines[line - 1] ?? "";
+      const above = lines[line - 2] ?? "";
+      if (here.includes(IGNORE_MARKER) || above.includes(IGNORE_MARKER)) continue;
+      found.push({ file: `src/locales/cs/${namespace}.ts`, line, word, text: here.trim() });
+    }
+  }
+  return found;
+}
+
 function check() {
   const source = load("cs");
   const keys = Object.keys(source.entries);
@@ -476,6 +538,19 @@ function check() {
       console.log(`  ${item.file}:${item.line}  "${text}"`);
     }
     if (hardcoded.length > 30) console.log(`  … a dalších ${hardcoded.length - 30}`);
+  }
+
+  // The interface vyká. One sentence written in tykání makes the next one
+  // sound wrong whichever form it picks, so this is caught at the source.
+  const informal = informalAddress();
+  if (informal.length) {
+    errors.push(`${informal.length}× tykání v českém textu`);
+    console.log("\nTexty, které uživateli tykají:");
+    console.log(`  (záměrnou výjimku označ komentářem \`${IGNORE_MARKER}: důvod\`)`);
+    for (const item of informal) {
+      const text = item.text.length > 64 ? `${item.text.slice(0, 64)}…` : item.text;
+      console.log(`  ${item.file}:${item.line}  „${item.word}“  ${text}`);
+    }
   }
 
   // Rust sends codes, not sentences. A code with no entry falls back to the

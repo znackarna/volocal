@@ -16,6 +16,8 @@ import {
 import type { CSSProperties, ReactNode } from "react";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { api } from "./api";
+import { useI18n } from "./i18n";
+import { formatTime } from "./types";
 
 /** Loudness envelope (0-255) and how many samples fall on one second. */
 export interface Waveform {
@@ -656,6 +658,20 @@ export function emphasise(
   return above <= 0 ? 0 : Math.min(1, above ** gamma);
 }
 
+/** Diameter of the slider handle, matching `.posuvnik::-webkit-slider-thumb`
+ *  in the stylesheet. The handle never reaches the very edge of its track, so
+ *  its centre travels only between half that and the width less half. */
+export const SLIDER_THUMB = 13;
+
+/** Where the handle sits as a fraction of the track — not a plain percentage
+ *  of the duration, or the colour would run ahead of the dot at the start and
+ *  lag behind it at the end. Shared by the transport bar and the recorder, so
+ *  the bars and the dot cannot disagree in one place and agree in the other. */
+export function handleRatio(played: number, width: number): number {
+  if (!(width > 0)) return played;
+  return (SLIDER_THUMB / 2 + Math.max(0, width - SLIDER_THUMB) * played) / width;
+}
+
 export function drawBars(
   c: HTMLCanvasElement,
   values: number[],
@@ -789,6 +805,8 @@ export function Waveform({
   floor = 0,
   peak = 1,
   thickness = 2,
+  playedRatio = 0,
+  playedColor,
 }: {
   /** loudness 0–1, from left to right */
   values: number[];
@@ -817,9 +835,17 @@ export function Waveform({
   peak?: number;
   /** Bars only: bar width in logical pixels. */
   thickness?: number;
+  /** Bars only: bars up to this fraction of the width are painted as played.
+   *  The rest stays in the strip's own colour, so the picture says what is
+   *  behind the position and what is still ahead of it. */
+  playedRatio?: number;
+  /** Defaults to the accent colour from CSS, cached — reading a custom
+   *  property forces a style recalculation, and this draws every frame. */
+  playedColor?: string;
 }) {
   const container = useRef<HTMLSpanElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
+  const accent = useRef({ value: "", readAt: 0 });
   const [size, setSize] = useState({ width: 0, height: 0, ratio: 1 });
 
   // Measure the wrapper, never the canvas itself.
@@ -851,6 +877,17 @@ export function Waveform({
     if (!c) return;
     if (!prepareCanvas(c, size.width, size.height, size.ratio)) return;
     if (waveformStyle === "bars") {
+      let played = playedColor;
+      if (playedRatio > 0 && !played) {
+        const now = performance.now();
+        if (!accent.current.value || now - accent.current.readAt > 500) {
+          accent.current = {
+            value: getComputedStyle(c).getPropertyValue("--akcent").trim(),
+            readAt: now,
+          };
+        }
+        played = accent.current.value || undefined;
+      }
       drawBars(c, values, {
         ratio: size.ratio,
         gain,
@@ -860,6 +897,8 @@ export function Waveform({
         floor,
         peak,
         thickness,
+        playedRatio,
+        playedColor: played,
       });
     } else {
       drawWaveform(c, values, {
@@ -869,11 +908,152 @@ export function Waveform({
         ratio: size.ratio,
       });
     }
-  }, [values, size, layers, mirrored, gain, waveformStyle, anchoring, ceiling, gamma, floor, peak, thickness]);
+    // `className` is a dependency because the colour comes from CSS: when the
+    // recorder stops, the strip loses `.bezi` and the accent with it, but the
+    // canvas keeps whatever it last painted until something repaints it.
+  }, [values, size, layers, mirrored, gain, waveformStyle, anchoring, ceiling, gamma,
+      floor, peak, thickness, playedRatio, playedColor, className]);
 
   return (
     <span ref={container} className={className} style={style} aria-hidden>
       <canvas ref={canvas} />
     </span>
+  );
+}
+
+/** Miniature player in the header bar — the application header in the
+ *  archive and settings, the detail's own header when a different recording
+ *  than the open one is playing. It lives here beside the player state it
+ *  renders, the same relationship `MiniRecorder` has to the recorder.
+ *
+ *  Progress is a ring around the button:
+ *  a separate strip under the title pushed the text upward and there was no
+ *  room for it in a thirty-pixel bar. */
+export function MiniPlayer({
+  onOpen,
+  compact = false,
+}: {
+  onOpen: () => void;
+  /** Squeezed into play, a three-bar equalizer and the cross. */
+  compact?: boolean;
+}) {
+  const { t } = useI18n();
+  const {
+    title,
+    time,
+    duration,
+    isPlaying,
+    isPreparing,
+    sourceMissing,
+    togglePlayback,
+    close,
+  } = usePlayer();
+
+  const R = 12.5;
+  const circumference = 2 * Math.PI * R;
+  const ratio = duration > 0 ? Math.min(1, time / duration) : 0;
+
+  return (
+    <div className={`mini-prehravac ${compact ? "kompaktni" : ""}`}>
+      <AudioBars compact={compact} />
+      <button
+        className="mini-prehrat"
+        onClick={togglePlayback}
+        disabled={isPreparing}
+        aria-label={
+          isPreparing
+            ? t("app.player.preparing")
+            : isPlaying
+              ? t("app.player.pause")
+              : t("app.player.play")
+        }
+      >
+        <svg className="mini-prstenec" width="30" height="30" viewBox="0 0 30 30" aria-hidden>
+          <circle className="mini-drazka" cx="15" cy="15" r={R} />
+          <circle
+            className="mini-postup"
+            cx="15"
+            cy="15"
+            r={R}
+            strokeDasharray={circumference}
+            strokeDashoffset={circumference * (1 - ratio)}
+          />
+        </svg>
+        {isPlaying ? (
+          <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden>
+            <rect x="2.5" y="2" width="2.8" height="8" rx="0.9" fill="currentColor" />
+            <rect x="6.7" y="2" width="2.8" height="8" rx="0.9" fill="currentColor" />
+          </svg>
+        ) : (
+          <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden>
+            <path d="M3.2 2v8l6.6-4z" fill="currentColor" />
+          </svg>
+        )}
+      </button>
+
+      <button className="mini-popis" onClick={onOpen} title={t("app.player.openTranscript")}>
+        {title}
+      </button>
+
+      <span className={`mini-cas ${sourceMissing ? "varovne" : ""}`}>
+        {sourceMissing
+          ? t("app.player.sourceMissing")
+          : isPreparing
+            ? t("app.player.preparingShort")
+            : formatTime(time)}
+      </span>
+
+      <button className="mini-zavrit" onClick={close} aria-label={t("app.player.stop")}>
+        {/* Stejná kresebná velikost jako u přehrát — menší glyf by
+            opticky odskočil od okraje, i když má stejnou plochu. */}
+        <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden>
+          <path d="M3 3l8 8M11 3l-8 8" stroke="currentColor"
+                strokeWidth="1.7" strokeLinecap="round" />
+        </svg>
+      </button>
+    </div>
+  );
+}
+
+/** More bands than the recording actually has: the pill is narrow, and thin
+ *  bars close together read as a spectrum, where a few wide ones read as a
+ *  bar chart. `equalizerAtTime` interpolates between the real bands, so the
+ *  extra ones cost nothing and invent nothing. */
+const MINI_BANDS = 44;
+
+/** The same shaping as the big player. The values are absolute and speech
+ *  only ever occupies the lower part of the range, so without cutting both
+ *  ends the bars sit low and hardly move. See `emphasise`. */
+const MINI_GAMMA = 0.7;
+const MINI_FLOOR = 0.04;
+const MINI_PEAK = 0.55;
+
+function AudioBars({ compact = false }: { compact?: boolean }) {
+  const { waveform, time, isPlaying, sourceMissing } = usePlayer();
+
+  /* Three bands in the compact pill. The 44 the full pill uses would be a
+     smear in an 18 px window; three are readable and still move with the
+     sound, which is the whole job there. */
+  const bands = compact ? 3 : MINI_BANDS;
+  const values = useMemo(
+    () => equalizerAtTime(waveform, time, bands),
+    [waveform, time, bands]
+  );
+
+  if (values.length === 0 || sourceMissing) return null;
+
+  // Real frequency bands stay in place and only change height.
+  return (
+    <Waveform
+      values={values}
+      className={`mini-vlny ${isPlaying ? "hraje" : ""}`}
+      waveformStyle="bars"
+      anchoring="bottom"
+      ceiling={0.78}
+      gamma={MINI_GAMMA}
+      floor={MINI_FLOOR}
+      peak={MINI_PEAK}
+      thickness={compact ? 2.5 : 1.5}
+    />
   );
 }

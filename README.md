@@ -1,35 +1,53 @@
-# Whisper Studio
+# Slobot
 
-Technický přehled a pravidla pojmenování jsou v [ARCHITECTURE.md](ARCHITECTURE.md).
+Převádí mluvené slovo na text. Nahrávky, přepisy i jazykové modely běží pouze
+na vašem počítači a nic se neodesílá ven.
 
-Lokální přepis kázání, přednášek a rozhovorů. Nic se nikam neodesílá — zvuk i text zůstávají v tvém počítači.
+Postavené na whisper.cpp, Silero VAD, sherpa-onnx a llama.cpp. Aplikace je
+Tauri 2: jádro v Rustu, rozhraní v Reactu, archiv v SQLite.
 
-Postavené na whisper.cpp, Silero VAD a sherpa-onnx. Aplikace je Tauri: jádro v Rustu, rozhraní v Reactu.
+Technický přehled a pravidla pojmenování jsou v
+[ARCHITECTURE.md](ARCHITECTURE.md), rozhodnutí a jejich důvody v
+[CLAUDE.md](CLAUDE.md).
 
 ---
 
 ## Pro uživatele
 
-1. Spusť instalátor `Whisper Studio_0.1.0_x64-setup.exe`.
-2. Otevři Whisper Studio.
-3. Při prvním spuštění se ukáže průvodce. Zmáčkni **Stáhnout a nastavit**.
-4. Přetáhni nahrávku do okna.
+1. Spusťte instalátor `Slobot_0.9.0_x64-setup.exe`.
+2. Otevřete Slobot.
+3. Při prvním spuštění se ukáže průvodce. Zmáčkněte **Stáhnout a nastavit**.
+4. Přetáhněte nahrávku do okna.
 
-Nic víc. Průvodce si sám stáhne whisper.cpp, ffmpeg, detekci řeči i jazykový model — a předvybere přesně tu variantu, která se hodí pro grafickou kartu v tomhle počítači. Podle výběru to je 700 MB až 1,7 GB. Po dokončení už aplikace internet nepotřebuje.
+Nic víc. Průvodce si sám stáhne whisper.cpp, ffmpeg, detekci řeči i modely a
+předvybere variantu, která se hodí pro grafickou kartu v tomto počítači. Podle
+výběru to je 700 MB až 1,7 GB. Po dokončení už aplikace internet nepotřebuje.
 
-Nástroje a modely jdou do `%LOCALAPPDATA%\WhisperStudio\`, takže instalace nepotřebuje práva správce.
+Nástroje a modely jdou do `%LOCALAPPDATA%\Whisp\`, přepisy do
+`%APPDATA%\cz.znackarna.whisp\`. Instalace nepotřebuje práva správce.
 
-### Kopie na flashku
+### Kopie na flash disk
 
-V Nastavení je **Vybrat složku a vytvořit kopii**. Zkopíruje program, nástroje i modely na disk, který si vybereš, a označí složku jako přenosnou. Na cizím počítači pak stačí spustit `WhisperStudio.exe` — bez instalace, bez zápisu do systému, bez internetu.
-
-Aplikace v přenosném režimu ukládá přepisy do `data\` vedle sebe, ne do profilu uživatele.
+V Nastavení → Soubory je **Kopie na přenosný disk**. Zkopíruje program,
+nástroje i modely na zvolený disk a označí složku jako přenosnou. Na jiném
+počítači pak stačí spustit soubor `Slobot.exe` — bez instalace, bez zápisu do
+systému, bez internetu. V přenosném režimu se archiv ukládá do `data\` vedle
+programu, ne do profilu uživatele.
 
 ---
 
-## Jak se to používá
+## Co aplikace umí
 
-**Přetáhni soubor** kamkoliv do okna. Přepis začne sám, text uvidíš přibývat.
+- **Přepíše nahrávky i videa** v češtině i dalších jazycích.
+- **Rozpozná mluvčí** a rozdělí text mezi ně.
+- **Vylepší přepis jazykovým modelem**, shrne ho a přeloží — vše lokálně.
+- **Označí místa, kde si přepis nebyl jistý**, a drží opravy pohromadě.
+- **Přehraje přesně na slovo** a připne poznámku k libovolnému místu.
+- **Nahraje z mikrofonu**, stáhne zvuk z online videa, hlídá vybranou složku.
+- **Uloží přepis** do TXT, Markdownu, SRT, VTT nebo JSON a zvuk do MP3, M4A
+  nebo WAV.
+
+### Jak se to ovládá
 
 | Akce | Co udělá |
 |---|---|
@@ -37,36 +55,41 @@ Aplikace v přenosném režimu ukládá přepisy do `data\` vedle sebe, ne do pr
 | dvojklik na úsek | otevře úpravu textu |
 | Enter | uloží úpravu (Shift+Enter = nový řádek) |
 | mezerník | přehrát / pauza |
-| **Tab** | skočí na další místo, kde si model nebyl jistý |
+| **Tab** | skočí na další místo ke kontrole |
 | Esc | zavře úpravu |
+| pravé tlačítko | nabídka nad přepisem |
+| boční tlačítka myši | zpět a vpřed v aplikaci |
 
-Nejistá místa jsou tečkovaně podtržená. U hodinového kázání jich bývá pár desítek — projít je Tabem trvá minuty místo přečítání celého textu.
+Místa ke kontrole jsou tečkovaně podtržená a najdete je pohromadě v postranním
+panelu. U hodinové nahrávky jich bývá pár desítek — projít je Tabem trvá
+minuty místo přečítání celého textu.
 
-**Slovník se plní sám.** Opravíš v úseku jedno slovo a aplikace se zeptá, jestli to má opravovat vždycky. Uložené termíny se pak předávají Whisperu předem jako nápověda — příště je zvládne rovnou.
+**Slovník** je v Nastavení. Co přepis slyší špatně, zapíšete jednou a opraví
+se to ve všech nahrávkách.
 
-**Mluvčí** se objeví jen se zapnutou diarizací (Nastavení → Mluvčí). Přejmenuj jednou, změní se všude. Sloučení dvou řečníků je běžná operace, ne výjimka — diarizace často rozdělí jednoho člověka na dva, když změní hlasitost.
+**Mluvčí** se objeví se zapnutým rozpoznáním. Přejmenujte jednou, změní se
+všude; napsat dvěma řádkům stejné jméno je sloučí.
 
 ### Kde to počítá
 
-Přepis umí běžet na kartě NVIDIA (CUDA), na jakékoli kartě přes Vulkan, nebo na procesoru. Aplikace se rozhoduje podle ovladačů, které v systému najde: `nvcuda.dll` → CUDA, `vulkan-1.dll` → Vulkan, jinak procesor.
+Přepis běží na kartě NVIDIA (CUDA), na jakékoli kartě přes Vulkan, nebo na
+procesoru. Aplikace se rozhoduje podle ovladačů, které v systému najde —
+`nvcuda.dll` → CUDA, `vulkan-1.dll` → Vulkan, jinak procesor — a stažený
+build, který tento počítač nemůže spustit, nenabídne jako volbu.
 
-V Nastavení je tlačítko **Změřit, co tenhle počítač zvládne**. Vezme 20 vteřin z první nahrávky, prožene je všemi staženými variantami a nejrychlejší nastaví. Na novém stroji se to vyplatí zmáčknout — Vulkan občas tiše spadne na procesor a člověk si měsíc myslí, že mu to jede na kartě.
-
-### Vzhled
-
-V Nastavení → Vzhled si vybereš písmo rozhraní (Geist, Schibsted Grotesk, Inter, systémové), písmo přepisu (Literata, Source Serif 4, Georgia nebo kterékoli bezpatkové), velikost textu a řádkování. Náhled se mění hned.
-
-Písma se balí do aplikace přes Fontsource, nestahují se z internetu — přenosná verze tak vypadá stejně i na cizím počítači bez sítě. Všechna nabízená písma mají ověřenou plnou českou diakritiku včetně `ě ř ů ť ď`.
+V Nastavení → Výkon je **Změřit rychlost**. Vezme kousek nahrávky, prožene ho
+každým dostupným režimem a nejrychlejší rovnou nastaví.
 
 ### Volba modelu
 
-| Model | Velikost | Kdy |
+| Volba | Model | Velikost |
 |---|---|---|
-| `large-v3` | 3,1 GB | silný počítač, nejlepší čeština |
-| `large-v3-q5_0` | 1,1 GB | rozumný výchozí stav — kvalita skoro stejná |
-| `large-v3-turbo-q5_0` | 575 MB | slabší stroj nebo běh na procesoru |
+| Precizní | `large-v3` | 3,1 GB |
+| Vyvážený | `large-v3-q5_0` | 1,1 GB |
+| Rychlý | `large-v3-turbo-q5_0` | 575 MB |
 
-Naměřeno na Radeonu RX 9070: `large-v3` zvládl 38minutové kázání za 2:18 (16,6× realtime). Model `medium` byl rychlejší, ale dělal zhruba osmkrát víc chyb — komolil i názvy biblických knih. Proto v nabídce není.
+Naměřeno na Radeonu RX 9070: `large-v3` zvládl 38 minut zvuku za 2:18, tedy
+16,6× rychleji než v reálném čase.
 
 ---
 
@@ -78,59 +101,88 @@ npm run tauri icon icon-source.png   # bez ikon sestavení na Windows selže
 npm run tauri dev
 ```
 
-První `tauri dev` překládá Rust závislosti — 5 až 15 minut. Další spuštění jsou v řádu vteřin.
+První `tauri dev` překládá Rust závislosti — 5 až 15 minut. Další spuštění
+jsou v řádu vteřin. Instalátor sestavíte přes `npm run tauri build`; výsledek
+je v `src-tauri\target\release\bundle\nsis\`.
 
-Instalátor:
+Před odevzdáním práce projdou tyto kontroly:
 
 ```powershell
-npm run tauri build
+npx tsc --noEmit
+npm run i18n:check      # texty ve slovníku, úplné množné tvary, vykání
+cargo fmt --all ; cargo check ; cargo test
 ```
-
-Výsledek v `src-tauri\target\release\bundle\nsis\`. WebView2 řeší instalátor sám (stáhne bootstrapper, pokud v systému chybí).
 
 ### Architektura
 
 ```
 React (rozhraní)
    ↕ Tauri IPC + události
-Rust jádro ── SQLite (přepisy, mluvčí, slovník, fulltext)
+Rust jádro ── SQLite (přepisy, mluvčí, slovník, poznámky, fulltext)
    ├── stahování    katalog součástí, průběh, rozbalení
-   ├── ffmpeg       převod na 16 kHz mono
+   ├── ffmpeg       převod na 16 kHz mono, export zvuku
    ├── whisper-cli  přepis (cuda / vulkan / cpu)
-   └── sherpa-onnx  rozlišení mluvčích na CPU
+   ├── sherpa-onnx  rozpoznání mluvčích na CPU
+   └── llama-server jazyková úprava, shrnutí, překlad
 ```
 
-Každý nástroj je samostatný proces, ne linkovaná knihovna. Kterýkoliv jde vyměnit bez zásahu do aplikace, a když jeden spadne, nespadne s ním okno. Diarizace běží na procesoru souběžně s přepisem na kartě, takže skoro nepřidává čas.
+Každý nástroj je samostatný proces, ne linkovaná knihovna. Kterýkoli jde
+vyměnit bez zásahu do aplikace, a když jeden spadne, nespadne s ním okno.
 
 | Soubor | |
 |---|---|
 | `src-tauri/src/main.rs` | příkazy volané z rozhraní, start |
-| `src-tauri/src/download.rs` | katalog součástí, stahování, rozbalení, přenosná kopie |
+| `src-tauri/src/download.rs` | katalog součástí, stahování, přenosná kopie |
 | `src-tauri/src/tools.rs` | hledání programů, volba výpočtu, přenosný režim |
-| `src-tauri/src/transcription.rs` | běh přepisu včetně VAD a diarizace |
-| `src-tauri/src/db.rs` | schéma SQLite, dotazy, fulltext |
+| `src-tauri/src/transcription.rs` | běh přepisu včetně VAD a rozpoznání mluvčích |
+| `src-tauri/src/ai_edit.rs` | jazyková úprava, shrnutí, překlad |
+| `src-tauri/src/db.rs` | schéma SQLite, dotazy, fulltext, zálohy |
 | `src-tauri/src/export.rs` | TXT, Markdown, SRT, VTT, JSON |
-| `src/SetupWizard.tsx` | první spuštění, doinstalování součástí |
-| `src/Library.tsx` | archiv, hledání, průběh přepisu |
-| `src/Detail.tsx` | přehrávač, editor napojený na zvuk, mluvčí |
-| `src/Settings.tsx` | cesty, model, výpočet, kopie na flashku |
+| `src/App.tsx` | navigace, notifikace, přidávání nahrávek |
+| `src/Library.tsx` | archiv, hledání, složky, průběh přepisu |
+| `src/Detail.tsx` | přehrávač, editor napojený na zvuk, postranní panel |
+| `src/Settings.tsx` | modely, výkon, vzhled, slovník, soubory, o aplikaci |
 
-### Skripty ve složce `faze0`
+Veškerý text rozhraní je ve slovníku v `src/locales/`; `npm run i18n:check`
+odmítne text napsaný přímo v komponentě. Čeština je zdrojový jazyk a vyká.
 
-Ruční příprava nástrojů přes PowerShell. Aplikace to dnes zvládá sama, takže je nepotřebuješ — hodí se jen pro offline přípravu nebo pro měření výkonu mimo aplikaci. Pokud v `faze0` už nástroje jsou, aplikace je při prvním spuštění najde a nestahuje znovu.
+---
+
+## Na čem to stojí
+
+| | Licence |
+|---|---|
+| Tauri 2, React 18 | MIT / Apache 2.0 |
+| SQLite | volné dílo |
+| whisper.cpp, modely Whisper, Silero VAD | MIT |
+| sherpa-onnx, 3D-Speaker CAM++ | Apache 2.0 |
+| ONNX Runtime, pyannote segmentation 3.0 | MIT |
+| llama.cpp | MIT |
+| Gemma (Google) | Gemma Terms of Use |
+| FFmpeg | GPL v3 |
+| yt-dlp | Unlicense |
+| Deno | MIT |
+| Geist, Inter, Schibsted Grotesk, Literata, Source Serif 4 | SIL OFL 1.1 |
+
+Všechno kromě modelů Gemma je open source. Gemma se řídí podmínkami Googlu a
+FFmpeg licencí GPL v3 — s tím počítejte, když přenosnou kopii předáváte dál.
 
 ---
 
 ## Známá omezení
 
-**Časy jednotlivých slov jsou odhad.** Whisper vrací značky po úsecích, ne po slovech. Pozice slova v úseku se dopočítává podle délky textu. Na klikání i zvýrazňování to sedí, ale u dlouhého úseku s pauzou uprostřed se to rozjede o vteřinu.
+**Časy jednotlivých slov jsou odhad.** Whisper vrací značky po úsecích, ne po
+slovech. Na klikání i zvýrazňování to sedí, ale u dlouhého úseku s pauzou
+uprostřed se to rozejde o vteřinu.
 
-**Diarizace neřeší překryv.** Když dva lidé mluví přes sebe, úsek se přiřadí tomu, kdo převažuje. Ruční oprava je součástí návrhu, ne selhání.
+**Rozpoznání mluvčích neřeší překryv.** Když dva lidé mluví přes sebe, úsek se
+přiřadí tomu, kdo převažuje. Ruční oprava je součástí návrhu, ne selhání.
 
-**Přepis nejde zrušit.** Doběhne, i když zavřeš okno detailu.
+**Fronta neexistuje.** Přetáhnete-li deset souborů, spustí se deset přepisů
+naráz a poperou se o kartu.
 
-**Fronta neexistuje.** Přetáhneš-li deset souborů, spustí se deset přepisů naráz a poperou se o kartu.
+**Program není podepsaný.** Při prvním spuštění ukáže Windows SmartScreen modré
+okno „Windows ochránil váš počítač" — *Další informace* → *Přesto spustit*.
 
-**Program není podepsaný.** Při prvním spuštění ukáže Windows SmartScreen modré okno „Windows ochránil váš počítač" — *Další informace* → *Přesto spustit*. Podpisový certifikát stojí několik tisíc ročně.
-
-**Stahování se nedá navázat.** Když spojení spadne uprostřed třígigabajtového modelu, začíná se znovu.
+**Stahování se nedá navázat.** Když spojení spadne uprostřed třígigabajtového
+modelu, začíná se znovu.

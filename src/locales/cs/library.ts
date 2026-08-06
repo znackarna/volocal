@@ -1,9 +1,9 @@
 /** Strings belonging to the `library` screen. */
 export const csLibrary = {
   // Drop zone above the archive list.
-  "library.dropZone.title": "Sem přetáhni nahrávku",
+  "library.dropZone.title": "Sem přetáhněte nahrávku",
   "library.dropZone.automatic": "Přepis se spustí automaticky. Data neopustí počítač.",
-  "library.dropZone.manual": "Přepis spustíš tlačítkem přepsat. Data neopustí počítač.",
+  "library.dropZone.manual": "Přepis spustíte tlačítkem přepsat. Data neopustí počítač.",
   "library.dropZone.add": "Nový přepis",
   "library.dropZone.automatic.label": "Automatický přepis",
   "library.dropZone.automatic.hint": "Spustit přepis hned po přidání nahrávky",
@@ -57,13 +57,13 @@ export const csLibrary = {
   "library.watchFolder.question.few": "Chcete je přidat do archivu, nebo rovnou přepsat?",
   "library.watchFolder.question.many": "Chcete je přidat do archivu, nebo rovnou přepsat?",
   "library.watchFolder.question.other": "Chcete je přidat do archivu, nebo rovnou přepsat?",
-  "library.watchFolder.ignoreOne": "Tuhle nahrávku už nenabízet",
+  "library.watchFolder.ignoreOne": "Tuto nahrávku už nenabízet",
   "library.watchFolder.files": "Soubory",
   "library.watchFolder.clearSelection": "Zrušit výběr",
-  "library.watchFolder.hint": "Křížkem soubor odstraníš. Objeví se znovu, když ho změníš.",
+  "library.watchFolder.hint": "Křížkem soubor odstraníte. Objeví se znovu, když ho změníte.",
   "library.watchFolder.selection": "Vybráno {selected} z {total}",
   "library.watchFolder.transcribe": "Přepsat",
-  "library.watchFolder.transcribeBlocked": "Nejdřív doplň položky nutné pro přepis.",
+  "library.watchFolder.transcribeBlocked": "Nejdřív doplňte položky nutné pro přepis.",
   "library.watchFolder.processing": "Zpracovávám…",
 
   // Recording card.
@@ -106,6 +106,12 @@ export const csLibrary = {
   "library.card.aiEditing": "Upravuji dokument",
 
   // Empty states.
+  "library.folders.heading": "Složky",
+  "library.folders.create": "Nová složka",
+  "library.folders.empty": "Zatím tu není žádná složka.",
+  "library.folders.count": "Počet přepisů",
+  "library.folders.delete": "Smazat složku",
+  "library.empty.folder": "Ve složce zatím nic není. Přesuňte sem přepis přes nabídku u nahrávky.",
   "library.empty.filter": "Tomuto filtru neodpovídá žádná nahrávka.",
   "library.empty.results": "Žádné výsledky.",
 

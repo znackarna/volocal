@@ -27,6 +27,20 @@ pub struct Recording {
     pub language_choice: String,
     pub error: Option<String>,
     pub segment_count: i64,
+    /// The folder holding this recording; `None` is the archive's root.
+    pub folder: Option<String>,
+}
+
+/// A folder in the archive, with what it holds. The two totals come from the
+/// same query, because a card that says nothing about its contents is a card
+/// nobody can decide anything from.
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+pub struct Folder {
+    pub id: String,
+    pub name: String,
+    pub created_at: String,
+    pub recording_count: i64,
+    pub duration: f64,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
@@ -148,6 +162,11 @@ pub struct Settings {
     pub watch_folder: String,
     #[serde(default)]
     pub watch_folder_enabled: bool,
+    /// Start transcribing what the watched folder finds, instead of offering
+    /// it in the Archive. Off by default: an upgrade must not start work
+    /// nobody asked for.
+    #[serde(default)]
+    pub watch_folder_auto: bool,
     pub model: String,
     /// Optional local language-editing model. Empty means that the feature was
     /// skipped and no background model is downloaded or loaded.
@@ -207,6 +226,11 @@ pub struct Settings {
     pub last_machine: String,
 
     // ------- vzhled
+    /// system | light | dark. `system` follows the operating system; the other
+    /// two are a decision that overrides it. Serde default, so a settings file
+    /// written before this existed reads as `system`.
+    #[serde(default = "default_theme", alias = "motiv")]
+    pub theme: String,
     #[serde(default = "default_font_ui", alias = "pismo_ui")]
     pub font_ui: String,
     #[serde(default = "default_font_text", alias = "pismo_text")]
@@ -242,6 +266,9 @@ fn default_temperature_increment() -> f64 {
 fn default_segmentation_window_shift() -> f64 {
     0.2
 }
+fn default_theme() -> String {
+    "system".into()
+}
 fn default_font_ui() -> String {
     "geist".into()
 }
@@ -264,6 +291,7 @@ impl Default for Settings {
             models_directory: "models".into(),
             watch_folder: String::new(),
             watch_folder_enabled: false,
+            watch_folder_auto: false,
             model: "large-v3".into(),
             editor_model: String::new(),
             language: "auto".into(),
@@ -288,6 +316,7 @@ impl Default for Settings {
             temperature_increment: default_temperature_increment(),
             compute: "auto".into(),
             last_machine: String::new(),
+            theme: default_theme(),
             font_ui: default_font_ui(),
             font_text: default_font_text(),
             transcript_font_size: default_size(),
@@ -322,7 +351,17 @@ pub fn open(path: &std::path::Path) -> Result<Connection> {
             vytvoreno    TEXT NOT NULL,
             stav         TEXT NOT NULL DEFAULT 'nova',
             model        TEXT NOT NULL DEFAULT '',
-            chyba        TEXT
+            chyba        TEXT,
+            -- Which folder holds the recording; NULL is the archive's root.
+            -- ON DELETE SET NULL is what makes "delete the folder, keep the
+            -- recordings" atomic instead of a loop that can half-finish.
+            slozka       TEXT REFERENCES slozky(id) ON DELETE SET NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS slozky (
+            id           TEXT PRIMARY KEY,
+            nazev        TEXT NOT NULL,
+            vytvoreno    TEXT NOT NULL
         );
 
         CREATE TABLE IF NOT EXISTS segmenty (
@@ -570,6 +609,11 @@ pub fn delete_ai_document(db: &Connection, recording_id: &str) -> Result<()> {
 /// SQLite reports a duplicate-column error when a migration has already run,
 /// so these additive migrations are intentionally idempotent.
 fn migrate_legacy_schema(db: &Connection) {
+    // Folders arrived after the archive did. The table is created above for
+    // fresh databases; an existing one needs the column added, and SQLite
+    // cannot add a column with a REFERENCES clause that has an action, so the
+    // clause is plain here — `delete_folder` clears the column itself.
+    let _ = db.execute("ALTER TABLE nahravky ADD COLUMN slozka TEXT", []);
     let _ = db.execute("ALTER TABLE segmenty ADD COLUMN slova TEXT", []);
     let _ = db.execute(
         "ALTER TABLE segmenty ADD COLUMN overeno INTEGER NOT NULL DEFAULT 0",
@@ -826,12 +870,14 @@ fn recording_from_row(r: &rusqlite::Row) -> rusqlite::Result<Recording> {
         segment_count: r.get(8)?,
         language: r.get(9).unwrap_or_default(),
         language_choice: r.get(10).unwrap_or_default(),
+        folder: r.get(11).unwrap_or_default(),
     })
 }
 
 const RECORDING_SELECT_SQL: &str =
     "SELECT n.id, n.cesta, n.nazev, n.delka, n.vytvoreno, n.stav, n.model, n.chyba,
-        (SELECT COUNT(*) FROM segmenty s WHERE s.nahravka_id = n.id), n.jazyk, n.jazyk_volba
+        (SELECT COUNT(*) FROM segmenty s WHERE s.nahravka_id = n.id), n.jazyk, n.jazyk_volba,
+        n.slozka
      FROM nahravky n";
 
 pub fn list_recordings(db: &Connection) -> Result<Vec<Recording>> {
@@ -882,6 +928,82 @@ pub fn delete_recording(db: &Connection, id: &str) -> Result<()> {
         params![id],
     )?;
     db.execute("DELETE FROM nahravky WHERE id = ?1", params![id])?;
+    Ok(())
+}
+
+// ---------------------------------------------------------------- slozky
+
+pub fn folders(db: &Connection) -> Result<Vec<Folder>> {
+    let mut statement = db.prepare(
+        "SELECT s.id, s.nazev, s.vytvoreno,
+                (SELECT COUNT(*) FROM nahravky n WHERE n.slozka = s.id),
+                (SELECT COALESCE(SUM(n.delka), 0) FROM nahravky n WHERE n.slozka = s.id)
+         FROM slozky s
+         ORDER BY s.nazev COLLATE NOCASE",
+    )?;
+    let rows = statement.query_map([], |row| {
+        Ok(Folder {
+            id: row.get(0)?,
+            name: row.get(1)?,
+            created_at: row.get(2)?,
+            recording_count: row.get(3)?,
+            duration: row.get(4)?,
+        })
+    })?;
+    Ok(rows.filter_map(|row| row.ok()).collect())
+}
+
+pub fn create_folder(db: &Connection, name: &str) -> Result<Folder> {
+    let id = uuid::Uuid::new_v4().to_string();
+    let created = chrono::Local::now().to_rfc3339();
+    db.execute(
+        "INSERT INTO slozky (id, nazev, vytvoreno) VALUES (?1, ?2, ?3)",
+        params![id, name, created],
+    )?;
+    Ok(Folder {
+        id,
+        name: name.to_string(),
+        created_at: created,
+        recording_count: 0,
+        duration: 0.0,
+    })
+}
+
+pub fn rename_folder(db: &Connection, id: &str, name: &str) -> Result<()> {
+    db.execute(
+        "UPDATE slozky SET nazev = ?2 WHERE id = ?1",
+        params![id, name],
+    )?;
+    Ok(())
+}
+
+/// `folder` of `None` takes the recordings back to the archive's root.
+pub fn move_to_folder(db: &Connection, ids: &[String], folder: Option<&str>) -> Result<()> {
+    for id in ids {
+        db.execute(
+            "UPDATE nahravky SET slozka = ?2 WHERE id = ?1",
+            params![id, folder],
+        )?;
+    }
+    Ok(())
+}
+
+pub fn folder_recording_ids(db: &Connection, folder: &str) -> Result<Vec<String>> {
+    let mut statement = db.prepare("SELECT id FROM nahravky WHERE slozka = ?1")?;
+    let rows = statement.query_map(params![folder], |row| row.get(0))?;
+    Ok(rows.filter_map(|row| row.ok()).collect())
+}
+
+/// Deleting the folder alone. The recordings it held return to the root —
+/// explicitly, because an archive migrated from an older version has the
+/// column without its `ON DELETE SET NULL` clause and would otherwise keep
+/// pointing at a folder that no longer exists.
+pub fn delete_folder(db: &Connection, id: &str) -> Result<()> {
+    db.execute(
+        "UPDATE nahravky SET slozka = NULL WHERE slozka = ?1",
+        params![id],
+    )?;
+    db.execute("DELETE FROM slozky WHERE id = ?1", params![id])?;
     Ok(())
 }
 
@@ -1496,10 +1618,11 @@ mod cluster_threshold_migration_tests {
 #[cfg(test)]
 mod tests {
     use super::{
-        ai_outputs, align_word_timestamps, delete_recording_note, insert_recording_note,
-        migrate_legacy_schema, recording_notes, save_ai_document, save_ai_output,
-        update_recording_note, watch_file_imported, watch_file_is_stable, waveform, AiDocument,
-        AiOutput, RecordingNote, Segment, WaveformData,
+        ai_outputs, align_word_timestamps, create_folder, delete_folder, delete_recording_note,
+        folder_recording_ids, folders, insert_recording_note, migrate_legacy_schema,
+        move_to_folder, recording_notes, save_ai_document, save_ai_output, update_recording_note,
+        watch_file_imported, watch_file_is_stable, waveform, AiDocument, AiOutput, RecordingNote,
+        Segment, WaveformData,
     };
     use rusqlite::{params, Connection};
 
@@ -1753,6 +1876,99 @@ mod tests {
         document.text = "Nově vylepšený text".into();
         save_ai_document(&db, &document).unwrap();
         assert!(ai_outputs(&db, "recording").unwrap().is_empty());
+    }
+
+    /// The two tables the folder tests need, in the shape `init` creates them.
+    fn archive_with_folders() -> Connection {
+        let db = Connection::open_in_memory().unwrap();
+        db.execute_batch(
+            "CREATE TABLE slozky (
+                 id TEXT PRIMARY KEY, nazev TEXT NOT NULL, vytvoreno TEXT NOT NULL);
+             CREATE TABLE nahravky (
+                 id TEXT PRIMARY KEY, cesta TEXT NOT NULL, nazev TEXT NOT NULL,
+                 delka REAL NOT NULL DEFAULT 0, vytvoreno TEXT NOT NULL,
+                 stav TEXT NOT NULL DEFAULT 'nova', model TEXT NOT NULL DEFAULT '',
+                 chyba TEXT, slozka TEXT REFERENCES slozky(id) ON DELETE SET NULL);
+             CREATE TABLE segmenty_fts (nahravka_id TEXT);",
+        )
+        .unwrap();
+        db
+    }
+
+    fn recording_in(db: &Connection, id: &str, seconds: f64, folder: Option<&str>) {
+        db.execute(
+            "INSERT INTO nahravky (id, cesta, nazev, delka, vytvoreno, slozka)
+             VALUES (?1, ?1, ?1, ?2, '2026-08-05 10:00:00', ?3)",
+            params![id, seconds, folder],
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn a_folder_reports_what_it_holds() {
+        let db = archive_with_folders();
+        let folder = create_folder(&db, "Kázání").unwrap();
+        recording_in(&db, "a", 60.0, Some(&folder.id));
+        recording_in(&db, "b", 90.0, Some(&folder.id));
+        recording_in(&db, "loose", 30.0, None);
+
+        let listed = folders(&db).unwrap();
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].recording_count, 2);
+        assert_eq!(listed[0].duration, 150.0);
+    }
+
+    #[test]
+    fn deleting_a_folder_returns_its_recordings_to_the_root() {
+        let db = archive_with_folders();
+        let folder = create_folder(&db, "Kázání").unwrap();
+        recording_in(&db, "a", 60.0, Some(&folder.id));
+
+        delete_folder(&db, &folder.id).unwrap();
+
+        assert!(folders(&db).unwrap().is_empty());
+        // The recording is still there, and no longer points at anything.
+        let held: Option<String> = db
+            .query_row("SELECT slozka FROM nahravky WHERE id = 'a'", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(held, None);
+    }
+
+    #[test]
+    fn moving_takes_recordings_in_and_out() {
+        let db = archive_with_folders();
+        let folder = create_folder(&db, "Kázání").unwrap();
+        recording_in(&db, "a", 60.0, None);
+        recording_in(&db, "b", 60.0, None);
+
+        move_to_folder(&db, &["a".into(), "b".into()], Some(&folder.id)).unwrap();
+        assert_eq!(folder_recording_ids(&db, &folder.id).unwrap().len(), 2);
+
+        move_to_folder(&db, &["a".into()], None).unwrap();
+        assert_eq!(folder_recording_ids(&db, &folder.id).unwrap(), vec!["b"]);
+    }
+
+    #[test]
+    fn an_archive_upgraded_from_an_older_version_gets_the_column() {
+        let db = Connection::open_in_memory().unwrap();
+        // The shape before folders existed: no `slozka` anywhere.
+        db.execute_batch(
+            "CREATE TABLE nahravky (
+                 id TEXT PRIMARY KEY, cesta TEXT NOT NULL, nazev TEXT NOT NULL,
+                 delka REAL NOT NULL DEFAULT 0, vytvoreno TEXT NOT NULL);",
+        )
+        .unwrap();
+
+        migrate_legacy_schema(&db);
+
+        db.execute(
+            "INSERT INTO nahravky (id, cesta, nazev, vytvoreno, slozka)
+             VALUES ('a', 'a', 'a', '2026-08-05', NULL)",
+            [],
+        )
+        .expect("the column has to exist after the migration");
     }
 }
 

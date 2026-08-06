@@ -24,6 +24,17 @@ export interface Recording {
    *  by this version, a finished Czech sentence in older ones. */
   error: string | null;
   segment_count: number;
+  /** The folder holding the recording; null is the archive's root. */
+  folder: string | null;
+}
+
+/** A folder in the archive, with what it holds. */
+export interface Folder {
+  id: string;
+  name: string;
+  created_at: string;
+  recording_count: number;
+  duration: number;
 }
 
 export interface Segment {
@@ -65,6 +76,7 @@ export interface Settings {
   /** Optional directory that is checked for newly added media files. */
   watch_folder: string;
   watch_folder_enabled: boolean;
+  watch_folder_auto: boolean;
   model: string;
   /** Optional local model used to turn a transcript into a readable document. */
   editor_model: string;
@@ -91,6 +103,8 @@ export interface Settings {
   temperature_increment: number;
   compute: "auto" | "cuda" | "vulkan" | "cpu" | string;
   last_machine: string;
+  /** system | light | dark */
+  theme: string;
   font_ui: string;
   font_text: string;
   /** transcript font size, px */
@@ -154,6 +168,73 @@ export const FONTS: Record<string, FontChoice> = {
     category: "serif",
   },
 };
+
+/** Which palette is in force.
+ *
+ *  The dark palette hangs off `data-theme` on the root element rather than
+ *  living in a `prefers-color-scheme` media query, because a media query
+ *  cannot be overridden by a person's decision — and following the system is
+ *  only one of the three choices. This function is the only thing that writes
+ *  that attribute.
+ *
+ *  The choice is mirrored into local storage so `main.tsx` can apply it before
+ *  React mounts. Without that the window would open in the light palette and
+ *  turn dark a frame later, once the settings arrive from the backend.
+ */
+export const THEME_KEY = "theme";
+
+export type ThemeChoice = "system" | "light" | "dark";
+
+/** One `MediaQueryList`, kept.
+ *
+ *  `matchMedia` returns a *new* object on every call, and `removeEventListener`
+ *  on a fresh object does not remove a listener attached to an older one — so
+ *  asking again each time would leave every listener ever attached in place,
+ *  and a person who had chosen a palette would still have the system flip it. */
+let query: MediaQueryList | null | undefined;
+
+function darkQuery(): MediaQueryList | null {
+  if (query === undefined) {
+    query = typeof window.matchMedia === "function"
+      ? window.matchMedia("(prefers-color-scheme: dark)")
+      : null;
+  }
+  return query;
+}
+
+/** Attached only while the choice is `system`; removed when it is not, so a
+ *  person who has decided cannot have the system decide over them. */
+let followingSystem: (() => void) | null = null;
+
+export function applyTheme(choice: string) {
+  const volba: ThemeChoice = choice === "light" || choice === "dark" ? choice : "system";
+  localStorage.setItem(THEME_KEY, volba);
+
+  const media = darkQuery();
+  if (followingSystem) {
+    media?.removeEventListener("change", followingSystem);
+    followingSystem = null;
+  }
+
+  const write = (dark: boolean) => {
+    document.documentElement.dataset.theme = dark ? "dark" : "light";
+  };
+
+  if (volba !== "system") {
+    write(volba === "dark");
+    return;
+  }
+  write(media?.matches ?? false);
+  // Following the system means following it, not reading it once at startup.
+  followingSystem = (() => write(darkQuery()?.matches ?? false)) as () => void;
+  media?.addEventListener("change", followingSystem);
+}
+
+/** The last applied choice, for the pre-mount application in `main.tsx`. */
+export function rememberedTheme(): ThemeChoice {
+  const stored = localStorage.getItem(THEME_KEY);
+  return stored === "light" || stored === "dark" ? stored : "system";
+}
 
 export function applyFonts(
   n: Pick<Settings, "font_ui" | "font_text" | "transcript_font_size" | "transcript_line_height">
@@ -252,14 +333,15 @@ export interface BenchmarkResult {
 export const COMPUTE_IDS = ["cuda", "vulkan", "cpu", "default", "auto"] as const;
 
 /** Whisper models the interface knows how to name, in the order they are
- *  offered. Unknown identifiers still work; they show their raw name. */
+ *  offered: the three tiers from the fastest up, then the older generation.
+ *  Unknown identifiers still work; they show their raw name and come last. */
 export const MODEL_IDS = [
-  "large-v3",
-  "large-v3-q5_0",
   "large-v3-turbo-q5_0",
   "large-v3-turbo",
-  "medium",
+  "large-v3-q5_0",
+  "large-v3",
   "medium-q5_0",
+  "medium",
   "small",
 ] as const;
 

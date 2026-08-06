@@ -20,7 +20,7 @@ export const enCatalog: Partial<Record<keyof typeof csCatalog, string>> = {
   "catalog.model-turbo.description": "Several times faster. The option for less powerful computers.",
   "catalog.model-large-q5.name": "Balanced model",
   "catalog.model-large-q5.description": "Almost the highest quality, a third of the size.",
-  "catalog.model-large.name": "Highest quality model",
+  "catalog.model-large.name": "Precise model",
   "catalog.model-large.description": "Most accurate Czech. Worth it on a powerful computer.",
   "catalog.editor-vulkan.name": "Language editing on the graphics card",
   "catalog.editor-vulkan.description": "Local llama.cpp for AMD, Intel and NVIDIA via Vulkan.",

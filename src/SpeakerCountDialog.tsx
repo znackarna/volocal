@@ -41,7 +41,7 @@ export default function SpeakerCountDialog({
         onMouseDown={(event) => event.stopPropagation()}
       >
         <h2>{t("dialogs.speakers.title")}</h2>
-        <p className="drobne">
+        <p>
           {recordingCount > 1
             ? tPlural("dialogs.speakers.introMany", recordingCount)
             : t("dialogs.speakers.intro")}

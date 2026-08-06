@@ -10,6 +10,10 @@ export interface ConfirmationRequest {
   /** An irreversible action is set apart by colour */
   nicive?: boolean;
   action: () => void;
+  /** A second way out, for a question with two answers rather than one —
+   *  deleting a folder can keep or discard what is inside it. Quiet, so the
+   *  named confirming button stays the one the eye lands on. */
+  alternative?: { label: string; action: () => void };
 }
 
 /**
@@ -59,6 +63,17 @@ export default function ConfirmationDialog({
           <button className="tlacitko" onClick={onZavri} autoFocus>
             {t("common.cancel")}
           </button>
+          {query.alternative && (
+            <button
+              className="tlacitko"
+              onClick={() => {
+                query.alternative?.action();
+                onZavri();
+              }}
+            >
+              {query.alternative.label}
+            </button>
+          )}
           <button
             ref={confirmButtonRef}
             className={`tlacitko ${query.nicive ? "nicive" : "hlavni"}`}

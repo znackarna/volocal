@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useState, type KeyboardEvent, type ReactNode } from "react";
+import { getVersion } from "@tauri-apps/api/app";
 import { open } from "@tauri-apps/plugin-dialog";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { listen } from "@tauri-apps/api/event";
 import { api } from "./api";
+import CountdownRing from "./CountdownRing";
 import InfoNote from "./InfoNote";
 import { LineIcon, type LineIconName } from "./icons";
 import Select from "./Select";
 import { useI18n, type AppLanguage } from "./i18n";
 import { useUserMessage } from "./messages";
 import type { TranslationKey } from "./i18n";
-import { FONTS, applyFonts } from "./types";
+import { FONTS, MODEL_IDS, applyFonts, applyTheme } from "./types";
 import { useFormats } from "./formats";
 import { useLabels } from "./labels";
 import type {
@@ -19,6 +21,20 @@ import type {
   DownloadComponent,
   DictionaryEntry,
 } from "./types";
+
+/** The three palettes, in the order light grows in them: the system's own
+ *  decision first, then the two that override it. */
+const THEMES = [
+  { value: "system", label: "settings.appearance.themeSystem" },
+  { value: "light", label: "settings.appearance.themeLight" },
+  { value: "dark", label: "settings.appearance.themeDark" },
+] as const satisfies ReadonlyArray<{ value: string; label: TranslationKey }>;
+
+/** Settings written by an older version have no theme at all, and a stored
+ *  value we do not know is not a palette we can draw. Both are the system. */
+function themeChoice(stored: string): string {
+  return stored === "light" || stored === "dark" ? stored : "system";
+}
 
 interface Props {
   onComplete: () => void;
@@ -67,9 +83,9 @@ const EDITOR_CHOICES: ReadonlyArray<{
  *  build with no acceleration chosen; it only appears when one is installed. */
 const COMPUTE_CHOICES: ReadonlyArray<{ value: string; descriptionKey: TranslationKey }> = [
   { value: "auto", descriptionKey: "settings.performance.autoDescription" },
-  { value: "cuda", descriptionKey: "settings.performance.cudaDescription" },
-  { value: "vulkan", descriptionKey: "settings.performance.vulkanDescription" },
   { value: "cpu", descriptionKey: "settings.performance.cpuDescription" },
+  { value: "vulkan", descriptionKey: "settings.performance.vulkanDescription" },
+  { value: "cuda", descriptionKey: "settings.performance.cudaDescription" },
 ];
 
 /** Which downloadable module corresponds to which compute backend. */
@@ -83,24 +99,44 @@ type ModuleStatus = "complete" | "missing" | "optional";
 type SettingsTab =
   | "transcription"
   | "dictionary"
+  | "models"
   | "performance"
   | "appearance"
-  | "files";
+  | "files"
+  | "about";
 
+/* What is on the machine and how fast it runs used to share one tab. They are
+   two questions — what is installed, and what it should run on — and the tab
+   had to be called `Modely a výkon` to admit it. */
 const SETTINGS_TABS: SettingsTab[] = [
   "transcription",
-  "dictionary",
+  "models",
   "performance",
   "appearance",
+  "dictionary",
   "files",
+  "about",
 ];
 const SETTINGS_TAB_KEYS: Record<SettingsTab, TranslationKey> = {
   transcription: "settings.tab.transcription",
   dictionary: "settings.tab.dictionary",
+  models: "settings.tab.models",
   performance: "settings.tab.performance",
   appearance: "settings.tab.appearance",
   files: "settings.tab.files",
+  about: "settings.tab.about",
 };
+
+/** The models on disk arrive sorted by file name, which is not an order
+ *  anybody reads. They are shown in the order the interface offers them —
+ *  fastest first — and anything it does not know by name comes last. */
+function byModelOrder(a: string, b: string): number {
+  const rank = (id: string) => {
+    const index = (MODEL_IDS as readonly string[]).indexOf(id);
+    return index < 0 ? MODEL_IDS.length : index;
+  };
+  return rank(a) - rank(b) || a.localeCompare(b);
+}
 
 const STATUS_BADGES: Record<ModuleStatus, { labelKey: TranslationKey; className: string }> = {
   complete: { labelKey: "settings.modules.status.complete", className: "hotovo" },
@@ -157,6 +193,32 @@ function ModuleTile({
       </span>
       <em className={`odznak ${badge.className}`}>{t(badge.labelKey)}</em>
     </div>
+  );
+}
+
+/** The three language-editing models differ only in how much of the same work
+ *  they do, so their marks are the same sparkle counted out: one, two, three.
+ *  A picture per tier — a bolt, scales, a target, as the transcription models
+ *  have — would promise three different kinds of work, and there is only one.
+ *  Sizes and positions are the `editor` icon's own, so the largest of the
+ *  three is exactly the icon used everywhere else for this feature. */
+function EditorMark({ model }: { model: string }) {
+  const big = "M12 3l1.1 3.9L17 8l-3.9 1.1L12 13l-1.1-3.9L7 8l3.9-1.1L12 3Z";
+  const right = "M18.5 13l.7 2.3 2.3.7-2.3.7-.7 2.3-.7-2.3-2.3-.7 2.3-.7.7-2.3Z";
+  const left = "M6 14l.9 3.1L10 18l-3.1.9L6 22l-.9-3.1L2 18l3.1-.9L6 14Z";
+  const paths = model.includes("12b")
+    ? [big, right, left]
+    : model.includes("e4b")
+      ? [big, right]
+      : [big];
+
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      {paths.map((d) => (
+        <path key={d} d={d} />
+      ))}
+    </svg>
   );
 }
 
@@ -394,6 +456,7 @@ export default function SettingsScreen({ onComplete, onError, onToModule }: Prop
       setN(nove);
       // appearance applies immediately, before it is even saved
       applyFonts(nove);
+      applyTheme(nove.theme);
       try {
         await api.saveSettings(nove);
         setCheck(await api.checkTools());
@@ -463,13 +526,7 @@ export default function SettingsScreen({ onComplete, onError, onToModule }: Prop
             The message and its lifetime are then the same object, so nothing
             vanishes without having shown that it was about to. */}
         <span className={`ulozeno ${saved ? "vidno" : ""}`} aria-live="polite">
-          <svg className="ulozeno-odpocet" width="14" height="14" viewBox="0 0 16 16" aria-hidden>
-            <circle cx="8" cy="8" r="6.4" fill="none" stroke="currentColor"
-                    strokeOpacity="0.25" strokeWidth="1.7" />
-            <circle className="ulozeno-odpocet-drah" cx="8" cy="8" r="6.4" fill="none"
-                    stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"
-                    transform="rotate(-90 8 8)" />
-          </svg>
+          <CountdownRing />
           {t("common.saved")}
         </span>
       </div>
@@ -489,7 +546,7 @@ export default function SettingsScreen({ onComplete, onError, onToModule }: Prop
             onKeyDown={handleTabKeyDown}
           >
             <span>{t(SETTINGS_TAB_KEYS[tab])}</span>
-            {tab === "performance" && missingRequired.length > 0 && (
+            {tab === "models" && missingRequired.length > 0 && (
               <span className="settings-tab-alert" aria-label={t("settings.missingRequired")} />
             )}
           </button>
@@ -528,7 +585,7 @@ export default function SettingsScreen({ onComplete, onError, onToModule }: Prop
 
       {/* Moduly nepatří do hlavní nabídky — stahují se jednou a pak se k nim
           člověk vrací zřídka. Tady jsou po ruce a nepřekáží. */}
-      {activeTab === "performance" && <section className="settings-card-modules">
+      {activeTab === "models" && <section className="settings-card-modules">
         <h2>{t("settings.modules.title")}</h2>
         <p className="settings-section-description">
           {t("settings.modules.description")}
@@ -648,7 +705,7 @@ export default function SettingsScreen({ onComplete, onError, onToModule }: Prop
                   aria-pressed={n.editor_model === choice.model}
                 >
                   <span className="volba-ikona" aria-hidden>
-                    <LineIcon name="editor" />
+                    <EditorMark model={choice.model} />
                   </span>
                   <span className="volba-telo">
                     <span className="volba-nazev">{t(choice.titleKey)}</span>
@@ -705,6 +762,10 @@ export default function SettingsScreen({ onComplete, onError, onToModule }: Prop
                   }
                   aria-pressed={missing ? undefined : chosen}
                 >
+                  {/* One mark for all four: the icon is the category's badge,
+                      not what tells them apart — that is the name and the
+                      sentence under it (Jakub's call after seeing four sets
+                      side by side). */}
                   <span className="volba-ikona" aria-hidden>
                     <LineIcon name="compute" />
                   </span>
@@ -726,23 +787,6 @@ export default function SettingsScreen({ onComplete, onError, onToModule }: Prop
           {missingCompute && (
             <InfoNote compact>{t("settings.performance.selectedMissing")}</InfoNote>
           )}
-          {check && (
-            <p className="drobne">
-              <Filled
-                message={t("settings.performance.mode", {
-                  nvidia: t(
-                    check.nvidia_driver ? "settings.performance.yes" : "settings.performance.no"
-                  ),
-                  vulkan: t(
-                    check.vulkan_driver ? "settings.performance.yes" : "settings.performance.no"
-                  ),
-                })}
-                name="mode"
-              >
-                <strong>{labels.compute(check.compute)}</strong>
-              </Filled>
-            </p>
-          )}
         </div>
 
         <div className="pole">
@@ -760,7 +804,7 @@ export default function SettingsScreen({ onComplete, onError, onToModule }: Prop
             value={n.threads}
             onChange={(event) => save({ ...n, threads: Number(event.target.value) })}
           />
-          <p className="drobne">{t("settings.performance.threadsNote")}</p>
+          <InfoNote>{t("settings.performance.threadsNote")}</InfoNote>
         </div>
 
         <div className="settings-action-row separated">
@@ -799,7 +843,7 @@ export default function SettingsScreen({ onComplete, onError, onToModule }: Prop
         )}
       </section>}
 
-      {activeTab === "performance" && <section className="settings-card-locations">
+      {activeTab === "models" && <section className="settings-card-locations">
         <h2>{t("settings.files.locations")}</h2>
         <p className="settings-section-description">
           {t(check?.portable
@@ -942,6 +986,9 @@ export default function SettingsScreen({ onComplete, onError, onToModule }: Prop
 
       {activeTab === "appearance" && <section className="settings-card-appearance">
         <h2>{t("settings.tab.appearance")}</h2>
+        <p className="settings-section-description">
+          {t("settings.appearance.description")}
+        </p>
 
         <div className="pole">
           <label>{t("settings.language.title")}</label>
@@ -954,7 +1001,19 @@ export default function SettingsScreen({ onComplete, onError, onToModule }: Prop
               { value: "en", label: t("domain.appLanguage.en") },
             ]}
           />
-          <p className="drobne">{t("settings.language.description")}</p>
+          <InfoNote>{t("settings.language.description")}</InfoNote>
+        </div>
+
+        <div className="pole">
+          <label>{t("settings.appearance.theme")}</label>
+          <Select
+            value={themeChoice(n.theme)}
+            onChange={(value) => save({ ...n, theme: value })}
+            items={THEMES.map((volba) => ({
+              value: volba.value,
+              label: t(volba.label),
+            }))}
+          />
         </div>
 
         <div className="pole">
@@ -1041,6 +1100,9 @@ export default function SettingsScreen({ onComplete, onError, onToModule }: Prop
 
       {activeTab === "transcription" && <section className="settings-card-transcription">
         <h2>{t("settings.tab.transcription")}</h2>
+        <p className="settings-section-description">
+          {t("settings.transcription.description")}
+        </p>
 
         <div className="pole">
           <label>{t("settings.transcription.model")}</label>
@@ -1048,7 +1110,7 @@ export default function SettingsScreen({ onComplete, onError, onToModule }: Prop
               co dělají s časem a přesností, a to se v jednom řádku neřekne. */}
           <div className="volby volby-modelu">
             {(check?.found_models.length
-              ? check.found_models
+              ? [...check.found_models].sort(byModelOrder)
               : [n.model]
             ).map((m) => (
               <button
@@ -1073,26 +1135,8 @@ export default function SettingsScreen({ onComplete, onError, onToModule }: Prop
               </button>
             ))}
           </div>
-          <p className="drobne">{t("settings.transcription.modelNote")}</p>
+          <InfoNote>{t("settings.transcription.modelNote")}</InfoNote>
         </div>
-
-        <div className="pole">
-          <label>{t("settings.transcription.language")}</label>
-          <Select
-            value={n.language}
-            onChange={(j) => save({ ...n, language: j })}
-            items={labels.languageOptions()}
-          />
-          <p className="drobne">{t("settings.transcription.languageNote")}</p>
-        </div>
-
-        <SettingsToggle
-          title={t("settings.transcription.vad")}
-          label={t("settings.transcription.vad")}
-          checked={n.vad}
-          onChange={(checked) => save({ ...n, vad: checked })}
-          description={t("settings.transcription.vadNote")}
-        />
 
         <div className="pole">
           <label>
@@ -1109,8 +1153,36 @@ export default function SettingsScreen({ onComplete, onError, onToModule }: Prop
           />
           <InfoNote>{t("settings.transcription.beamNote")}</InfoNote>
         </div>
+      </section>}
 
-        <DecodingSettings n={n} save={save} />
+      {/* What is in the recording, rather than what reads it (Jakub's ask):
+          which language is spoken, and what counts as speech at all. The fine
+          tuning follows the speech-detection switch, so it belongs in the same
+          card — it is the same subject at a finer grain, and with the switch
+          off it is not shown at all. */}
+      {activeTab === "transcription" && <section className="settings-card-speech">
+        <h2>{t("settings.speech.title")}</h2>
+        <p className="settings-section-description">{t("settings.speech.description")}</p>
+
+        <div className="pole">
+          <label>{t("settings.transcription.language")}</label>
+          <Select
+            value={n.language}
+            onChange={(j) => save({ ...n, language: j })}
+            items={labels.languageOptions()}
+          />
+          <InfoNote>{t("settings.transcription.languageNote")}</InfoNote>
+        </div>
+
+        <SettingsToggle
+          title={t("settings.transcription.vad")}
+          label={t("settings.transcription.vad")}
+          checked={n.vad}
+          onChange={(checked) => save({ ...n, vad: checked })}
+          description={t("settings.transcription.vadNote")}
+        />
+
+        {n.vad && <DecodingSettings n={n} save={save} />}
       </section>}
 
       {activeTab === "files" && <section className="settings-card-watch-folder">
@@ -1150,6 +1222,18 @@ export default function SettingsScreen({ onComplete, onError, onToModule }: Prop
           onChange={(checked) => save({ ...n, watch_folder_enabled: checked })}
           description={t("settings.files.watchToggleNote")}
         />
+
+        {/* Only once the folder is being watched: what to do with what it
+            finds is not a question until it finds anything. */}
+        {n.watch_folder_enabled && (
+          <SettingsToggle
+            title={t("settings.files.watchAuto")}
+            label={t("settings.files.watchAuto")}
+            checked={n.watch_folder_auto}
+            onChange={(checked) => save({ ...n, watch_folder_auto: checked })}
+            description={t("settings.files.watchAutoNote")}
+          />
+        )}
       </section>}
 
       {activeTab === "transcription" && <section className="settings-card-speakers">
@@ -1172,7 +1256,7 @@ export default function SettingsScreen({ onComplete, onError, onToModule }: Prop
               value={n.speaker_count}
               onChange={(e) => save({ ...n, speaker_count: Number(e.target.value) })}
             />
-            <p className="drobne">{t("settings.speakers.countNote")}</p>
+            <InfoNote>{t("settings.speakers.countNote")}</InfoNote>
           </div>
         )}
 
@@ -1196,7 +1280,7 @@ export default function SettingsScreen({ onComplete, onError, onToModule }: Prop
                 },
               ]}
             />
-            <p className="drobne">{t("settings.speakers.shiftNote")}</p>
+            <InfoNote>{t("settings.speakers.shiftNote")}</InfoNote>
           </div>
         )}
 
@@ -1219,7 +1303,7 @@ export default function SettingsScreen({ onComplete, onError, onToModule }: Prop
           <p className="settings-section-description">
             <Filled message={t("settings.portable.copyDescription")} name="file">
               {/* i18n-ignore: the name of the file on disk */}
-              <code>Whisp.exe</code>
+              <code>Slobot.exe</code>
             </Filled>
           </p>
 
@@ -1247,8 +1331,156 @@ export default function SettingsScreen({ onComplete, onError, onToModule }: Prop
         </section>
       )}
 
+      {activeTab === "about" && <About />}
+
       </div>
     </main>
+  );
+}
+
+/**
+ * What the application is, what it does, and what it is made of.
+ *
+ * Jakub asked for the three things this answers: which technologies it stands
+ * on, under what licences, and what the application can actually do. Nothing
+ * here is a setting — it is the one page that exists to be read.
+ */
+function About() {
+  const { t } = useI18n();
+  const [version, setVersion] = useState("");
+
+  // From the bundle rather than typed here: `tauri.conf.json` already carries
+  // the number, and a second copy is the one that would be wrong on release
+  // day. `core:default` grants `core:app:allow-version`, so no capability
+  // changed for this.
+  useEffect(() => {
+    getVersion().then(setVersion).catch(() => setVersion(""));
+  }, []);
+
+  /* Project and licence names are proper nouns — the same string in every
+     language — so they stand here rather than in the dictionary, where a
+     translator would be invited to change them. Only the group headings and
+     the one licence that is a Czech phrase come from keys.
+     i18n-ignore: names of projects and of licences */
+  const credits: ReadonlyArray<{ label: TranslationKey; items: [string, string][] }> = [
+    {
+      label: "settings.about.groupApp",
+      items: [
+        ["Tauri 2", "MIT / Apache 2.0"],
+        ["React 18", "MIT"],
+        ["SQLite", t("settings.about.publicDomain")],
+      ],
+    },
+    {
+      label: "settings.about.groupTranscription",
+      items: [
+        ["whisper.cpp (ggml)", "MIT"],
+        ["Whisper (OpenAI)", "MIT"],
+        ["Silero VAD", "MIT"],
+      ],
+    },
+    {
+      label: "settings.about.groupSpeakers",
+      items: [
+        ["sherpa-onnx", "Apache 2.0"],
+        ["ONNX Runtime", "MIT"],
+        ["pyannote segmentation 3.0", "MIT"],
+        ["3D-Speaker CAM++", "Apache 2.0"],
+      ],
+    },
+    {
+      label: "settings.about.groupEditor",
+      items: [
+        ["llama.cpp", "MIT"],
+        ["Gemma (Google)", "Gemma Terms of Use"],
+      ],
+    },
+    {
+      label: "settings.about.groupMedia",
+      items: [
+        ["FFmpeg", "GPL v3"],
+        ["yt-dlp", "Unlicense"],
+        ["Deno", "MIT"],
+      ],
+    },
+    {
+      label: "settings.about.groupFonts",
+      items: [
+        ["Geist, Inter, Schibsted Grotesk", "SIL OFL 1.1"],
+        ["Literata, Source Serif 4", "SIL OFL 1.1"],
+      ],
+    },
+  ];
+
+  /** One line each, with the mark of the part of the application it belongs
+   *  to — the same drawings those screens carry. */
+  const abilities: ReadonlyArray<{ icon: LineIconName; text: TranslationKey }> = [
+    { icon: "transcription", text: "settings.about.abilityTranscribe" },
+    { icon: "speakers", text: "settings.about.abilitySpeakers" },
+    { icon: "editor", text: "settings.about.abilityEditor" },
+    { icon: "review", text: "settings.about.abilityReview" },
+    { icon: "note", text: "settings.about.abilityNotes" },
+    { icon: "video", text: "settings.about.abilitySources" },
+    { icon: "folder", text: "settings.about.abilityExport" },
+  ];
+
+  return (
+    <>
+      <section className="settings-card-about">
+        {/* i18n-ignore: the name of the product, the same word in every language */}
+        <h2>Whisp</h2>
+        <p className="settings-section-description">{t("settings.about.description")}</p>
+
+        <dl className="about-panel">
+          <div className="about-radek">
+            <dt>{t("settings.about.version")}</dt>
+            <dd>{version || "—"}</dd>
+          </div>
+          <div className="about-radek">
+            <dt>{t("settings.about.author")}</dt>
+            {/* i18n-ignore: a company name, and it mirrors src-tauri/Cargo.toml */}
+            <dd>značkárna s.r.o.</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section className="settings-card-abilities">
+        <h2>{t("settings.about.abilities")}</h2>
+        <ul className="about-abilities">
+          {abilities.map((ability) => (
+            <li key={ability.icon}>
+              <span className="about-mark">
+                <LineIcon name={ability.icon} size={17} />
+              </span>
+              {t(ability.text)}
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="settings-card-credits">
+        <h2>{t("settings.about.credits")}</h2>
+        <p className="settings-section-description">
+          {t("settings.about.creditsDescription")}
+        </p>
+
+        {credits.map((group) => (
+          <div className="about-group" key={group.label}>
+            <p className="about-group-label">{t(group.label)}</p>
+            <dl className="about-panel">
+              {group.items.map(([name, licence]) => (
+                <div className="about-radek" key={name}>
+                  <dt>{name}</dt>
+                  <dd>{licence}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        ))}
+
+        <InfoNote>{t("settings.about.licenceNote")}</InfoNote>
+      </section>
+    </>
   );
 }
 

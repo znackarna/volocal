@@ -8,13 +8,12 @@ export const csDetail = {
   "detail.format.vtt": "Webové titulky",
   "detail.format.json": "Data pro aplikace",
 
-  "detail.export.button": "Uložit přepis",
+  "detail.export.button": "Uložit",
   "detail.export.rawGroup": "Hrubý přepis",
   "detail.export.improvedGroup": "Vylepšený přepis",
 
-  "detail.header.titleLabel": "Název přepisu",
-  "detail.header.improveButton": "Vylepšit přepis",
-  "detail.header.improvedButton": "Vylepšený přepis",
+  "detail.header.improveButton": "Vylepšit",
+  "detail.header.improvedButton": "Vylepšený",
   "detail.header.staleHint": "Otevřít uložený výsledek; přepis nebo model se mezitím změnil",
   "detail.header.newTranscript": "Nový přepis",
   "detail.header.deleteTranscriptTitle": "Smazat přepis?",
@@ -37,10 +36,10 @@ export const csDetail = {
   "detail.progress.cancelDiarization": "Zrušit rozpoznávání mluvčích",
   "detail.progress.cancelAi": "Zrušit jazykové zpracování",
 
-  "detail.empty.notTranscribed": "Tahle nahrávka ještě není přepsaná.",
+  "detail.empty.notTranscribed": "Tato nahrávka ještě není přepsaná.",
+  "detail.empty.heading": "Tady bude váš přepis",
   "detail.empty.transcribe": "Přepsat",
   "detail.empty.failed": "Přepis se nepovedl.",
-  "detail.empty.preparing": "Příprava…",
   "detail.empty.noTranscript": "Nahrávka zatím není přepsaná.",
 
   "detail.source.fileFilter": "Zvuk a video",
@@ -66,14 +65,14 @@ export const csDetail = {
   "detail.sidebar.label": "Postranní panel",
 
   "detail.review.heading": "Kontrola",
-  "detail.review.empty": "Přepis nemá co kontrolovat.",
+  "detail.review.empty": "Přepis nemá nic ke kontrole.",
   "detail.review.markCorrectTitle": "Je to správně",
   "detail.review.markCorrectLabel": "Označit jako správné",
   "detail.review.fixText": "Opravit text",
   "detail.review.editHint": "Kliknutí přejde na místo, dvojklik otevře text k opravě",
 
   "detail.edits.heading": "Opravy",
-  "detail.edits.empty": "V tomhle přepisu jsi zatím nic neopravil.",
+  "detail.edits.empty": "Přepis neobsahuje žádné opravy.",
   "detail.edits.seekTitle": "Přejít na opravené místo",
 
   "detail.speakers.heading": "Mluvčí",
@@ -104,7 +103,7 @@ export const csDetail = {
 
   "detail.ai.missingTitle": "Jazyková úprava není připravená",
   "detail.ai.missingText":
-    "Stáhni místní model a program pro jazykovou úpravu. Potom bude fungovat bez internetu a text neopustí počítač.",
+    "Stáhněte si místní model a program pro jazykovou úpravu. Potom bude fungovat bez internetu a text neopustí počítač.",
   "detail.ai.chooseModel": "Vybrat model",
   "detail.ai.configureTitle": "AI vylepšení",
   "detail.ai.configureText": "Vytvoří nový dokument. Původní přepis zůstane beze změny.",
@@ -120,14 +119,14 @@ export const csDetail = {
   "detail.ai.modeClean": "Vylepšená úprava",
   "detail.ai.modeCleanDescription": "Odstraní zjevná opakování, přeřeknutí a slovní vatu.",
   "detail.ai.recommended": "doporučeno",
-  "detail.ai.configureNote": "Během úpravy můžeš dál číst nebo přehrávat nahrávku.",
+  "detail.ai.configureNote": "Během úpravy můžete dál číst nebo přehrávat nahrávku.",
   "detail.ai.startEdit": "Vylepšit přepis",
 
   "detail.preview.title": "Vylepšený přepis",
   "detail.preview.subtitle": "Verze bez časových značek zpracovaná pomocí jazykového modelu.",
   "detail.preview.closeLabel": "Zavřít náhled",
   "detail.preview.staleWarning":
-    "Přepis nebo vybraný model se od vytvoření této verze změnil. Starší výsledek můžeš stále uložit, nebo ho vytvořit znovu.",
+    "Přepis nebo vybraný model se od vytvoření této verze změnil. Starší výsledek můžete stále uložit, nebo ho vytvořit znovu.",
   "detail.preview.tabsLabel": "Obsah dokumentu",
   "detail.preview.transcriptTab": "Přepis",
   "detail.preview.summaryTab": "Shrnutí",
@@ -182,7 +181,7 @@ export const csDetail = {
   // Nothing was replaced: a different sentence, not a plural form of the one
   // below, so it stays out of the plural set.
   "detail.dictionary.savedNoOther":
-    "„{from}“ → „{to}“ je ve slovníku. Jinde v tomhle přepisu se nevyskytuje.",
+    "„{from}“ → „{to}“ je ve slovníku. Jinde v tomto přepisu se nevyskytuje.",
   "detail.dictionary.savedApplied.one":
     "„{from}“ → „{to}“ je ve slovníku. Opraveno i na jednom dalším místě.",
   "detail.dictionary.savedApplied.few":
@@ -232,8 +231,9 @@ export const csDetailContext: Partial<Record<keyof typeof csDetail, string>> = {
     "Popisek křížku v bublině průběhu, když běží rozpoznávání mluvčích.",
   "detail.progress.cancelAi": "Popisek křížku, který přeruší jazykovou úpravu textu.",
 
+  "detail.empty.heading":
+    "Nadpis uprostřed prázdné plochy přepisu; přímo pod ním stojí tlačítko Přepsat.",
   "detail.empty.transcribe": "Tlačítko spustí převod řeči na text u dosud nepřepsané nahrávky.",
-  "detail.empty.preparing": "Krátký stav, než se objeví první slova živého přepisu.",
 
   "detail.source.fileFilter":
     "Název filtru v systémovém dialogu pro výběr souboru. Zvukové i video soubory.",

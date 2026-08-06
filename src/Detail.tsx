@@ -4,14 +4,17 @@ import { open, save } from "@tauri-apps/plugin-dialog";
 import { listen } from "@tauri-apps/api/event";
 
 import { api } from "./api";
+import InfoNote from "./InfoNote";
 import PlaybackControls from "./PlaybackControls";
 import ConfirmationDialog from "./ConfirmationDialog";
 import type { ConfirmationRequest } from "./ConfirmationDialog";
 import RecordingActionsMenu from "./RecordingActionsMenu";
+import NameDialog from "./NameDialog";
 import Select from "./Select";
 import { LineIcon, type LineIconName } from "./icons";
 import mark from "./mark.svg?raw";
-import { EMPTY_WAVEFORM, loadWaveform, preparePlaybackSource, usePlayer } from "./player";
+import { EMPTY_WAVEFORM, MiniPlayer, loadWaveform, preparePlaybackSource, usePlayer } from "./player";
+import { MiniRecorder } from "./recorder";
 import type { Waveform } from "./player";
 import { useI18n } from "./i18n";
 import { localMessage, useProgressMessage, useUserMessage } from "./messages";
@@ -28,6 +31,7 @@ import type {
   TranscriptionProgress,
   LiveSegment,
   RecordingNote,
+  Folder,
 } from "./types";
 
 interface Props {
@@ -37,6 +41,15 @@ interface Props {
   liveSegments: LiveSegment[];
   onBack: () => void;
   onNew: () => void;
+  /** Opens the add dialog straight on the recorder view. */
+  onOpenRecorder: () => void;
+  /** Travels to another recording's detail — the mini player's click. */
+  onOpenRecording: (recordingId: string) => void;
+  /** Hands this recording's audio file over to a place of the user's choosing. */
+  onExportAudio: () => void;
+  folders: Folder[];
+  onMoveToFolder: (folder: string | null) => void;
+  onCreateFolderFor: () => void;
   onSettings: () => void;
   onError: (z: string) => void;
   /** A confirmation, not a fault. Shown in the calm colour. */
@@ -716,6 +729,12 @@ export default function Detail({
   liveSegments,
   onBack,
   onNew,
+  onOpenRecorder,
+  onOpenRecording,
+  onExportAudio,
+  folders,
+  onMoveToFolder,
+  onCreateFolderFor,
   onSettings,
   onError,
   onInfo,
@@ -730,12 +749,12 @@ export default function Detail({
   const labels = useLabels();
   const [title, setTitle] = useState("");
   const [renamingTitle, setRenamingTitle] = useState(false);
-  const [titleDraft, setTitleDraft] = useState("");
   const [confirmation, setConfirmation] = useState<ConfirmationRequest | null>(null);
-  const renameCancelled = useRef(false);
   const [path, setPath] = useState("");
   const [duration, setDuration] = useState(0);
   const [status, setStatus] = useState("");
+  /** Which folder holds this recording, so its menu can offer to move it. */
+  const [folder, setFolder] = useState<string | null>(null);
   /** Why the last transcription failed. Only set when status is "chyba". */
   const [error, setError] = useState<string | null>(null);
   const [language, setLanguage] = useState("");
@@ -773,6 +792,48 @@ export default function Detail({
   // screen. Opening another transcript does not touch it — until you press
   // play, whatever was playing keeps playing.
   const player = usePlayer();
+
+  /* The player pill compacts by measurement, not by a window-width guess
+     (which shrank it with visible room to spare): it gives up its words the
+     moment the recording's name starts losing letters, and grows back once
+     the name is whole again with the pill's full width to spare. The two
+     conditions cannot chase each other — expanding needs ~25 px more than
+     compacting frees. */
+  const headerLeftRef = useRef<HTMLDivElement | null>(null);
+  const [pillsCompact, setPillsCompact] = useState(false);
+  const pillsCompactRef = useRef(false);
+  pillsCompactRef.current = pillsCompact;
+
+  useEffect(() => {
+    const left = headerLeftRef.current;
+    if (!left) return;
+    /* The full pill is 290, the compact one 83; expanding costs the
+       difference, plus breathing room so the pair of rules cannot flap. */
+    const EXPAND_NEED = 232;
+    const measure = () => {
+      const name = left.querySelector<HTMLElement>(".detail-jmeno");
+      if (!name) return; // renaming — the span is an input right now
+      const clipped = name.scrollWidth > name.clientWidth + 1;
+      if (!pillsCompactRef.current) {
+        if (clipped) setPillsCompact(true);
+        return;
+      }
+      /* The left column stretches, so its free room is the gap between its
+         last piece of content and its own right edge. */
+      const children = Array.from(left.children) as HTMLElement[];
+      const last = children[children.length - 1];
+      if (!last) return;
+      const slack =
+        left.getBoundingClientRect().right - last.getBoundingClientRect().right;
+      if (!clipped && slack > EXPAND_NEED) setPillsCompact(false);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(left);
+    return () => observer.disconnect();
+    /* `title` re-arms it: a rename changes the name's width without changing
+       the observed column's box, so the observer alone would sleep through it. */
+  }, [title]);
   const isCurrentRecording = player.recordingId === id;
   // Cursor in a transcript that does not own the audio yet.
   const [localTime, setLocalTime] = useState(0);
@@ -959,6 +1020,7 @@ export default function Detail({
       setPath(d.recording.path);
       setDuration(d.recording.duration);
       setStatus(d.recording.status);
+      setFolder(d.recording.folder);
       setError(d.recording.error ? userMessage(d.recording.error) : null);
       setLanguage(d.recording.language);
       setSegments(d.segments);
@@ -1322,23 +1384,14 @@ export default function Detail({
   }, [id, onTranscribe]);
 
   const saveRecordingTitle = useCallback(async (value: string) => {
-    if (renameCancelled.current) {
-      renameCancelled.current = false;
-      return;
-    }
     const trimmed = value.trim();
     setRenamingTitle(false);
-    if (!trimmed || trimmed === title) {
-      setTitleDraft(title);
-      return;
-    }
+    if (!trimmed || trimmed === title) return;
     try {
       await api.renameRecording(id, trimmed);
       setTitle(trimmed);
-      setTitleDraft(trimmed);
       player.updateTitle(id, trimmed);
     } catch (e) {
-      setTitleDraft(title);
       onError(userMessage(e));
     }
   }, [id, onError, player, title, userMessage]);
@@ -1416,7 +1469,20 @@ export default function Detail({
                 // though the new one is already saved. The backend drops them
                 // for the same reason; this mirrors it so the change is
                 // visible at once instead of after a reload.
-                { ...x, text: trimmedText, edited: true, verified: true, words: null }
+                //
+                // `original` mirrors the backend's COALESCE for the same
+                // reason: the first rewrite records what the machine wrote,
+                // later ones leave that record alone. Without it the Opravy
+                // list — which only shows segments whose original is known —
+                // learned about a fresh correction only after a reload.
+                {
+                  ...x,
+                  text: trimmedText,
+                  edited: true,
+                  verified: true,
+                  words: null,
+                  original: x.original ?? x.text,
+                }
               : x
           )
         );
@@ -1788,7 +1854,7 @@ export default function Detail({
   return (
     <main className="detail">
       <div className="detail-hlavicka">
-        <div className="detail-hlavicka-levo">
+        <div ref={headerLeftRef} className="detail-hlavicka-levo">
           <span className="detail-znacka header-brand-mark" aria-hidden>
             <span
               className="logotyp"
@@ -1802,25 +1868,21 @@ export default function Detail({
             </svg>
             {t("common.archive")}
           </button>
-          {renamingTitle ? (
-            <input
-              className="detail-title-rename"
-              value={titleDraft}
-              autoFocus
-              onChange={(event) => setTitleDraft(event.target.value)}
-              onBlur={(event) => void saveRecordingTitle(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") event.currentTarget.blur();
-                if (event.key === "Escape") {
-                  event.preventDefault();
-                  renameCancelled.current = true;
-                  setTitleDraft(title);
-                  setRenamingTitle(false);
-                }
-              }}
-              aria-label={t("detail.header.titleLabel")}
-            />
-          ) : (
+          {/* The name is changed in the shared dialog, the same one that names
+              a folder. The header keeps one shape whether or not a rename is
+              under way. */}
+          <NameDialog
+            open={renamingTitle}
+            title={t("dialogs.rename.title")}
+            text={t("dialogs.rename.text")}
+            label={t("dialogs.rename.label")}
+            placeholder={t("dialogs.rename.placeholder")}
+            submitLabel={t("common.save")}
+            initialName={title || fileName(path)}
+            onClose={() => setRenamingTitle(false)}
+            onSubmit={(name) => void saveRecordingTitle(name)}
+          />
+          {(
             <>
               <h1 className="detail-nazev">
                 <span className={`znak detail-status ${status}`} aria-hidden />
@@ -1830,11 +1892,12 @@ export default function Detail({
                 <RecordingActionsMenu
                   className="detail-title-menu"
                   status={status}
-                  onRename={() => {
-                    renameCancelled.current = false;
-                    setTitleDraft(title);
-                    setRenamingTitle(true);
-                  }}
+                  onRename={() => setRenamingTitle(true)}
+                  onExportAudio={onExportAudio}
+                  folders={folders}
+                  folder={folder}
+                  onMoveToFolder={onMoveToFolder}
+                  onCreateFolderFor={onCreateFolderFor}
                   onRetranscribe={startTranscription}
                   onDeleteTranscript={() => setConfirmation({
                     nadpis: t("detail.header.deleteTranscriptTitle"),
@@ -1866,6 +1929,21 @@ export default function Detail({
           )}
         </div>
         <div className="detail-akce">
+          {/* Detail replaces the application header, so its right-edge pills
+              must reappear here: the mini player whenever a different
+              recording than this one is playing — the full player covers only
+              the open recording — and a take minimised out of the dialog,
+              which would otherwise record with no sign of it on the whole
+              screen. */}
+          {player.recordingId && player.recordingId !== id && (
+            <MiniPlayer
+              compact={pillsCompact}
+              onOpen={() => {
+                if (player.recordingId) onOpenRecording(player.recordingId);
+              }}
+            />
+          )}
+          <MiniRecorder onOpen={onOpenRecorder} />
           <button
             className={`tlacitko ai-edit-button ${aiDocument ? "ready" : ""}`}
             onClick={openAiAction}
@@ -1949,13 +2027,11 @@ export default function Detail({
       ) : null}
 
       {status === "nova" && !sourceMissing ? (
-        /* With no transcript there is nothing to control: this spot belongs to
-           the call to action the person came here for. */
+        /* The strip only states the situation. The call to action stands in
+           the middle of the empty transcript area — where the text will be —
+           so the fact and the button are not said twice. */
         <div className="prehravac prehravac-vyzva">
-          <span>{t("detail.empty.notTranscribed")}</span>
-          <button className="tlacitko hlavni" onClick={startTranscription}>
-            {t("detail.empty.transcribe")}
-          </button>
+          <InfoNote compact>{t("detail.empty.notTranscribed")}</InfoNote>
         </div>
       ) : status === "chyba" && segments.length === 0 && !sourceMissing ? (
         /* A transcription that failed or was interrupted. Without a way out
@@ -2040,13 +2116,14 @@ export default function Detail({
         <div className="prepis" ref={listRef}>
 
           {running && segments.length === 0 && (
+            /* No placeholder while the first words are still on their way —
+               the progress bubble already says what is happening, and a serif
+               `Příprava…` sitting where the transcript will be read as part
+               of it. The area simply stays empty until text arrives. */
             <div className="zivy-prepis">
               {liveSegments.map((s, i) => (
                 <p key={i}>{s.text}</p>
               ))}
-              {liveSegments.length === 0 && (
-                <p className="drobne">{t("detail.empty.preparing")}</p>
-              )}
             </div>
           )}
 
@@ -2083,7 +2160,22 @@ export default function Detail({
           })}
 
           {!running && segments.length === 0 && (
-            <p className="drobne">{t("detail.empty.noTranscript")}</p>
+            status === "nova" && !sourceMissing ? (
+              /* The empty area names what it is for and offers the one action
+                 that fills it. A missing source falls through to the plain
+                 line: a file that is gone cannot be transcribed. */
+              <div className="prepis-prazdny">
+                <span className="prepis-prazdny-znak" aria-hidden>
+                  <LineIcon name="transcription" />
+                </span>
+                <h2>{t("detail.empty.heading")}</h2>
+                <button className="tlacitko hlavni" onClick={startTranscription}>
+                  {t("detail.empty.transcribe")}
+                </button>
+              </div>
+            ) : (
+              <p className="drobne">{t("detail.empty.noTranscript")}</p>
+            )
           )}
         </div>
 

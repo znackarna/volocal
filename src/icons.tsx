@@ -28,10 +28,20 @@ export const LINE_ICONS = {
    *  writing rather than as a generic tool. */
   edits:
     "M5 19h3.5L19.4 8.1a1.9 1.9 0 0 0 0-2.7l-.8-.8a1.9 1.9 0 0 0-2.7 0L5 15.5V19Z M14.8 6.6l2.6 2.6",
+  /** A drawer with its tab. Used by the archive's folder heading, its cards
+   *  and the recording menu's move action, so the same idea keeps the same
+   *  drawing in all three. */
+  folder:
+    "M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z",
   /** Speech becoming text. The same shape as the transcription progress bubble,
    *  redrawn on this grid instead of being scaled — scaling it non-uniformly
    *  from its own 19×16 box would flatten the peaks. */
   transcription: "M2 12h2.6l2-6.4 3 12.8 2.4-9.4 2 5.2 1.6-2.2H22",
+  /** A video on the web: a screen with a play mark in it. The card used to
+   *  draw a chain link — two arcs that at 19 px met nowhere and read as
+   *  broken. A screen says the same thing and survives being small. */
+  video:
+    "M3 6.5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-11Z M10.2 9.4l4.6 2.6-4.6 2.6V9.4Z",
 } as const;
 
 export type LineIconName = keyof typeof LINE_ICONS;

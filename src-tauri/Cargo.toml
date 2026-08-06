@@ -2,7 +2,7 @@
 name = "whisp"
 version = "0.9.0"
 description = "Local audio transcription with Whisper"
-authors = ["Radomil Martinec"]
+authors = ["značkárna s.r.o."]
 edition = "2021"
 rust-version = "1.77"
 

@@ -17,7 +17,17 @@ export const csApp = {
 
   // --------------------------------------------------------------- notice
   "app.notice.unsupportedFormat":
-    "Tenhle formát neumíme. Zkus mp3, wav, m4a nebo běžné video.",
+    "Tento formát neumíme. Zkuste mp3, wav, m4a nebo běžné video.",
+  "app.recorder.label": "Záznam",
+  "app.recorder.open": "Otevřít nahrávání",
+  "app.recorder.stop": "Zastavit záznam",
+  "app.notice.audioSaved": "Zvuk byl uložen do {path}.",
+  "app.audioFormat.mp3": "MP3 — otevře se všude",
+  "app.audioFormat.m4a": "M4A — menší soubor",
+  "app.audioFormat.wav": "WAV — bez komprese",
+  "app.audioFormat.same": "{format} — beze změny",
+  "app.notice.recordingAdded": "Záznam je v archivu.",
+  "app.notice.recordingAddedTranscribing": "Záznam je v archivu a přepis začal.",
   "app.notice.onlineAddedTranscribing": "Online nahrávka je přidaná a přepis začal.",
   "app.notice.onlineAdded": "Online nahrávka je přidaná do archivu.",
 
@@ -49,8 +59,8 @@ export const csApp = {
   "app.confirm.deleteTranscriptAction": "Smazat přepis",
 
   // ------------------------------------------------------------- drop zone
-  "app.dropZone.hint": "Pusť soubor a přepis začne sám",
-  "app.dropZone.hintManual": "Pusť soubor a přidá se do seznamu",
+  "app.dropZone.hint": "Pusťte soubor a přepis začne sám",
+  "app.dropZone.hintManual": "Pusťte soubor a přidá se do seznamu",
 
   // ---------------------------------------------------------------- player
   "app.player.preparing": "Připravuji zvuk",
@@ -81,16 +91,25 @@ export const csAppContext: Partial<Record<keyof typeof csApp, string>> = {
   "app.shell.language": "Popisek položky v patičce; hodnotou je jazyk nahrávky.",
   "app.shell.segmentCount": "Popisek položky v patičce; hodnotou je počet úseků přepisu.",
   "app.notice.unsupportedFormat":
-    "Hláška po přetažení souboru, který neumíme otevřít. Tyká uživateli, stejně jako zbytek aplikace.",
+    "Hláška po přetažení souboru, který neumíme otevřít. Vyká uživateli, stejně jako zbytek aplikace.",
+  "app.audioFormat.mp3":
+    "Název formátu v systémovém dialogu pro uložení zvuku. Za pomlčkou je důvod, proč si ho vybrat.",
+  "app.audioFormat.same":
+    "Volba v dialogu pro uložení zvuku, když nahrávka už v tom formátu je: soubor se jen zkopíruje. {format} je zkratka jako FLAC.",
   "app.filePicker.audioAndVideo":
     "Název skupiny souborů v systémovém dialogu pro výběr souboru.",
   "app.watchFolder.transcribing.one":
-    "Hláška poté, co aplikace sama převzala soubory ze sledované složky a rovnou je začala přepisovat.",
+    "Hláška po přidání nahrávek s okamžitým přepisem — ze sledované složky i ručně vybraným či přetaženým souborem.",
   "app.watchFolder.added.one":
-    "Hláška poté, co aplikace sama převzala soubory ze sledované složky, ale přepis nezačal.",
+    "Hláška po přidání nahrávek bez spuštění přepisu — ze sledované složky i ručně vybraným či přetaženým souborem.",
   "app.confirm.removeText":
     "{title} je název nahrávky. Odebírá se přepis, zvukový soubor zůstává na disku.",
   "app.confirm.deleteTranscriptText": "{title} je název nahrávky.",
+  "app.recorder.label":
+    "Text v pilulce mini rekordéru v hlavičce, když nahrávání běží minimalizované.",
+  "app.recorder.open": "Bublina nad pilulkou; kliknutí otevře dialog záznamu zpátky.",
+  "app.recorder.stop":
+    "Popisek čtvercového tlačítka v pilulce. Zastaví záznam a otevře dialog, aby hotový záznam nezůstal bez rozhodnutí.",
   "app.dropZone.hint":
     "Text přes celé okno, když uživatel drží přetahovaný soubor nad aplikací. Platí, když je zapnutý automatický přepis.",
   "app.dropZone.hintManual":

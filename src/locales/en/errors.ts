@@ -40,6 +40,20 @@ export const enErrors: Partial<Record<keyof typeof csErrors, string>> = {
   "errors.watch_folder.file_changed": "The file changed in the meantime: {name}",
   "errors.watch_folder.scan_interrupted": "The watched folder check was interrupted: {detail}",
   "errors.watch_folder.ignore_interrupted": "Ignoring files was interrupted: {detail}",
+  "errors.folder.empty_name": "A folder needs a name.",
+  "errors.folder.duplicate_name": "There is already a folder with that name.",
+  "errors.audio_export.source_missing":
+    "The audio file is no longer in its place, so there is nothing to save.",
+  "errors.audio_export.failed": "The audio couldn’t be saved: {detail}",
+  "errors.audio_export.unsupported_format":
+    "We can’t write audio with that extension. Choose MP3, M4A or WAV.",
+  "errors.audio_export.ffmpeg_missing":
+    "Converting audio needs ffmpeg. Add it under Models.",
+  "errors.microphone.no_audio": "The take didn't arrive. Try again.",
+  "errors.microphone.empty": "The take is too short to transcribe.",
+  "errors.microphone.ffmpeg_missing": "Saving the take needs ffmpeg. Add it under Models.",
+  "errors.microphone.save_failed": "The take couldn't be saved: {detail}",
+  "errors.microphone.convert_failed": "The take couldn't be converted into an audio file.",
   "errors.watch_folder.import_interrupted": "Adding files was interrupted: {detail}",
   "errors.playback.ffmpeg_missing": "ffmpeg is missing, so precise MP3 playback cannot be prepared.",
   "errors.playback.source_missing": "The audio file is no longer where it was.",

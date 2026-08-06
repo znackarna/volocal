@@ -362,6 +362,9 @@ pub fn import(
         language_choice: String::new(),
         error: None,
         segment_count: 0,
+        // Everything arriving from outside lands in the archive's root; a
+        // folder is a decision the person makes afterwards.
+        folder: None,
     };
     let connection = db::open(db_path)?;
     db::insert_recording(&connection, &recording)?;

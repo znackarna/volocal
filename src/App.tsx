@@ -1,26 +1,30 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
-import { getVersion } from "@tauri-apps/api/app";
-import { open } from "@tauri-apps/plugin-dialog";
+import { open, save } from "@tauri-apps/plugin-dialog";
 
 import { api } from "./api";
-import { equalizerAtTime, Waveform, usePlayer } from "./player";
+import { MiniPlayer, usePlayer } from "./player";
+import { MiniRecorder } from "./recorder";
 import Library from "./Library";
 import Detail from "./Detail";
 import SettingsScreen from "./Settings";
 import SetupWizard from "./SetupWizard";
 import ConfirmationDialog from "./ConfirmationDialog";
+import CountdownRing from "./CountdownRing";
+import NameDialog from "./NameDialog";
 import Tooltips from "./Tooltips";
 import AddRecordingDialog from "./AddRecordingDialog";
 import SpeakerCountDialog from "./SpeakerCountDialog";
 import RecordingMetadataIcon from "./RecordingMetadataIcon";
+import type { CSSProperties } from "react";
 import type { RecordingMetadataKind } from "./RecordingMetadataIcon";
 // inlined into the page rather than via <img>, for sharpness and colours
 import mark from "./mark.svg?raw";
 import type { ConfirmationRequest } from "./ConfirmationDialog";
-import { formatTime, applyFonts, fileName } from "./types";
+import { formatTime, applyFonts, applyTheme, fileName } from "./types";
 import { useI18n } from "./i18n";
+import type { TranslationKey } from "./i18n";
 import { useProgressMessage, useUserMessage } from "./messages";
 import { useLabels } from "./labels";
 import { useFormats } from "./formats";
@@ -32,9 +36,23 @@ import type {
   TranscriptionProgress,
   LiveSegment,
   WatchFolderCandidate,
+  Folder,
 } from "./types";
 
 const SUPPORTED_EXTENSIONS = ["mp3", "wav", "m4a", "aac", "flac", "ogg", "opus", "wma", "mp4", "mkv", "mov", "webm"];
+
+/** Sources that hold audio and nothing else: saving one in its own format is
+ *  a copy rather than a re-encode. Everything else is a video container. */
+const AUDIO_ONLY_EXTENSIONS = ["mp3", "m4a", "wav", "flac", "ogg", "opus", "aac", "wma"];
+
+/** What the export can write, in the order the save dialog offers it. */
+const AUDIO_EXPORT_FORMATS = ["mp3", "m4a", "wav"];
+
+const AUDIO_FORMAT_LABELS: Record<string, TranslationKey> = {
+  mp3: "app.audioFormat.mp3",
+  m4a: "app.audioFormat.m4a",
+  wav: "app.audioFormat.wav",
+};
 
 
 
@@ -72,6 +90,11 @@ function FooterStatusItem({
     </span>
   );
 }
+
+/** How long the notice bar stays before it leaves on its own. The countdown
+ *  ring in the bar is handed the same number, so the picture and the timer
+ *  cannot disagree. */
+const NOTICE_LIFE = { info: 5000, error: 9000 } as const;
 
 /** The order the pipeline goes through. Used only to spot a report that
  *  arrives out of turn. */
@@ -133,6 +156,15 @@ export default function App() {
   /** Enough of the settings to know whether a transcription must ask about
    *  speakers, and what to offer as the starting answer. */
   const [speakerSetup, setSpeakerSetup] = useState({ separates: false, count: 0 });
+  /** Whether the watched folder starts transcribing on its own. Read from the
+   *  settings rather than from the archive's own toggle: that one belongs to
+   *  files chosen by hand, this one to files that arrive without anybody
+   *  looking at the screen. */
+  const [watchAuto, setWatchAuto] = useState(false);
+  /* The scan effect is created once and cannot see later state, so the switch
+     and the handler reach it through refs. */
+  const watchAutoRef = useRef(false);
+  const autoTranscribeRef = useRef<((files: WatchFolderCandidate[]) => void) | null>(null);
   /** Recordings waiting for that answer before they start. */
   /** Recordings whose speakers are being separated right now. The screens
    *  cannot tell from the progress alone, because the first event arrives a
@@ -161,6 +193,7 @@ export default function App() {
     null
   );
   const [noticeClosing, setNoticeClosing] = useState(false);
+
   // Rust sends a code, not a sentence; these turn one into the other.
   const userMessage = useUserMessage();
   const progressMessage = useProgressMessage();
@@ -181,7 +214,7 @@ export default function App() {
   // what you asked for happened, an error asks you to do something about it.
   useEffect(() => {
     if (!notice) return;
-    const delay = noticeClosing ? 280 : notice.kind === "error" ? 9000 : 5000;
+    const delay = noticeClosing ? 280 : NOTICE_LIFE[notice.kind];
     const timer = setTimeout(() => {
       if (noticeClosing) {
         setNotice(null);
@@ -204,21 +237,20 @@ export default function App() {
   const lastWatchError = useRef("");
 
   const [archiveSetup, setArchiveSetup] = useState({ model: "", watchFolder: "" });
-  /* Read once from the bundle rather than typed here, so bumping
-     `tauri.conf.json` is the only thing anyone has to remember. */
-  const [version, setVersion] = useState("");
-  useEffect(() => {
-    getVersion().then(setVersion).catch(() => setVersion(""));
-  }, []);
+  /* Which view the add dialog opens on. The mini recorder reopens it straight
+     on the recorder; every other entry starts at the source cards. */
+  const [addRecordingView, setAddRecordingView] = useState<"source" | "microphone">("source");
 
   const loadAppearance = useCallback(async () => {
     try {
       const settings = await api.loadSettings();
       applyFonts(settings);
+      applyTheme(settings.theme);
       setSpeakerSetup({
         separates: settings.diarization,
         count: settings.speaker_count,
       });
+      setWatchAuto(settings.watch_folder_enabled && settings.watch_folder_auto);
       /* The Archive footer's left side says what the archive holds. Its right
          side says what will happen to the next recording — where they arrive
          from and which model will read them. Both are standing settings, which
@@ -355,6 +387,13 @@ export default function App() {
         const found = await api.scanWatchFolder();
         if (!alive || watchDecisionRunningRef.current) return;
         lastWatchError.current = "";
+        /* Transcribing right away is the point of the switch: the files
+           arrive while nobody is looking at the screen, so a question in the
+           Archive would only keep them waiting. */
+        if (found.length > 0 && watchAutoRef.current && autoTranscribeRef.current) {
+          autoTranscribeRef.current(found);
+          return;
+        }
         setWatchCandidates(found);
       } catch (error) {
         const message = userMessage(error);
@@ -483,6 +522,25 @@ export default function App() {
   }, [loadRecordings, progressMessage, reportError, userMessage]);
 
   // ---------------------------------------------------- pretahovani souboru
+  /** Where the person stands in the archive, for the handlers created above
+   *  the folder state itself. A recording added by hand belongs to the folder
+   *  that is open — the watched folder deliberately does not go through this,
+   *  because those files arrive without anybody standing anywhere. */
+  const openFolderRef = useRef<string | null>(null);
+  const fileIntoOpenFolder = useCallback(
+    async (ids: string[]) => {
+      const folder = openFolderRef.current;
+      if (!folder || ids.length === 0) return;
+      try {
+        await api.moveToFolder(ids, folder);
+      } catch (error) {
+        /* The recording is in the archive either way; only its place failed. */
+        reportError(userMessage(error));
+      }
+    },
+    [reportError, userMessage]
+  );
+
   const acceptFiles = useCallback(
     async (paths: string[]) => {
       const audio = paths.filter((c) => SUPPORTED_EXTENSIONS.includes(c.split(".").pop()?.toLowerCase() ?? ""));
@@ -490,9 +548,12 @@ export default function App() {
         reportError(t("app.notice.unsupportedFormat"));
         return;
       }
+      let added = 0;
       for (const c of audio) {
         try {
           const n = await api.addRecording(c);
+          added += 1;
+          await fileIntoOpenFolder([n.id]);
           if (automaticRef.current) await beginTranscription([n.id]);
           // The status changes on the backend side, so the list has to be
           // reloaded. Without it the row keeps looking untranscribed even
@@ -502,8 +563,19 @@ export default function App() {
           reportError(userMessage(e));
         }
       }
+      /* Say it out loud (Jakub's ask): from a detail, an added file lands in
+         an archive that is not on screen, so without this notice nothing
+         visible happens at all. The watched-folder import already says
+         exactly this sentence; one meaning, one key. */
+      if (added > 0) {
+        reportInfo(
+          automaticRef.current
+            ? tPlural("app.watchFolder.transcribing", added)
+            : tPlural("app.watchFolder.added", added)
+        );
+      }
     },
-    [loadRecordings, t, userMessage]
+    [fileIntoOpenFolder, loadRecordings, reportError, reportInfo, t, tPlural, userMessage]
   );
 
   useEffect(() => {
@@ -538,12 +610,219 @@ export default function App() {
     await acceptFiles(Array.isArray(selected) ? selected : [selected]);
   }, [acceptFiles, t]);
 
+  /* Saving a recording's own audio somewhere findable. Microphone takes and
+     downloaded videos live inside the application's data directory, which is
+     not a place to send anyone digging — so the archive offers to hand the
+     file over. One implementation for both screens; Library and Detail only
+     say which recording. */
+  /* Folders. The archive shows one level at a time, so `openFolder` is where
+     the person stands; a recording moved out of sight of that level is the
+     point of the feature rather than a surprise. */
+  const [folders, setFolders] = useState<Folder[]>([]);
+  const [openFolder, setOpenFolder] = useState<string | null>(null);
+  useEffect(() => {
+    openFolderRef.current = openFolder;
+  }, [openFolder]);
+  const [folderDialog, setFolderDialog] = useState<
+    { mode: "create"; forRecording: string | null } | { mode: "rename"; folder: Folder } | null
+  >(null);
+
+  const loadFolders = useCallback(async () => {
+    try {
+      setFolders(await api.folders());
+    } catch (error) {
+      reportError(userMessage(error));
+    }
+  }, [reportError, userMessage]);
+
+  useEffect(() => {
+    void loadFolders();
+  }, [loadFolders]);
+
+  const submitFolderDialog = useCallback(
+    async (name: string) => {
+      const request = folderDialog;
+      setFolderDialog(null);
+      if (!request) return;
+      try {
+        if (request.mode === "rename") {
+          await api.renameFolder(request.folder.id, name);
+        } else {
+          const created = await api.createFolder(name);
+          // Created from a recording's own menu: it goes straight in, which
+          // is what the person was doing when they reached for a new folder.
+          if (request.forRecording) {
+            await api.moveToFolder([request.forRecording], created.id);
+            await loadRecordings();
+          }
+        }
+        await loadFolders();
+      } catch (error) {
+        reportError(userMessage(error));
+      }
+    },
+    [folderDialog, loadFolders, loadRecordings, reportError, userMessage]
+  );
+
+  const moveToFolder = useCallback(
+    async (id: string, folder: string | null) => {
+      try {
+        await api.moveToFolder([id], folder);
+        await loadRecordings();
+        await loadFolders();
+      } catch (error) {
+        reportError(userMessage(error));
+      }
+    },
+    [loadFolders, loadRecordings, reportError, userMessage]
+  );
+
+  const askAboutFolder = useCallback(
+    (folder: Folder) => {
+      const remove = async (contents: boolean) => {
+        try {
+          await api.deleteFolder(folder.id, contents);
+          setOpenFolder((current) => (current === folder.id ? null : current));
+          await loadRecordings();
+          await loadFolders();
+        } catch (error) {
+          reportError(userMessage(error));
+        }
+      };
+      /* Two answers, not one: an empty folder is a plain confirmation, a full
+         one asks whether its transcripts go with it. The destructive button
+         is the one that destroys; keeping them is the quiet way out. */
+      setQuery({
+        nadpis: t("dialogs.folder.deleteTitle", { name: folder.name }),
+        text: folder.recording_count === 0
+          ? t("dialogs.folder.deleteEmpty")
+          : tPlural("dialogs.folder.deleteText", folder.recording_count),
+        confirm: folder.recording_count === 0
+          ? t("common.delete")
+          : t("dialogs.folder.deleteAll"),
+        nicive: true,
+        action: () => void remove(folder.recording_count > 0),
+        ...(folder.recording_count > 0
+          ? { alternative: { label: t("dialogs.folder.deleteKeep"), action: () => void remove(false) } }
+          : {}),
+      });
+    },
+    [loadFolders, loadRecordings, reportError, t, tPlural, userMessage]
+  );
+
+  const exportAudio = useCallback(
+    async (id: string) => {
+      const recording = recordings.find((item) => item.id === id);
+      if (!recording) return;
+      const source = recording.path.split(".").pop()?.toLowerCase() ?? "";
+      const name = (recording.title || fileName(recording.path)).replace(/\.[^.]+$/, "");
+      /* An audio-only source keeps its own format first, because that one is
+         handed over untouched; a video's audio has to be written out, and
+         MP3 is the format nobody has to think about. */
+      const offered = AUDIO_ONLY_EXTENSIONS.includes(source)
+        ? [source, ...AUDIO_EXPORT_FORMATS.filter((format) => format !== source)]
+        : [...AUDIO_EXPORT_FORMATS];
+      const destination = await save({
+        defaultPath: `${name}.${offered[0]}`,
+        filters: offered.map((format) => ({
+          name: AUDIO_FORMAT_LABELS[format]
+            ? t(AUDIO_FORMAT_LABELS[format])
+            : t("app.audioFormat.same", { format: format.toUpperCase() }),
+          extensions: [format],
+        })),
+      });
+      if (!destination) return;
+      try {
+        await api.exportAudio(id, destination);
+        reportInfo(t("app.notice.audioSaved", { path: destination }));
+      } catch (error) {
+        reportError(userMessage(error));
+      }
+    },
+    [recordings, reportError, reportInfo, t, userMessage]
+  );
+
   // ---------------------------------------------------- navigace
   const openRecording = useCallback((id: string, time?: number) => {
     setSelectedId(id);
     setSeekTime(time ?? null);
     setScreen("detail");
   }, []);
+
+  /* Where the reader has been, so the mouse's own back and forward buttons
+     mean something here. A place is the three things that decide what is on
+     screen: which screen, which recording, which folder.
+     The list is kept by an effect watching that triple rather than by calling
+     something at each of the two dozen places that navigate — one of them
+     would be forgotten, and a history with a hole in it is worse than none.
+     Travelling sets the index first, so the effect finds the tuple it already
+     holds and adds nothing. */
+  type Place = { screen: "library" | "detail" | "settings"; recording: string | null; folder: string | null };
+  const trail = useRef<Place[]>([{ screen: "library", recording: null, folder: null }]);
+  const trailAt = useRef(0);
+  /* `travel` is handed to a window listener, so it must not be rebuilt on
+     every navigation — it reads the current screen through a ref instead. */
+  const screenRef = useRef(screen);
+  screenRef.current = screen;
+
+  useEffect(() => {
+    /* The wizard is an errand, not a place: it can be required, and walking
+       out of it backwards would leave the application unable to transcribe. */
+    if (screen === "wizard") return;
+    const place: Place = {
+      screen,
+      // Leaving a detail does not clear the selection, and a library entry
+      // that remembers one would differ from the same library without it.
+      recording: screen === "detail" ? selectedId : null,
+      folder: openFolder,
+    };
+    const here = trail.current[trailAt.current];
+    if (here && here.screen === place.screen && here.recording === place.recording
+        && here.folder === place.folder) return;
+    trail.current = [...trail.current.slice(0, trailAt.current + 1), place].slice(-60);
+    trailAt.current = trail.current.length - 1;
+  }, [screen, selectedId, openFolder]);
+
+  const travel = useCallback(
+    (step: number) => {
+      if (screenRef.current === "wizard") return;
+      // A dialog is the top of the stack; the buttons belong to it, not to the
+      // screen underneath. Asking the DOM covers every modal without listing
+      // them, which is what keeps the next one from being forgotten here.
+      if (document.querySelector(".prekryv-dialogu")) return;
+      const place = trail.current[trailAt.current + step];
+      if (!place) return;
+      trailAt.current += step;
+      setScreen(place.screen);
+      setSelectedId(place.recording);
+      setSeekTime(null);
+      setOpenFolder(place.folder);
+      if (place.screen === "library") loadRecordings();
+    },
+    [loadRecordings]
+  );
+
+  useEffect(() => {
+    const walk = (event: MouseEvent) => {
+      if (event.button !== 3 && event.button !== 4) return;
+      event.preventDefault();
+      travel(event.button === 3 ? -1 : 1);
+    };
+    /* The press and the click are swallowed as well: WebView2 would otherwise
+       do its own history navigation on the same button, and this window has
+       exactly one document to go back to — none. */
+    const swallow = (event: MouseEvent) => {
+      if (event.button === 3 || event.button === 4) event.preventDefault();
+    };
+    window.addEventListener("mouseup", walk);
+    window.addEventListener("mousedown", swallow);
+    window.addEventListener("auxclick", swallow);
+    return () => {
+      window.removeEventListener("mouseup", walk);
+      window.removeEventListener("mousedown", swallow);
+      window.removeEventListener("auxclick", swallow);
+    };
+  }, [travel]);
 
   const blockingIssues = useMemo(() => check?.issues ?? [], [check]);
   const player = usePlayer();
@@ -570,6 +849,35 @@ export default function App() {
       setWatchDecisionRunning(false);
     }
   }, [loadRecordings, reportError, reportInfo, tPlural, userMessage]);
+
+  /** The same import, without the questions. Started by the watched folder
+   *  itself, so it uses the stored number of speakers instead of asking — an
+   *  automatic import that opens a modal is not automatic. */
+  const autoTranscribeWatchCandidates = useCallback(
+    async (candidates: WatchFolderCandidate[]) => {
+      if (candidates.length === 0 || watchDecisionRunningRef.current) return;
+      watchDecisionRunningRef.current = true;
+      setWatchDecisionRunning(true);
+      try {
+        const added = await api.importWatchFolderFiles(candidates);
+        await runTranscription(added.map((recording) => recording.id), undefined, null);
+        setWatchCandidates([]);
+        await loadRecordings();
+        reportInfo(tPlural("app.watchFolder.transcribing", added.length));
+      } catch (error) {
+        reportError(userMessage(error));
+      } finally {
+        watchDecisionRunningRef.current = false;
+        setWatchDecisionRunning(false);
+      }
+    },
+    [loadRecordings, reportError, reportInfo, runTranscription, tPlural, userMessage]
+  );
+
+  useEffect(() => {
+    watchAutoRef.current = watchAuto;
+    autoTranscribeRef.current = autoTranscribeWatchCandidates;
+  }, [watchAuto, autoTranscribeWatchCandidates]);
 
   const addWatchCandidates = useCallback(async (candidates: WatchFolderCandidate[]) => {
     if (candidates.length === 0 || watchDecisionRunningRef.current) return;
@@ -637,6 +945,18 @@ export default function App() {
     setScreen(wizardReturnScreen);
   }, [loadAppearance, loadRecordings, loadToolCheck, wizardReturnScreen]);
 
+  /* Finishing is not the same as leaving. `Jdeme přepisovat` promises exactly
+     that, so it lands in the Archive whatever screen the wizard was opened
+     from — `Zpět` is what returns to the origin. */
+  const finishWizard = useCallback(() => {
+    setWizardRequired(false);
+    setMissingModule(null);
+    loadToolCheck();
+    loadAppearance();
+    loadRecordings();
+    setScreen("library");
+  }, [loadAppearance, loadRecordings, loadToolCheck]);
+
   return (
     <div className={`aplikace ${dragging ? "pretahuje" : ""}`}>
       {screen !== "detail" && (
@@ -660,22 +980,29 @@ export default function App() {
           {screen === "library" && (
             <span className="header-brand-name">
               {/* i18n-ignore: a product name, not copy — it is the same word in
-                  every language. The version comes from tauri.conf.json, so the
-                  two cannot drift apart. */}
-              Whisp
-              {version && <span className="header-brand-version">v{version}</span>}
+                  every language. */}
+              Slobot
             </span>
           )}
         </button>
 
         {/* Back navigation follows the brand and precedes the current screen
             context. The required setup wizard omits it until transcription can run. */}
-        {screen !== "library" && !(screen === "wizard" && wizardRequired) && (
+        {(screen !== "library" || openFolder !== null) &&
+          !(screen === "wizard" && wizardRequired) && (
           <button
             className="tlacitko tichy"
             onClick={() => {
               if (screen === "wizard") {
                 leaveWizard();
+                return;
+              }
+              /* An open folder is a place inside the archive, so the way out of
+                 it is the way out of every other screen: this button. It used
+                 to live in the breadcrumb, which meant two different places to
+                 look for one idea. */
+              if (screen === "library") {
+                setOpenFolder(null);
                 return;
               }
               loadToolCheck();
@@ -694,21 +1021,33 @@ export default function App() {
           </button>
         )}
 
-        {/* Detail owns its complete contextual header and full player, so this
-            generic application header (including the mini player) is absent there. */}
-        {player.recordingId && (
-          <MiniPlayer
-            onOpen={() => {
-              if (player.recordingId) openRecording(player.recordingId);
-            }}
-          />
-        )}
-
         </div>
 
         <div className="lista-pravo">
+          {/* Sound and recording keep the right edge, beside the actions —
+              the same corner of every header, at Jakub's ask. */}
+          {player.recordingId && (
+            <MiniPlayer
+              onOpen={() => {
+                if (player.recordingId) openRecording(player.recordingId);
+              }}
+            />
+          )}
+          {/* A take minimised out of the dialog. Hidden while the dialog is
+              open — the dialog is the same state, larger. */}
+          {!addRecordingOpen && (
+            <MiniRecorder
+              onOpen={() => {
+                setAddRecordingView("microphone");
+                setAddRecordingOpen(true);
+              }}
+            />
+          )}
           {screen !== "settings" && screen !== "wizard" && (
-            <button className="tlacitko tichy" onClick={() => setAddRecordingOpen(true)}>
+            <button className="tlacitko tichy" onClick={() => {
+              setAddRecordingView("source");
+              setAddRecordingOpen(true);
+            }}>
               <svg width="15" height="15" viewBox="0 0 15 15" aria-hidden>
                 <path d="M7.5 2v11M2 7.5h11" fill="none" stroke="currentColor"
                       strokeWidth="1.5" strokeLinecap="round" />
@@ -740,7 +1079,13 @@ export default function App() {
         <div
           className={`hlaska ${notice.kind}${noticeClosing ? " odchazi" : ""}`}
           role={notice.kind === "error" ? "alert" : "status"}
+          /* The ring empties over exactly the time the timer above waits, so
+             the number lives here and the stylesheet only draws it. */
+          style={{ "--notice-life": `${NOTICE_LIFE[notice.kind]}ms` } as CSSProperties}
         >
+          {/* The ring empties over the seconds the bar has left, so it is
+              visible that it will go on its own — and how soon. */}
+          <CountdownRing className="hlaska-odpocet" size={16} />
           <span>{notice.text}</span>
           <button onClick={() => setNoticeClosing(true)}>{t("common.close")}</button>
         </div>
@@ -759,6 +1104,15 @@ export default function App() {
           onIgnoreWatchCandidates={ignoreWatchCandidates}
           onAddWatchCandidates={addWatchCandidates}
           onOpen={openRecording}
+          onExportAudio={exportAudio}
+          folders={folders}
+          openFolder={openFolder}
+          onOpenFolder={setOpenFolder}
+          onCreateFolder={() => setFolderDialog({ mode: "create", forRecording: null })}
+          onRenameFolder={(folder) => setFolderDialog({ mode: "rename", folder })}
+          onDeleteFolder={askAboutFolder}
+          onMoveToFolder={(id, folder) => void moveToFolder(id, folder)}
+          onCreateFolderFor={(id) => setFolderDialog({ mode: "create", forRecording: id })}
           onDelete={(id) => {
             const n = recordings.find((x) => x.id === id);
             setQuery({
@@ -803,7 +1157,10 @@ export default function App() {
             setAutomatic(z);
             localStorage.setItem("prepisovat-rovnou", z ? "ano" : "ne");
           }}
-          onAdd={() => setAddRecordingOpen(true)}
+          onAdd={() => {
+            setAddRecordingView("source");
+            setAddRecordingOpen(true);
+          }}
           onToSettings={() => {
             setWizardRequired(true);
             setWizardReturnScreen("library");
@@ -826,7 +1183,21 @@ export default function App() {
             setScreen("library");
             loadRecordings();
           }}
-          onNew={() => setAddRecordingOpen(true)}
+          onNew={() => {
+            setAddRecordingView("source");
+            setAddRecordingOpen(true);
+          }}
+          onOpenRecorder={() => {
+            setAddRecordingView("microphone");
+            setAddRecordingOpen(true);
+          }}
+          onOpenRecording={openRecording}
+          onExportAudio={() => void exportAudio(selectedId)}
+          folders={folders}
+          onMoveToFolder={(folder) => void moveToFolder(selectedId, folder)}
+          onCreateFolderFor={() =>
+            setFolderDialog({ mode: "create", forRecording: selectedId })
+          }
           onSettings={() => {
             setScreen("settings");
             loadToolCheck();
@@ -850,9 +1221,7 @@ export default function App() {
           required={wizardRequired}
           missingModule={missingModule}
           onBack={leaveWizard}
-          onComplete={() => {
-            leaveWizard();
-          }}
+          onComplete={finishWizard}
         />
       )}
 
@@ -950,15 +1319,37 @@ export default function App() {
 
       {addRecordingOpen && (
         <AddRecordingDialog
+          initialView={addRecordingView}
           onClose={() => setAddRecordingOpen(false)}
           onLocalFile={() => {
             setAddRecordingOpen(false);
             selectFile();
           }}
+          onRecorded={(recording, transcribe) => {
+            setAddRecordingOpen(false);
+            void (async () => {
+              try {
+                await fileIntoOpenFolder([recording.id]);
+                // Through the same gate as every other start, so the speaker
+                // question and the busy guard apply to a fresh take too.
+                if (transcribe) await beginTranscription([recording.id]);
+                await loadRecordings();
+                reportInfo(
+                  transcribe
+                    ? t("app.notice.recordingAddedTranscribing")
+                    : t("app.notice.recordingAdded")
+                );
+              } catch (error) {
+                await loadRecordings();
+                reportError(userMessage(error));
+              }
+            })();
+          }}
           onImported={(recording) => {
             setAddRecordingOpen(false);
             void (async () => {
               try {
+                await fileIntoOpenFolder([recording.id]);
                 if (automaticRef.current) await beginTranscription([recording.id]);
                 await loadRecordings();
                 reportInfo(
@@ -974,6 +1365,22 @@ export default function App() {
           }}
         />
       )}
+
+      <NameDialog
+        open={folderDialog !== null}
+        title={t(
+          folderDialog?.mode === "rename"
+            ? "dialogs.folder.renameTitle"
+            : "dialogs.folder.createTitle"
+        )}
+        text={t("dialogs.folder.text")}
+        label={t("dialogs.folder.label")}
+        placeholder={t("dialogs.folder.placeholder")}
+        submitLabel={t(folderDialog?.mode === "rename" ? "common.save" : "dialogs.folder.create")}
+        initialName={folderDialog?.mode === "rename" ? folderDialog.folder.name : ""}
+        onClose={() => setFolderDialog(null)}
+        onSubmit={(name) => void submitFolderDialog(name)}
+      />
 
       <ConfirmationDialog query={query} onZavri={() => setQuery(null)} />
 
@@ -1011,126 +1418,5 @@ export default function App() {
         </div>
       )}
     </div>
-  );
-}
-
-/** Miniature player in the header bar. Progress is a ring around the button:
- *  a separate strip under the title pushed the text upward and there was no
- *  room for it in a thirty-pixel bar. */
-function MiniPlayer({ onOpen }: { onOpen: () => void }) {
-  const { t } = useI18n();
-  const {
-    title,
-    time,
-    duration,
-    isPlaying,
-    isPreparing,
-    sourceMissing,
-    togglePlayback,
-    close,
-  } = usePlayer();
-
-  const R = 12.5;
-  const circumference = 2 * Math.PI * R;
-  const ratio = duration > 0 ? Math.min(1, time / duration) : 0;
-
-  return (
-    <div className="mini-prehravac">
-      <AudioBars />
-      <button
-        className="mini-prehrat"
-        onClick={togglePlayback}
-        disabled={isPreparing}
-        aria-label={
-          isPreparing
-            ? t("app.player.preparing")
-            : isPlaying
-              ? t("app.player.pause")
-              : t("app.player.play")
-        }
-      >
-        <svg className="mini-prstenec" width="30" height="30" viewBox="0 0 30 30" aria-hidden>
-          <circle className="mini-drazka" cx="15" cy="15" r={R} />
-          <circle
-            className="mini-postup"
-            cx="15"
-            cy="15"
-            r={R}
-            strokeDasharray={circumference}
-            strokeDashoffset={circumference * (1 - ratio)}
-          />
-        </svg>
-        {isPlaying ? (
-          <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden>
-            <rect x="2.5" y="2" width="2.8" height="8" rx="0.9" fill="currentColor" />
-            <rect x="6.7" y="2" width="2.8" height="8" rx="0.9" fill="currentColor" />
-          </svg>
-        ) : (
-          <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden>
-            <path d="M3.2 2v8l6.6-4z" fill="currentColor" />
-          </svg>
-        )}
-      </button>
-
-      <button className="mini-popis" onClick={onOpen} title={t("app.player.openTranscript")}>
-        {title}
-      </button>
-
-      <span className={`mini-cas ${sourceMissing ? "varovne" : ""}`}>
-        {sourceMissing
-          ? t("app.player.sourceMissing")
-          : isPreparing
-            ? t("app.player.preparingShort")
-            : formatTime(time)}
-      </span>
-
-      <button className="mini-zavrit" onClick={close} aria-label={t("app.player.stop")}>
-        {/* Stejná kresebná velikost jako u přehrát — menší glyf by
-            opticky odskočil od okraje, i když má stejnou plochu. */}
-        <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden>
-          <path d="M3 3l8 8M11 3l-8 8" stroke="currentColor"
-                strokeWidth="1.7" strokeLinecap="round" />
-        </svg>
-      </button>
-    </div>
-  );
-}
-
-/** More bands than the recording actually has: the pill is narrow, and thin
- *  bars close together read as a spectrum, where a few wide ones read as a
- *  bar chart. `equalizerAtTime` interpolates between the real bands, so the
- *  extra ones cost nothing and invent nothing. */
-const MINI_BANDS = 44;
-
-/** The same shaping as the big player. The values are absolute and speech
- *  only ever occupies the lower part of the range, so without cutting both
- *  ends the bars sit low and hardly move. See `emphasise`. */
-const MINI_GAMMA = 0.7;
-const MINI_FLOOR = 0.04;
-const MINI_PEAK = 0.55;
-
-function AudioBars() {
-  const { waveform, time, isPlaying, sourceMissing } = usePlayer();
-
-  const values = useMemo(
-    () => equalizerAtTime(waveform, time, MINI_BANDS),
-    [waveform, time]
-  );
-
-  if (values.length === 0 || sourceMissing) return null;
-
-  // Real frequency bands stay in place and only change height.
-  return (
-    <Waveform
-      values={values}
-      className={`mini-vlny ${isPlaying ? "hraje" : ""}`}
-      waveformStyle="bars"
-      anchoring="bottom"
-      ceiling={0.78}
-      gamma={MINI_GAMMA}
-      floor={MINI_FLOOR}
-      peak={MINI_PEAK}
-      thickness={1.5}
-    />
   );
 }

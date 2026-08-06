@@ -615,6 +615,7 @@ mod tests {
             language_choice: "cs".to_string(),
             error: None,
             segment_count: 0,
+            folder: None,
         }
     }
 

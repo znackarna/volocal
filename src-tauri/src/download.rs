@@ -353,7 +353,7 @@ fn emit_progress(app: &AppHandle, p: DownloadProgress) {
 
 fn client() -> Result<reqwest::blocking::Client> {
     Ok(reqwest::blocking::Client::builder()
-        .user_agent("Whisp")
+        .user_agent("Slobot")
         .timeout(None)
         .build()?)
 }

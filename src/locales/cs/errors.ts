@@ -15,7 +15,7 @@ export const csErrors = {
     "Chybí Silero VAD model. Bez něj Whisper na tichu halucinuje.",
   "errors.tools.diarization_program_missing_in":
     "Ve složce programů ({directory}) není sherpa-onnx-offline-speaker-diarization.exe. " +
-    "Doplň ho v Modulech, nebo v nastavení přepni složku programů tam, kde už je.",
+    "Doplňte ho v Modulech, nebo v nastavení přepněte složku programů tam, kde už je.",
   "errors.tools.segmentation_model_missing": "Chybí model pro rozpoznání střídání mluvčích.",
   "errors.tools.embedding_model_missing": "Chybí model pro rozpoznání hlasů.",
   "errors.tools.editor_program_missing": "Chybí program pro místní jazykovou úpravu.",
@@ -25,7 +25,7 @@ export const csErrors = {
   "errors.tools.model_missing": "Chybí model",
 
   // Transcription.
-  "errors.transcription.still_running": "Počkej, až doběhne přepis.",
+  "errors.transcription.still_running": "Počkejte, až doběhne přepis.",
   "errors.transcription.audio_conversion_failed": "Převod zvuku selhal: ffmpeg selhal: {reason}",
   "errors.transcription.whisper_launch_failed": "Nepodařilo se spustit whisper-cli",
   "errors.transcription.whisper_failed": "whisper-cli skončil s chybou (kód {code})",
@@ -34,7 +34,7 @@ export const csErrors = {
   "errors.transcription.no_output_file_empty":
     "Whisper doběhl, ale výstupní soubor nenapsal. V pracovní složce zůstalo: nic",
   "errors.transcription.empty_result":
-    "Whisper nevrátil žádný text. Zkontroluj, že v nahrávce je slyšet řeč.",
+    "Whisper nevrátil žádný text. Zkontrolujte, že v nahrávce je slyšet řeč.",
   "errors.transcription.interrupted":
     "Přepis byl přerušen — aplikace se zavřela dřív, než skončil.",
 
@@ -69,6 +69,21 @@ export const csErrors = {
   "errors.watch_folder.scan_interrupted": "Kontrola sledované složky se přerušila: {detail}",
   "errors.watch_folder.ignore_interrupted": "Ignorování souborů se přerušilo: {detail}",
   "errors.watch_folder.import_interrupted": "Přidání souborů se přerušilo: {detail}",
+  "errors.folder.empty_name": "Složka potřebuje název.",
+  "errors.folder.duplicate_name": "Složka s tímto názvem už je.",
+  "errors.audio_export.source_missing":
+    "Zvukový soubor už na svém místě není, takže není co uložit.",
+  "errors.audio_export.failed": "Zvuk se nepodařilo uložit: {detail}",
+  "errors.audio_export.unsupported_format":
+    "Do této přípony zvuk uložit neumíme. Vyberte MP3, M4A nebo WAV.",
+  "errors.audio_export.ffmpeg_missing":
+    "Na převod zvuku je potřeba ffmpeg. Doplňte ho v sekci Modely.",
+  "errors.microphone.no_audio": "Záznam se nepodařilo přenést. Zkuste to znovu.",
+  "errors.microphone.empty": "Záznam je moc krátký na přepis.",
+  "errors.microphone.ffmpeg_missing":
+    "Pro uložení záznamu chybí ffmpeg. Doplňte ho v sekci Modely.",
+  "errors.microphone.save_failed": "Záznam se nepodařilo uložit: {detail}",
+  "errors.microphone.convert_failed": "Záznam se nepodařilo převést do zvukového souboru.",
 
   // Playback.
   "errors.playback.ffmpeg_missing":
@@ -82,7 +97,7 @@ export const csErrors = {
   "errors.online_import.interrupted": "Online import se přerušil: {detail}",
   "errors.online_import.cancelled": "Online import byl zrušen",
   "errors.online_import.invalid_url": "Odkaz není platná webová adresa",
-  "errors.online_import.unsupported_scheme": "Použij odkaz začínající http:// nebo https://",
+  "errors.online_import.unsupported_scheme": "Použijte odkaz začínající http:// nebo https://",
   "errors.online_import.credentials_in_url": "Odkaz nesmí obsahovat přihlašovací údaje",
   "errors.online_import.downloader_setup_failed":
     "Nepodařilo se připravit podporu online videí",
@@ -139,10 +154,10 @@ export const csErrors = {
     "Shrnutí a překlad lze uložit jen jako TXT nebo Markdown.",
   "errors.ai.no_model_selected": "Jazyková úprava selhala: není vybraný model jazykové úpravy",
   "errors.ai.transcript_empty": "Jazyková úprava selhala: přepis je prázdný",
-  "errors.ai.document_required": "Jazyková úprava selhala: nejdřív vytvoř vylepšený přepis",
+  "errors.ai.document_required": "Jazyková úprava selhala: nejdřív vytvořte vylepšený přepis",
   "errors.ai.document_empty": "Jazyková úprava selhala: vylepšený přepis je prázdný",
   "errors.ai.server_missing":
-    "Jazyková úprava selhala: chybí llama-server; doplň modul Jazyková úprava",
+    "Jazyková úprava selhala: chybí llama-server; doplňte modul Jazyková úprava",
   "errors.ai.model_missing": "Jazyková úprava selhala: chybí vybraný model jazykové úpravy",
   "errors.ai.unknown_summary_length": "Jazyková úprava selhala: neznámá délka shrnutí",
   "errors.ai.unknown_translation_language":
@@ -164,7 +179,7 @@ export const csErrors = {
 
   // Speed test.
   "errors.benchmark.no_recording":
-    "Přidej nejdřív nějakou nahrávku — zkouška potřebuje kus skutečného zvuku.",
+    "Přidejte nejdřív nějakou nahrávku — zkouška potřebuje kus skutečného zvuku.",
   "errors.benchmark.clip_failed": "ffmpeg nezvládl vyříznout ukázku",
   "errors.benchmark.unknown_failure": "neznámá chyba",
   // The program's own last line is the whole message here; the dictionary only

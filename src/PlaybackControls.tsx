@@ -8,6 +8,7 @@ import type { CSSProperties, MutableRefObject, ReactNode } from "react";
 import {
   drawBars,
   equalizerAtTime,
+  handleRatio,
   prepareCanvas,
   usePlayer,
 } from "./player";
@@ -19,11 +20,6 @@ const PLAYBACK_RATES = [0.75, 1, 1.25, 1.5, 2];
 
 /** Approximate distance between visual bars on a wide timeline. */
 const BAR_SPACING = 7;
-
-/** Diameter of the slider handle, matching the CSS. The handle never reaches
- *  the very edge of the track, so its centre only travels between half that
- *  and the width less half — the same inset the coloured bars have to use. */
-const THUMB = 13;
 
 /** How much of the half-height the bars may fill. */
 const AMPLITUDE_CEILING = 0.82;
@@ -95,17 +91,10 @@ function AudioBackdrop({
           current.waveform.equalizerBandCount,
           Math.round(current.geometry.timelineWidth / BAR_SPACING)
         );
-        // Where the handle sits, as a fraction of the canvas. Its centre is
-        // inset by its own radius at both ends, so this is not a plain
-        // percentage of the duration — otherwise the colour would run ahead
-        // of the handle at the start and lag behind it at the end.
         const width = current.geometry.timelineWidth;
         const played = current.duration > 0
           ? Math.min(1, Math.max(0, current.readTime() / current.duration))
           : 0;
-        const handleRatio = width > 0
-          ? (THUMB / 2 + Math.max(0, width - THUMB) * played) / width
-          : played;
 
         drawBars(
           target,
@@ -118,7 +107,7 @@ function AudioBackdrop({
             gamma: AMPLITUDE_GAMMA,
             floor: AMPLITUDE_FLOOR,
             peak: AMPLITUDE_PEAK,
-            playedRatio: handleRatio,
+            playedRatio: handleRatio(played, width),
             playedColor,
           }
         );

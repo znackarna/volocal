@@ -10,8 +10,10 @@ import "@fontsource-variable/literata/wght.css";
 import "@fontsource-variable/source-serif-4/wght.css";
 
 import App from "./App";
+import { applyTheme, rememberedTheme } from "./types";
 import { I18nProvider } from "./i18n";
 import { PlayerProvider } from "./player";
+import { RecorderProvider } from "./recorder";
 import "./styles.css";
 
 // Right-click would otherwise open the rendering engine's own menu — Back,
@@ -25,11 +27,18 @@ document.addEventListener("contextmenu", (e) => {
   if (!jeText) e.preventDefault();
 });
 
+// Before the first paint, from the choice remembered locally. The settings
+// arrive from the backend a moment later and re-apply the same thing; without
+// this the window would open light and turn dark once they did.
+applyTheme(rememberedTheme());
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <I18nProvider>
       <PlayerProvider>
-        <App />
+        <RecorderProvider>
+          <App />
+        </RecorderProvider>
       </PlayerProvider>
     </I18nProvider>
   </React.StrictMode>

@@ -15,36 +15,36 @@ export const csWizard = {
   "wizard.welcome.note": "Podle konfigurace je předvybrána vhodná sada. Změnit ji lze i později.",
 
   // ------------------------------------------------------------------ 1. kvalita
-  "wizard.quality.title": "Bude to rychle, nebo přesně?",
+  "wizard.quality.title": "Rychle, nebo přesně?",
   "wizard.quality.introGpu": "Odhady časů platí pro grafickou kartu v tomto počítači.",
-  "wizard.quality.introCpu": "Poběží to na procesoru, takže odhady jsou vyšší, než bys čekal.",
-  "wizard.quality.fastestName": "Nejrychlejší",
-  "wizard.quality.balancedName": "Vyvážené",
-  "wizard.quality.bestName": "Nejlepší kvalita",
+  "wizard.quality.introCpu": "Poběží to na procesoru, takže odhady jsou vyšší, než byste čekali.",
+  "wizard.quality.fastestName": "Rychlý",
+  "wizard.quality.balancedName": "Vyvážený",
+  "wizard.quality.bestName": "Precizní",
   "wizard.quality.fastestSummary":
     "Hodinová nahrávka {duration}. Méně spolehlivý u vlastních jmen a odborných výrazů.",
   "wizard.quality.balancedSummary":
-    "Hodinová nahrávka {duration}. Přibližně jedna chyba na odstavec. Vhodné pro většinu nahrávek.",
+    "Hodinová nahrávka {duration}. Asi jedna chyba na odstavec. Vhodné pro většinu nahrávek.",
   "wizard.quality.bestSummary":
-    "Hodinová nahrávka {duration}. Nejvyšší dosažitelná přesnost českého přepisu.",
+    "Hodinová nahrávka {duration}. Nejvyšší dosažitelná přesnost přepisu.",
 
   // ------------------------------------------------------------------ 2. mluvčí
-  "wizard.speakers.title": "Přepisuješ i rozhovory?",
+  "wizard.speakers.title": "Přepisujete i rozhovory?",
   "wizard.speakers.intro":
-    "Když v nahrávce mluví víc lidí, aplikace je umí rozlišit a text rozdělit mezi ně.",
+    "Pokud mluví víc lidí, aplikace rozdělí text mezi ně.",
   "wizard.speakers.singleName": "Většinou mluví jeden člověk",
   "wizard.speakers.singleDescription": "Přednášky, diktování, poznámky. Nevyžaduje žádné doplňky.",
   "wizard.speakers.multipleName": "Nahrávám i rozhovory",
   "wizard.speakers.multipleDescription":
-    "Text se rozdělí mezi jednotlivé mluvčí, které pak můžeš pojmenovat.",
+    "Text se rozdělí mezi jednotlivé mluvčí, které pak můžete pojmenovat.",
 
   // ------------------------------------------------------------- 3. jazyková úprava
-  "wizard.editor.title": "Chceš z přepisu hotový dokument?",
+  "wizard.editor.title": "Chcete z přepisu hotový dokument?",
   "wizard.editor.intro":
-    "Volitelný místní model opraví interpunkci, odstavce a zjevné chyby. Původní přepis zachová a nic neposílá z počítače.",
+    "Volitelný místní model opraví interpunkci, odstavce a zjevné chyby. Zachová původní přepis a nic neposílá ven.",
   "wizard.editor.lightName": "Úsporná",
   "wizard.editor.balancedName": "Doporučená",
-  "wizard.editor.bestName": "Nejlepší kvalita",
+  "wizard.editor.bestName": "Nejvyšší kvalita",
   "wizard.editor.lightDescription": "Interpunkce, věty a odstavce. Dobrá volba pro slabší CPU.",
   "wizard.editor.balancedDescription":
     "Lépe opravuje zjevné chyby a drží souvislosti delší výpovědi.",
@@ -71,7 +71,7 @@ export const csWizard = {
   "wizard.download.statusDone": "hotovo",
   "wizard.download.statusError": "chyba",
   "wizard.download.statusWaiting": "čeká",
-  "wizard.download.nothingNeeded": "Všechno potřebné už máš.",
+  "wizard.download.nothingNeeded": "Všechno potřebné už máte.",
   "wizard.download.startTranscribing": "Jdeme přepisovat",
   "wizard.download.downloadWithSize": "Stáhnout ({size})",
 

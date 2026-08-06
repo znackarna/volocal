@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Whisp",
+  "productName": "Slobot",
   "version": "0.9.0",
   "identifier": "cz.znackarna.whisp",
   "build": {
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Whisp — Převod řeči na text",
+        "title": "Slobot™",
         "width": 1360,
         "height": 900,
         "minWidth": 1000,

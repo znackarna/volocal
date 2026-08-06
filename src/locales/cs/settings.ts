@@ -3,10 +3,12 @@ export const csSettings = {
   "settings.title": "Nastavení",
   "settings.groups": "Skupiny nastavení",
   "settings.tab.transcription": "Přepis",
-  "settings.tab.performance": "Modely a výkon",
+  "settings.tab.models": "Modely",
+  "settings.tab.performance": "Výkon",
   "settings.tab.appearance": "Vzhled",
   "settings.tab.dictionary": "Slovník",
   "settings.tab.files": "Soubory",
+  "settings.tab.about": "O aplikaci",
   "settings.missingRequired": "Některé povinné modely chybí",
   "settings.language.title": "Jazyk aplikace",
   "settings.language.description": "Změna se projeví hned. Přepisy zůstanou v původním jazyce.",
@@ -23,7 +25,7 @@ export const csSettings = {
     "Počítač: {machine} · zobrazovací jádro není přiložené; na počítači bez WebView2 se okno neotevře",
   "settings.portable.copyTitle": "Kopie na přenosný disk",
   "settings.portable.copyDescription":
-    "Zkopíruje aplikaci i modely na zvolený disk. Na jiném počítači pak stačí spustit {file}.",
+    "Zkopíruje aplikaci i modely na zvolený disk. Na jiném počítači pak stačí spustit soubor {file}.",
   "settings.portable.copyDestination": "Kam vytvořit přenosnou kopii",
   "settings.portable.copyHint":
     "Z flash disku se model načítá pomaleji, často asi o minutu.",
@@ -64,7 +66,7 @@ export const csSettings = {
   "settings.editor.light.description": "Interpunkce, věty a odstavce. Dobrá i pro slabší CPU.",
   "settings.editor.balanced.title": "Doporučená",
   "settings.editor.balanced.description": "Lépe opravuje zjevné chyby a drží souvislosti.",
-  "settings.editor.best.title": "Nejlepší kvalita",
+  "settings.editor.best.title": "Nejvyšší kvalita",
   "settings.editor.best.description": "Nejspolehlivější, ale na CPU pomalejší.",
   "settings.editor.missing": "Model jazykové úpravy zatím není stažený.",
   "settings.editor.enabledNote": "Model se načte až při spuštění úpravy.",
@@ -73,8 +75,8 @@ export const csSettings = {
   "settings.performance.title": "Výkon",
   "settings.performance.description":
     "Rychlost se liší několikanásobně podle způsobu zpracování.",
-  "settings.performance.autoDescription": "Vybere nejrychlejší z toho, co je v počítači.",
-  "settings.performance.cudaDescription": "Grafická karta NVIDIA. Nejrychlejší, když ji počítač má.",
+  "settings.performance.autoDescription": "Vybere nejrychlejší dostupnou technologii.",
+  "settings.performance.cudaDescription": "Nejrychlejší, když ji počítač má.",
   "settings.performance.vulkanDescription": "Jakákoli grafická karta, včetně NVIDIA.",
   "settings.performance.cpuDescription": "Bez grafické karty. Několikanásobně pomalejší.",
   "settings.performance.defaultDescription": "Sestavení bez zvolené akcelerace.",
@@ -82,9 +84,6 @@ export const csSettings = {
   "settings.performance.selectedMissing":
     "Vybraný způsob zpracování zatím není stažený. Přepis zatím běží tím, co je k dispozici.",
   "settings.performance.notDownloaded": "není stažené",
-  "settings.performance.mode": "Režim: {mode} · NVIDIA {nvidia} · Vulkan {vulkan}",
-  "settings.performance.yes": "ano",
-  "settings.performance.no": "ne",
   "settings.performance.threads": "Vlákna procesoru",
   "settings.performance.threadsAuto": "automaticky",
   "settings.performance.threadsNote": "Nula znamená automatickou volbu.",
@@ -100,9 +99,9 @@ export const csSettings = {
   "settings.files.locationsPortable":
     "Relativní cesty se vztahují ke složce s programem, takže nezáleží na písmenu disku.",
   "settings.files.locationsDescription":
-    "Programy i modely se stahují samy. Cestu měň, jen když je potřebuješ mít jinde.",
-  "settings.files.binDirectory": "Složka s programy",
-  "settings.files.modelsDirectory": "Složka s modely",
+    "Programy i modely se stahují samy. Cestu měňte jen v případě potřeby.",
+  "settings.files.binDirectory": "Složka nástrojů",
+  "settings.files.modelsDirectory": "Složka modelů",
   "settings.files.choose": "Vybrat…",
   "settings.files.watchTitle": "Sledovaná složka",
   "settings.files.watchDescription":
@@ -113,8 +112,17 @@ export const csSettings = {
   "settings.files.watchToggle": "Sledovat složku",
   "settings.files.watchToggleNote":
     "Nabídne i soubory, které už ve složce jsou. Vnořené složky neprohledává.",
+  "settings.files.watchAuto": "Přepisovat rovnou",
+  "settings.files.watchAutoNote":
+    "Nový soubor se přidá do archivu a přepis se spustí sám. Bez toho se Archiv nejdřív zeptá.",
 
   // Fonts and the sample paragraph that shows them off.
+  "settings.appearance.description":
+    "Jazyk, barevný motiv a písmo přepisu.",
+  "settings.appearance.theme": "Motiv",
+  "settings.appearance.themeSystem": "Podle systému",
+  "settings.appearance.themeLight": "Světlý",
+  "settings.appearance.themeDark": "Tmavý",
   "settings.appearance.fontUi": "Písmo rozhraní",
   "settings.appearance.fontText": "Písmo přepisu",
   "settings.appearance.fontGroupSerif": "Patkové (na čtení)",
@@ -124,19 +132,50 @@ export const csSettings = {
   "settings.appearance.lineHeight": "Řádkování",
   "settings.appearance.previewSpeaker": "Radomil",
   "settings.appearance.previewText":
-    "A tak se ten syn vrátil domů, k otci, kterého předtím opustil. Je psáno v listu Efezským, v páté kapitole: „Muži, milujte své ženy.“ Otec ho uviděl už zdálky — 1 234 kroků daleko — a běžel mu naproti.",
+    "Sešli jsme se ve čtvrtek odpoledne a mluvili spolu skoro dvě hodiny. „Nejdřív si to musíme poslechnout celé,“ řekla — a měla pravdu. Přepis měl nakonec 1 234 slov a nechyběla v něm jediná věta.",
   "settings.appearance.previewDiacritics": "Háčky a čárky: ě š č ř ž ý á í é ú ů ň ť ď",
 
+  // The About page: what the application is, does, and stands on.
+  "settings.about.description":
+    "Převádí mluvené slovo na text. Nahrávky, přepisy i jazykové modely běží pouze na vašem počítači a nic se neodesílá ven.",
+  "settings.about.version": "Verze",
+  "settings.about.author": "Autor",
+  "settings.about.abilities": "Co aplikace umí",
+  "settings.about.abilityTranscribe": "Přepíše nahrávky i videa v češtině i dalších jazycích.",
+  "settings.about.abilitySpeakers": "Rozpozná mluvčí a rozdělí text mezi ně.",
+  "settings.about.abilityEditor": "Vylepší přepis jazykovým modelem, shrne ho a přeloží.",
+  "settings.about.abilityReview": "Označí místa, kde si přepis nebyl jistý, a drží opravy pohromadě.",
+  "settings.about.abilityNotes": "Přehraje přesně na slovo a připne poznámku k libovolnému místu.",
+  "settings.about.abilitySources": "Nahraje z mikrofonu, stáhne zvuk z online videí, hlídá vybranou složku.",
+  "settings.about.abilityExport": "Uloží přepis do TXT, Markdownu, SRT, VTT nebo JSON a zvuk do MP3.",
+  "settings.about.credits": "Na čem to stojí",
+  "settings.about.creditsDescription":
+    "Aplikace pro vás nepracuje sama. Tohle jsou licence jazykových modelů a nástrojů, které na výsledku spolupracují.",
+  "settings.about.groupApp": "Aplikace",
+  "settings.about.groupTranscription": "Přepis",
+  "settings.about.groupSpeakers": "Mluvčí",
+  "settings.about.groupEditor": "Jazyková úprava",
+  "settings.about.groupMedia": "Zvuk a video",
+  "settings.about.groupFonts": "Písma",
+  "settings.about.publicDomain": "volné dílo",
+  "settings.about.licenceNote":
+    "Všechno kromě modelů Gemma je open source. Gemma se řídí podmínkami Googlu a FFmpeg licencí GPL v3 — s tím počítejte, když přenosnou kopii předáváte dál.",
+
   // What Whisper is told to do.
+  "settings.transcription.description":
+    "Model, který nahrávku přepíše, a jak důkladně v ní hledá správná slova.",
+  "settings.speech.title": "Jazyk a detekce řeči",
+  "settings.speech.description":
+    "Čím se v nahrávce mluví a co se v ní má považovat za řeč.",
   "settings.transcription.model": "Model",
   "settings.transcription.modelDescription": "Stažený model.",
-  "settings.transcription.modelNote": "Jen stažené modely. Další přidáš v sekci Modely.",
+  "settings.transcription.modelNote": "Zobrazuje pouze stažené modely.",
   "settings.transcription.language": "Jazyk",
   "settings.transcription.languageNote":
-    "Předem vybraný jazyk urychlí přepis. U více jazyků nech automatiku.",
+    "Předem vybraný jazyk urychlí přepis. U více jazyků nechte automatiku.",
   "settings.transcription.vad": "Detekce řeči",
   "settings.transcription.vadNote":
-    "Vynechá ticho a šum a brání zacyklení začátku přepisu. Nech zapnuté.",
+    "Vynechá ticho a šum a brání zacyklení začátku přepisu. Nechte zapnuté.",
   "settings.transcription.beam": "Důkladnost hledání",
   "settings.transcription.beamNote":
     "Vyšší hodnota zvyšuje přesnost a prodlužuje dobu přepisu.",
@@ -155,7 +194,7 @@ export const csSettings = {
   "settings.speakers.title": "Mluvčí",
   "settings.speakers.toggle": "Rozlišovat mluvčí",
   "settings.speakers.description":
-    "Rozdělí text mezi jednotlivé mluvčí už při prvním přepisu. U nahrávek s jedním mluvčím nemá využití.",
+    "Rozdělí text mezi jednotlivé mluvčí už při prvním přepisu.",
   "settings.speakers.count": "Počet mluvčích",
   "settings.speakers.countNote":
     "Nula znamená automatický odhad. Skutečný počet výsledek výrazně zpřesní.",
@@ -190,16 +229,16 @@ export const csSettings = {
   "settings.decoding.title": "Jemné ladění přepisu",
   "settings.decoding.modified": "upraveno",
   "settings.decoding.note":
-    "Měň jen při konkrétním problému. Výchozí hodnoty odpovídají nastavení Whisperu.",
+    "Měňte jen při konkrétním problému. Výchozí hodnoty odpovídají nastavení Whisperu.",
   "settings.decoding.silence": "Práh ticha",
   "settings.decoding.silenceNote":
-    "Zvyš, když vzniká text v tichu. Sniž, když mizí tiše pronesená slova.",
+    "Zvyšte, když vzniká text v tichu. Snižte, když mizí tiše pronesená slova.",
   "settings.decoding.confidence": "Práh jistoty",
   "settings.decoding.confidenceNote": "Blíž k nule znamená přísnější kontrolu a delší přepis.",
   "settings.decoding.entropy": "Práh jednotvárnosti",
   "settings.decoding.entropyNote": "Nižší hodnota dřív zastaví opakování stejné věty.",
   "settings.decoding.temperature": "Teplota",
-  "settings.decoding.temperatureNote": "Vyšší hodnota přidává náhodu. Pro běžný přepis nech nulu.",
+  "settings.decoding.temperatureNote": "Vyšší hodnota přidává náhodu. Pro běžný přepis nechte nulu.",
   "settings.decoding.temperatureStep": "Krok teploty",
   "settings.decoding.temperatureStepNote":
     "Při dalším pokusu zvýší teplotu o tuto hodnotu. Nula další pokusy vypne.",
@@ -272,10 +311,6 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
     "Vybraný způsob zpracování zatím není stažený. Přepis zatím běží tím, co je k dispozici.",
   "settings.performance.notDownloaded":
     "Poznámka u položky nabídky: tato varianta v počítači zatím není.",
-  "settings.performance.mode":
-    "{mode} je název výpočetního režimu, {nvidia} a {vulkan} jsou „ano“ nebo „ne“ podle toho, zda je ovladač k dispozici.",
-  "settings.performance.yes": "Doplňuje se za název ovladače na řádku o výpočetním režimu.",
-  "settings.performance.no": "Doplňuje se za název ovladače na řádku o výpočetním režimu.",
   "settings.performance.threads": "Kolik vláken procesoru smí přepis využít.",
   "settings.performance.threadsAuto":
     "Hodnota vedle popisku, když je počet vláken nastavený na nulu.",
@@ -290,6 +325,21 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
   "settings.files.watchPlaceholder": "Zástupný text v poli, dokud složka není vybraná.",
   "settings.files.watchRemove": "Odebere vybranou složku z nastavení. Nic nemaže na disku.",
 
+  "settings.about.publicDomain":
+    "Licence SQLite. Není to licence, ale vzdání se práv — dílo je volné pro kohokoli a k čemukoli.",
+  "settings.about.licenceNote":
+    "Gemma jsou jazykové modely Googlu; jejich podmínky nejsou open source a omezují způsoby použití. FFmpeg je GPL v3. Obojí je důležité pro toho, kdo přenosnou kopii aplikace předá dál.",
+  "settings.about.abilityReview":
+    "Nejistý je přepis, ne čtenář — model sám označí místa s nízkou jistotou.",
+
+  "settings.appearance.description":
+    "Úvodní věta záložky Vzhled. Karta drží jazyk rozhraní, motiv, obě písma, velikost a řádkování; pod nimi je živá ukázka přepisu.",
+  "settings.appearance.theme":
+    "Světlá, nebo tmavá barevnost celého okna.",
+  "settings.appearance.themeSystem":
+    "Barevnost se řídí nastavením operačního systému.",
+  "settings.appearance.themeLight": "Světlá barevnost, bez ohledu na systém.",
+  "settings.appearance.themeDark": "Tmavá barevnost, bez ohledu na systém.",
   "settings.appearance.fontGroupSerif":
     "Nadpis skupiny v nabídce písem. Patková písma mají na koncích tahů příčky.",
   "settings.appearance.fontGroupSans": "Nadpis skupiny v nabídce písem, protiklad patkových.",

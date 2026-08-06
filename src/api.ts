@@ -14,6 +14,7 @@ import type {
   Speaker,
   ToolCheck,
   WatchFolderCandidate,
+  Folder,
 } from "./types";
 
 export const api = {
@@ -28,9 +29,22 @@ export const api = {
     invoke<Recording[]>("import_watch_folder_files", { files }),
   ignoreWatchFolderFiles: (files: WatchFolderCandidate[]) =>
     invoke<void>("ignore_watch_folder_files", { files }),
+  saveMicrophoneRecording: (audio: Uint8Array) =>
+    invoke<Recording>("save_microphone_recording", audio),
   importOnlineRecording: (url: string) =>
     invoke<Recording>("import_online_recording", { url }),
   cancelOnlineImport: () => invoke<void>("cancel_online_import"),
+  folders: () => invoke<Folder[]>("folders"),
+  createFolder: (name: string) => invoke<Folder>("create_folder", { name }),
+  renameFolder: (id: string, name: string) =>
+    invoke<void>("rename_folder", { id, name }),
+  /** `folder` of null takes the recordings back to the archive's root. */
+  moveToFolder: (ids: string[], folder: string | null) =>
+    invoke<void>("move_to_folder", { ids, folder }),
+  deleteFolder: (id: string, contents: boolean) =>
+    invoke<void>("delete_folder", { id, contents }),
+  exportAudio: (id: string, destination: string) =>
+    invoke<void>("export_audio", { id, destination }),
   deleteRecording: (id: string) => invoke<void>("delete_recording", { id }),
   startTranscription: (id: string, speakerCount?: number | null) =>
     invoke<void>("start_transcription", { id, speakerCount: speakerCount ?? null }),

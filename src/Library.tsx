@@ -4,7 +4,9 @@ import mark from "./mark.svg?raw";
 import InfoNote from "./InfoNote";
 import RecordingMetadataIcon from "./RecordingMetadataIcon";
 import type { RecordingMetadataKind } from "./RecordingMetadataIcon";
-import RecordingActionsMenu from "./RecordingActionsMenu";
+import RecordingActionsMenu, { ActionMenu, MENU_ICONS } from "./RecordingActionsMenu";
+import NameDialog from "./NameDialog";
+import { LineIcon } from "./icons";
 import Select from "./Select";
 import { formatTime, fileName } from "./types";
 import { useLabels } from "./labels";
@@ -20,6 +22,7 @@ import type {
   LiveSegment,
   UserMessage,
   WatchFolderCandidate,
+  Folder,
 } from "./types";
 
 interface Props {
@@ -34,6 +37,16 @@ interface Props {
   onIgnoreWatchCandidates: (files: WatchFolderCandidate[]) => void;
   onAddWatchCandidates: (files: WatchFolderCandidate[]) => void;
   onOpen: (id: string, time?: number) => void;
+  onExportAudio: (id: string) => void;
+  folders: Folder[];
+  /** Which folder is open; null is the archive's root. */
+  openFolder: string | null;
+  onOpenFolder: (folder: string | null) => void;
+  onCreateFolder: () => void;
+  onRenameFolder: (folder: Folder) => void;
+  onDeleteFolder: (folder: Folder) => void;
+  onMoveToFolder: (id: string, folder: string | null) => void;
+  onCreateFolderFor: (id: string) => void;
   onDelete: (id: string) => void;
   onTranscription: (id: string) => void;
   onCancel: (id: string) => void;
@@ -427,6 +440,15 @@ export default function Library({
   onIgnoreWatchCandidates,
   onAddWatchCandidates,
   onOpen,
+  onExportAudio,
+  folders,
+  openFolder,
+  onOpenFolder,
+  onCreateFolder,
+  onRenameFolder,
+  onDeleteFolder,
+  onMoveToFolder,
+  onCreateFolderFor,
   onDelete,
   onTranscription,
   onCancel,
@@ -439,6 +461,7 @@ export default function Library({
   onTranscriptionLanguage,
 }: Props) {
   const { t, compare } = useI18n();
+  const formats = useFormats();
   const userMessage = useUserMessage();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[] | null>(null);
@@ -447,6 +470,13 @@ export default function Library({
   const [view, setView] = useState<ArchiveView>(() =>
     localStorage.getItem("archive-view") === "compact" ? "compact" : "classic"
   );
+  /* A search in progress flattens the archive: folders step aside and every
+     recording is a candidate. `results` only arrives after a debounce, so the
+     typed query is what decides, not the answer. */
+  const searching = query.trim().length >= 2;
+  const foldersVisible = !searching && dateFilter === "all";
+  const open = folders.find((folder) => folder.id === openFolder) ?? null;
+
   const [dropZoneCompact, setDropZoneCompact] = useState(false);
   const dropZoneCompactRef = useRef(false);
   const scrollContentRef = useRef<HTMLDivElement>(null);
@@ -487,11 +517,23 @@ export default function Library({
           ? now.getTime() - 30 * 24 * 60 * 60 * 1000
           : 0;
     const selectedDate = dateFilter.startsWith("date:") ? dateFilter.slice(5) : "";
+    /* A recording lives in exactly one place, so the list shows one level:
+       the open folder, or the root.
+       Searching and the date filter follow the level rather than override it
+       (Jakub's rule). In the root they reach across every folder, because
+       there the question is about the whole archive and the person is not
+       standing anywhere in particular; the folder cards step aside meanwhile
+       (see `foldersVisible`). Inside a folder they stay inside it — someone
+       who opened a drawer and typed into the search box is looking in that
+       drawer, and a result from elsewhere would take them out of it. */
+    const level = openFolder === null && (searching || dateFilter !== "all")
+      ? recordings
+      : recordings.filter((recording) => (recording.folder ?? null) === openFolder);
     const filtered = selectedDate
-      ? recordings.filter((recording) => recordingDateKey(recording) === selectedDate)
+      ? level.filter((recording) => recordingDateKey(recording) === selectedDate)
       : dateFilter === "all"
-        ? [...recordings]
-        : recordings.filter((recording) => recordingTimestamp(recording) >= threshold);
+        ? [...level]
+        : level.filter((recording) => recordingTimestamp(recording) >= threshold);
 
     return filtered.sort((a, b) => {
       if (order === "oldest") return recordingTimestamp(a) - recordingTimestamp(b);
@@ -503,10 +545,14 @@ export default function Library({
       }
       return recordingTimestamp(b) - recordingTimestamp(a);
     });
-  }, [dateFilter, order, recordings, compare]);
+  }, [dateFilter, order, recordings, compare, openFolder, searching]);
 
   const visibleResults = useMemo(() => {
     if (results === null) return null;
+    /* Ordered by where the recording stands in the visible list. In the root
+       that list is every recording, so a full-text search finds what sits in
+       folders too; inside a folder it is that folder's contents, which is what
+       limits the search to it. */
     const positions = new Map(visibleRecordings.map((recording, index) => [recording.id, index]));
     return results
       .filter((result) => positions.has(result.recording_id))
@@ -627,6 +673,64 @@ export default function Library({
         <ArchiveViewToggle value={view} onChange={setView} />
       </div>
 
+      {open && (
+        <div className="folder-crumb">
+          {/* The same icon-in-a-circle the `Složky` heading carries on the
+              root, so an open folder and the list it came from are marked the
+              same way — and under the pointer it becomes the arrow out of the
+              folder. A mark that is already sitting where the way back
+              belongs may as well be it; the header keeps its own button for
+              anyone who never hovers. */}
+          <button
+            className="folder-crumb-back"
+            onClick={() => onOpenFolder(null)}
+            title={t("common.archive")}
+            aria-label={t("common.archive")}
+          >
+            <span className="folder-crumb-back-folder" aria-hidden>
+              <LineIcon name="folder" size={17} />
+            </span>
+            <svg className="folder-crumb-back-arrow" width="15" height="13"
+                 viewBox="0 0 14 12" aria-hidden>
+              <path d="M6 1L1 6l5 5M1 6h12" fill="none" stroke="currentColor"
+                    strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+          <span className="folder-crumb-name">{open.name}</span>
+          {/* The folder's own actions travel with its name: inside the folder
+              its card is not on screen, so this is the only place to rename or
+              delete it. Same menu, same two items as the card. */}
+          <ActionMenu
+            className="folder-crumb-menu"
+            items={[
+              { label: t("common.rename"), icon: MENU_ICONS.rename, action: () => onRenameFolder(open) },
+              {
+                label: t("library.folders.delete"),
+                icon: MENU_ICONS.remove,
+                action: () => onDeleteFolder(open),
+                warning: true,
+              },
+            ]}
+          />
+          {/* The same two facts the folder's own card shows, with the same
+              icons — the breadcrumb is where that card went. */}
+          <span className="recording-metadata folder-crumb-count">
+            <RecordingMetadataItem
+              kind="segments"
+              label={t("library.folders.count")}
+              value={formats.transcriptCount(open.recording_count)}
+            />
+            {open.duration > 0 && (
+              <RecordingMetadataItem
+                kind="duration"
+                label={t("library.card.duration")}
+                value={formats.archiveDuration(open.duration)}
+              />
+            )}
+          </span>
+        </div>
+      )}
+
       {visibleResults !== null ? (
         <SearchResults results={visibleResults} onOpen={onOpen} />
       ) : visibleRecordings.length > 0 ? (
@@ -639,6 +743,10 @@ export default function Library({
               aiProgress={aiProgress[n.id]}
               liveSegments={liveSegments[n.id] ?? []}
               onOpen={() => onOpen(n.id)}
+              onExportAudio={() => onExportAudio(n.id)}
+              folders={folders}
+              onMoveToFolder={(folder) => onMoveToFolder(n.id, folder)}
+              onCreateFolderFor={() => onCreateFolderFor(n.id)}
               onDelete={() => onDelete(n.id)}
               onTranscription={() => onTranscription(n.id)}
               onCancel={() => onCancel(n.id)}
@@ -649,8 +757,57 @@ export default function Library({
           ))}
         </ul>
       ) : recordings.length > 0 ? (
-        <p className="archive-filter-empty">{t("library.empty.filter")}</p>
+        <p className="archive-filter-empty">
+          {/* Inside a folder the filter now narrows that folder, so an empty
+              result there is about the filter, not about the folder being
+              empty. Only a folder with nothing in it and nothing filtering
+              gets the sentence about moving a transcript into it. */}
+          {t(open && !searching && dateFilter === "all"
+            ? "library.empty.folder"
+            : "library.empty.filter")}
+        </p>
       ) : null}
+
+      {/* Folders sit under the transcripts, at Jakub's ask: what was worked on
+          recently keeps the top of the list, and the drawers are below it.
+          They step aside entirely while searching or filtering by date, where
+          the question is about recordings and not about where they are kept. */}
+      {foldersVisible && !open && (folders.length > 0 || recordings.length > 0) && (
+        <div className="folder-block">
+          <div className="folder-block-head">
+            {/* The same icon-in-a-circle the sidebar's section headings use,
+                so a heading over a list looks the same wherever it stands. */}
+            <span className="folder-block-title">
+              <span className="sidebar-section-icon" aria-hidden>
+                <LineIcon name="folder" size={17} />
+              </span>
+              {t("library.folders.heading")}
+            </span>
+            <button className="sidebar-text-action" onClick={onCreateFolder}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <path d="M12 6v12M6 12h12" stroke="currentColor" strokeWidth="1.6"
+                      strokeLinecap="round" />
+              </svg>
+              {t("library.folders.create")}
+            </button>
+          </div>
+          {folders.length > 0 ? (
+            <ul className={`seznam folder-list ${view === "compact" ? "compact" : ""}`}>
+              {folders.map((folder) => (
+                <FolderRow
+                  key={folder.id}
+                  folder={folder}
+                  onOpen={() => onOpenFolder(folder.id)}
+                  onRename={() => onRenameFolder(folder)}
+                  onDelete={() => onDeleteFolder(folder)}
+                />
+              ))}
+            </ul>
+          ) : (
+            <p className="archive-filter-empty">{t("library.folders.empty")}</p>
+          )}
+        </div>
+      )}
 
       {running.length > 1 && (
         <p className="poznamka">
@@ -872,12 +1029,81 @@ function LibraryDropZone({
   );
 }
 
+/** A folder as a card the size of a transcript's, in paper yellow — the one
+ *  colour in this interface that is not chrome. Notes use it too, in the
+ *  transcript's sidebar, and the two never share a screen. */
+function FolderRow({
+  folder,
+  onOpen,
+  onRename,
+  onDelete,
+}: {
+  folder: Folder;
+  onOpen: () => void;
+  onRename: () => void;
+  onDelete: () => void;
+}) {
+  const { t } = useI18n();
+  const formats = useFormats();
+  return (
+    <li className="radek folder-row">
+      <button className="radek-hlavni" onClick={onOpen}>
+        <span className="folder-mark" aria-hidden>
+          <LineIcon name="folder" size={26} />
+        </span>
+        <span className="radek-text">
+          <span className="radek-nazev">
+            <span className="radek-jmeno">{folder.name}</span>
+          </span>
+          <span className="recording-metadata">
+            <RecordingMetadataItem
+              kind="segments"
+              label={t("library.folders.count")}
+              value={formats.transcriptCount(folder.recording_count)}
+            />
+            {folder.duration > 0 && (
+              <RecordingMetadataItem
+                kind="duration"
+                label={t("library.card.duration")}
+                value={formats.archiveDuration(folder.duration)}
+              />
+            )}
+          </span>
+        </span>
+      </button>
+      {/* The same pair a transcript card ends in: the plain action, then the
+          three dots. A folder will collect more actions over time and they
+          belong in that menu rather than as more buttons on the row. */}
+      <div className="radek-akce">
+        <button className="tlacitko" onClick={onOpen}>
+          {t("common.open")}
+        </button>
+        <ActionMenu
+          items={[
+            { label: t("common.rename"), icon: MENU_ICONS.rename, action: onRename },
+            {
+              label: t("library.folders.delete"),
+              icon: MENU_ICONS.remove,
+              action: onDelete,
+              warning: true,
+            },
+          ]}
+        />
+      </div>
+    </li>
+  );
+}
+
 function Row({
   recording,
   progress,
   aiProgress,
   liveSegments,
   onOpen,
+  onExportAudio,
+  folders,
+  onMoveToFolder,
+  onCreateFolderFor,
   onDelete,
   onTranscription,
   onCancel,
@@ -890,6 +1116,10 @@ function Row({
   aiProgress?: AiEditProgress;
   liveSegments: LiveSegment[];
   onOpen: () => void;
+  onExportAudio: () => void;
+  folders: Folder[];
+  onMoveToFolder: (folder: string | null) => void;
+  onCreateFolderFor: () => void;
   onDelete: () => void;
   onTranscription: () => void;
   onCancel: () => void;
@@ -905,7 +1135,6 @@ function Row({
   const running = recording.status === "prepisuje";
   const aiRunning = !!aiProgress && !["complete", "error", "cancelled"].includes(aiProgress.phase);
   const [renaming, setRenaming] = useState(false);
-  const [newTitle, setNewTitle] = useState(recording.title);
   const last = liveSegments.slice(-3);
   const phaseKey: TranslationKey | undefined = PHASE_KEYS[progress?.phase ?? ""];
   const endRef = useRef<HTMLDivElement>(null);
@@ -916,37 +1145,23 @@ function Row({
 
   return (
     <li className={`radek ${running || aiRunning ? "bezi" : ""}`}>
-      {/* While renaming, the field replaces the button rather than sitting
-          inside it. An <input> nested in a <button> is invalid HTML anyway —
-          a button may not contain interactive content — and once that button
-          was disabled the field stopped delivering its events, so the new name
-          was typed and then silently thrown away. */}
-      {renaming ? (
-        <div className="radek-hlavni radek-prejmenovani-obal">
-          <RecordingCalendar value={recording.created_at} />
-          <input
-            className="radek-prejmenovani"
-            value={newTitle}
-            autoFocus
-            onChange={(e) => setNewTitle(e.target.value)}
-            onBlur={() => {
-              const trimmed = newTitle.trim();
-              // An empty name would leave the row with nothing to show, and
-              // the backend refuses it anyway. Fall back to what it was.
-              if (trimmed && trimmed !== recording.title) onRename(trimmed);
-              else setNewTitle(recording.title);
-              setRenaming(false);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") e.currentTarget.blur();
-              if (e.key === "Escape") {
-                setNewTitle(recording.title);
-                setRenaming(false);
-              }
-            }}
-          />
-        </div>
-      ) : (
+      {/* Renaming happens in the shared dialog, the same one a folder is
+          named in. The field used to sit in the row itself, which meant a
+          card in two shapes and a name that could be lost to a stray click. */}
+      <NameDialog
+        open={renaming}
+        title={t("dialogs.rename.title")}
+        text={t("dialogs.rename.text")}
+        label={t("dialogs.rename.label")}
+        placeholder={t("dialogs.rename.placeholder")}
+        submitLabel={t("common.save")}
+        initialName={recording.title || fileName(recording.path)}
+        onClose={() => setRenaming(false)}
+        onSubmit={(name) => {
+          setRenaming(false);
+          if (name !== recording.title) onRename(name);
+        }}
+      />
       <button
         className="radek-hlavni"
         onClick={onOpen}
@@ -1001,7 +1216,6 @@ function Row({
           </span>
         </span>
       </button>
-      )}
 
       <div className="radek-akce">
         {running ? (
@@ -1028,6 +1242,11 @@ function Row({
             <RecordingActionsMenu
               status={recording.status}
               onRename={() => setRenaming(true)}
+              onExportAudio={onExportAudio}
+              folders={folders}
+              folder={recording.folder}
+              onMoveToFolder={onMoveToFolder}
+              onCreateFolderFor={onCreateFolderFor}
               onRetranscribe={onTranscription}
               onDeleteTranscript={onDeleteTranscription}
               onTranscribeInLanguage={onTranscriptionLanguage}

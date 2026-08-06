@@ -185,6 +185,9 @@ fn create_recording(db: &Connection, settings: &Settings, file: PathBuf) -> Repo
         language_choice: String::new(),
         error: None,
         segment_count: 0,
+        // Everything arriving from outside lands in the archive's root; a
+        // folder is a decision the person makes afterwards.
+        folder: None,
     };
     db::insert_recording(db, &recording)?;
     Ok(recording)
@@ -316,6 +319,78 @@ async fn ignore_watch_folder_files(
     .map_err(|error| UserMessage::new("watch_folder.ignore_interrupted").detail(error))?
 }
 
+/// A take from the interface's microphone recorder.
+///
+/// The audio arrives as the raw invoke body — a longer take is tens of
+/// megabytes, and pushing that through JSON would mean serializing a giant
+/// number array. `(async)` because the conversion below shells out to ffmpeg,
+/// which must never run on the thread that owns the window; a borrowed
+/// `Request` rules out an `async fn`, and this is the documented shape for
+/// binary uploads.
+#[tauri::command(async)]
+fn save_microphone_recording(
+    app: State<'_, AppState>,
+    request: tauri::ipc::Request<'_>,
+) -> Reported<Recording> {
+    let tauri::ipc::InvokeBody::Raw(bytes) = request.body() else {
+        return Err(UserMessage::new("microphone.no_audio"));
+    };
+    // A take this small holds no audible speech; refusing it here beats an
+    // archive card whose transcription finds nothing.
+    if bytes.len() < 4096 {
+        return Err(UserMessage::new("microphone.empty"));
+    }
+    let (settings, db_path) = {
+        let db = app.db.lock().unwrap();
+        (reported(db::load_settings(&db))?, app.db_path.clone())
+    };
+    let check = tools::check(&settings);
+    let ffmpeg = check
+        .ffmpeg
+        .ok_or_else(|| UserMessage::new("microphone.ffmpeg_missing"))?;
+    let root = db_path
+        .parent()
+        .unwrap_or_else(|| std::path::Path::new("."))
+        .join("microphone");
+    std::fs::create_dir_all(&root)
+        .map_err(|error| UserMessage::new("microphone.save_failed").detail(error))?;
+
+    // The browser side records WebM/Opus; the archive gets an M4A like the
+    // online imports, so every recording the application creates for itself
+    // has the same shape — and M4A's sample table seeks precisely, which is
+    // the property the MP3 playback proxy exists to add.
+    let raw = root.join(format!("take-{}.webm", uuid::Uuid::new_v4()));
+    std::fs::write(&raw, bytes)
+        .map_err(|error| UserMessage::new("microphone.save_failed").detail(error))?;
+
+    // `Záznam 2026-08-05 09-30.m4a` — the file name is also the recording's
+    // title, so it is written for reading, not for parsing. A second take in
+    // the same minute counts up.
+    let stamp = chrono::Local::now().format("%Y-%m-%d %H-%M").to_string();
+    let mut output = root.join(format!("Záznam {stamp}.m4a"));
+    let mut counter = 2;
+    while output.exists() {
+        output = root.join(format!("Záznam {stamp} ({counter}).m4a"));
+        counter += 1;
+    }
+
+    let converted = tools::command(std::path::Path::new(&ffmpeg))
+        .args(["-hide_banner", "-loglevel", "error", "-y", "-i"])
+        .arg(&raw)
+        .args(["-vn", "-c:a", "aac", "-b:a", "160k"])
+        .arg(&output)
+        .status();
+    let _ = std::fs::remove_file(&raw);
+    match converted {
+        Ok(status) if status.success() => {}
+        Ok(_) => return Err(UserMessage::new("microphone.convert_failed")),
+        Err(error) => return Err(UserMessage::new("microphone.convert_failed").detail(error)),
+    }
+
+    let db = app.db.lock().unwrap();
+    create_recording(&db, &settings, output)
+}
+
 #[tauri::command]
 async fn import_online_recording(
     window: tauri::AppHandle,
@@ -343,6 +418,157 @@ async fn import_online_recording(
 #[tauri::command]
 fn cancel_online_import(app: State<'_, AppState>) {
     app.online_import.cancel();
+}
+
+// ---------------------------------------------------------------- folders
+
+#[tauri::command]
+fn folders(app: State<'_, AppState>) -> Reported<Vec<db::Folder>> {
+    let db = app.db.lock().unwrap();
+    reported(db::folders(&db))
+}
+
+#[tauri::command]
+fn create_folder(app: State<'_, AppState>, name: String) -> Reported<db::Folder> {
+    let name = name.trim().to_string();
+    if name.is_empty() {
+        return Err(UserMessage::new("folder.empty_name"));
+    }
+    let db = app.db.lock().unwrap();
+    // Two folders with one name would be indistinguishable on the card.
+    if reported(db::folders(&db))?
+        .iter()
+        .any(|folder| folder.name.to_lowercase() == name.to_lowercase())
+    {
+        return Err(UserMessage::new("folder.duplicate_name"));
+    }
+    reported(db::create_folder(&db, &name))
+}
+
+#[tauri::command]
+fn rename_folder(app: State<'_, AppState>, id: String, name: String) -> Reported<()> {
+    let name = name.trim().to_string();
+    if name.is_empty() {
+        return Err(UserMessage::new("folder.empty_name"));
+    }
+    let db = app.db.lock().unwrap();
+    if reported(db::folders(&db))?
+        .iter()
+        .any(|folder| folder.id != id && folder.name.to_lowercase() == name.to_lowercase())
+    {
+        return Err(UserMessage::new("folder.duplicate_name"));
+    }
+    reported(db::rename_folder(&db, &id, &name))
+}
+
+/// `folder` of `None` takes the recordings back to the archive's root.
+#[tauri::command]
+fn move_to_folder(
+    app: State<'_, AppState>,
+    ids: Vec<String>,
+    folder: Option<String>,
+) -> Reported<()> {
+    let db = app.db.lock().unwrap();
+    reported(db::move_to_folder(&db, &ids, folder.as_deref()))
+}
+
+/// With `contents` the recordings inside go too — the transcripts are lost,
+/// the audio files on disk are not, exactly as removing one recording does.
+/// Without it they return to the archive's root.
+#[tauri::command]
+fn delete_folder(app: State<'_, AppState>, id: String, contents: bool) -> Reported<()> {
+    let ids = {
+        let db = app.db.lock().unwrap();
+        if contents {
+            reported(db::folder_recording_ids(&db, &id))?
+        } else {
+            Vec::new()
+        }
+    };
+    {
+        let db = app.db.lock().unwrap();
+        for recording in &ids {
+            reported(db::delete_recording(&db, recording))?;
+        }
+        reported(db::delete_folder(&db, &id))?;
+    }
+    // Outside the lock: each removal has its own playback proxies to clear.
+    for recording in &ids {
+        tools::remove_playback_proxies(&app.db_path, recording);
+    }
+    Ok(())
+}
+
+/// Formats that hold audio and nothing else. A source already in one of them
+/// can be handed over as it is; anything else — every video container — has
+/// to have its audio taken out, or `Uložit zvuk` would produce a video.
+const AUDIO_ONLY_FORMATS: [&str; 8] = ["mp3", "m4a", "wav", "flac", "ogg", "opus", "aac", "wma"];
+
+/// Hand a recording's audio over in a format that opens anywhere. Microphone
+/// takes and downloaded media live inside the application's data directory,
+/// which nobody should have to go digging for.
+///
+/// The destination's own extension says which format to write. When it
+/// already matches an audio-only source the file is copied verbatim —
+/// re-encoding lossy audio into the same shape only shaves quality off it for
+/// nothing, and a copy needs no ffmpeg at all. Otherwise ffmpeg writes the
+/// requested format with `-vn`, so a video source yields audio.
+#[tauri::command]
+fn export_audio(app: State<'_, AppState>, id: String, destination: String) -> Reported<()> {
+    let (source, settings) = {
+        let db = app.db.lock().unwrap();
+        (
+            reported(db::recording(&db, &id))?.path,
+            reported(db::load_settings(&db))?,
+        )
+    };
+    let source = std::path::Path::new(&source);
+    if !source.exists() {
+        return Err(UserMessage::new("audio_export.source_missing"));
+    }
+    let target = std::path::Path::new(&destination);
+    let extension = |path: &std::path::Path| {
+        path.extension()
+            .map(|value| value.to_string_lossy().to_ascii_lowercase())
+            .unwrap_or_default()
+    };
+    let wanted = extension(target);
+    let have = extension(source);
+
+    if wanted == have && AUDIO_ONLY_FORMATS.contains(&wanted.as_str()) {
+        std::fs::copy(source, target)
+            .map_err(|error| UserMessage::new("audio_export.failed").detail(error.to_string()))?;
+        return Ok(());
+    }
+
+    let codec: &[&str] = match wanted.as_str() {
+        // VBR around 190 kb/s: transparent for speech and small enough to send.
+        "mp3" => &["-c:a", "libmp3lame", "-q:a", "2"],
+        "m4a" | "aac" => &["-c:a", "aac", "-b:a", "192k"],
+        "wav" => &["-c:a", "pcm_s16le"],
+        _ => return Err(UserMessage::new("audio_export.unsupported_format")),
+    };
+
+    let ffmpeg = tools::check(&settings)
+        .ffmpeg
+        .ok_or_else(|| UserMessage::new("audio_export.ffmpeg_missing"))?;
+    let result = tools::command(&ffmpeg)
+        .args(["-hide_banner", "-loglevel", "error", "-y", "-i"])
+        .arg(source)
+        // Audio only. Without this a video source would be copied through
+        // with its picture, which is not what the action promises.
+        .arg("-vn")
+        .args(codec)
+        .arg(target)
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::piped())
+        .output()
+        .map_err(|error| UserMessage::new("audio_export.failed").detail(error.to_string()))?;
+    if !result.status.success() {
+        return Err(UserMessage::new("audio_export.failed")
+            .detail(String::from_utf8_lossy(&result.stderr).trim()));
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -1327,6 +1553,8 @@ fn main() {
         .setup(|app| {
             // anyhow::Error nejde primo do Box<dyn Error>, proto prevod na text
             connect_database(app).map_err(|e| e.to_string())?;
+            // The title is a constant now that the version is out of it, so it
+            // lives in tauri.conf.json and nothing sets it at runtime.
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -1338,9 +1566,16 @@ fn main() {
             scan_watch_folder,
             import_watch_folder_files,
             ignore_watch_folder_files,
+            save_microphone_recording,
             import_online_recording,
             cancel_online_import,
             delete_recording,
+            export_audio,
+            folders,
+            create_folder,
+            rename_folder,
+            move_to_folder,
+            delete_folder,
             start_transcription,
             transcribe_in_language,
             cancel_transcription,
