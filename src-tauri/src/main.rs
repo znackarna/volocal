@@ -487,10 +487,15 @@ fn delete_folder(app: State<'_, AppState>, id: String, contents: bool) -> Report
     };
     {
         let db = app.db.lock().unwrap();
+        // One transaction over the whole errand. Giving up in the middle of
+        // the loop used to leave some recordings deleted, the rest in a folder
+        // that was about to go, and nothing said about either.
+        let tx = reported(db.unchecked_transaction().map_err(anyhow::Error::from))?;
         for recording in &ids {
-            reported(db::delete_recording(&db, recording))?;
+            reported(db::delete_recording(&tx, recording))?;
         }
-        reported(db::delete_folder(&db, &id))?;
+        reported(db::delete_folder(&tx, &id))?;
+        reported(tx.commit().map_err(anyhow::Error::from))?;
     }
     // Outside the lock: each removal has its own playback proxies to clear.
     for recording in &ids {
@@ -683,6 +688,13 @@ fn diarize_speakers(
     id: String,
     speaker_count: Option<i64>,
 ) -> Reported<()> {
+    // The registry knows the instant a worker starts; the row only once that
+    // worker has said so, and a queued run has not said anything yet. Asking
+    // the row alone let a second recognition start beside the first — the
+    // guard an earlier entry claimed was already here, and was not.
+    if app.bezici.is_running(&id) {
+        return Err(UserMessage::new("transcription.still_running"));
+    }
     {
         let db = app.db.lock().unwrap();
         let n = reported(db::recording(&db, &id))?;
@@ -1683,8 +1695,41 @@ fn main() {
             backup_status,
             back_up_now,
         ])
-        .run(tauri::generate_context!())
-        .expect("failed to start the application");
+        .build(tauri::generate_context!())
+        .expect("failed to start the application")
+        .run(|app, event| {
+            // Closing the window must take the programs with it.
+            //
+            // `std::process::Child` does not kill on `Drop`, the worker
+            // threads are detached, and nothing here used to ask them to stop
+            // — so closing the window mid-transcription left `whisper-cli` or
+            // `sherpa-onnx` running, and `llama-server` resident with a seven
+            // gigabyte model. They held the graphics card and went on writing
+            // into a temporary directory the next start deletes underneath
+            // them.
+            //
+            // `ExitRequested` rather than `Exit`: it arrives while the state
+            // is still there to be read. `Exit` is kept as the net for the
+            // paths that never raise the request.
+            if matches!(
+                event,
+                tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit
+            ) {
+                let state = app.state::<AppState>();
+                let killed = state.bezici.kill_all();
+                let server = state.ai_edit.kill_server();
+                if killed > 0 || server {
+                    eprintln!(
+                        "closing: stopped {killed} transcription program(s){}",
+                        if server {
+                            " and the language server"
+                        } else {
+                            ""
+                        }
+                    );
+                }
+            }
+        });
 }
 
 /// Which archive to open, given where this mode says it belongs and the only

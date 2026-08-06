@@ -1609,7 +1609,11 @@ mark { background: var(--zvyrazneni); color: inherit; padding: 0 2px; border-rad
 .zkouska li:last-child { border-bottom: 0; }
 .zkouska li.ano span:last-child { color: var(--uspech); font-variant-numeric: tabular-nums; }
 .zkouska li.ne span:last-child { color: var(--vystraha); font-weight: 500; }
-.zkouska li:first-child.ano span:first-child::after { content: " — nejrychlejší"; color: var(--text-tichy); font-weight: 500; }
+/* The label used to be `content: " — nejrychlejší"` here, which meant a Czech
+   sentence in the English interface — and `i18n:check` cannot see it, because
+   it reads TypeScript. The word is in the dictionary now and the component
+   renders it; this rule only styles it. */
+.zkouska .nejrychlejsi { color: var(--text-tichy); font-weight: 500; }
 
 .nahled-pisma {
   border: 1px solid var(--linka); border-radius: var(--r-karta);

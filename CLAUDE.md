@@ -7992,3 +7992,100 @@ be signed.
   `headerImage` are `sidebar_image` and `header_image` in `tauri-utils 2.9.3`.
 - Not verified: the build. The welcome page is the first thing the next
   `npm run tauri build` will show.
+
+### 2026-08-06 — Nothing here quietly takes work away any more
+
+The last blocking finding from the audit and the five things around it that can
+cost somebody their work. Each is its own paragraph because each has its own
+reason; all of them are covered by tests that were made to fail first.
+
+**Closing the window takes the programs with it.** `std::process::Child` does
+not kill on `Drop`, the worker threads are detached, and nothing asked them to
+stop — so closing the window during a transcription left `whisper-cli` or
+`sherpa-onnx` running, holding the graphics card and writing into
+`%TEMP%\whisp\<id>`, which the next start deletes from underneath it. Worse,
+`llama-server` stayed resident with a seven-gigabyte model. `TranscriptionTask::
+kill_all` and `AiEditTask::kill_server` are called from `RunEvent::ExitRequested`
+— while the state is still there to read — with `Exit` kept as the net.
+`EditorServer` had to change shape for it: the child now lives in a shared
+registry rather than inside the struct, because `Drop` is exactly the thing
+that does not run when a process ends.
+
+**A dictionary entry holding `$` no longer eats the text.** `replace_all` treats
+the replacement as a template, so `$` opens a capture-group reference and
+`cena $5` wrote `cena `. It ran on every transcription *and* on already saved,
+hand-corrected text. `regex::NoExpand` — the replacement is what the person
+typed, not a pattern.
+
+**A row that cannot be read fails the read instead of disappearing.**
+`segments()` used `filter_map(|r| r.ok())`, and it is what the two
+delete-and-reinsert paths read from: a dropped row stopped being a hole in the
+display and became a deletion. `folder_recording_ids` had the same shape, where
+a dropped id is a recording orphaned in a folder that is about to go.
+
+**A transcript that finished is not reported as a failure.** The terminal
+`set_status` was `let _ =`; a failed write left the row on `prepisuje` and the
+next start called it an interrupted run — a forty-minute transcript that went
+fine came back as an error. It is retried on a fresh connection, and
+`recover_interrupted` now heals the class rather than the instance: a
+`prepisuje` row whose segments exist is a run that finished and failed to say
+so. Segments are written in one transaction at the very end, including a
+re-run, so their presence means a complete transcript either way.
+
+**Unreadable settings are kept rather than thrown away.** `unwrap_or_default()`
+handed back defaults and the next save wrote over the broken text, so the loss
+was silent and permanent. The original is copied to `nastaveni-poskozeno`
+first; defaults are still the only way to carry on, but the paths and choices
+are recoverable by hand.
+
+**Moving and deleting folders are one step or none.** Both looped with `?` in
+the middle, so a failure left half a selection in one folder and half in
+another, or a folder gone with its recordings still pointing at it. Both are
+one transaction now, including the loop in `main.rs` that deletes a folder's
+contents.
+
+**A second speaker recognition cannot start beside the first.** The guard read
+the recording's row, which is set only after the queue lets the worker through.
+`TranscriptionTask::is_running` existed, was `pub`, and nothing called it — an
+earlier entry claimed otherwise. It is called now, before the row is consulted.
+
+**Four more, on the side the user touches.** A note — the one thing here a
+person wrote themselves and the one thing that cannot be produced again — was
+deleted on a single click, while deleting a folder asks and offers two answers;
+it asks now, and shows the note's own text in the question. Two destructive
+confirmations rendered `title ?? ""` and asked `Přepis  bude smazán.` about a
+recording nobody had renamed; they fall back to the file name like everywhere
+else. `ConfirmationDialog.action` was typed `() => void` while every caller
+passes an `async` function, so a failed deletion closed the dialog and said
+nothing — the type admits a promise, the dialog closes first and reports a
+rejection. And `styles.css` carried `content: " — nejrychlejší"`, a Czech
+sentence that appeared in the English interface and that `i18n:check` cannot
+see, because it reads TypeScript.
+
+**The waveform stops redrawing a picture that has not changed.** The rAF loop
+was unconditional, so an open transcript repainted the canvas sixty times a
+second whether or not anything was playing. A frame is now skipped when every
+input to `drawBars` is identical. Worth recording: the first version of that
+signature quantised the position to the played pixel and would have **frozen
+the waveform during playback** — `equalizerAtTime` interpolates the envelope at
+the exact time, so the bars move within a single pixel of travel. The signature
+carries `readTime()` whole.
+
+- Files: `src-tauri/src/db.rs`, `src-tauri/src/transcription.rs`,
+  `src-tauri/src/ai_edit.rs`, `src-tauri/src/main.rs`,
+  `src/ConfirmationDialog.tsx`, `src/App.tsx`, `src/Detail.tsx`,
+  `src/PlaybackControls.tsx`, `src/Settings.tsx`, `src/styles.css`,
+  `src/locales/cs/{detail,settings}.ts`, `src/locales/en/{detail,settings}.ts`.
+- Verified: `cargo fmt --all`; `cargo check --all-targets` with warnings as
+  errors; `cargo test` — **82 passed**, nine of them new. `npx tsc --noEmit`;
+  `node scripts/i18n.mjs check`.
+- Every new test was made to fail before it was believed. With the defects put
+  back one at a time, six of the eight data tests failed and the two guard
+  tests passed in both directions, which is what tells them apart. The
+  window-closing test is the one worth describing: its first version asserted
+  on counts and on the registry being emptied, and it **passed against a
+  `kill_all` that merely forgot the children**. It now holds each child's
+  stdout pipe open and reads it to EOF on another thread with a five-second
+  timeout — the pipe closes when the process ends and not before — so the death
+  is observed rather than inferred. Against the forgetting version it fails
+  with `program 0 was still running after kill_all`.

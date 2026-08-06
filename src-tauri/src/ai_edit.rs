@@ -37,9 +37,22 @@ pub struct AiEditTask {
     running: Arc<Mutex<Option<String>>>,
     cancellation: Arc<AtomicBool>,
     progress: Arc<Mutex<Option<AiEditProgress>>>,
+    /// The language server, so somebody other than its own worker thread can
+    /// stop it. `EditorServer` kills on `Drop`, which is enough when the
+    /// thread unwinds and no use at all when the window closes and the process
+    /// simply ends — leaving `llama-server` behind with a seven-gigabyte model
+    /// resident.
+    server: Arc<Mutex<Option<Child>>>,
 }
 
 impl AiEditTask {
+    /// Stops the language server if one is running. Called when the window is
+    /// closing; says whether there was anything to stop, which is what the
+    /// test asserts on.
+    pub fn kill_server(&self) -> bool {
+        stop_child(&self.server)
+    }
+
     pub fn start(
         &self,
         app: AppHandle,
@@ -72,6 +85,7 @@ impl AiEditTask {
         let running = self.running.clone();
         let cancellation = self.cancellation.clone();
         let progress = self.progress.clone();
+        let server = self.server.clone();
         std::thread::spawn(move || {
             if let Err(error) = generate_document(
                 &app,
@@ -81,6 +95,7 @@ impl AiEditTask {
                 &mode,
                 &cancellation,
                 &progress,
+                &server,
             ) {
                 let cancelled = cancellation.load(Ordering::Relaxed);
                 emit(
@@ -144,6 +159,7 @@ impl AiEditTask {
         let running = self.running.clone();
         let cancellation = self.cancellation.clone();
         let progress = self.progress.clone();
+        let server = self.server.clone();
         std::thread::spawn(move || {
             if let Err(error) = generate_output(
                 &app,
@@ -154,6 +170,7 @@ impl AiEditTask {
                 &variant,
                 &cancellation,
                 &progress,
+                &server,
             ) {
                 let cancelled = cancellation.load(Ordering::Relaxed);
                 emit(
@@ -462,16 +479,41 @@ fn clean_output(output: &str) -> String {
         .to_string()
 }
 
+/// The running language server.
+///
+/// The child itself lives in the shared registry rather than in this struct,
+/// so the application can stop it from outside — closing the window ends the
+/// process without unwinding this worker's thread, and `Drop` never runs.
+/// One owner behind one lock, reached by both.
 struct EditorServer {
-    child: Child,
+    registry: Arc<Mutex<Option<Child>>>,
     base_url: String,
 }
 
 impl EditorServer {
-    fn stop(&mut self) {
-        let _ = self.child.kill();
-        let _ = self.child.wait();
+    /// Has the server exited on its own? `Ok(None)` means it is still running.
+    fn exited(&self) -> std::io::Result<Option<std::process::ExitStatus>> {
+        match self.registry.lock().unwrap().as_mut() {
+            Some(child) => child.try_wait(),
+            None => Ok(None),
+        }
     }
+    fn stop(&mut self) {
+        stop_child(&self.registry);
+    }
+}
+
+/// Kills whatever the registry holds and empties it. Idempotent on purpose:
+/// the worker's `Drop` and the application's exit hook both call it, and which
+/// arrives first is a race nobody should have to think about.
+fn stop_child(registry: &Arc<Mutex<Option<Child>>>) -> bool {
+    let Some(mut child) = registry.lock().unwrap().take() else {
+        return false;
+    };
+    let running = child.try_wait().ok().flatten().is_none();
+    let _ = child.kill();
+    let _ = child.wait();
+    running
 }
 
 impl Drop for EditorServer {
@@ -485,6 +527,7 @@ fn start_server(
     model: &Path,
     uses_vulkan: bool,
     cancellation: &AtomicBool,
+    registry: &Arc<Mutex<Option<Child>>>,
 ) -> Reported<EditorServer> {
     let listener = TcpListener::bind("127.0.0.1:0")?;
     let port = listener.local_addr()?.port();
@@ -519,8 +562,12 @@ fn start_server(
     let child = command
         .spawn()
         .map_err(|error| UserMessage::new("ai.server_launch_failed").detail(error))?;
-    let mut process = EditorServer {
-        child,
+    // Handed over before the readiness wait below: the model can take a minute
+    // to load, and closing the window during that minute is exactly when the
+    // orphan is most expensive.
+    *registry.lock().unwrap() = Some(child);
+    let process = EditorServer {
+        registry: registry.clone(),
         base_url: format!("http://127.0.0.1:{port}"),
     };
     let client = reqwest::blocking::Client::builder()
@@ -531,7 +578,7 @@ fn start_server(
         if cancellation.load(Ordering::Relaxed) {
             return Err(UserMessage::new("ai.cancelled"));
         }
-        if let Some(status) = process.child.try_wait()? {
+        if let Some(status) = process.exited()? {
             return Err(UserMessage::new("ai.server_exited_while_loading").with("status", status));
         }
         if client
@@ -660,7 +707,7 @@ fn request_chunk(
                 return Err(UserMessage::new("ai.server_disconnected"));
             }
             Err(mpsc::RecvTimeoutError::Timeout) => {
-                if let Some(status) = server.child.try_wait()? {
+                if let Some(status) = server.exited()? {
                     return Err(UserMessage::new("ai.server_exited").with("status", status));
                 }
             }
@@ -676,6 +723,7 @@ fn generate_document(
     mode: &str,
     cancellation: &AtomicBool,
     progress_state: &Arc<Mutex<Option<AiEditProgress>>>,
+    registry: &Arc<Mutex<Option<Child>>>,
 ) -> Reported<()> {
     if settings.editor_model.is_empty() {
         return Err(UserMessage::new("ai.no_model_selected"));
@@ -720,7 +768,7 @@ fn generate_document(
     let uses_vulkan = server_path
         .parent()
         .is_some_and(|parent| parent.ends_with("editor-vulkan"));
-    let mut server = start_server(&server_path, &model, uses_vulkan, cancellation)?;
+    let mut server = start_server(&server_path, &model, uses_vulkan, cancellation, registry)?;
     let mut instruction = system_prompt(mode);
     // Name the language of this recording. The rule against translating is in
     // the prompt already, but it is abstract, and on a long English document
@@ -827,6 +875,7 @@ fn generate_output(
     variant: &str,
     cancellation: &AtomicBool,
     progress_state: &Arc<Mutex<Option<AiEditProgress>>>,
+    registry: &Arc<Mutex<Option<Child>>>,
 ) -> Reported<()> {
     if settings.editor_model.is_empty() {
         return Err(UserMessage::new("ai.no_model_selected"));
@@ -882,7 +931,7 @@ fn generate_output(
     let uses_vulkan = server_path
         .parent()
         .is_some_and(|parent| parent.ends_with("editor-vulkan"));
-    let mut server = start_server(&server_path, &model, uses_vulkan, cancellation)?;
+    let mut server = start_server(&server_path, &model, uses_vulkan, cancellation, registry)?;
     let chunks = split_chunks(&source);
 
     let text = if let Some(language) = translation {

@@ -1934,7 +1934,7 @@ export default function Detail({
                   onRetranscribe={startTranscription}
                   onDeleteTranscript={() => setConfirmation({
                     nadpis: t("detail.header.deleteTranscriptTitle"),
-                    text: t("detail.header.deleteTranscriptText", { title }),
+                    text: t("detail.header.deleteTranscriptText", { title: title || fileName(path) }),
                     confirm: t("detail.header.deleteTranscriptConfirm"),
                     nicive: true,
                     action: async () => {
@@ -1947,7 +1947,7 @@ export default function Detail({
                   }
                   onRemove={() => setConfirmation({
                     nadpis: t("detail.header.removeTitle"),
-                    text: t("detail.header.removeText", { title }),
+                    text: t("detail.header.removeText", { title: title || fileName(path) }),
                     confirm: t("detail.header.removeConfirm"),
                     nicive: true,
                     action: async () => {
@@ -2516,7 +2516,21 @@ export default function Detail({
                             {open && (
                               <button
                                 className="sticky-danger"
-                                onClick={() => void deleteNote(note)}
+                                /* The one place in the application where text
+                                   a person wrote themselves went on a single
+                                   click. Deleting a folder asks and offers two
+                                   answers, removing a recording asks, a re-run
+                                   asks — and all three destroy something that
+                                   can be produced again. A note cannot. */
+                                onClick={() =>
+                                  setConfirmation({
+                                    nadpis: t("detail.notes.deleteTitle"),
+                                    text: note.text.trim(),
+                                    confirm: t("common.delete"),
+                                    nicive: true,
+                                    action: () => deleteNote(note),
+                                  })
+                                }
                               >
                                 {t("common.delete")}
                               </button>
@@ -2899,7 +2913,11 @@ export default function Detail({
           </button>
         </div>
       )}
-      <ConfirmationDialog query={confirmation} onZavri={() => setConfirmation(null)} />
+      <ConfirmationDialog
+        query={confirmation}
+        onZavri={() => setConfirmation(null)}
+        onError={onError}
+      />
     </main>
   );
 }

@@ -90,6 +90,7 @@ export const csDetail = {
   "detail.notes.placeholder": "Napsat poznámku…",
   "detail.notes.seekTo": "Přejít na {time}",
   "detail.notes.seekTitle": "Přejít na čas",
+  "detail.notes.deleteTitle": "Smazat poznámku?",
   "detail.notes.empty": "Zatím bez poznámek.",
   "detail.notes.openTitle": "Otevřít poznámku",
   "detail.notes.pinAt": "+ Připnout k {time}",
@@ -291,6 +292,9 @@ export const csDetailContext: Partial<Record<keyof typeof csDetail, string>> = {
   "detail.notes.seekTo":
     "Popisek pro čtečky obrazovky. {time} je čas v nahrávce, například „1:23“.",
   "detail.notes.seekTitle": "Popisek tlačítka, které přesune přehrávání na čas poznámky.",
+  "detail.notes.deleteTitle":
+    "Nadpis potvrzení. Pod ním se ukáže vlastní text té poznámky, takže věta " +
+    "nemusí říkat, o kterou jde.",
   "detail.notes.openTitle":
     "Popisek zavřeného lístku s poznámkou. Kliknutím se otevře k úpravě.",
   "detail.notes.pinAt":

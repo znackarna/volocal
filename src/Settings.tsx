@@ -818,9 +818,17 @@ export default function SettingsScreen({ onComplete, onError, onToModule }: Prop
 
         {benchmark && (
           <ul className="zkouska">
-            {benchmark.map((v) => (
+            {benchmark.map((v, index) => (
               <li key={v.compute} className={v.error ? "ne" : "ano"}>
-                <span>{labels.compute(v.compute)}</span>
+                <span>
+                  {labels.compute(v.compute)}
+                  {index === 0 && !v.error && (
+                    <span className="nejrychlejsi">
+                      {" — "}
+                      {t("settings.performance.fastest")}
+                    </span>
+                  )}
+                </span>
                 <span>
                   {v.error
                     ? t("settings.performance.benchmarkFailed", {

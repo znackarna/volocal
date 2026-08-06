@@ -690,7 +690,23 @@ pub fn load_settings(db: &Connection) -> Result<Settings> {
         )
         .ok();
     match json {
-        Some(j) => Ok(serde_json::from_str(&j).unwrap_or_default()),
+        Some(j) => match serde_json::from_str(&j) {
+            Ok(settings) => Ok(settings),
+            Err(error) => {
+                // Defaults are the only way to carry on, but the broken text
+                // must not be lost with them: the next `save_settings` writes
+                // over this key, so without a copy the loss is permanent and
+                // silent. Whoever ends up here can read their own paths and
+                // choices out of `nastaveni-poskozeno`.
+                eprintln!("settings: unreadable, keeping a copy: {error}");
+                let _ = db.execute(
+                    "INSERT INTO klice (klic, hodnota) VALUES ('nastaveni-poskozeno', ?1)
+                     ON CONFLICT(klic) DO UPDATE SET hodnota = excluded.hodnota",
+                    params![j],
+                );
+                Ok(Settings::default())
+            }
+        },
         None => Ok(Settings::default()),
     }
 }
@@ -814,10 +830,25 @@ pub fn set_status(db: &Connection, id: &str, status: &str, error: Option<&str>) 
 /// declare the first one's work interrupted. Sharing an archive between two
 /// running copies is a worse problem than this one, so it is left alone.
 pub fn recover_interrupted(db: &Connection) -> Result<usize> {
-    let count = db.execute(
+    let tx = db.unchecked_transaction()?;
+    // A row still saying `prepisuje` while its segments are there is a run
+    // that finished and failed to write down that it had. Segments are
+    // written in one transaction at the very end — including a re-run, which
+    // deletes and reinserts inside it — so their presence means a complete
+    // transcript, whether from this run or the one before it. Calling that a
+    // failure is how a forty-minute transcript that went fine comes back as
+    // an error.
+    tx.execute(
+        "UPDATE nahravky SET stav = 'hotova', chyba = NULL
+         WHERE stav = 'prepisuje'
+           AND EXISTS (SELECT 1 FROM segmenty WHERE nahravka_id = nahravky.id)",
+        [],
+    )?;
+    let count = tx.execute(
         "UPDATE nahravky SET stav = 'chyba', chyba = ?1 WHERE stav = 'prepisuje'",
         params![UserMessage::new("transcription.interrupted").to_stored()],
     )?;
+    tx.commit()?;
     Ok(count)
 }
 
@@ -979,19 +1010,26 @@ pub fn rename_folder(db: &Connection, id: &str, name: &str) -> Result<()> {
 
 /// `folder` of `None` takes the recordings back to the archive's root.
 pub fn move_to_folder(db: &Connection, ids: &[String], folder: Option<&str>) -> Result<()> {
+    // One transaction: a loop that gives up in the middle would leave half a
+    // selection in one folder and half in another, with nothing said about it.
+    let tx = db.unchecked_transaction()?;
     for id in ids {
-        db.execute(
+        tx.execute(
             "UPDATE nahravky SET slozka = ?2 WHERE id = ?1",
             params![id, folder],
         )?;
     }
+    tx.commit()?;
     Ok(())
 }
 
 pub fn folder_recording_ids(db: &Connection, folder: &str) -> Result<Vec<String>> {
     let mut statement = db.prepare("SELECT id FROM nahravky WHERE slozka = ?1")?;
     let rows = statement.query_map(params![folder], |row| row.get(0))?;
-    Ok(rows.filter_map(|row| row.ok()).collect())
+    // Every id matters: the caller deletes exactly this list and then the
+    // folder itself, so a dropped row is a recording orphaned in a folder
+    // that no longer exists.
+    Ok(rows.collect::<Result<Vec<_>, _>>()?)
 }
 
 /// Deleting the folder alone. The recordings it held return to the root —
@@ -999,11 +1037,16 @@ pub fn folder_recording_ids(db: &Connection, folder: &str) -> Result<Vec<String>
 /// column without its `ON DELETE SET NULL` clause and would otherwise keep
 /// pointing at a folder that no longer exists.
 pub fn delete_folder(db: &Connection, id: &str) -> Result<()> {
-    db.execute(
+    // Both statements or neither: returning the recordings to the root and
+    // removing the folder are one decision, and the half where the folder is
+    // gone but its recordings still point at it is unreachable from the UI.
+    let tx = db.unchecked_transaction()?;
+    tx.execute(
         "UPDATE nahravky SET slozka = NULL WHERE slozka = ?1",
         params![id],
     )?;
-    db.execute("DELETE FROM slozky WHERE id = ?1", params![id])?;
+    tx.execute("DELETE FROM slozky WHERE id = ?1", params![id])?;
+    tx.commit()?;
     Ok(())
 }
 
@@ -1130,7 +1173,12 @@ pub fn segments(db: &Connection, recording_id: &str) -> Result<Vec<Segment>> {
             original: r.get(11).ok().flatten(),
         })
     })?;
-    let mut segments: Vec<Segment> = rows.filter_map(|r| r.ok()).collect();
+    // Not `filter_map(|r| r.ok())`. Two paths delete every segment of a
+    // recording and insert back exactly what this function returned —
+    // `run_diarization` and the sentence-layout upgrade — so a row quietly
+    // dropped here stops being a hole in the display and becomes a deletion.
+    // Failing the read leaves the archive alone, which is the safe direction.
+    let mut segments: Vec<Segment> = rows.collect::<Result<Vec<_>, _>>()?;
     for segment in &mut segments {
         align_word_timestamps(segment);
     }
@@ -1627,9 +1675,9 @@ mod tests {
     use super::{
         ai_outputs, align_word_timestamps, create_folder, delete_folder, delete_recording_note,
         delete_segments, folder_recording_ids, folders, insert_recording_note, insert_segment,
-        migrate_legacy_schema, move_to_folder, recording_notes, save_ai_document, save_ai_output,
-        segments, update_recording_note, watch_file_imported, watch_file_is_stable, waveform,
-        AiDocument, AiOutput, RecordingNote, Segment, WaveformData,
+        load_settings, migrate_legacy_schema, move_to_folder, recording_notes, recover_interrupted,
+        save_ai_document, save_ai_output, segments, update_recording_note, watch_file_imported,
+        watch_file_is_stable, waveform, AiDocument, AiOutput, RecordingNote, Segment, WaveformData,
     };
     use rusqlite::{params, Connection};
 
@@ -1734,6 +1782,121 @@ mod tests {
          CREATE VIRTUAL TABLE segmenty_fts USING fts5(
            text, segment_id UNINDEXED, nahravka_id UNINDEXED
          );";
+
+    // ------------------------------------------------ the archive tells the truth
+
+    /// Enough of `nahravky` for the two statements `recover_interrupted` runs.
+    const RECORDING_SCHEMA: &str = "CREATE TABLE nahravky (
+           id    TEXT PRIMARY KEY,
+           stav  TEXT NOT NULL,
+           chyba TEXT
+         );";
+
+    fn interrupted_archive() -> Connection {
+        let db = Connection::open_in_memory().unwrap();
+        db.execute_batch(RECORDING_SCHEMA).unwrap();
+        db.execute_batch(SEGMENT_SCHEMA).unwrap();
+        db
+    }
+
+    fn status_of(db: &Connection, id: &str) -> String {
+        db.query_row(
+            "SELECT stav FROM nahravky WHERE id = ?1",
+            params![id],
+            |r| r.get(0),
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn a_transcript_that_finished_is_not_reported_as_a_failure() {
+        // The row never got its final `hotova` — the write failed, or the
+        // application was closed in the half-second between the transaction
+        // and the status. The segments are there, so the work is done.
+        let db = interrupted_archive();
+        db.execute(
+            "INSERT INTO nahravky (id, stav) VALUES ('done', 'prepisuje')",
+            [],
+        )
+        .unwrap();
+        let mut written = segment(0.0, 1.0, "[]");
+        written.recording_id = "done".into();
+        insert_segment(&db, &written).unwrap();
+
+        recover_interrupted(&db).unwrap();
+
+        assert_eq!(status_of(&db, "done"), "hotova");
+        let error: Option<String> = db
+            .query_row("SELECT chyba FROM nahravky WHERE id = 'done'", [], |r| {
+                r.get(0)
+            })
+            .unwrap();
+        assert_eq!(error, None, "a finished recording carries no failure");
+    }
+
+    #[test]
+    fn a_run_that_never_wrote_anything_is_still_a_failure() {
+        let db = interrupted_archive();
+        db.execute(
+            "INSERT INTO nahravky (id, stav) VALUES ('empty', 'prepisuje')",
+            [],
+        )
+        .unwrap();
+
+        let count = recover_interrupted(&db).unwrap();
+
+        assert_eq!(count, 1);
+        assert_eq!(status_of(&db, "empty"), "chyba");
+    }
+
+    #[test]
+    fn a_bad_segment_row_fails_the_read_instead_of_disappearing() {
+        // `segments()` is what the two delete-and-reinsert paths read from, so
+        // a row quietly skipped here would be deleted rather than displayed
+        // wrong. `poradi` is NOT NULL in the real schema; a value of the wrong
+        // type stands in for whatever corruption produced it.
+        let db = Connection::open_in_memory().unwrap();
+        db.execute_batch(SEGMENT_SCHEMA).unwrap();
+        let good = segment(0.0, 1.0, "[]");
+        insert_segment(&db, &good).unwrap();
+        db.execute(
+            "INSERT INTO segmenty (id, nahravka_id, poradi, zacatek, konec, text, upraveno, overeno)
+             VALUES ('broken', 'nahravka', 'not a number', 1.0, 2.0, 'text', 0, 0)",
+            [],
+        )
+        .unwrap();
+
+        assert!(
+            segments(&db, "nahravka").is_err(),
+            "a row that cannot be read must not be silently dropped"
+        );
+    }
+
+    #[test]
+    fn unreadable_settings_are_kept_rather_than_overwritten() {
+        let db = Connection::open_in_memory().unwrap();
+        db.execute_batch("CREATE TABLE klice (klic TEXT PRIMARY KEY, hodnota TEXT);")
+            .unwrap();
+        db.execute(
+            "INSERT INTO klice (klic, hodnota) VALUES ('nastaveni', ?1)",
+            params!["{ this is not json"],
+        )
+        .unwrap();
+
+        let settings = load_settings(&db).unwrap();
+
+        // Defaults are the only way to carry on...
+        assert_eq!(settings.theme, super::Settings::default().theme);
+        // ...but the text the person's choices were in survives.
+        let kept: String = db
+            .query_row(
+                "SELECT hodnota FROM klice WHERE klic = 'nastaveni-poskozeno'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(kept, "{ this is not json");
+    }
 
     #[test]
     fn aligns_vad_compressed_word_timestamps_to_segment_start() {

@@ -66,6 +66,12 @@ function AudioBackdrop({
     let color = "";
     let playedColor = "";
     let colorReadAt = 0;
+    /* What the last frame drew. An open transcript that is not playing has an
+       unchanging picture, and this loop used to redraw it sixty times a second
+       for as long as the screen was open. The frame is still scheduled — the
+       position can start moving at any moment — but the canvas work only
+       happens when the result would differ. */
+    let drawn = "";
 
     const drawFrame = (now: number) => {
       if (!running) return;
@@ -95,6 +101,26 @@ function AudioBackdrop({
         const played = current.duration > 0
           ? Math.min(1, Math.max(0, current.readTime() / current.duration))
           : 0;
+
+        /* Every input `drawBars` is about to receive. `readTime()` belongs in
+           it whole, not quantised to the played pixel: `equalizerAtTime`
+           interpolates the envelope at that moment, so the bars themselves
+           move within a single pixel of travel. Rounding it would have frozen
+           the picture during playback — the bug this line nearly became. */
+        const signature = [
+          barCount,
+          width,
+          current.geometry.height,
+          pixelRatio,
+          color,
+          playedColor,
+          current.readTime(),
+        ].join("|");
+        if (signature === drawn) {
+          requestAnimationFrame(drawFrame);
+          return;
+        }
+        drawn = signature;
 
         drawBars(
           target,

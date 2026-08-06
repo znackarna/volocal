@@ -98,6 +98,7 @@ export const enSettings: Partial<Record<keyof typeof csSettings, string>> = {
   "settings.performance.benchmarkNote": "The test transcribes a piece of a recording in every available mode and sets the fastest one.",
   "settings.performance.benchmarking": "Measuring…",
   "settings.performance.benchmark": "Measure speed",
+  "settings.performance.fastest": "fastest",
   "settings.performance.benchmarkFailed": "can’t be used — {error}",
   "settings.performance.benchmarkResult": "{factor}× realtime ({seconds} s)",
   "settings.files.locations": "Locations",

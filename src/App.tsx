@@ -1145,7 +1145,13 @@ export default function App() {
             const n = recordings.find((x) => x.id === id);
             setQuery({
               nadpis: t("app.confirm.removeTitle"),
-              text: t("app.confirm.removeText", { title: n?.title ?? "" }),
+              /* `title` alone is empty for a recording nobody renamed, and the
+                 question then reads "Přepis  bude smazán." Everywhere else
+                 the name falls back to the file, and a destructive question
+                 is the last place that should stop doing it. */
+              text: t("app.confirm.removeText", {
+                title: n ? n.title || fileName(n.path) : "",
+              }),
               confirm: t("app.confirm.removeAction"),
               nicive: true,
               action: async () => {
@@ -1165,7 +1171,13 @@ export default function App() {
             const n = recordings.find((x) => x.id === id);
             setQuery({
               nadpis: t("app.confirm.deleteTranscriptTitle"),
-              text: t("app.confirm.deleteTranscriptText", { title: n?.title ?? "" }),
+              /* `title` alone is empty for a recording nobody renamed, and the
+                 question then reads "Přepis  bude smazán." Everywhere else
+                 the name falls back to the file, and a destructive question
+                 is the last place that should stop doing it. */
+              text: t("app.confirm.deleteTranscriptText", {
+                title: n ? n.title || fileName(n.path) : "",
+              }),
               confirm: t("app.confirm.deleteTranscriptAction"),
               nicive: true,
               action: async () => {
@@ -1410,7 +1422,11 @@ export default function App() {
         onSubmit={(name) => void submitFolderDialog(name)}
       />
 
-      <ConfirmationDialog query={query} onZavri={() => setQuery(null)} />
+      <ConfirmationDialog
+        query={query}
+        onZavri={() => setQuery(null)}
+        onError={reportError}
+      />
 
       {pendingTranscription && (
         <SpeakerCountDialog

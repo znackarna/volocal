@@ -91,6 +91,7 @@ export const csSettings = {
     "Test přepíše kousek nahrávky každým dostupným režimem a nejrychlejší rovnou nastaví.",
   "settings.performance.benchmarking": "Měřím…",
   "settings.performance.benchmark": "Změřit rychlost",
+  "settings.performance.fastest": "nejrychlejší",
   "settings.performance.benchmarkFailed": "nelze použít — {error}",
   "settings.performance.benchmarkResult": "{factor}× realtime ({seconds} s)",
 
@@ -317,6 +318,9 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
   "settings.performance.threadsAuto":
     "Hodnota vedle popisku, když je počet vláken nastavený na nulu.",
   "settings.performance.benchmarking": "Stav tlačítka po dobu měření rychlosti.",
+  "settings.performance.fastest":
+    "Přívlastek za názvem nejrychlejšího změřeného režimu. Vykresluje se za " +
+    "pomlčkou, takže začíná malým písmenem.",
   "settings.performance.benchmarkFailed":
     "Výsledek měření u režimu, který se nepodařilo spustit. {error} je hlášení z programu.",
   "settings.performance.benchmarkResult":

@@ -78,6 +78,7 @@ export const enDetail: Partial<Record<keyof typeof csDetail, string>> = {
   "detail.notes.openTitle": "Open the note",
   "detail.notes.pinAt": "+ Pin to {time}",
   "detail.notes.unpin": "Unpin",
+  "detail.notes.deleteTitle": "Delete this note?",
   "detail.notes.empty": "No notes yet.",
   "detail.menu.play": "Play from here",
   "detail.menu.copy": "Copy",

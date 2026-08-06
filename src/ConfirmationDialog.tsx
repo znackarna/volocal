@@ -9,11 +9,14 @@ export interface ConfirmationRequest {
   confirm: string;
   /** An irreversible action is set apart by colour */
   nicive?: boolean;
-  action: () => void;
+  /** May be async: every caller in the application passes one. Typed as
+   *  returning `void` it swallowed the rejection — a failed deletion closed
+   *  the dialog, left the list unreloaded, and said nothing at all. */
+  action: () => void | Promise<void>;
   /** A second way out, for a question with two answers rather than one —
    *  deleting a folder can keep or discard what is inside it. Quiet, so the
    *  named confirming button stays the one the eye lands on. */
-  alternative?: { label: string; action: () => void };
+  alternative?: { label: string; action: () => void | Promise<void> };
 }
 
 /**
@@ -25,12 +28,27 @@ export interface ConfirmationRequest {
 export default function ConfirmationDialog({
   query,
   onZavri,
+  onError,
 }: {
   query: ConfirmationRequest | null;
   onZavri: () => void;
+  /** Where a rejected action is reported. Without it the failure is silent. */
+  onError?: (message: string) => void;
 }) {
   const { t } = useI18n();
   const confirmButtonRef = useRef<HTMLButtonElement>(null);
+
+  /** Closes first, then waits: the dialog answered the question and has no
+   *  business staying on screen while the work runs. A rejection is reported
+   *  rather than dropped. */
+  const run = async (action?: () => void | Promise<void>) => {
+    onZavri();
+    try {
+      await action?.();
+    } catch (error) {
+      onError?.(error instanceof Error ? error.message : String(error));
+    }
+  };
 
   useEffect(() => {
     if (!query) return;
@@ -67,8 +85,7 @@ export default function ConfirmationDialog({
             <button
               className="tlacitko"
               onClick={() => {
-                query.alternative?.action();
-                onZavri();
+                void run(query.alternative?.action);
               }}
             >
               {query.alternative.label}
@@ -78,8 +95,7 @@ export default function ConfirmationDialog({
             ref={confirmButtonRef}
             className={`tlacitko ${query.nicive ? "nicive" : "hlavni"}`}
             onClick={() => {
-              query.action();
-              onZavri();
+              void run(query.action);
             }}
           >
             {query.confirm}

@@ -164,6 +164,32 @@ impl TranscriptionTask {
     pub fn is_running(&self, id: &str) -> bool {
         self.running.lock().unwrap().contains(id)
     }
+    /// Kills every registered child, for when the window is closing.
+    ///
+    /// `std::process::Child` does not kill on `Drop`, and the worker threads
+    /// are detached — so closing the window during a transcription left
+    /// `whisper-cli` (or `sherpa-onnx`) running, holding the graphics card and
+    /// writing into `%TEMP%\whisp\<id>`, which the next start deletes from
+    /// under it. Nothing on screen said the work was still going, because
+    /// there was no screen.
+    ///
+    /// Returns how many it had to kill, which is what the test asserts on.
+    pub fn kill_all(&self) -> usize {
+        let mut processes = self.processes.lock().unwrap();
+        let mut killed = 0;
+        for (_, children) in processes.iter_mut() {
+            for child in children.iter_mut() {
+                // Already gone is the ordinary case, not a failure: a run that
+                // finished cleanly leaves its handle here until `cleanup`.
+                if child.try_wait().ok().flatten().is_none() && child.kill().is_ok() {
+                    let _ = child.wait();
+                    killed += 1;
+                }
+            }
+        }
+        processes.clear();
+        killed
+    }
     fn record_process(&self, id: &str, child: std::process::Child) {
         self.processes
             .lock()
@@ -339,8 +365,19 @@ pub fn start_in_thread(
 
         match result {
             Ok(count) => {
-                if let Some(s) = &connection {
-                    let _ = db::set_status(s, &recording_id, "hotova", None);
+                // The work is already written; this only records that it is.
+                // Failing quietly leaves the row on `prepisuje`, and the next
+                // start reads that as an interrupted run. Retried on its own
+                // connection; `recover_interrupted` catches the rest.
+                let stored = connection
+                    .as_ref()
+                    .map(|s| db::set_status(s, &recording_id, "hotova", None));
+                if !matches!(stored, Some(Ok(_))) {
+                    if let Ok(second) = db::open(&db_path) {
+                        if let Err(error) = db::set_status(&second, &recording_id, "hotova", None) {
+                            eprintln!("finished but not marked as such: {error}");
+                        }
+                    }
                 }
                 status(
                     &app,
@@ -421,8 +458,19 @@ pub fn start_diarization_in_thread(
 
         match result {
             Ok(count) => {
-                if let Some(s) = &connection {
-                    let _ = db::set_status(s, &recording_id, "hotova", None);
+                // The work is already written; this only records that it is.
+                // Failing quietly leaves the row on `prepisuje`, and the next
+                // start reads that as an interrupted run. Retried on its own
+                // connection; `recover_interrupted` catches the rest.
+                let stored = connection
+                    .as_ref()
+                    .map(|s| db::set_status(s, &recording_id, "hotova", None));
+                if !matches!(stored, Some(Ok(_))) {
+                    if let Ok(second) = db::open(&db_path) {
+                        if let Err(error) = db::set_status(&second, &recording_id, "hotova", None) {
+                            eprintln!("finished but not marked as such: {error}");
+                        }
+                    }
                 }
                 status(
                     &app,
@@ -2046,7 +2094,14 @@ fn apply_dictionary(segments: &mut [Segment], dictionary: &[db::DictionaryEntry]
     }
     for s in segments.iter_mut() {
         for (re, replacement) in &rules {
-            s.text = re.replace_all(&s.text, replacement.as_str()).to_string();
+            // `NoExpand`: the replacement is what the person typed, not a
+            // template. Without it `$` starts a capture-group reference, so a
+            // dictionary entry replacing something with `cena $5` writes
+            // `cena ` — and this runs over every transcript, including one
+            // already corrected by hand.
+            s.text = re
+                .replace_all(&s.text, regex::NoExpand(replacement.as_str()))
+                .to_string();
         }
 
         // Word timings carry the word text too. Without this, highlighting
@@ -2064,7 +2119,9 @@ fn apply_dictionary(segments: &mut [Segment], dictionary: &[db::DictionaryEntry]
             };
             let mut new = text.to_string();
             for (re, replacement) in &rules {
-                new = re.replace_all(&new, replacement.as_str()).to_string();
+                new = re
+                    .replace_all(&new, regex::NoExpand(replacement.as_str()))
+                    .to_string();
             }
             if new != text {
                 chunk["s"] = serde_json::Value::String(new);
@@ -2725,6 +2782,72 @@ mod queue_tests {
 }
 
 #[cfg(test)]
+mod dictionary_tests {
+    use super::*;
+
+    fn entry(find: &str, replace: &str) -> db::DictionaryEntry {
+        db::DictionaryEntry {
+            id: "e".into(),
+            find: find.into(),
+            replace: replace.into(),
+        }
+    }
+
+    fn spoken(text: &str) -> Segment {
+        Segment {
+            id: "s".into(),
+            recording_id: "r".into(),
+            order: 0,
+            start: 0.0,
+            end: 1.0,
+            text: text.into(),
+            speakers: None,
+            confidence: None,
+            edited: false,
+            words: None,
+            verified: false,
+            original: None,
+        }
+    }
+
+    /// The defect: `$` in a replacement is a capture-group reference to the
+    /// regex crate, so the money the person typed was replaced by nothing.
+    #[test]
+    fn a_replacement_holding_a_dollar_keeps_it() {
+        let mut segments = vec![spoken("stálo to pět set")];
+        apply_dictionary(&mut segments, &[entry("pět set", "cena $5")]);
+        assert_eq!(segments[0].text, "stálo to cena $5");
+    }
+
+    #[test]
+    fn a_replacement_is_never_read_as_a_group_reference() {
+        // `$1` would have expanded to the first capture group — here the whole
+        // match — and written the error back over the correction.
+        let mut segments = vec![spoken("součas DNA")];
+        apply_dictionary(&mut segments, &[entry("součas", "$1")]);
+        assert_eq!(segments[0].text, "$1 DNA");
+    }
+
+    #[test]
+    fn an_ordinary_replacement_still_works() {
+        let mut segments = vec![spoken("součas DNA svého života")];
+        apply_dictionary(&mut segments, &[entry("součas", "součást")]);
+        assert_eq!(segments[0].text, "součást DNA svého života");
+    }
+
+    #[test]
+    fn the_word_timings_are_corrected_with_the_same_rule() {
+        let mut segment = spoken("cena pět set");
+        segment.words = Some(r#"[{"s":"cena","t":0.0},{"s":"pět set","t":0.5}]"#.into());
+        let mut segments = vec![segment];
+        apply_dictionary(&mut segments, &[entry("pět set", "$500")]);
+        let words: Vec<serde_json::Value> =
+            serde_json::from_str(segments[0].words.as_deref().unwrap()).unwrap();
+        assert_eq!(words[1]["s"].as_str(), Some("$500"));
+    }
+}
+
+#[cfg(test)]
 mod cancellation_tests {
     use super::*;
 
@@ -2790,6 +2913,72 @@ mod cancellation_tests {
             task.take_process("a").is_none(),
             "cancelling kills and removes whatever was running"
         );
+    }
+
+    /// Closing the window during a transcription used to leave the program
+    /// running. Nothing asked it to stop: `Child` does not kill on `Drop` and
+    /// the worker thread is detached.
+    ///
+    /// The death is observed rather than inferred. The child's stdout pipe is
+    /// held open for as long as the child lives, so reading it to EOF is the
+    /// question "is it gone?" — and it is asked on another thread with a
+    /// timeout, because a test that hangs when it regresses is worse than no
+    /// test at all. An earlier version of this test asserted only on counts
+    /// and passed against a `kill_all` that merely forgot the children.
+    #[test]
+    fn closing_the_window_kills_what_is_still_running() {
+        use std::io::Read;
+
+        let task = TranscriptionTask::default();
+        let spawn = || {
+            let mut program = std::process::Command::new(std::env::current_exe().unwrap());
+            program.args([
+                "--exact",
+                "transcription::cancellation_tests::stands_in_for_a_long_program",
+                "--ignored",
+                "--test-threads=1",
+            ]);
+            let mut child = program
+                .stdout(Stdio::piped())
+                .stderr(Stdio::null())
+                .spawn()
+                .unwrap();
+            let pipe = child.stdout.take().unwrap();
+            (child, pipe)
+        };
+        let (first, first_pipe) = spawn();
+        let (second, second_pipe) = spawn();
+        task.record_process("a", first);
+        task.record_process("b", second);
+
+        let (tell, hear) = std::sync::mpsc::channel();
+        for pipe in [first_pipe, second_pipe] {
+            let tell = tell.clone();
+            std::thread::spawn(move || {
+                let mut pipe = pipe;
+                let mut sink = Vec::new();
+                // Returns when the write end closes, which happens when the
+                // process ends and not before.
+                let _ = pipe.read_to_end(&mut sink);
+                let _ = tell.send(());
+            });
+        }
+
+        let killed = task.kill_all();
+        assert_eq!(killed, 2, "both programs were running and both had to go");
+
+        // The stand-in sleeps for 30 seconds. Five is far past a kill and far
+        // short of it finishing on its own.
+        for which in 0..2 {
+            hear.recv_timeout(std::time::Duration::from_secs(5))
+                .unwrap_or_else(|_| panic!("program {which} was still running after kill_all"));
+        }
+
+        assert!(
+            task.take_process("a").is_none() && task.take_process("b").is_none(),
+            "nothing is left behind to be killed twice"
+        );
+        assert_eq!(task.kill_all(), 0);
     }
 
     /// Not a test. It is a stand-in for a long program — ffmpeg encoding a
