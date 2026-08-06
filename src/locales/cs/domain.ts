@@ -22,9 +22,9 @@ export const csDomain = {
 
   "domain.modelDescription.large-v3": "Nejpřesnější čeština, nejnáročnější model. (3,1 GB)",
   "domain.modelDescription.large-v3-q5_0":
-    "Nadprůměrná kvalita, třetinová náročnost. (1,1 GB)",
+    "Srovnatelná kvalita, třetinová náročnost. (1,1 GB)",
   "domain.modelDescription.large-v3-turbo-q5_0":
-    "Občas méně přesný, několikanásobně rychlejší. (575 MB)",
+    "Méně přesný, několikanásobně rychlejší. (575 MB)",
   "domain.modelDescription.large-v3-turbo": "Rychlý bez zmenšení. (1,6 GB)",
   "domain.modelDescription.medium": "Znatelně víc chyb ve jménech, nedoporučuje se. (1,5 GB)",
   "domain.modelDescription.medium-q5_0": "Zmenšená starší generace. (539 MB)",

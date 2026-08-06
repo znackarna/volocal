@@ -28,8 +28,10 @@ export const enApp: Partial<Record<keyof typeof csApp, string>> = {
   "app.notice.onlineAddedTranscribing": "The online recording was added and transcription started.",
   "app.notice.onlineAdded": "The online recording was added to the archive.",
   "app.filePicker.audioAndVideo": "Audio and video",
-  "app.watchFolder.transcribing.one": "The recording is in the Archive and transcription started.",
-  "app.watchFolder.transcribing.other": "New recordings ({count}) are in the Archive and transcription started.",
+  "app.watchFolder.transcribing.one":
+    "The recording was added to the Archive and Slobot started transcribing.",
+  "app.watchFolder.transcribing.other":
+    "New recordings ({count}) were added to the Archive and Slobot started transcribing.",
   "app.watchFolder.added.one": "The recording was added to the Archive.",
   "app.watchFolder.added.other": "New recordings ({count}) were added to the Archive.",
   "app.confirm.removeTitle": "Remove from archive?",

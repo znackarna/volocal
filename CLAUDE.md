@@ -7348,3 +7348,46 @@ opens it, and the card takes the paper yellow the notes already use.
   installed models in a deliberately shuffled order, and the card titles read
   out of the DOM: `Precizní · Vyvážený · Rychlý · Starší`. Rendered at 2× with
   the selected card badged `používá se`.
+
+### 2026-08-06 — The import notice names Slobot, and the two families read alike
+
+- Copy, Jakub's: `app.watchFolder.transcribing.one` is `Nahrávka byla přidána
+  do Archivu a Slobot zahájil přepis.` instead of `Nahrávka je v Archivu a
+  přepis začal.` — somebody did the adding and somebody started the work,
+  where the old sentence described a state that had appeared by itself.
+- Changed with it, and this is the gain beyond the one line: the three plural
+  forms followed the same construction, so the four now differ from the
+  neighbouring `app.watchFolder.added.*` family by exactly their trailing
+  clause — `Do Archivu byly přidány nové nahrávky ({count}).` and the same
+  sentence plus `a Slobot zahájil přepis.` The two messages a person sees in
+  the same place are one sentence with and without the transcription.
+- English follows: `The recording was added to the Archive and Slobot started
+  transcribing.`
+- The product's name is now in the dictionary in a second place (the first was
+  `settings.speech.description`), so the translator note on this key carries
+  the same instruction — `„Slobot“ je název aplikace — nechte ho v každém
+  jazyce tak, jak je.` These two strings are what a future rename has to
+  sweep; nothing automatic finds them.
+- Files: `src/locales/cs/app.ts`, `src/locales/en/app.ts`, `CLAUDE.md`.
+- Verified: `npx tsc --noEmit`; `node scripts/i18n.mjs check` (no problems, no
+  informal address).
+
+### 2026-08-06 — Correcting entry: the balanced model is comparable again
+
+- Reverted, on Jakub's word, the entry `The balanced model is above average,
+  not comparable` from earlier today. `domain.modelDescription.large-v3-q5_0`
+  is `Srovnatelná kvalita, třetinová náročnost. (1,1 GB)` again, English
+  `Comparable quality, a third of the load.`
+- The argument that entry made still stands on paper — `srovnatelná` compares
+  with something the sentence does not name — and he read the two on screen
+  and chose the comparison anyway. Worth knowing why that is reasonable: the
+  card is never read alone. It sits directly under `Precizní` with its
+  `Nejpřesnější čeština`, so the thing being compared with is one line above,
+  and `nadprůměrná` measures against an average nobody has been shown either.
+- Changed at the same time, Jakub's: the fast model drops `Občas` —
+  `Méně přesný, několikanásobně rychlejší. (575 MB)`. English follows with
+  `Less accurate, several times faster.` The hedge softened the one thing the
+  reader is choosing against, and the three cards are a scale, so each only
+  has to name its own end of it.
+- Files: `src/locales/{cs,en}/domain.ts`, `CLAUDE.md`.
+- Verified: `npx tsc --noEmit`; `node scripts/i18n.mjs check` (no problems).

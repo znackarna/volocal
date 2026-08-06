@@ -35,13 +35,14 @@ export const csApp = {
   "app.filePicker.audioAndVideo": "Zvuk a video",
 
   // --------------------------------------------------------- watch folder
-  "app.watchFolder.transcribing.one": "Nahrávka je v Archivu a přepis začal.",
+  "app.watchFolder.transcribing.one":
+    "Nahrávka byla přidána do Archivu a Slobot zahájil přepis.",
   "app.watchFolder.transcribing.few":
-    "Do Archivu přibyly nové nahrávky ({count}) a přepis začal.",
+    "Do Archivu byly přidány nové nahrávky ({count}) a Slobot zahájil přepis.",
   "app.watchFolder.transcribing.many":
-    "Do Archivu přibyly nové nahrávky ({count}) a přepis začal.",
+    "Do Archivu byly přidány nové nahrávky ({count}) a Slobot zahájil přepis.",
   "app.watchFolder.transcribing.other":
-    "Do Archivu přibyly nové nahrávky ({count}) a přepis začal.",
+    "Do Archivu byly přidány nové nahrávky ({count}) a Slobot zahájil přepis.",
 
   "app.watchFolder.added.one": "Nahrávka byla přidána do Archivu.",
   "app.watchFolder.added.few": "Do Archivu byly přidány nové nahrávky ({count}).",
@@ -99,7 +100,7 @@ export const csAppContext: Partial<Record<keyof typeof csApp, string>> = {
   "app.filePicker.audioAndVideo":
     "Název skupiny souborů v systémovém dialogu pro výběr souboru.",
   "app.watchFolder.transcribing.one":
-    "Hláška po přidání nahrávek s okamžitým přepisem — ze sledované složky i ručně vybraným či přetaženým souborem.",
+    "Hláška po přidání nahrávek s okamžitým přepisem — ze sledované složky i ručně vybraným či přetaženým souborem. „Slobot“ je název aplikace — nechte ho v každém jazyce tak, jak je.",
   "app.watchFolder.added.one":
     "Hláška po přidání nahrávek bez spuštění přepisu — ze sledované složky i ručně vybraným či přetaženým souborem.",
   "app.confirm.removeText":
