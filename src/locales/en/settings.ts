@@ -114,8 +114,8 @@ export const enSettings: Partial<Record<keyof typeof csSettings, string>> = {
   "settings.files.watchToggle": "Watch folder",
   "settings.files.watchAuto": "Transcribe right away",
   "settings.files.watchAutoNote":
-    "A new file goes into the archive and transcription starts on its own. Without it, the Archive asks first.",
-  "settings.files.watchToggleNote": "Also offers files that are already in the folder. Doesn't look in subfolders.",
+    "Adds new files to the archive and starts transcription automatically.",
+  "settings.files.watchToggleNote": "Offers new files for transcription. Doesn't look in subfolders.",
   "settings.appearance.description":
     "Language, colour theme, and the type the transcript is read in.",
   "settings.appearance.theme": "Theme",

@@ -8,6 +8,7 @@ export const csProgress = {
   // Transcription.
   "progress.preparation.converting_audio": "Převádím zvuk",
   "progress.playback.preparing": "Připravuji přesné přehrávání",
+  "progress.transcription.queued": "Čeká ve frontě",
   "progress.transcription.running": "Přepisuji",
   "progress.transcription.cancelled": "Přepis přerušen",
   "progress.transcription.complete": "{count} úseků",

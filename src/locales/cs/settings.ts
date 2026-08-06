@@ -111,10 +111,10 @@ export const csSettings = {
   "settings.files.watchRemove": "Odebrat",
   "settings.files.watchToggle": "Sledovat složku",
   "settings.files.watchToggleNote":
-    "Nabídne i soubory, které už ve složce jsou. Vnořené složky neprohledává.",
+    "Nabídne nové soubory pro přepis. Neprohledává vnořené složky.",
   "settings.files.watchAuto": "Přepisovat rovnou",
   "settings.files.watchAutoNote":
-    "Nový soubor se přidá do archivu a přepis se spustí sám. Bez toho se Archiv nejdřív zeptá.",
+    "Přidá nové soubory do archivu a zahájí automatický přepis.",
 
   // Fonts and the sample paragraph that shows them off.
   "settings.appearance.description":

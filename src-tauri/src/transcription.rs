@@ -7,11 +7,11 @@
 use anyhow::{anyhow, Result};
 use regex::Regex;
 use serde::Serialize;
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Condvar, Mutex};
 use tauri::{AppHandle, Emitter};
 
 use crate::db::{self, Segment, Settings};
@@ -92,11 +92,71 @@ pub struct TranscriptionTask {
     /// only recognising speakers.
     running: Arc<Mutex<HashSet<String>>>,
     cancellations: Arc<Mutex<HashSet<String>>>,
+    /// The heavy runs wait for each other here, in the order they arrived.
+    gate: Arc<Gate>,
+}
+
+/// One whisper (or sherpa) at a time.
+///
+/// Two of them on one graphics card do not share it, they take memory from
+/// each other and both finish later than either would alone — and a batch
+/// from the watched folder used to start every file at once. The queue is
+/// arrival order, so ten dropped files are transcribed in the order they were
+/// dropped.
+#[derive(Default)]
+struct Gate {
+    order: Mutex<VecDeque<String>>,
+    turn: Condvar,
 }
 
 impl TranscriptionTask {
     fn begin(&self, id: &str) {
         self.running.lock().unwrap().insert(id.to_string());
+    }
+
+    /// Takes a place in the queue. True means somebody is ahead of it, which
+    /// is what the interface needs in order to say so.
+    fn enqueue(&self, id: &str) -> bool {
+        let mut order = self.gate.order.lock().unwrap();
+        order.push_back(id.to_string());
+        order.len() > 1
+    }
+
+    /// Blocks until this recording stands at the front. `false` means it was
+    /// taken out of the queue while it waited — cancelled — and must not run.
+    fn wait_for_turn(&self, id: &str) -> bool {
+        let mut order = self.gate.order.lock().unwrap();
+        loop {
+            match order.front() {
+                Some(front) if front == id => return true,
+                _ if !order.iter().any(|waiting| waiting == id) => return false,
+                _ => order = self.gate.turn.wait(order).unwrap(),
+            }
+        }
+    }
+
+    /// Leaves the queue and wakes whoever is next. Called by the worker once
+    /// its own run is over, whatever the outcome.
+    fn leave_queue(&self, id: &str) {
+        self.gate
+            .order
+            .lock()
+            .unwrap()
+            .retain(|waiting| waiting != id);
+        self.gate.turn.notify_all();
+    }
+
+    /// Takes a *waiting* recording out of the queue. The one at the front is
+    /// left alone on purpose: it is the run that is happening, and removing it
+    /// would let the next one start beside it rather than after it.
+    fn leave_queue_if_waiting(&self, id: &str) {
+        let mut order = self.gate.order.lock().unwrap();
+        if order.front().map(|front| front.as_str()) == Some(id) {
+            return;
+        }
+        order.retain(|waiting| waiting != id);
+        drop(order);
+        self.gate.turn.notify_all();
     }
     /// Is a worker already busy with this recording? Asked before a second one
     /// is started: the database row is not a reliable answer on its own,
@@ -128,6 +188,9 @@ impl TranscriptionTask {
     /// when the worker itself has finished.
     pub fn cancel(&self, id: &str) -> bool {
         self.cancellations.lock().unwrap().insert(id.to_string());
+        // A run that has not started yet is stopped by leaving the queue; its
+        // worker wakes, finds itself gone, and reports the cancellation.
+        self.leave_queue_if_waiting(id);
         if let Some(children) = self.processes.lock().unwrap().remove(id) {
             for mut child in children {
                 let _ = child.kill();
@@ -197,11 +260,30 @@ pub fn start_in_thread(
     // the recording and not to the machine.
     speaker_count: Option<i64>,
 ) {
+    // The place in the queue is taken here rather than inside the thread, so
+    // that a batch keeps the order it was started in and `is_running` answers
+    // for a waiting recording as well as for a working one.
+    let waiting = task.enqueue(&recording_id);
+    task.begin(&recording_id);
+    if waiting {
+        status(
+            &app,
+            &recording_id,
+            "queued",
+            0,
+            step("transcription.queued"),
+        );
+    }
     std::thread::spawn(move || {
-        task.begin(&recording_id);
-        let result = without_panicking(|| run(&app, &db_path, &recording_id, &task, speaker_count));
+        let ours = task.wait_for_turn(&recording_id);
+        let result = if ours {
+            without_panicking(|| run(&app, &db_path, &recording_id, &task, speaker_count))
+        } else {
+            Err(UserMessage::new("transcription.cancelled"))
+        };
         let connection = db::open(&db_path).ok();
         let cancelled = task.was_cancelled(&recording_id);
+        task.leave_queue(&recording_id);
         task.cleanup(&recording_id);
 
         if cancelled {
@@ -259,13 +341,31 @@ pub fn start_diarization_in_thread(
     // sherpa ignores its distance threshold entirely once it has one.
     speaker_count: Option<i64>,
 ) {
+    // Speaker recognition is as heavy as a transcription and runs on the same
+    // machine, so it stands in the same queue rather than beside it.
+    let waiting = task.enqueue(&recording_id);
+    task.begin(&recording_id);
+    if waiting {
+        status(
+            &app,
+            &recording_id,
+            "queued",
+            0,
+            step("transcription.queued"),
+        );
+    }
     std::thread::spawn(move || {
-        task.begin(&recording_id);
-        let result = without_panicking(|| {
-            run_diarization(&app, &db_path, &recording_id, &task, speaker_count)
-        });
+        let ours = task.wait_for_turn(&recording_id);
+        let result = if ours {
+            without_panicking(|| {
+                run_diarization(&app, &db_path, &recording_id, &task, speaker_count)
+            })
+        } else {
+            Err(UserMessage::new("transcription.cancelled"))
+        };
         let connection = db::open(&db_path).ok();
         let cancelled = task.was_cancelled(&recording_id);
+        task.leave_queue(&recording_id);
         task.cleanup(&recording_id);
 
         if cancelled {
@@ -2497,6 +2597,85 @@ fn assign_speakers(segments: Vec<Segment>, turns: &[SpeakerTurn]) -> Vec<Segment
         s.order = i as i64;
     }
     output
+}
+
+#[cfg(test)]
+mod queue_tests {
+    use super::*;
+
+    #[test]
+    fn the_second_recording_waits_for_the_first() {
+        let task = TranscriptionTask::default();
+        assert!(!task.enqueue("a"), "nobody is ahead of the first one");
+        assert!(task.enqueue("b"), "the second one has somebody ahead of it");
+        assert!(task.wait_for_turn("a"), "the front runs at once");
+        task.leave_queue("a");
+        assert!(task.wait_for_turn("b"), "and the next one follows it");
+    }
+
+    /// Proves the queue actually blocks: without it `b` would return
+    /// immediately and the two runs would share the graphics card.
+    #[test]
+    fn a_waiting_worker_wakes_when_the_one_ahead_leaves() {
+        use std::sync::mpsc;
+        use std::time::Duration;
+
+        let task = TranscriptionTask::default();
+        task.enqueue("a");
+        task.enqueue("b");
+        let (sender, receiver) = mpsc::channel();
+        let waiting = task.clone();
+        let worker = std::thread::spawn(move || {
+            let _ = sender.send(waiting.wait_for_turn("b"));
+        });
+
+        assert!(
+            receiver.recv_timeout(Duration::from_millis(150)).is_err(),
+            "b must still be waiting while a holds the front"
+        );
+        task.leave_queue("a");
+        assert_eq!(
+            receiver.recv_timeout(Duration::from_secs(2)).unwrap(),
+            true,
+            "leaving the queue wakes the next one"
+        );
+        worker.join().unwrap();
+    }
+
+    #[test]
+    fn cancelling_a_waiting_recording_takes_it_out_of_the_queue() {
+        let task = TranscriptionTask::default();
+        task.enqueue("a");
+        task.begin("a");
+        task.enqueue("b");
+        task.begin("b");
+
+        task.cancel("b");
+        assert!(
+            !task.wait_for_turn("b"),
+            "a cancelled waiting run is gone and must not start"
+        );
+        assert!(task.wait_for_turn("a"), "the front is untouched by it");
+    }
+
+    /// Cancelling the run that is *happening* must not remove it from the
+    /// front: the next one would then start beside it rather than after it.
+    #[test]
+    fn cancelling_the_running_recording_leaves_it_at_the_front() {
+        let task = TranscriptionTask::default();
+        task.enqueue("a");
+        task.begin("a");
+        task.enqueue("b");
+        task.begin("b");
+
+        task.cancel("a");
+        assert!(
+            task.wait_for_turn("a"),
+            "still the front until its worker ends"
+        );
+        task.leave_queue("a");
+        assert!(task.wait_for_turn("b"));
+    }
 }
 
 #[cfg(test)]

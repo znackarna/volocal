@@ -780,21 +780,21 @@ button, input, select, textarea { font: inherit; color: inherit; }
 }
 .zivy-text p { margin: 0 0 4px; }
 
-/* Sticky only where there is height to spare. In a short window the collapsed
-   drop zone is a third of the screen, and everything the reader came for —
-   including a notice asking them to decide something — spends its life
-   underneath it. There it scrolls away like anything else. */
-@media (max-height: 760px) {
-  .archive-drop-zone { position: static; }
-}
+/* Not sticky, and that is the decision rather than an omission. A pinned
+   header means everything else passes underneath it and gets cut through the
+   middle — a search field halved, a card's progress row sliced. That is what
+   a sticky header does, not a defect a colour can fix, and the reason the
+   filter toolbar stopped being sticky earlier. Nothing is lost by letting it
+   go: `+ Nový přepis` stands in the application header on every screen.
+   It still collapses on the first downward gesture and only then scrolls
+   away — Jakub's rule, and the reason the compact state stays. */
 .archive-drop-zone {
-  position: sticky; top: 0; z-index: 20;
+  position: relative; z-index: 1;
   width: 100%;
   /* 40 px above the hero and 28 below it. The number to look at is not this
      one alone but this one against the block it introduces: the hero is a
      dashed panel over 460 px tall, so 24 px above it read as a seam rather
-     than as a margin. The compact state keeps its own 20/16 — that padding
-     is sticky height, spent on every scrolled screen rather than once. */
+     than as a margin. The compact state keeps its own 20/16. */
   padding: 40px 0 28px; background: var(--pozadi);
   transition: padding 0.18s ease;
 }

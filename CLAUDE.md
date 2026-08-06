@@ -6992,3 +6992,76 @@ opens it, and the card takes the paper yellow the notes already use.
   the drawer's 14.00 × 11.25, and its centre sits on the button's own centre
   (15.00 / 15.00). Rendered at 4× in both palettes, hovered and at rest; no
   console error.
+
+### 2026-08-06 — The hero shrinks first, then scrolls away with everything else
+
+- What Jakub saw, twice: a recording card sliced in half under the compact
+  hero, and then the whole filter row cut through its controls. His rule, in
+  his words: `Nemá být přilepený. ale má se nejdřív zmenšit a pak scrollovat`.
+- Changed: `.archive-drop-zone` is `position: relative` instead of
+  `position: sticky; top: 0`. Nothing in the archive is pinned any more —
+  hero, filter row, cards and folders are one column that scrolls as one.
+- Kept, because it is the other half of the rule: the collapse. The first
+  downward gesture is still consumed to shrink the hero from 389 px to
+  132 px without moving the list, and only the next one scrolls. An upward
+  gesture at the top expands it again.
+- Supersedes every entry that tuned the sticky behaviour — the 121 px sticky
+  offset, the `@media (max-height: 760px)` escape hatch that unstuck it on
+  short windows (now redundant, and deleted), and the two entries that tried
+  to stop the toolbar and the cards being covered. A pinned header slices
+  whatever passes under it; no z-index, gradient or opaque padding fixes
+  that, it only decides which half is visible.
+- Nothing is lost by letting it go: `+ Nový přepis` stands in the application
+  header on every screen, which is where the hero's action was needed from.
+- Files: `src/styles.css`, `CLAUDE.md`.
+- Verified: the real `Library` bundled with esbuild against stubbed Tauri
+  modules and driven in a browser against the real stylesheet at 2× over
+  twelve recordings and a folder. Measured across four gestures: at rest the
+  hero is 389 px at `position: relative`; the first wheel leaves `scrollTop`
+  at 0 and the hero at 132.5 px; the second scrolls to 300 and the third to
+  814, by which point the hero's bottom is 624 px above the scroller's own
+  top — it is gone, not pinned. An upward gesture returns both. The
+  screenshot at mid-scroll shows cards passing under the application bar with
+  nothing sliced.
+
+### 2026-08-06 — The watched folder transcribes one file after another
+
+- Jakub's ask, twice in one session: `A jeste ten převod veci vce sledovací
+  složce by mel jet jeden soubor za druhym` and, later, `Ten automatický
+  prepis ze sledované sližby mel jít soubor po souboru.`
+- What happened before: `Přepsat` on a batch of watched files, or the
+  automatic path, started every file at once. Each run spawns whisper (and
+  sherpa), each takes the whole GPU or every core it can get, so four files
+  in parallel are not four times faster — they are the same work with four
+  times the memory pressure, and on a machine that runs out of VRAM they are
+  slower than one at a time.
+- Changed: `TranscriptionTask` gained a `Gate` — a `VecDeque` of recording
+  ids and a `Condvar`. A worker thread starts immediately, as before, but
+  its first act is `wait_for_turn`, which blocks until its id is at the front.
+  The heavy work therefore runs one at a time, in the order the runs arrived.
+- Global, not per batch: two files dropped by hand and two found in the
+  folder queue against each other as well. There is one graphics card.
+- Visible: a recording that has to wait says so — a new `queued` phase at 0 %
+  with `progress.transcription.queued` (`Čeká ve frontě` / `Waiting in the
+  queue`), emitted only for a run that actually found somebody ahead of it.
+- Cancelling a waiting recording takes it out of the queue rather than
+  leaving a dead id at the front for everyone else to wait on
+  (`leave_queue_if_waiting`, which deliberately never removes the front — the
+  running one is cleaned up by its own worker, and pulling it out from under
+  itself would let a second whisper start beside it).
+- Why in Rust and not in the interface: the queue has to hold for every path
+  that starts a transcription — the watched folder, a multi-file drop, the
+  detail's `Přepsat`, a re-run from the menu. A queue in `App` would be one
+  more thing each of those has to remember, which is the argument that put
+  the speaker-count question into `runTranscription`.
+- Files: `src-tauri/src/transcription.rs`, `src/locales/{cs,en}/progress.ts`,
+  `CLAUDE.md`.
+- Verified: `cargo fmt --all`; `cargo check` with no warnings; `cargo test`
+  (70 passed — four new: the second recording waits for the first, a waiting
+  worker wakes when the one ahead leaves (threaded, with a timeout so a
+  regression fails rather than hangs), cancelling a waiting recording takes
+  it out of the queue, and cancelling the running one leaves it at the
+  front). The guard was proven by making it fail: with `wait_for_turn`
+  temporarily returning true at once, two of the four failed and the other
+  two passed, which is what a real guard does. `npx tsc --noEmit`;
+  `node scripts/i18n.mjs check`.
