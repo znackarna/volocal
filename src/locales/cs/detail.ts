@@ -13,7 +13,7 @@ export const csDetail = {
   "detail.export.improvedGroup": "Vylepšený přepis",
 
   "detail.header.improveButton": "Vylepšit",
-  "detail.header.improvedButton": "Vylepšený",
+  "detail.header.improvedButton": "Vylepšený přepis",
   "detail.header.staleHint": "Otevřít uložený výsledek; přepis nebo model se mezitím změnil",
   "detail.header.newTranscript": "Nový přepis",
   "detail.header.deleteTranscriptTitle": "Smazat přepis?",

@@ -7278,3 +7278,25 @@ opens it, and the card takes the paper yellow the notes already use.
   56/56 tall, 16 px/600 and 14.5 px/600, 7 px from the name down to the
   metadata in both, and the metadata's left edge at 172 for each. Rendered at
   2× in both colour schemes.
+
+### 2026-08-06 — The header button after the work is done says what it opens
+
+- Changed, Jakub's reading and it is right: `Vylepšit` is the state *before*,
+  `Vylepšený` was the state *after* — and an adjective with no noun does not
+  say what has been improved or what the button will open. It now reads
+  `Vylepšený přepis`. English follows with `Improved transcript`.
+- Partly supersedes `The detail header's document actions are one word each`
+  from 2026-08-05, which shortened all three. That reasoning still holds for
+  `Vylepšit` and `Uložit` — a verb takes its object from the screen it stands
+  on. It does not hold for a name: `Vylepšený` is not the noun the screen
+  supplies, it is a word waiting for one.
+- The two states are also now different lengths, which is a small gain of its
+  own: the button visibly becomes something else when the document exists,
+  rather than losing two letters.
+- Files: `src/locales/cs/detail.ts`, `src/locales/en/detail.ts`, `CLAUDE.md`.
+- Verified: `npx tsc --noEmit`; `node scripts/i18n.mjs check`. The width is
+  what a longer header button risks, so the real `Detail` was bundled with
+  esbuild against stubbed Tauri commands — an existing improved document, so
+  the button is in its second state — and measured at 1400, 1200 and the
+  window's own 1000 px minimum: the header holds 57 px, nothing overflows
+  horizontally at any of them, and the recording's name still is not clipped.

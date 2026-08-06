@@ -11,7 +11,7 @@ export const enDetail: Partial<Record<keyof typeof csDetail, string>> = {
   "detail.export.rawGroup": "Raw transcript",
   "detail.export.improvedGroup": "Improved transcript",
   "detail.header.improveButton": "Improve",
-  "detail.header.improvedButton": "Improved",
+  "detail.header.improvedButton": "Improved transcript",
   "detail.header.staleHint": "Open the saved result; the transcript or the model has changed since",
   "detail.header.newTranscript": "New transcript",
   "detail.header.deleteTranscriptTitle": "Delete transcript?",
