@@ -30,6 +30,10 @@ chrono = "0.4"
 # stahovani nastroju a modelu primo z aplikace
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "rustls-tls"] }
 zip = "2"
+# rustls rather than the system TLS: one less thing that behaves differently
+# on an old Windows than it does here.
+tauri-plugin-updater = { version = "2", default-features = false, features = ["rustls-tls"] }
+tauri-plugin-process = "2"
 
 [profile.release]
 opt-level = "s"

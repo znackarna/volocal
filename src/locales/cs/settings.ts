@@ -140,6 +140,13 @@ export const csSettings = {
   "settings.about.description":
     "Převádí mluvené slovo na text. Nahrávky, přepisy i jazykové modely běží pouze na vašem počítači a nic se neodesílá ven.",
   "settings.about.version": "Verze",
+  "settings.about.update": "Aktualizace",
+  "settings.about.updateCurrent": "Máte poslední verzi.",
+  "settings.about.updateCheck": "Zkontrolovat",
+  "settings.about.updateFound": "K dispozici je verze {version}.",
+  "settings.about.updateInstall": "Aktualizovat",
+  "settings.about.updateBusy": "Nejdřív nechte doběhnout, co běží.",
+  "settings.about.updateNote": "Jednou denně se aplikace zeptá, jaká je poslední verze. Neposílá při tom nic o vás ani o nahrávkách.",
   "settings.about.author": "Autor",
   "settings.about.abilities": "Co aplikace umí",
   "settings.about.abilityTranscribe": "Přepíše nahrávky i videa v češtině i dalších jazycích.",
@@ -331,6 +338,15 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
   "settings.files.watchPlaceholder": "Zástupný text v poli, dokud složka není vybraná.",
   "settings.files.watchRemove": "Odebere vybranou složku z nastavení. Nic nemaže na disku.",
 
+  "settings.about.updateNote":
+    "Věta pod výpisem na kartě O aplikaci. Karta slibuje, že nic neodchází " +
+    "ven, a tohle je jediná výjimka, tak ať je vidět.",
+  "settings.about.update": "Popisek řádku o aktualizacích na kartě O aplikaci.",
+  "settings.about.updateCheck":
+    "Tlačítko, které se zeptá serveru hned, mimo denní kontrolu.",
+  "settings.about.updateBusy":
+    "Vysvětlení u vypnutého tlačítka: instalace aplikaci zavře, takže se " +
+    "nepustí během přepisu ani stahování.",
   "settings.about.publicDomain":
     "Licence SQLite. Není to licence, ale vzdání se práv — dílo je volné pro kohokoli a k čemukoli.",
   "settings.about.licenceNote":

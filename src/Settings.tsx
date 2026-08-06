@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type KeyboardEvent, type ReactNode } from "react";
 import { getVersion } from "@tauri-apps/api/app";
+import type { UpdateOffer } from "./updates";
 import { open } from "@tauri-apps/plugin-dialog";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { listen } from "@tauri-apps/api/event";
@@ -41,6 +42,12 @@ interface Props {
   onError: (z: string) => void;
   /** Opens the modules screen; with an id it preselects what to add. */
   onToModule: (module?: string) => void;
+  /** The newer version, if the application has found one. */
+  update: UpdateOffer | null;
+  /** Something is running that installing would interrupt. */
+  updateBusy: boolean;
+  onCheckForUpdate: () => void;
+  onInstallUpdate: () => void;
 }
 
 /** Which shared icon stands for which module row. */
@@ -324,7 +331,15 @@ function SettingsDisclosure({
   );
 }
 
-export default function SettingsScreen({ onComplete, onError, onToModule }: Props) {
+export default function SettingsScreen({
+  onComplete,
+  onError,
+  onToModule,
+  update,
+  updateBusy,
+  onCheckForUpdate,
+  onInstallUpdate,
+}: Props) {
   const labels = useLabels();
   const formats = useFormats();
   const { language, setLanguage, t, tPlural, formatNumber } = useI18n();
@@ -1450,6 +1465,10 @@ function About() {
             <dd>značkárna s.r.o.</dd>
           </div>
         </dl>
+        {/* The card above promises that nothing is sent out. The update check
+            is the one thing the application does on its own initiative, so it
+            is named here rather than left for somebody to discover. */}
+        <InfoNote>{t("settings.about.updateNote")}</InfoNote>
       </section>
 
       <section className="settings-card-abilities">

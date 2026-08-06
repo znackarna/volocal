@@ -6,6 +6,7 @@ export const csApp = {
   // ---------------------------------------------------------------- shell
   "app.download.running": "Stahuji {name}",
   "app.download.cancel": "Zrušit stahování",
+  "app.update.installing": "Instaluji verzi {version}",
   "app.shell.statusBar": "Stav aplikace",
   "app.shell.statusItem": "{label}: {value}",
   "app.shell.transcriptCount": "Počet přepisů",
@@ -84,6 +85,8 @@ export const csAppContext: Partial<Record<keyof typeof csApp, string>> = {
     "Bublina v pravém dolním rohu během stahování. {name} je název součásti " +
     "z katalogu; první osoba jako u ostatních průběhů.",
   "app.download.cancel": "Popisek křížku v té bublině.",
+  "app.update.installing":
+    "Popisek bubliny během instalace aktualizace. {version} je číslo nové verze.",
   "app.shell.statusBar": "Přístupný popis pruhu se stavem v dolní části okna.",
   "app.shell.statusItem":
     "Přístupný popis jedné položky stavového pruhu: {label} je její název, {value} její hodnota.",

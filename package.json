@@ -16,7 +16,8 @@
     "i18n:export": "node scripts/i18n.mjs export",
     "i18n:import": "node scripts/i18n.mjs import",
     "i18n:clear": "node scripts/i18n.mjs clear",
-    "i18n:approve": "node scripts/i18n.mjs approve"
+    "i18n:approve": "node scripts/i18n.mjs approve",
+    "release": "node scripts/release.mjs"
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.3.0",
@@ -27,6 +28,8 @@
     "@tauri-apps/api": "^2.1.1",
     "@tauri-apps/plugin-dialog": "^2.0.1",
     "@tauri-apps/plugin-opener": "^2.2.2",
+    "@tauri-apps/plugin-process": "^2.3.1",
+    "@tauri-apps/plugin-updater": "^2.10.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

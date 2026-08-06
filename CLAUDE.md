@@ -8134,3 +8134,64 @@ carries `readTime()` whole.
   bottom — clear of the status footer — the bar following to 70 %, the cross
   both hiding it and reaching `cancel_download`, and `download:complete`
   taking it away.
+
+### 2026-08-06 — Checking for a new version
+
+Jakub's two decisions: the full automatic updater, and a separate **public**
+repository that holds only releases.
+
+- **Why the releases repository is public, and why that is the right answer to
+  the question he asked** — whether a token could be scoped to one repository.
+  It can: GitHub's fine-grained tokens do exactly that, read-only, one repo,
+  and Tauri's updater can carry custom headers. It still does not work, because
+  the token would live inside an application handed to other people. Anything
+  in a distributed binary is public; scoping only makes reading it one step
+  harder. It would also expire — at most a year — and could not be replaced
+  remotely, because it is in the copy already installed. The rule with no
+  exception: nothing secret goes into a binary somebody else runs. A public
+  releases repository needs no secret, so the *source* stays private, which is
+  the thing that actually matters.
+- Added: `tauri-plugin-updater` (rustls rather than the system TLS — one less
+  thing that behaves differently on an old Windows) and `tauri-plugin-process`
+  for the restart, `bundle.createUpdaterArtifacts`, and the two capabilities.
+- **Nothing installs by itself.** The check is one request to a static file, at
+  most once a day, four seconds after the window is up rather than in front of
+  it, and silent on every failure — no connection, `tauri dev` where there is
+  no bundle, an endpoint not there yet. None of those is the person's problem
+  and none earns a red notice. The timestamp is written only on success, so a
+  failed look is retried tomorrow rather than counting as today's.
+- **And it will not interrupt work.** Installing closes the application and
+  restarts it, which during a transcription is the orphaned process and the
+  lost run this very session spent the afternoon fixing. The button is disabled
+  while anything is running and says why.
+- Where it shows: a row on the About card — `Máte poslední verzi.` with a
+  `Zkontrolovat` for somebody who asks explicitly, or the offer and an
+  `Aktualizovat`. The download reports itself in the shared `ProgressBubble`.
+- **The privacy note is not optional.** The card promises nothing is sent out,
+  and this is the one thing the application does on its own initiative. It says
+  so, on the card, in a sentence: `Jednou denně se aplikace zeptá, jaká je
+  poslední verze. Neposílá při tom nic o vás ani o nahrávkách.`
+- Added: `scripts/release.mjs` (`npm run release`), which builds `latest.json`
+  from what the bundler produced. Written by hand, every field in that file is
+  a silent failure — a version that disagrees, a signature that is missing, a
+  URL that points where the file is not. The script refuses on all three, and
+  those refusals are its purpose rather than a formality.
+- Fixed while in the file: the About card's heading still read `Whisp`.
+- Files: `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`,
+  `src-tauri/capabilities/default.json`, `src-tauri/src/main.rs`,
+  `src/updates.ts` (new), `src/App.tsx`, `src/Settings.tsx`, `src/styles.css`,
+  `scripts/release.mjs` (new), `package.json`, `README.md`,
+  `src/locales/{cs,en}/{app,settings}.ts`.
+- Verified: `cargo fmt --all`; `cargo check --all-targets` with warnings as
+  errors; `cargo test` (83 passed); `npx tsc --noEmit`; `node scripts/i18n.mjs
+  check`. `release.mjs` was run against a fabricated bundle directory: it
+  produced the expected `latest.json`, and then refused — with the right
+  message each time — a `Cargo.toml` one patch version ahead and a missing
+  `.sig`.
+- **The next build will fail until the key exists**, and that is not avoidable:
+  `createUpdaterArtifacts` needs `TAURI_SIGNING_PRIVATE_KEY` at build time, and
+  `pubkey` is deliberately the placeholder `ZDE_PATRI_VEREJNY_KLIC` rather than
+  a key that passed through this session. Generating it is one command and it
+  is in README under `Vydání`. The private key must never reach the repository:
+  without it no update can be published that already-installed copies would
+  accept.
