@@ -166,7 +166,7 @@ export const csSettings = {
     "Zvolte velikost jazykového modelu a kvalitu převodu.",
   "settings.speech.title": "Jazyk a detekce řeči",
   "settings.speech.description":
-    "Čím se v nahrávce mluví a co se v ní má považovat za řeč.",
+    "Jakou řečí se v nahrávce mluví a co má Slobot považovat za řeč.",
   "settings.transcription.model": "Model",
   "settings.transcription.modelDescription": "Stažený model.",
   "settings.transcription.modelNote": "Zobrazuje pouze stažené modely.",
@@ -255,6 +255,8 @@ export const csSettings = {
 } as const;
 
 export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>> = {
+  "settings.speech.description":
+    "Úvodní věta karty Jazyk a detekce řeči. „Slobot“ je název aplikace — nechte ho v každém jazyce tak, jak je.",
   "settings.performance.autoDescription":
     "Popis volby „Rozhodnout automaticky“ na kartě akcelerace.",
   "settings.performance.vulkanDescription":

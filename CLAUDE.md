@@ -6921,3 +6921,28 @@ opens it, and the card takes the paper yellow the notes already use.
   family's name; it is one word to change if that is wanted.
 - Files: `src/locales/{cs,en}/settings.ts`, `CLAUDE.md`.
 - Verified: `npx tsc --noEmit`; `node scripts/i18n.mjs check`.
+
+### 2026-08-06 — The speech card asks the question in Slobot's name
+
+- Copy, Jakub's: `settings.speech.description` is `Jakou řečí se v nahrávce
+  mluví a co má Slobot považovat za řeč.` It supersedes `Čím se v nahrávce
+  mluví a co se v ní má považovat za řeč.` — `jakou řečí` names the thing the
+  field below actually asks for, where `čím` left the reader to work it out,
+  and the impersonal `má se považovat` becomes somebody doing the considering.
+- English follows: `What language is spoken in the recording, and what Slobot
+  should count as speech.`
+- **This is the first time the product's name lives inside the dictionary**,
+  and it is worth knowing why that is a decision rather than a detail. The
+  header's wordmark is a literal with an `i18n-ignore` precisely so no
+  translator is invited to change it, and the portable-copy sentence takes its
+  `Slobot.exe` from the component through `{file}` rather than from the string.
+  Here the name is part of the sentence, so it is translatable by construction.
+- Guarded the only way that is available: a translator note on the key —
+  `„Slobot“ je název aplikace — nechte ho v každém jazyce tak, jak je.` It
+  travels with the string through `i18n:export`, which is what the `*Context`
+  maps are for. If the name ever changes again, this string is now one of the
+  places to sweep; nothing automatic will find it.
+- Files: `src/locales/{cs,en}/settings.ts`, `CLAUDE.md`.
+- Verified: `npx tsc --noEmit`; `node scripts/i18n.mjs check` (879 keys, no
+  problems, no informal address — `Jakou řečí…` is impersonal, so the vykání
+  guard has nothing to catch).

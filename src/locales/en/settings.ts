@@ -133,7 +133,8 @@ export const enSettings: Partial<Record<keyof typeof csSettings, string>> = {
   "settings.appearance.previewText": "We met on Thursday afternoon and talked for the best part of two hours. “Let's listen to the whole thing first,” she said — and she was right. The transcript came to 1,234 words, with not a sentence missing.",
   "settings.appearance.previewDiacritics": "Accents and ligatures: á é í ó ú â ê ô ä ö ü ç ñ æ œ",
   "settings.speech.title": "Language and speech detection",
-  "settings.speech.description": "What is spoken in the recording, and what counts as speech in it.",
+  "settings.speech.description":
+    "What language is spoken in the recording, and what Slobot should count as speech.",
   "settings.transcription.description":
     "Choose the size of the language model and the quality of the conversion.",
   "settings.transcription.model": "Model",
