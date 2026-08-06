@@ -13,6 +13,7 @@
 # how a Unicode makensis knows not to read it in the system code page — the
 # bytes are content, so git leaves them alone either way.
 src-tauri/LICENSE.txt text eol=crlf
+*.nsh text eol=crlf
 
 # Binary: never touch.
 *.png binary

@@ -40,6 +40,9 @@
     "windows": {
       "nsis": {
         "languages": ["Czech", "English"],
+        "customLanguageFiles": {
+          "Czech": "nsis/Czech.nsh"
+        },
         "displayLanguageSelector": false,
         "installMode": "currentUser"
       },

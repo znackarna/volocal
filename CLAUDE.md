@@ -7854,3 +7854,55 @@ be signed.
   so the healthy screen is untouched. No horizontal overflow at either width.
   `npx tsc --noEmit`; `node scripts/i18n.mjs check` — which stopped the two
   reworded Czech strings until their English was confirmed.
+
+### 2026-08-06 — The Czech installer had no Czech of its own
+
+- Jakub's screenshot of the last installer page: a second checkbox under
+  `Spustit program Slobot` with no label at all.
+- What it is: `MUI_FINISHPAGE_SHOWREADME`, which Tauri repurposes as the
+  desktop-shortcut option — `!define MUI_FINISHPAGE_SHOWREADME_TEXT
+  "$(createDesktop)"` at `installer.nsi:405`.
+- Why it was empty, read out of the generated script on his own disk rather
+  than guessed: `installer.nsi` does `!insertmacro MUI_LANGUAGE "Czech"` and
+  then `"English"`, so a Czech Windows runs the installer in Czech — but the
+  only language file it includes is `English.nsh`, which defines all **27** of
+  Tauri's own strings for `${LANG_ENGLISH}` alone. In Czech every one of them
+  resolves to an empty string. The MUI text around them is Czech because that
+  comes from NSIS's own `Czech.nlf`, which is what made the page look complete.
+- So the missing checkbox label was the mildest symptom. On an upgrade the
+  maintenance page draws its title from `$(alreadyInstalled)` and its radio
+  buttons from `$(addOrReinstall)`, `$(uninstallBeforeInstalling)` and
+  `$(dontUninstall)` (`installer.nsi:232–250`) — a blank heading over blank
+  choices. `$(appRunning)` is the message box shown when the application is
+  open during install. `$(deleteAppData)` labels the uninstaller's checkbox.
+  All silent.
+- Added: `src-tauri/nsis/Czech.nsh`, all 27 strings for `${LANG_CZECH}`, wired
+  through `bundle.windows.nsis.customLanguageFiles`.
+- Fixed in passing: Tauri's English file writes `{{product_name}}` in four
+  strings and never substitutes it — the output file in `target` still holds
+  the braces — so an English user is told `{{product_name}} is running!`. The
+  Czech strings use `${PRODUCTNAME}`, which is a real NSIS constant defined in
+  the same script.
+- Kept as it is, and it matches the decision taken earlier today: the
+  uninstaller's `deleteAppData` checkbox is created without `BM_SETCHECK`, so
+  it is unticked by default — uninstalling keeps the archive unless somebody
+  deliberately asks otherwise. It only ever lacked a label. Czech now says what
+  it deletes, `data aplikace (archiv s přepisy)`, rather than the English's
+  bare `the application data`.
+- The file is UTF-8 with a BOM and CRLF, like `LICENSE.txt` and for the same
+  reason — Tauri's own `English.nsh` begins with a BOM too, which is the
+  confirmation that guess was right. `.gitattributes` gains `*.nsh text
+  eol=crlf`.
+- Files: `src-tauri/nsis/Czech.nsh`, `src-tauri/tauri.conf.json`,
+  `.gitattributes`.
+- Verified: the 27 identifiers were diffed against the ones Tauri's generated
+  `English.nsh` actually defines — none missing, none invented. `$R4`, `$0`,
+  `$1` and `$\n` are preserved where NSIS substitutes them, and `$R4` reads
+  grammatically in Czech with either value it can take (`starší verze`,
+  `neznámá verze`). `tauri.conf.json` still parses; `customLanguageFiles` is
+  `custom_language_files` in `tauri-utils 2.9.3`, whose documentation requires
+  the key to be a valid NSIS language present in `languages` — `Czech` is both.
+- Not verified here: the build. The next `npm run tauri build` shows the
+  checkbox with its label, and that is also the moment to look at the two
+  pages nobody has seen in Czech yet — install over an existing copy to reach
+  the maintenance page.
