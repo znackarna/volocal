@@ -810,8 +810,12 @@ pub fn create_portable_copy(
 ) -> Result<u64> {
     std::fs::create_dir_all(destination)?;
 
+    // The name follows productName, so a later rename of the application
+    // cannot leave the portable copy running under the previous one — which
+    // is exactly what happened when Whisp became Slobot.
+    let executable = format!("{}.exe", app.package_info().name);
     let program = std::env::current_exe()?;
-    std::fs::copy(&program, destination.join("Whisp.exe"))?;
+    std::fs::copy(&program, destination.join(&executable))?;
 
     // WebView2, pokud ho tenhle stroj ma prilozeny
     let wv = tools::app_directory().join("webview2");
@@ -833,8 +837,11 @@ pub fn create_portable_copy(
     std::fs::create_dir_all(destination.join("data"))?;
     std::fs::write(
         destination.join("prenosna.txt"),
-        "Podle tohoto souboru Whisp pozná, že má všechno hledat u sebe\r\n\
-         a nic nezapisovat do počítače. Nemazat.\r\n",
+        format!(
+            "Podle tohoto souboru {} pozná, že má všechno hledat u sebe\r\n\
+             a nic nezapisovat do počítače. Nemazat.\r\n",
+            app.package_info().name
+        ),
     )?;
 
     Ok(bytes_copied)

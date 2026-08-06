@@ -1,5 +1,5 @@
 [package]
-name = "whisp"
+name = "slobot"
 version = "0.9.0"
 description = "Local audio transcription with Whisper"
 authors = ["značkárna s.r.o."]

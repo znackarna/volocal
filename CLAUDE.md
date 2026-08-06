@@ -6821,3 +6821,37 @@ opens it, and the card takes the paper yellow the notes already use.
   against `tools.rs` and `tauri.conf.json`; the shortcut table against
   `src/Detail.tsx`; and each licence against the About card, which was itself
   verified against primary sources when it was written.
+
+### 2026-08-06 — The portable copy is called Slobot, and so is the package
+
+- Fixed, and it was the one place the old name was still visible to the
+  reader: `create_portable_copy` wrote the executable as `Whisp.exe`, while
+  Settings and the README both say `Na jiném počítači pak stačí spustit soubor
+  Slobot.exe`. Anyone following that sentence on the other machine would have
+  looked for a file that is not there. `prenosna.txt` introduced itself as
+  Whisp as well.
+- Changed: both names come from `app.package_info().name`, i.e. from
+  `productName` in `tauri.conf.json`. A hard-coded `Slobot.exe` would have been
+  correct today and wrong the next time the application is renamed — which has
+  now happened once, which is the whole argument.
+- Changed, Jakub's call: the Cargo package is `slobot` and so is the npm
+  package. Neither is visible to a reader, but the crate name is what the built
+  binary in `target\release\` is called, and the repository is
+  `github.com/znackarna/slobot` — a package still calling itself `whisp` is a
+  second name for one thing.
+- **Unchanged, for the reason the rename entry gives:** `identifier` stays
+  `cz.znackarna.whisp` (`%APPDATA%\cz.znackarna.whisp` — the archive, its
+  backups, microphone takes, downloaded media) and `tools_root()` stays
+  `%LOCALAPPDATA%\Whisp` (several gigabytes of programs and models). Renaming
+  either without a migration means a blank archive or an offer to download
+  everything again.
+- Consequence of the crate rename, worth knowing before the next build: the
+  fingerprints under `src-tauri/target/` are keyed by package name, so the
+  first `cargo build` after this recompiles the dependency tree once — five to
+  fifteen minutes. Nothing else changes.
+- Files: `src-tauri/Cargo.toml`, `src-tauri/Cargo.lock`, `package.json`,
+  `src-tauri/src/download.rs`, `CLAUDE.md`.
+- Verified: `cargo fmt --all`; `cargo check` builds as `slobot v0.9.0` with no
+  warnings; `cargo test` (66 passed); `npx tsc --noEmit`;
+  `node scripts/i18n.mjs check`. The lock file picked the new name up on its
+  own; there is no `package-lock.json` in this project.
