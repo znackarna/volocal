@@ -7537,3 +7537,145 @@ opens it, and the card takes the paper yellow the notes already use.
   at 1.00; dark: scrim `rgba(0, 0, 0, 0.55)` at 0.00 against a dialog at 0.154.
   The dialog is lighter than its veil in both, which is the whole point, and
   the dark screenshot was read to confirm the depth reads correctly.
+
+### 2026-08-06 — A translation cannot go stale in silence any more
+
+- The defect this closes is not a string, it is a blind spot. `i18n:check`
+  could see a key with no translation, a key that no longer exists in the
+  source, a broken `{placeholder}` and a missing plural form. It could not see
+  the one thing that actually went wrong: a translation that was correct when
+  it was written and whose Czech has been reworded since. Both look identical —
+  a present, non-empty value under a key that exists in both languages.
+- Jakub's question, and it is the right one to ask: the key *is* the same
+  identifier in both files, so why is that not enough? Because a shared key
+  binds the pair — this English belongs to that Czech — and says nothing about
+  whether it is still its *translation*. The key survives a rewording untouched.
+- Added: `src/locales/sources.json`, a fingerprint of the Czech each
+  translation was written from — sha256, first twelve hex characters, one map
+  per language. `check` compares it with the Czech of today and fails with the
+  key, both values, and the command to accept it. `import` records the
+  fingerprint for every key it folds in, because that is the step somebody
+  would otherwise forget. `approve <language> [keys…]` records it by hand — for
+  the case where Czech was reworded and the existing translation already says
+  the new thing, which is a real case and must not require rewriting a correct
+  sentence.
+- Where the file lives is deliberate: `languages()` lists directories and
+  `namespaces` reads only `cs/*.ts`, so a JSON file beside the language folders
+  is mistaken for neither. `usedKeys()` and `sourceFiles()` both skip
+  `locales/`, so it is not scanned as source either.
+- Files: `scripts/i18n.mjs`, `src/locales/sources.json`, `ARCHITECTURE.md`,
+  `README.md`.
+- Verified by making it fail, not by watching it pass: one Czech value
+  (`detail.edits.empty`) was reworded with English left alone, and the check
+  named that key, printed both sentences and exited non-zero; restoring the
+  Czech returned it to zero. It then fired for real, unprompted, on the four
+  `errors.tools.*_missing_in` strings later in this batch — which is the first
+  time this project has had a guard catch a defect in the same session it was
+  written.
+- Honest limit: the baseline was recorded with `approve en` after the review
+  below, so it certifies exactly what that review checked. Anything both passes
+  missed is now recorded as approved and will not be reported. The guard makes
+  every *future* drift visible; it cannot vouch for the past.
+
+### 2026-08-06 — The English says what the Czech says today
+
+- Thirty-three English strings no longer matched their Czech source. Every one
+  of them sits on a string Czech renamed after the translation was written,
+  which is exactly the failure the guard above now catches.
+- **Retired vocabulary, the half that matters.** `Cleaner edit` was still the
+  translation of `Čistší text`, a name superseded on 2026-08-02 — the Czech has
+  said `Vylepšená úprava` since, and English settled on the `Enhance` family on
+  2026-08-06, so the one card in that dialog contradicted both. Four dictionary
+  strings said `glossary` while the Settings tab they refer to is `Dictionary`.
+  `settings.modules.compute` said `Compute`, the word Settings dropped in
+  favour of `Výkon`/`Performance` on 2026-08-02, and the same Czech word two
+  keys away already read `Performance`. Five strings said
+  `separation`/`Separate speakers` for the feature unified as
+  `rozpoznat`/`identify` on 2026-08-03. `wizard.editor.lightName` was `Light`
+  where the same Czech tier is `Lightweight` in Settings.
+- **The Czech was stale too, in five places**, and this is the more useful
+  find: `catalog.sherpa.name`, `settings.modules.speakers` and
+  `wizard.manual.groupSpeakers` still read `Rozlišení mluvčích`, and
+  `settings.speakers.toggle` `Rozlišovat mluvčí`. The 2026-08-03 entry that
+  unified this vocabulary claimed a grep found no `rozlišit`/`rozlišen`
+  remaining — it was case-sensitive, and every survivor begins a sentence with
+  a capital R. A grep is a guard, and a guard has to be tested against the
+  thing it is meant to catch.
+- **Fifteen straight apostrophes** — `don't`, `won't`, `Google's`,
+  `Let's` — including one inside `settings.appearance.previewText`, the sample
+  that exists to demonstrate typography.
+- **Four sentences said something else.** `detail.edits.empty` still carried
+  the second-person Czech dropped on 2026-08-05 for being gendered.
+  `settings.about.abilityEditor` made the language model the subject where the
+  Czech makes the application one, alone among seven sibling lines.
+  `settings.dictionary.description` narrowed `odborné výrazy` to terms from the
+  reader's own field and called the transcript the activity, against its own
+  translator note. `dialogs.speakers.intro` said the guess "gets two people
+  wrong" — misidentifying two speakers — where the Czech says the guess is
+  often wrong *when there are two*, which is the measured claim the dialog
+  exists for.
+- **Two more said too much:** `catalog.ffmpeg.description` turned
+  `Bez něj to nepoběží` into "Nothing runs without it", widening a claim about
+  transcription into one about the whole application, and
+  `catalog.vad.description` had the finished document getting stuck in a loop
+  rather than the run.
+- **Fixed at the source, both languages:** four error messages sent the reader
+  to the `složka programů` and to `Moduly`. Settings renamed those to
+  `Složka nástrojů` and `Modely`, so the messages named two things that are not
+  on screen.
+- Files: `src/locales/en/{app,catalog,detail,dialogs,errors,settings,wizard}.ts`,
+  `src/locales/cs/{catalog,detail,dialogs,errors,settings,wizard}.ts`.
+- Verified: `npx tsc --noEmit`; `node scripts/i18n.mjs check` reports 879/879
+  and no problems; a grep for `glossary`, `Speaker separation`,
+  `Separate speakers`, `"Compute"`, `Cleaner edit`, any `rozliš` in the Czech,
+  and any straight apostrophe between letters in English all come back empty.
+  Method: two independent passes, both by readers with no memory of the other.
+  The first compared the pairs directly against a list of settled vocabulary
+  and found 29; the second back-translated each English value into Czech
+  without looking at the Czech first, and found 4 more that the first had
+  read past. The second pass is what justifies the baseline recorded above.
+- Left alone, and it is a naming decision rather than a defect:
+  `catalog.editor-model-best.name` is `Nejlepší jazyková úprava` while the
+  tier it downloads is `Nejvyšší kvalita`. Both languages agree with each
+  other, so this is the Czech disagreeing with itself. The 2026-08-05 entry
+  that renamed the tier flagged the same thing and left it; it is still one
+  string to change if the two should be one name.
+
+### 2026-08-06 — The repository is ready to be pushed
+
+- `.gitignore`: added what a portable copy or a dev run writes beside itself —
+  `data/`, `playback-cache/`, `microphone/`, `online-media/`, `prenosna.txt`
+  and the three SQLite files. The archive normally lives in `%APPDATA%`, but a
+  portable copy keeps it in the program's own folder, and an archive is the
+  user's recordings. Also `.harness/` (the esbuild bundle used to render real
+  components in a browser), `.vscode/`, `.idea/` and `.env*`.
+- `ARCHITECTURE.md` still called the application `Whisper Studio`, a name it
+  has not had since the rename on 2026-08-05 — the one document that opens by
+  saying what this program is. Its source layout was also three modules behind:
+  `ai_edit.rs`, `online_import.rs` and `user_message.rs` were missing, and the
+  list of what `i18n:check` refuses did not include the informal-address guard
+  from 2026-08-05 or the staleness guard from today.
+- `README.md` said **`Fronta neexistuje`** — ten dropped files start ten
+  transcriptions at once and fight over the graphics card. That was true when
+  it was written and stopped being true earlier today, when the serial queue
+  was built. The paragraph now says the opposite, which is the point.
+- `README.md` also told a fresh clone to run `npm run tauri icon
+  icon-source.png` before anything would build. The generated icons are
+  tracked — all 52 of them — so the step is only needed after changing the
+  source image, and the note says so.
+- Added: `.github/workflows/check.yml`. Two jobs on Ubuntu — `tsc --noEmit`
+  plus `i18n check`, and `cargo fmt --check`, `cargo check --all-targets` with
+  warnings as errors, `cargo test`. Ubuntu rather than Windows because these
+  compile and test rather than bundle, the Rust is platform-independent, and a
+  private repository pays double for a Windows runner. The installer is still
+  built by hand on Windows.
+- Not added: `SECURITY.md`. It exists to tell a stranger where to report a
+  vulnerability privately, and this repository has no strangers.
+- Files: `.gitignore`, `ARCHITECTURE.md`, `README.md`,
+  `.github/workflows/check.yml`.
+- Verified: every command the workflow runs was run here first, so the first
+  push cannot arrive red — `cargo fmt --all --check`, `cargo check
+  --all-targets` under `RUSTFLAGS=-D warnings` (silent), `cargo test`
+  (73 passed), `npx tsc --noEmit`, `node scripts/i18n.mjs check`. The workflow
+  file parses as YAML. The Tauri system libraries the Linux `cargo check`
+  needs are installed explicitly in the job.

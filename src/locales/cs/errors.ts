@@ -6,16 +6,16 @@
  */
 export const csErrors = {
   // Missing programs and models, reported by the tool check.
-  "errors.tools.ffmpeg_missing_in": "Ve složce programů ({directory}) chybí ffmpeg.",
+  "errors.tools.ffmpeg_missing_in": "Ve složce nástrojů ({directory}) chybí ffmpeg.",
   "errors.tools.ffprobe_missing_in":
-    "Ve složce programů ({directory}) chybí ffprobe, který chodí s ffmpegem.",
-  "errors.tools.whisper_missing_in": "Ve složce programů ({directory}) chybí whisper-cli.exe.",
+    "Ve složce nástrojů ({directory}) chybí ffprobe, který chodí s ffmpegem.",
+  "errors.tools.whisper_missing_in": "Ve složce nástrojů ({directory}) chybí whisper-cli.exe.",
   "errors.tools.whisper_model_missing": "Chybí model ggml-{model}.bin ve složce modelů.",
   "errors.tools.vad_model_missing":
     "Chybí Silero VAD model. Bez něj Whisper na tichu halucinuje.",
   "errors.tools.diarization_program_missing_in":
-    "Ve složce programů ({directory}) není sherpa-onnx-offline-speaker-diarization.exe. " +
-    "Doplňte ho v Modulech, nebo v nastavení přepněte složku programů tam, kde už je.",
+    "Ve složce nástrojů ({directory}) není sherpa-onnx-offline-speaker-diarization.exe. " +
+    "Doplňte ho v Modelech, nebo v nastavení přepněte složku nástrojů tam, kde už je.",
   "errors.tools.segmentation_model_missing": "Chybí model pro rozpoznání střídání mluvčích.",
   "errors.tools.embedding_model_missing": "Chybí model pro rozpoznání hlasů.",
   "errors.tools.editor_program_missing": "Chybí program pro místní jazykovou úpravu.",
@@ -49,7 +49,7 @@ export const csErrors = {
   "errors.diarization.not_transcribed": "Nahrávka ještě není přepsaná.",
   "errors.diarization.launch_failed": "Nepodařilo se spustit rozpoznání mluvčích",
   "errors.diarization.options_rejected":
-    "Rozlišení mluvčích odmítlo předané volby a vypsalo nápovědu. " +
+    "Rozpoznání mluvčích odmítlo předané volby a vypsalo nápovědu. " +
     "Nejspíš má jiná jména přepínačů než ta, se kterými počítáme.",
   "errors.diarization.no_turns": "sherpa-onnx nevrátil žádné úseky. Výstup: {output}",
 
@@ -209,7 +209,7 @@ export const csErrorsContext: Partial<Record<keyof typeof csErrors, string>> = {
   "errors.transcription.interrupted":
     "Zapisuje se do archivu, když se aplikace zavřela během přepisu. Uživatel to uvidí u nahrávky ve stavu chyba.",
   "errors.diarization.options_rejected":
-    "„Rozlišení mluvčích“ je program sherpa-onnx. Vypsal nápovědu místo výsledku, což znamená, že nerozuměl přepínačům.",
+    "„Rozpoznání mluvčích“ je program sherpa-onnx. Vypsal nápovědu místo výsledku, což znamená, že nerozuměl přepínačům.",
   "errors.diarization.no_turns":
     "{output} je začátek výstupu programu, anglicky. Nepřekládá se.",
   "errors.file.write_failed":

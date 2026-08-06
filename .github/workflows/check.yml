@@ -1,0 +1,58 @@
+# Everything the working agreement in CLAUDE.md asks for before a change is
+# finished, run on every push. Ubuntu rather than Windows: these checks compile
+# and test, they do not build an installer, and the Rust side is
+# platform-independent — the real bundle is still built on Windows by hand.
+name: Kontroly
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  frontend:
+    name: TypeScript a slovníky
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # Types first: a broken type makes every later message noise.
+      - run: npx tsc --noEmit
+      # Text in a component, a missing plural form, a Rust code with no entry,
+      # informal address, and a translation whose Czech has changed since.
+      - run: node scripts/i18n.mjs check
+
+  backend:
+    name: Rust
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src-tauri
+    steps:
+      - uses: actions/checkout@v4
+      # Tauri links against the system WebView on Linux. The application is
+      # never shipped from here, but `cargo check` still has to find them.
+      - name: Systémové knihovny pro Tauri
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev \
+            librsvg2-dev libxdo-dev libssl-dev build-essential
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - run: cargo fmt --all --check
+      # Warnings are errors here: the agreement is that `cargo check` comes back
+      # silent, and a warning nobody has to look at is a warning nobody reads.
+      - run: cargo check --all-targets
+        env:
+          RUSTFLAGS: -D warnings
+      - run: cargo test

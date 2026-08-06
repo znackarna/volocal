@@ -97,9 +97,11 @@ Naměřeno na Radeonu RX 9070: `large-v3` zvládl 38 minut zvuku za 2:18, tedy
 
 ```powershell
 npm install
-npm run tauri icon icon-source.png   # bez ikon sestavení na Windows selže
 npm run tauri dev
 ```
+
+Ikony jsou v repozitáři (`src-tauri/icons/`); `npm run tauri icon
+icon-source.png` je potřeba jen po změně zdrojového obrázku.
 
 První `tauri dev` překládá Rust závislosti — 5 až 15 minut. Další spuštění
 jsou v řádu vteřin. Instalátor sestavíte přes `npm run tauri build`; výsledek
@@ -109,7 +111,7 @@ Před odevzdáním práce projdou tyto kontroly:
 
 ```powershell
 npx tsc --noEmit
-npm run i18n:check      # texty ve slovníku, úplné množné tvary, vykání
+npm run i18n:check      # texty ve slovníku, množné tvary, vykání, stáří překladu
 cargo fmt --all ; cargo check ; cargo test
 ```
 
@@ -178,8 +180,10 @@ uprostřed se to rozejde o vteřinu.
 **Rozpoznání mluvčích neřeší překryv.** Když dva lidé mluví přes sebe, úsek se
 přiřadí tomu, kdo převažuje. Ruční oprava je součástí návrhu, ne selhání.
 
-**Fronta neexistuje.** Přetáhnete-li deset souborů, spustí se deset přepisů
-naráz a poperou se o kartu.
+**Přepisy jdou po jednom.** Přetáhnete-li deset souborů, přidají se všechny,
+ale přepisovat se bude vždy jeden — ostatní čekají ve frontě a je to vidět na
+kartě. Deset běhů naráz by se pralo o jednu grafickou kartu a trvalo by to
+dohromady déle.
 
 **Program není podepsaný.** Při prvním spuštění ukáže Windows SmartScreen modré
 okno „Windows ochránil váš počítač" — *Další informace* → *Přesto spustit*.

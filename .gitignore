@@ -21,6 +21,28 @@ _to_delete/
 *-analyza-*.md
 *-hodnoceni.md
 
+# What a portable copy or a dev run writes beside itself. The archive normally
+# lives in %APPDATA%, but a portable copy keeps it here — and an archive is the
+# user's recordings, which must never reach a repository.
+data/
+playback-cache/
+microphone/
+online-media/
+prenosna.txt
+*.db
+*.db-wal
+*.db-shm
+
+# Scratch bundle used to render the real components in a browser during review.
+.harness/
+
+# Editors and local environment.
+.vscode/
+.idea/
+*.swp
+.env
+.env.*
+
 *.local
 .DS_Store
 Thumbs.db

@@ -46,7 +46,7 @@ export const csSettings = {
   "settings.modules.editor": "Jazyková úprava",
   "settings.modules.editorReady": "Připravená, vypnutá",
   "settings.modules.editorMissing": "Nestažená",
-  "settings.modules.speakers": "Rozlišení mluvčích",
+  "settings.modules.speakers": "Rozpoznání mluvčích",
   "settings.modules.speakersOn": "Zapnuté",
   "settings.modules.speakersReady": "Připravené, vypnuté",
   "settings.modules.speakersMissing": "Nestažené",
@@ -192,7 +192,7 @@ export const csSettings = {
   "settings.dictionary.empty": "Slovník je zatím prázdný.",
 
   "settings.speakers.title": "Mluvčí",
-  "settings.speakers.toggle": "Rozlišovat mluvčí",
+  "settings.speakers.toggle": "Rozpoznávat mluvčí",
   "settings.speakers.description":
     "Rozdělí text mezi jednotlivé mluvčí už při prvním přepisu.",
   "settings.speakers.count": "Počet mluvčích",
@@ -293,9 +293,9 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
   "settings.modules.editorMissing": "Hodnota dlaždice o jazykové úpravě, tedy ženský rod.",
   "settings.modules.speakers":
     "Popisek dlaždice pro diarizaci — rozdělení nahrávky mezi jednotlivé mluvčí.",
-  "settings.modules.speakersOn": "Hodnota dlaždice „Rozlišení mluvčích“, tedy střední rod.",
-  "settings.modules.speakersReady": "Hodnota dlaždice „Rozlišení mluvčích“, tedy střední rod.",
-  "settings.modules.speakersMissing": "Hodnota dlaždice „Rozlišení mluvčích“, tedy střední rod.",
+  "settings.modules.speakersOn": "Hodnota dlaždice „Rozpoznání mluvčích“, tedy střední rod.",
+  "settings.modules.speakersReady": "Hodnota dlaždice „Rozpoznání mluvčích“, tedy střední rod.",
+  "settings.modules.speakersMissing": "Hodnota dlaždice „Rozpoznání mluvčích“, tedy střední rod.",
   "settings.modules.missingRequired.one":
     "Počítají se chybějící stažené součásti. {count} je jejich počet.",
   "settings.modules.add": "Tlačítko, které vede na obrazovku stahování chybějících součástí.",
@@ -373,7 +373,7 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
   "settings.dictionary.replacePlaceholder": "Ukázka v poli: správný tvar předchozího příkladu.",
   "settings.dictionary.add": "Tlačítko, které přidá nový záznam do slovníku.",
   "settings.dictionary.empty": "Text místo seznamu, dokud slovník nemá žádný záznam.",
-  "settings.speakers.title": "Nadpis sekce o rozlišování mluvčích (diarizaci).",
+  "settings.speakers.title": "Nadpis sekce o rozpoznávání mluvčích (diarizaci).",
   "settings.speakers.toggle": "Popisek přepínače diarizace.",
   "settings.speakers.shift":
     "Jak často se hledá střídání mluvčích. Technicky posun segmentačního okna.",

@@ -9,7 +9,7 @@ export const enDialogs: Partial<Record<keyof typeof csDialogs, string>> = {
   "dialogs.retranscribe.confirm": "Transcribe again",
   "dialogs.speakers.title": "How many people speak in this recording?",
   "dialogs.speakers.intro":
-    "If you know how many people speak, the tool has an easier job. The guess often gets two people wrong.",
+    "If you know how many people speak, the tool has an easier job. With two people the guess often gets it wrong.",
   "dialogs.speakers.introMany.one":
     "If you know how many people speak, the tool has an easier job. Applies to {count} recording.",
   "dialogs.speakers.introMany.other":
@@ -17,7 +17,7 @@ export const enDialogs: Partial<Record<keyof typeof csDialogs, string>> = {
   "dialogs.speakers.exactLabel": "Exact number of speakers",
   "dialogs.speakers.morePlaceholder": "more",
   "dialogs.speakers.note": "The answer applies to this transcription only; settings stay as they are.",
-  "dialogs.speakers.unknown": "I don't know",
+  "dialogs.speakers.unknown": "I don’t know",
   "dialogs.speakers.confirm": "Transcribe",
   "dialogs.addRecording.title": "New transcript",
   "dialogs.addRecording.prompt": "Choose where to add the audio from.",
@@ -40,7 +40,7 @@ export const enDialogs: Partial<Record<keyof typeof csDialogs, string>> = {
   "dialogs.addRecording.microphoneNote": "Records sound from the microphone.",
   "dialogs.addRecording.micIntro": "The take goes into the archive like any other recording. Nothing leaves your computer.",
   "dialogs.addRecording.micPreparing": "Preparing the microphone…",
-  "dialogs.addRecording.micDenied": "The microphone couldn't be opened. Check the permission in the system settings.",
+  "dialogs.addRecording.micDenied": "The microphone couldn’t be opened. Check the permission in the system settings.",
   "dialogs.addRecording.micReady": "The microphone is ready.",
   "dialogs.addRecording.micRecording": "Recording…",
   "dialogs.addRecording.micSuspended": "Recording waits while audio plays.",

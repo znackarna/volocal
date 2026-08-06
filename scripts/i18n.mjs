@@ -10,6 +10,7 @@
  *    node scripts/i18n.mjs sync            rebuild index.ts and the missing language stubs
  *    node scripts/i18n.mjs export en       write i18n/en.todo.json for a translator
  *    node scripts/i18n.mjs import en file  fold a translated file back into src/locales/en/
+ *    node scripts/i18n.mjs approve en      record that English matches today's Czech
  *
  *  `check` runs as the first step of `npm run build`, so a new screen cannot
  *  reach a release with its text still written into the components.
@@ -20,6 +21,7 @@
 import { readFileSync, writeFileSync, readdirSync, mkdirSync, existsSync, statSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createHash } from "node:crypto";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const localesDir = join(root, "src", "locales");
@@ -101,6 +103,76 @@ function pluralBase(key) {
 
 function placeholders(value) {
   return [...value.matchAll(/\{(\w+)\}/g)].map((match) => match[1]).sort();
+}
+
+// ------------------------------------------------- staleness of a translation
+
+/** What a translation was written against.
+ *
+ *  Everything else here can be derived from the files. This cannot: a
+ *  translation that no longer matches its source is indistinguishable from one
+ *  that does, because both are a present, non-empty string under a key that
+ *  exists. Twenty-nine of them accumulated before anyone read the two languages
+ *  side by side. So the Czech value is fingerprinted at the moment a
+ *  translation is accepted, and `check` compares that fingerprint with the
+ *  Czech of today.
+ *
+ *  One file for every language, beside the dictionaries. `languages()` lists
+ *  directories and `namespaces` reads only `cs/*.ts`, so a JSON file here is
+ *  not mistaken for either.
+ */
+const sourcesPath = join(localesDir, "sources.json");
+
+const fingerprint = (value) => createHash("sha256").update(value, "utf8").digest("hex").slice(0, 12);
+
+function readSources() {
+  if (!existsSync(sourcesPath)) return {};
+  try {
+    return JSON.parse(readFileSync(sourcesPath, "utf8"));
+  } catch {
+    console.log(`${sourcesPath} nejde přečíst — beru to, jako by nic zapsané nebylo`);
+    return {};
+  }
+}
+
+function writeSources(all) {
+  const ordered = {};
+  for (const language of Object.keys(all).sort()) {
+    ordered[language] = {};
+    for (const key of Object.keys(all[language]).sort()) ordered[language][key] = all[language][key];
+  }
+  writeFileSync(sourcesPath, `${JSON.stringify(ordered, null, 2)}\n`, "utf8");
+}
+
+/** Records today's Czech as what `language` was translated from.
+ *
+ *  With no keys named it accepts every key that language currently translates,
+ *  which is the one-time baseline and the thing to run after a translation
+ *  round. With keys named it accepts only those — for the case where Czech was
+ *  reworded and the existing English already says the new thing.
+ */
+function approve(language, keys) {
+  const source = load("cs");
+  const target = load(language);
+  const all = readSources();
+  const recorded = { ...(all[language] ?? {}) };
+  const chosen = keys.length ? keys : Object.keys(target.entries);
+  let written = 0;
+  for (const key of chosen) {
+    if (!(key in target.entries)) {
+      console.log(`přeskočeno — ${language} tenhle klíč nepřekládá: ${key}`);
+      continue;
+    }
+    if (!(key in source.entries)) {
+      console.log(`přeskočeno — klíč není ve zdroji: ${key}`);
+      continue;
+    }
+    recorded[key] = fingerprint(source.entries[key]);
+    written += 1;
+  }
+  all[language] = recorded;
+  writeSources(all);
+  console.log(`${language}: zapsáno ${written} otisků do src/locales/sources.json`);
 }
 
 function usedKeys() {
@@ -645,6 +717,36 @@ function check() {
         console.log(`  ROZDÍLNÉ {placeholdery}  ${key}: ${expected.join()} vs ${actual.join()}`);
       }
     }
+    // The one defect no other check here can see: a translation that was right
+    // when it was written and whose Czech has been reworded since.
+    const recorded = readSources()[language] ?? {};
+    const drifted = [];
+    const unrecorded = [];
+    for (const key of translated) {
+      if (!(key in source.entries)) continue;
+      if (!(key in recorded)) unrecorded.push(key);
+      else if (recorded[key] !== fingerprint(source.entries[key])) drifted.push(key);
+    }
+    if (drifted.length) {
+      errors.push(`${language}: ${drifted.length} překladů proti změněnému zdroji`);
+      console.log(`\n  Zdroj se změnil, překlad ne (${drifted.length}):`);
+      for (const key of drifted.slice(0, 30)) {
+        const cs = source.entries[key];
+        const target_ = target.entries[key];
+        console.log(`    ${key}`);
+        console.log(`      cs: ${cs.length > 72 ? `${cs.slice(0, 72)}…` : cs}`);
+        console.log(`      ${language}: ${target_.length > 72 ? `${target_.slice(0, 72)}…` : target_}`);
+      }
+      if (drifted.length > 30) console.log(`    … a dalších ${drifted.length - 30}`);
+      console.log(`  Oprav překlad, nebo — když už říká to nové — potvrď:`);
+      console.log(`    node scripts/i18n.mjs approve ${language} ${drifted.slice(0, 3).join(" ")}…`);
+    }
+    if (unrecorded.length) {
+      warnings.push(`${language}: ${unrecorded.length} překladů bez otisku zdroje`);
+      console.log(
+        `  bez otisku zdroje: ${unrecorded.length} — po kontrole spusť node scripts/i18n.mjs approve ${language}`
+      );
+    }
     if (missing.length) console.log(`  chybí ${missing.length} — spusť npm run i18n:export ${language}`);
   }
 
@@ -749,6 +851,14 @@ function importLanguage(language, file) {
     );
     written += keys.length;
   }
+  // An imported entry was translated from the Czech that is on disk right now,
+  // so its fingerprint is recorded here rather than left for a later `approve`
+  // — which is the step somebody would forget.
+  const all = readSources();
+  const recorded = { ...(all[language] ?? {}) };
+  for (const key of Object.keys(incoming)) recorded[key] = fingerprint(source.entries[key]);
+  all[language] = recorded;
+  writeSources(all);
   console.log(`${language}: zapsáno ${written} klíčů (${Object.keys(incoming).length} nových)`);
 }
 
@@ -759,6 +869,7 @@ else if (command === "new" && language) createNamespace(language);
 else if (command === "clear" && language) clearLanguage(language);
 else if (command === "export" && language) exportLanguage(language);
 else if (command === "import" && language && file) importLanguage(language, file);
+else if (command === "approve" && language) approve(language, process.argv.slice(4));
 else {
   console.log("použití:");
   console.log("  i18n.mjs check                    kontrola před sestavením");
@@ -766,6 +877,7 @@ else {
   console.log("  i18n.mjs sync                     dorovnat index.ts a chybějící jazyky");
   console.log("  i18n.mjs export <jazyk>           vypsat, co zbývá přeložit");
   console.log("  i18n.mjs import <jazyk> <soubor>  načíst hotový překlad");
+  console.log("  i18n.mjs approve <jazyk> [klíče]  potvrdit, že překlad odpovídá dnešní češtině");
   console.log("  i18n.mjs clear <jazyk>            vyprázdnit jazyk zpět na češtinu");
   process.exitCode = 1;
 }

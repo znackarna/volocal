@@ -80,7 +80,7 @@ export const csWizard = {
   "wizard.manual.switchToManual": "Vybrat ručně",
   "wizard.manual.groupPrograms": "Programy",
   "wizard.manual.groupModels": "Jazykové modely",
-  "wizard.manual.groupSpeakers": "Rozlišení mluvčích",
+  "wizard.manual.groupSpeakers": "Rozpoznání mluvčích",
   "wizard.manual.groupEditor": "Jazyková úprava",
 
   // ------------------------------------------------------------------ 5. závěr

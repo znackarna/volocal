@@ -49,7 +49,7 @@ export const csCatalog = {
     "Gemma 4 12B. Nejspolehlivější výsledek, na CPU je pomalejší.",
 
   // Telling speakers apart.
-  "catalog.sherpa.name": "Rozlišení mluvčích",
+  "catalog.sherpa.name": "Rozpoznání mluvčích",
   "catalog.sherpa.description": "Pozná, kdo zrovna mluví. Užitečné u rozhovorů.",
   "catalog.model-segmentace.name": "Rozpoznání střídání mluvčích",
   "catalog.model-segmentace.description": "Určuje, kdy se mluvčí střídají.",

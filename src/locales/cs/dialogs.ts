@@ -119,7 +119,7 @@ export const csDialogsContext: Partial<Record<keyof typeof csDialogs, string>> =
   "dialogs.retranscribe.textMany.other": "Tvar pro pět a víc nahrávek.",
   "dialogs.retranscribe.confirm": "Potvrzovací tlačítko. Ničivá akce, stejné sloveso jako v nabídce.",
   "dialogs.speakers.title":
-    "Nadpis dialogu, který se ptá před přepisem, když je zapnuté rozlišování mluvčích.",
+    "Nadpis dialogu, který se ptá před přepisem, když je zapnuté rozpoznávání mluvčích.",
   "dialogs.speakers.unknown":
     "Tlačítko pro případ, kdy uživatel počet nezná. Nechá rozhodnutí na odhadu, není to zrušení.",
   "dialogs.speakers.confirm": "Hlavní tlačítko dialogu: spustí přepis se zvoleným počtem.",

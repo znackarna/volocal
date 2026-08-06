@@ -274,7 +274,7 @@ export const csDetailContext: Partial<Record<keyof typeof csDetail, string>> = {
   "detail.speakers.diarize":
     "Tlačítko spustí rozpoznání jednotlivých mluvčích v nahrávce (diarizaci).",
   "detail.speakers.diarizeAgain": "Totéž jako „Rozpoznat mluvčí“, ale jednou už rozpoznaní byli.",
-  "detail.speakers.diarizing": "Stav během rozlišování mluvčích. První osoba, průběh.",
+  "detail.speakers.diarizing": "Stav během rozpoznávání mluvčích. První osoba, průběh.",
   "detail.ai.modeSpeakersDone":
     "Popis karty rozpoznání mluvčích, když už jednou proběhlo.",
   "detail.ai.speakersDoneBadge": "Odznak na kartě: rozpoznání mluvčích už proběhlo.",
