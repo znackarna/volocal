@@ -69,9 +69,9 @@ export default function RecordingActionsMenu({
         ]
       : []),
     {
-      /* A submenu, like the language one below: the folders that exist, a way
-         to make one on the spot, and — only when it is in a folder — the way
-         back out. */
+      /* A submenu, like the language one above: the folders that exist and a
+         way to make one on the spot. Both are the same question — which
+         drawer — so both belong under one label. */
       label: t("dialogs.recordingMenu.moveToFolder"),
       icon: Icons.folder,
       children: [
@@ -87,17 +87,20 @@ export default function RecordingActionsMenu({
           icon: Icons.folderNew,
           action: onCreateFolderFor,
         },
-        ...(folder
-          ? [
-              {
-                label: t("dialogs.recordingMenu.outOfFolder"),
-                icon: Icons.folderOut,
-                action: () => onMoveToFolder(null),
-              },
-            ]
-          : []),
       ],
     },
+    /* Taking a recording out is not a choice of folder, so it does not live
+       under one — and it is shown only for a recording that is in a folder,
+       where it is the whole action rather than an item at the end of a list. */
+    ...(folder
+      ? [
+          {
+            label: t("dialogs.recordingMenu.outOfFolder"),
+            icon: Icons.folderOut,
+            action: () => onMoveToFolder(null),
+          },
+        ]
+      : []),
     {
       label: t("dialogs.recordingMenu.exportAudio"),
       icon: Icons.exportAudio,

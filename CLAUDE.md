@@ -7065,3 +7065,27 @@ opens it, and the card takes the paper yellow the notes already use.
   temporarily returning true at once, two of the four failed and the other
   two passed, which is what a real guard does. `npx tsc --noEmit`;
   `node scripts/i18n.mjs check`.
+
+### 2026-08-06 — Taking a recording out of a folder is its own item
+
+- Changed, Jakub's ask: `Vyjmout ze složky` stands directly in the recording
+  menu, under `Vložit do složky`, and only for a recording that is actually in
+  one. It used to be the last item *inside* that submenu.
+- Why it is better where it now stands: the submenu answers one question —
+  which drawer — and every item in it is a drawer, except the one that was not.
+  Taking a recording out is not a choice of folder; it is a single action with
+  no argument, and an action hidden behind a list of choices reads as one more
+  choice. It also cost two clicks for the only thing in that menu that needs
+  none.
+- Only for a recording in a folder, as asked, and for the same reason the
+  submenu already hid it there: in the archive's root it would be an offer to
+  take something out of nothing.
+- Files: `src/RecordingActionsMenu.tsx`, `CLAUDE.md`.
+- Verified: `npx tsc --noEmit`; `node scripts/i18n.mjs check`; the real
+  `RecordingActionsMenu` bundled with esbuild against stubbed Tauri modules and
+  opened in a browser against the real stylesheet at 3× in both states, with
+  the item labels read out of the DOM rather than off the screenshot — in a
+  folder the top level reads Přejmenovat · Přepsat znovu · Přepsat v jazyce ·
+  Smazat přepis · Vložit do složky · **Vyjmout ze složky** · Uložit zvuk… ·
+  Odebrat z archivu; in the root the same list without it. The submenu keeps
+  its folders and `Nová složka…`.
