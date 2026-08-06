@@ -7229,3 +7229,52 @@ opens it, and the card takes the paper yellow the notes already use.
   the card under the pointer and to no other. The dialog's own autofocus makes
   the first card `:focus-visible` on open, which is what the keyboard half of
   the rule is for; the reading above was taken after blurring it.
+
+### 2026-08-06 — The local-file mark smiles
+
+- Fixed, Jakub's report: the document on the `Místní soubor` card had a frown.
+  The arc bowed upward — drawn as the hill of a picture-file glyph — and at the
+  19 px it is actually used at, a hill inside a document is a mouth. It now
+  bows the other way.
+- Judged at its own size, not at 4×: four candidates were rendered side by side
+  both zoomed and at 19 px in the real circle. The hill and the smile are
+  equally legible zoomed; only at 19 px does the first read as a face at all,
+  which is why it was never noticed while drawing it.
+- Considered and not done, worth knowing if this comes back: two dots above the
+  smile make it unmistakably a face, and a small waveform in place of the arc
+  would say *audio or video* instead — which is what the card's own sentence
+  says, and what the other two cards do with a screen and a microphone. The
+  smile is what was asked for and it is what a plain curve at this size can
+  carry.
+- Files: `src/AddRecordingDialog.tsx`, `CLAUDE.md`.
+- Verified: the real `AddRecordingDialog` bundled with esbuild and rendered
+  against the real stylesheet at 3× in both colour schemes, at the icon's real
+  19 px inside its circle.
+
+### 2026-08-06 — A folder block is a transcript block with a drawer in it
+
+- Changed, Jakub's ask: same height, same title, same distance from the title
+  down to what is written under it — the same layout, with the drawer where the
+  calendar stands.
+- Measured before, so the differences are facts and not impressions: the
+  transcript block was 85 px and the folder 76 in the roomy list, 56 against 52
+  in the compact one; the folder's name was 16 px/650 in both lists where a
+  transcript's is 16/600 roomy and 14.5/600 compact; and the mark was 46 px
+  wide against the calendar's 48, so the text column began two pixels further
+  left. The gap under the title was already shared.
+- Changed: `.folder-row .radek-jmeno`'s own size and weight are gone, so the
+  name is whatever a transcript's name is, in both lists.
+- Changed: the height of whatever stands at a row's left edge is one value,
+  `--radek-znacka` (55 px, 38 compact). The calendar takes it, and the folder
+  row asks for it as a minimum. The two block heights are therefore equal by
+  construction rather than by two numbers that happen to agree today — which is
+  exactly how they came to disagree.
+- The mark stays a circle and does not fill that slot: it is 48 px, centred, so
+  it reads as a mark rather than as a card pretending to be a calendar. Its
+  width is the calendar's, which is what puts both text columns on one pixel.
+- Files: `src/styles.css`, `CLAUDE.md`.
+- Verified: the real `Library` bundled with esbuild against stubbed Tauri
+  modules and both blocks measured in one render, in both lists: 85/85 and
+  56/56 tall, 16 px/600 and 14.5 px/600, 7 px from the name down to the
+  metadata in both, and the metadata's left edge at 172 for each. Rendered at
+  2× in both colour schemes.

@@ -182,7 +182,11 @@ export default function AddRecordingDialog({
                   <svg width="19" height="19" viewBox="0 0 20 20" fill="none">
                     <path d="M5 2.5h6l4 4v11H5zM11 2.5v4h4" stroke="currentColor"
                           strokeWidth="1.5" strokeLinejoin="round" />
-                    <path d="M7.5 12.5c1.4-1.9 3.6-1.9 5 0" stroke="currentColor"
+                    {/* A smile. The arc used to bow the other way — meant as
+                        the hill of a picture-file glyph, read by everyone as a
+                        frown at 19 px, which is the size it is actually used
+                        at. Judge a mark at its own size, not at 4×. */}
+                    <path d="M7.4 11.2c1.4 2 3.8 2 5.2 0" stroke="currentColor"
                           strokeWidth="1.5" strokeLinecap="round" />
                   </svg>
                 </span>

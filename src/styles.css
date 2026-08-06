@@ -627,7 +627,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .seznam.compact .radek { padding: 8px 12px 8px 8px; border-radius: 14px; }
 .seznam.compact .radek-hlavni { align-items: center; gap: 10px; }
 .seznam.compact .recording-calendar {
-  width: 38px; height: 38px; border-radius: 6px;
+  width: 38px; border-radius: 6px;
 }
 .seznam.compact .recording-calendar-month { padding: 2px 0; font-size: 7.5px; }
 .seznam.compact .recording-calendar-day { margin-top: 2px; font-size: 16px; }
@@ -703,10 +703,16 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .znak.nova { background: transparent; border: 1.5px solid var(--linka-pole); }
 @keyframes puls { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
+/* The height of whatever stands at a row's left edge — the calendar on a
+   transcript, the drawer on a folder. It is what makes a row 85 px, so the
+   two kinds of block are the same height by construction rather than by two
+   numbers that happen to agree today. */
+.seznam { --radek-znacka: 55px; }
+.seznam.compact { --radek-znacka: 38px; }
 .recording-calendar {
   position: relative; overflow: hidden;
   display: flex; flex-direction: column; align-items: center;
-  width: 48px; height: 55px; flex: 0 0 auto;
+  width: 48px; height: var(--radek-znacka); flex: 0 0 auto;
   border: 1px solid var(--linka-pole); border-radius: 7px;
   background: var(--panel); color: var(--text);
   box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
@@ -2680,14 +2686,20 @@ button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
   background: var(--listek); border-color: var(--listek-linka);
 }
 .folder-row:hover, .folder-row:focus-within { border-color: var(--listek-linka); background: var(--listek); }
+/* A folder block is a transcript block with the drawer where the calendar
+   stands: the same height, the same title, the same distance down to what is
+   written under it. The mark is a circle rather than a card, so it does not
+   fill the slot — the slot's own height is what keeps the two rows equal, and
+   the mark is centred in it. Its width matches the calendar's, so the text
+   column starts on the same pixel in both. */
+.folder-row .radek-hlavni { min-height: var(--radek-znacka); }
 .folder-mark {
-  display: grid; place-items: center; width: 46px; height: 46px;
+  display: grid; place-items: center; width: 48px; height: 48px;
   flex: 0 0 auto; border-radius: 50%;
   background: var(--listek-pole); color: var(--text-tichy);
 }
-.folder-row .radek-jmeno { font-size: 16px; font-weight: 650; }
-.seznam.compact .folder-mark { width: 34px; height: 34px; }
-.seznam.compact .folder-mark svg { width: 20px; height: 20px; }
+.seznam.compact .folder-mark { width: 38px; height: 38px; }
+.seznam.compact .folder-mark svg { width: 21px; height: 21px; }
 
 /* Where you are, once a folder is open. */
 .folder-crumb {
