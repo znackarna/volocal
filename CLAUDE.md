@@ -7743,3 +7743,40 @@ be signed.
   whether the NSIS licence page renders `LICENSE.txt` the way it reads on
   paper is something only a build on Windows can show. Run it once before
   handing the installer to anybody.
+
+### 2026-08-06 — The build broke on a compiler nobody upgraded on purpose
+
+- What Jakub saw on the first `npm run tauri build` with the new installer
+  configuration: it never reached the bundler. `tsc --noEmit`, which
+  `npm run build` runs first, failed on `src/recorder.tsx:355` —
+  `Uint8Array<ArrayBufferLike>` is not assignable to `Uint8Array<ArrayBuffer>`.
+- Why it did not fail here, and this is the part worth keeping: `package.json`
+  asked for `typescript: ^5.6.3`. This session had 5.6.3 installed; his
+  `node_modules` and his `package-lock.json` both hold **5.9.3**. TypeScript 5.7
+  made the typed arrays generic over their buffer, so `new Uint8Array(n)` is
+  `Uint8Array<ArrayBuffer>` while a parameter written as a bare `Uint8Array`
+  means `Uint8Array<ArrayBufferLike>` — and `getByteFrequencyData` accepts only
+  the first. Under 5.6 the two are one type and the code is correct. Every
+  `npx tsc --noEmit` recorded in this file was run against a compiler older
+  than the one that actually builds the application.
+- Fixed: the parameter's type is read off the DOM signature —
+  `type FrequencyBins = Parameters<AnalyserNode["getByteFrequencyData"]>[0]`.
+  Writing either spelling out is an error under the other version; taking it
+  from the method that will receive it is right under both, and stays right if
+  the lib changes again.
+- Fixed properly, which is the other half: `typescript` is pinned to `5.9.3`
+  exactly instead of `^5.6.3`. A caret range on a *compiler* means the build
+  can break with no change to the code, from a machine that merely ran
+  `npm install` on a different day — which is exactly what happened. Nothing
+  else here needs a floating range less than the thing that type-checks it.
+- Lesson, and it is the `package.json` lesson from 2026-08-03 wearing different
+  clothes: a check run against a different toolchain than the one that ships is
+  not the check. Compare versions with the user's tree, not only file contents.
+  The CI workflow added earlier today uses `npm ci`, so it would have caught
+  this on the first push — it takes the lock file's 5.9.3.
+- Added while in the file: `npm run i18n:approve`, so the new command has a
+  script beside its five siblings rather than only a path to remember.
+- Files: `src/recorder.tsx`, `package.json`.
+- Verified on both compilers, in one run: `npx tsc --noEmit` fails on 5.9.3
+  before the change with exactly Jakub's error, and passes on 5.9.3 and 5.6.3
+  after it. `node scripts/i18n.mjs check`; `cargo test` (73 passed).

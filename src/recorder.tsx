@@ -347,9 +347,18 @@ export function spectrumEdges(analyse: AnalyserNode, bands: number): number[] {
   );
 }
 
+/** The buffer `getByteFrequencyData` will accept, taken from its own signature.
+ *
+ *  Not written out as a type: TypeScript 5.7 made the typed arrays generic over
+ *  their buffer, so this is `Uint8Array<ArrayBuffer>` there and a plain
+ *  `Uint8Array` on 5.6 — and each spelling is an error under the other version.
+ *  Reading the parameter off the DOM signature is correct under both, and stays
+ *  correct if the lib changes it again. */
+type FrequencyBins = Parameters<AnalyserNode["getByteFrequencyData"]>[0];
+
 export function sampleSpectrum(
   analyse: AnalyserNode,
-  bins: Uint8Array,
+  bins: FrequencyBins,
   edges: number[]
 ): number[] {
   analyse.getByteFrequencyData(bins);
