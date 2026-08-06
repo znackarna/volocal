@@ -15,7 +15,8 @@ export const enDomain: Partial<Record<keyof typeof csDomain, string>> = {
   "domain.model.medium-q5_0": "Older (smaller)",
   "domain.model.small": "Preview",
   "domain.modelDescription.large-v3": "The most accurate Czech, the most demanding model. (3.1 GB)",
-  "domain.modelDescription.large-v3-q5_0": "Comparable quality, a third of the load. (1.1 GB)",
+  "domain.modelDescription.large-v3-q5_0":
+    "Above-average quality, a third of the load. (1.1 GB)",
   "domain.modelDescription.large-v3-turbo-q5_0": "Occasionally less accurate, several times faster. (575 MB)",
   "domain.modelDescription.large-v3-turbo": "Fast without any size reduction. (1.6 GB)",
   "domain.modelDescription.medium": "Noticeably more errors in names, not recommended. (1.5 GB)",

@@ -6946,3 +6946,23 @@ opens it, and the card takes the paper yellow the notes already use.
 - Verified: `npx tsc --noEmit`; `node scripts/i18n.mjs check` (879 keys, no
   problems, no informal address — `Jakou řečí…` is impersonal, so the vykání
   guard has nothing to catch).
+
+### 2026-08-06 — The balanced model is above average, not comparable
+
+- Copy, Jakub's: `domain.modelDescription.large-v3-q5_0` reads `Nadprůměrná
+  kvalita, třetinová náročnost. (1,1 GB)` instead of `Srovnatelná kvalita,
+  třetinová náročnost. (1,1 GB)`.
+- Why his is better: `srovnatelná` is a comparison with nothing named in the
+  sentence — the reader has to look up at `Precizní` to learn what it is
+  comparable *with*. `Nadprůměrná` says where the model stands on its own, and
+  the card is read on its own.
+- English follows: `Above-average quality, a third of the load. (1.1 GB)`.
+- Left alone, and worth one look some day rather than a change here: the same
+  model has a second sentence in the download catalogue,
+  `catalog.model-large-q5.description` — `Kvalita skoro jako nejvyšší,
+  třetinová velikost.` It is the older comparison this entry just removed from
+  the card, in a different construction. Only the three tier *names* were
+  unified when they were renamed; the catalogue kept its own descriptions.
+- Files: `src/locales/{cs,en}/domain.ts`, `CLAUDE.md`.
+- Verified: `npx tsc --noEmit`; `node scripts/i18n.mjs check` (879 keys, no
+  problems).
