@@ -17,6 +17,10 @@ i18n/
 # Delivery archives handed over during a session. Working files, not source.
 _to_delete/
 
+# Audit and analysis notes written during a session. Internal, not documentation.
+*-analyza-*.md
+*-hodnoceni.md
+
 *.local
 .DS_Store
 Thumbs.db
