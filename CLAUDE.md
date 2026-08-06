@@ -6966,3 +6966,29 @@ opens it, and the card takes the paper yellow the notes already use.
 - Files: `src/locales/{cs,en}/domain.ts`, `CLAUDE.md`.
 - Verified: `npx tsc --noEmit`; `node scripts/i18n.mjs check` (879 keys, no
   problems).
+
+### 2026-08-06 — Correcting entry: the crumb's back arrow filled its whole circle
+
+- What Jakub saw: the arrow inside the breadcrumb's circle is enormous. It was,
+  and by my own hand: **29.25 × 25 px of ink inside a 30 px circle**, against
+  the drawer's 14.00 × 11.25 in the same button. Measured at 8× by hiding one
+  layer at a time and reading the ink box off the raw pixels.
+- Cause, and it is the correcting entry for `the crumb's icon sat off centre`:
+  that fix gave both layers `width/height: 100%` so each could centre its own
+  drawing. The drawer's layer is a `span` with an `svg` inside it, so only the
+  wrapper stretched. The arrow **was** the `svg` — a direct grid child — so it
+  took 100 % of the circle, and an `svg` with a `viewBox` scales its drawing
+  with its box. Its `width="15" height="13"` attributes lost to the rule.
+- Fixed: the arrow is wrapped in a `span` like the drawer, and it is now the
+  header's own back arrow at its own size — the same 14 × 12 drawing
+  `App.tsx` puts before `Archiv`, rather than the 15 × 13 copy this button
+  carried. One arrow in the application, one size.
+- The comment on the markup says why the wrapper exists, because the next
+  person to add a layer here will hit exactly this.
+- Files: `src/Library.tsx`, `CLAUDE.md`.
+- Verified: the real `App` bundled with esbuild against stubbed Tauri modules,
+  a folder opened by clicking its own `Otevřít`, and each layer screenshotted
+  alone at 8× with the other hidden — the arrow's ink is 13.75 × 11.75 against
+  the drawer's 14.00 × 11.25, and its centre sits on the button's own centre
+  (15.00 / 15.00). Rendered at 4× in both palettes, hovered and at rest; no
+  console error.

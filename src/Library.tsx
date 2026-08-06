@@ -690,11 +690,16 @@ export default function Library({
             <span className="folder-crumb-back-folder" aria-hidden>
               <LineIcon name="folder" size={17} />
             </span>
-            <svg className="folder-crumb-back-arrow" width="15" height="13"
-                 viewBox="0 0 14 12" aria-hidden>
-              <path d="M6 1L1 6l5 5M1 6h12" fill="none" stroke="currentColor"
-                    strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
+            {/* A wrapper, like the drawer above it — never the drawing itself.
+                Both layers are stretched to fill the button, and an svg given
+                100% of a 30 px circle draws itself 30 px wide. The arrow is
+                the header's own back arrow at its own size. */}
+            <span className="folder-crumb-back-arrow" aria-hidden>
+              <svg width="14" height="12" viewBox="0 0 14 12">
+                <path d="M6 1L1 6l5 5M1 6h12" fill="none" stroke="currentColor"
+                      strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </span>
           </button>
           <span className="folder-crumb-name">{open.name}</span>
           {/* The folder's own actions travel with its name: inside the folder
