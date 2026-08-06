@@ -129,7 +129,7 @@ const SETTINGS_TAB_KEYS: Record<SettingsTab, TranslationKey> = {
 
 /** The models on disk arrive sorted by file name, which is not an order
  *  anybody reads. They are shown in the order the interface offers them —
- *  fastest first — and anything it does not know by name comes last. */
+ *  best first — and anything it does not know by name comes last. */
 function byModelOrder(a: string, b: string): number {
   const rank = (id: string) => {
     const index = (MODEL_IDS as readonly string[]).indexOf(id);

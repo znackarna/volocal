@@ -7300,3 +7300,51 @@ opens it, and the card takes the paper yellow the notes already use.
   the button is in its second state — and measured at 1400, 1200 and the
   window's own 1000 px minimum: the header holds 57 px, nothing overflows
   horizontally at any of them, and the recording's name still is not clipped.
+
+### 2026-08-06 — English calls it Enhance, and it calls it that everywhere
+
+- Changed, Jakub's ask on the header button: `Improved transcript` reads
+  `Enhanced transcript`.
+- Changed with it, and this is the part he did not ask for: the whole English
+  vocabulary of the feature. `Improve` → `Enhance`, `AI improvement` →
+  `AI enhancement`, `Improve transcript` → `Enhance transcript`, `Improve
+  again` → `Enhance again`, the save-menu group, the preview title, the version
+  switch, both toasts, four error messages and the progress caption. Sixteen
+  strings.
+- Why all of them: one feature under two English words is exactly the
+  `rozlišit` / `rozpoznat` collision the interface was cleared of on
+  2026-08-03, and it would have arrived the same way — one label changed, the
+  rest left where they were. The button and the dialog it opens must not be
+  two different features.
+- Left alone: `settings.transcription.beamNote` — `A higher value improves
+  accuracy` is the ordinary verb about search thoroughness, not this feature's
+  name.
+- Czech is untouched. `Vylepšit` / `Vylepšený přepis` is the vocabulary, and
+  the two languages are allowed to choose their own word — this is a
+  translation decision, not a rename.
+- Files: `src/locales/en/{detail,errors,progress,settings}.ts`, `CLAUDE.md`.
+- Verified: `npx tsc --noEmit`; `node scripts/i18n.mjs check` (no problems);
+  a grep for `improve` across `src/locales/en` leaves only the beam note.
+
+### 2026-08-06 — The model cards read best first
+
+- Changed, Jakub's ask: the transcription models are offered `Precizní`,
+  `Vyvážený`, `Rychlý`, then the older generation. It was the reverse — fastest
+  first — set yesterday when the order stopped being the backend's alphabet.
+- Not a plain reverse of that list, which is the thing worth recording:
+  reversing it would have put `small` at the top, because the old order was
+  *the three tiers fastest-up, then the older generation*, not one run from
+  slow to fast. The new one is best-first within each part, older generation
+  still last: `large-v3`, `large-v3-q5_0`, `large-v3-turbo`,
+  `large-v3-turbo-q5_0`, `medium`, `medium-q5_0`, `small`. Within a family the
+  full model outranks its quantized copy.
+- `MODEL_IDS` in `types.ts` is that order and Settings sorts by it; the comment
+  above it now says both the rule and the trap. Nothing else reads the
+  constant, and the backend still lists files by name — a file list is its
+  business, the order they are offered in is the interface's.
+- Files: `src/types.ts`, `src/Settings.tsx`, `CLAUDE.md`.
+- Verified: `npx tsc --noEmit`; `node scripts/i18n.mjs check`; the real
+  `Settings` bundled with esbuild against stubbed Tauri commands, handed four
+  installed models in a deliberately shuffled order, and the card titles read
+  out of the DOM: `Precizní · Vyvážený · Rychlý · Starší`. Rendered at 2× with
+  the selected card badged `používá se`.

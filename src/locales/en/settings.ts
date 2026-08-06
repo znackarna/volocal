@@ -17,7 +17,7 @@ export const enSettings: Partial<Record<keyof typeof csSettings, string>> = {
   "settings.about.abilities": "What it can do",
   "settings.about.abilityTranscribe": "Transcribes recordings and videos, in Czech and other languages.",
   "settings.about.abilitySpeakers": "Identifies the speakers and splits the text between them.",
-  "settings.about.abilityEditor": "A language model improves, summarises and translates the transcript.",
+  "settings.about.abilityEditor": "A language model enhances, summarises and translates the transcript.",
   "settings.about.abilityReview": "Marks the spots the transcript was unsure of and keeps the corrections together.",
   "settings.about.abilityNotes": "Plays back to the exact word and pins a note to any moment.",
   "settings.about.abilitySources": "Records from the microphone, takes audio from online videos, watches a chosen folder.",

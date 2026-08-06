@@ -24,7 +24,7 @@ export const enProgress: Partial<Record<keyof typeof csProgress, string>> = {
   "progress.ai.summarizing_source": "Compiling the summary in the original language",
   "progress.ai.translating_summary": "Translating the finished summary into Czech",
   "progress.ai.reviewing_summary": "Checking the Czech in the summary",
-  "progress.ai.document_ready": "The improved transcript is ready",
+  "progress.ai.document_ready": "The enhanced transcript is ready",
   "progress.ai.summary_ready": "The summary is ready",
   "progress.ai.translation_ready": "The translation is ready",
   "progress.ai.cancelled": "Editing was cancelled",

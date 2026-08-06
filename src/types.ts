@@ -333,15 +333,20 @@ export interface BenchmarkResult {
 export const COMPUTE_IDS = ["cuda", "vulkan", "cpu", "default", "auto"] as const;
 
 /** Whisper models the interface knows how to name, in the order they are
- *  offered: the three tiers from the fastest up, then the older generation.
- *  Unknown identifiers still work; they show their raw name and come last. */
+ *  offered: best first, then the older generation, also best first. Within a
+ *  family the full model outranks its quantized copy. Unknown identifiers
+ *  still work; they show their raw name and come last.
+ *
+ *  Not a plain reverse of the old fastest-first list: that would have put
+ *  `small` at the top. The older generation stays below the three tiers
+ *  whatever the direction. */
 export const MODEL_IDS = [
-  "large-v3-turbo-q5_0",
-  "large-v3-turbo",
-  "large-v3-q5_0",
   "large-v3",
-  "medium-q5_0",
+  "large-v3-q5_0",
+  "large-v3-turbo",
+  "large-v3-turbo-q5_0",
   "medium",
+  "medium-q5_0",
   "small",
 ] as const;
 
