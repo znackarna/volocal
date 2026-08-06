@@ -982,6 +982,10 @@ export default function App() {
               {/* i18n-ignore: a product name, not copy — it is the same word in
                   every language. */}
               Slobot
+              {/* i18n-ignore: a symbol, not a word; the same in every language.
+                  Hidden from assistive technology — the mark beside it already
+                  names the application, and "Slobot trademark" is noise. */}
+              <span className="header-brand-tm" aria-hidden>™</span>
             </span>
           )}
         </button>

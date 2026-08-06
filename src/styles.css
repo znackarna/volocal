@@ -176,6 +176,15 @@ button, input, select, textarea { font: inherit; color: inherit; }
   color: var(--text); font-size: 15px; font-weight: 700;
   white-space: nowrap;
 }
+/* The trademark sign's top sits on the wordmark's cap height. The 0.5em lift is
+   measured, not derived: the glyph is already drawn high inside its own em box,
+   so where its ink lands is the font's decision and not arithmetic. If either
+   size changes, measure the ink again rather than scaling this number.
+   Quiet and light: it is a legal mark, not part of the name being read. */
+.header-brand-tm {
+  font-size: 9px; font-weight: 600; color: var(--text-tichy);
+  margin-left: 1px; align-self: baseline; transform: translateY(-0.5em);
+}
 .lista-levo { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .lista-pravo { display: flex; align-items: center; gap: 4px; }
 /* The pills sit at the right edge, before the named actions. Half the space

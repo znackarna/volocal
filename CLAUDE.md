@@ -6876,3 +6876,48 @@ opens it, and the card takes the paper yellow the notes already use.
   and recording name both `15px` / `700` / `normal` tracking / `Geist Variable`
   / `rgb(26, 26, 30)` with a 22.5 px line box; both cubes 24 px; both bars
   57 px. No console error.
+
+### 2026-08-06 — The wordmark carries the trademark sign
+
+- Added, Jakub's ask: `Slobot™` in the archive header. The window title has said
+  `Slobot™` since the rename; the header was the one place the program named
+  itself without it.
+- Placement is measured, not derived: the sign's ink top sits exactly on the
+  `S`'s cap height — 0.000 px apart at 8× — through a 0.5 em lift on its own
+  9 px size. `vertical-align: super` overshoots at this size, and where the
+  glyph's ink lands inside its em box is the font's decision rather than
+  arithmetic, so the comment tells the next reader to measure again rather than
+  scale the number if either size changes.
+- Quiet on purpose: 9 px, weight 600, `--text-tichy`. It is a legal mark
+  standing beside the name, not a syllable of it — at the wordmark's own 15/700
+  it would read as part of the word.
+- `aria-hidden`: the cube beside it already carries `app.name` as its
+  accessible label, and a screen reader saying `Slobot trademark` on every
+  archive screen is noise. Both literals keep an `i18n-ignore` — a product name
+  and a symbol are the same in every language.
+- Files: `src/App.tsx`, `src/styles.css`, `CLAUDE.md`.
+- Verified: the real `App` bundled with esbuild against stubbed Tauri modules,
+  driven in a browser against the real stylesheet at 8×, and the screenshot
+  decoded to raw pixels — the `S`'s cap top and the sign's ink top both land on
+  5.875 px, the sign's ink runs 5.875–8.375 against the wordmark's 5.875–17.125
+  baseline. `npx tsc --noEmit`; `node scripts/i18n.mjs check` (both ignores
+  honoured, no new finding); no console error.
+
+### 2026-08-06 — The Přepis card asks for a size and a quality
+
+- Copy, Jakub's: `settings.transcription.description` is `Zvolte velikost
+  jazykového modelu a kvalitu převodu.` It supersedes `Model, který nahrávku
+  přepíše, a jak důkladně v ní hledá správná slova.`, written a day earlier —
+  which described the two controls, where this one asks for the two decisions.
+- English follows: `Choose the size of the language model and the quality of
+  the conversion.`
+- **Flagged rather than changed, because it is a vocabulary collision:** in
+  this interface `jazykový model` has meant the Gemma editor everywhere else —
+  `Jazyková úprava`, the About card's `Nahrávky, přepisy i jazykové modely`,
+  the wizard's language-editing step. Whisper is called `model` or `model
+  přepisu`. A reader who has seen the other screens may read this sentence as
+  being about the editor rather than about transcription. `Zvolte velikost
+  modelu a kvalitu převodu.` says the same thing without borrowing the other
+  family's name; it is one word to change if that is wanted.
+- Files: `src/locales/{cs,en}/settings.ts`, `CLAUDE.md`.
+- Verified: `npx tsc --noEmit`; `node scripts/i18n.mjs check`.

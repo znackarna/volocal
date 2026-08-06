@@ -163,7 +163,7 @@ export const csSettings = {
 
   // What Whisper is told to do.
   "settings.transcription.description":
-    "Model, který nahrávku přepíše, a jak důkladně v ní hledá správná slova.",
+    "Zvolte velikost jazykového modelu a kvalitu převodu.",
   "settings.speech.title": "Jazyk a detekce řeči",
   "settings.speech.description":
     "Čím se v nahrávce mluví a co se v ní má považovat za řeč.",

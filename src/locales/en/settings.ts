@@ -135,7 +135,7 @@ export const enSettings: Partial<Record<keyof typeof csSettings, string>> = {
   "settings.speech.title": "Language and speech detection",
   "settings.speech.description": "What is spoken in the recording, and what counts as speech in it.",
   "settings.transcription.description":
-    "The model that transcribes the recording, and how hard it looks for the right words.",
+    "Choose the size of the language model and the quality of the conversion.",
   "settings.transcription.model": "Model",
   "settings.transcription.modelDescription": "Downloaded model.",
   "settings.transcription.modelNote": "Shows downloaded models only.",
