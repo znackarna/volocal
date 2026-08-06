@@ -305,6 +305,49 @@ button, input, select, textarea { font: inherit; color: inherit; }
   scrollbar-gutter: stable;
 }
 .knihovna.knihovna > * { max-width: 900px; margin-inline: auto; }
+/* The hero and the filter row are pinned together, as one block, so the
+   toolbar's offset is the wrapper's own edge rather than a copy of the
+   compact hero's height that somebody has to keep in step with it.
+
+   Everything the earlier entries say about a sticky header is still true —
+   it slices whatever passes under it. What changed is the answer: the two
+   layers below the block blur the passing content into it, so the boundary
+   reads as an edge the list goes under rather than as a card cut in half.
+   The block is opaque so nothing shows through it; only the strip below is
+   translucent. */
+.knihovna.knihovna > .archive-sticky {
+  position: sticky; top: 0; z-index: 20;
+  width: 100%; max-width: none; margin-inline: 0;
+  background: var(--pozadi);
+}
+.archive-sticky > * { width: 100%; max-width: 900px; margin-inline: auto; }
+/* Two layers, not one: the blur is stronger and shorter next to the block and
+   weaker over a longer run below it, which is what makes it read as a
+   gradient rather than as a frosted band with an edge of its own. Both are
+   masked to nothing at their far end, so neither has a visible boundary.
+   `pointer-events: none` — this is glass, not a surface to click. */
+.archive-sticky::before,
+.archive-sticky::after {
+  content: ""; position: absolute; left: 0; right: 0; top: 100%;
+  pointer-events: none;
+}
+.archive-sticky::before {
+  height: 42px;
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  /* The colour fade is what carries the effect where `backdrop-filter` is not
+     available; on its own it already reads as the list dissolving upward. */
+  background: linear-gradient(to bottom, var(--pozadi) 0%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0%, #000 15%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 15%, transparent 100%);
+}
+.archive-sticky::after {
+  height: 18px;
+  backdrop-filter: blur(9px);
+  -webkit-backdrop-filter: blur(9px);
+  mask-image: linear-gradient(to bottom, #000, transparent);
+  -webkit-mask-image: linear-gradient(to bottom, #000, transparent);
+}
 .knihovna.knihovna > .archive-scroll-content {
   width: 100%; max-width: none; margin-inline: 0;
   padding: 4px 0 60px;
@@ -782,12 +825,10 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 /* Not sticky, and that is the decision rather than an omission. A pinned
    header means everything else passes underneath it and gets cut through the
-   middle — a search field halved, a card's progress row sliced. That is what
-   a sticky header does, not a defect a colour can fix, and the reason the
-   filter toolbar stopped being sticky earlier. Nothing is lost by letting it
-   go: `+ Nový přepis` stands in the application header on every screen.
-   It still collapses on the first downward gesture and only then scrolls
-   away — Jakub's rule, and the reason the compact state stays. */
+   middle. It is `.archive-sticky` above that is pinned now, with the hero and
+   the filter row inside it as one block; this element only collapses. Do not
+   make it sticky again — two pinned layers in one scroller is what used to
+   cover the first card's top edge. */
 .archive-drop-zone {
   position: relative; z-index: 1;
   width: 100%;

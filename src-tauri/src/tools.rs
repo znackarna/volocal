@@ -29,6 +29,40 @@ pub fn command<S: AsRef<std::ffi::OsStr>>(program: S) -> Command {
     c
 }
 
+/// Runs a program on somebody's behalf, so that it can be killed while it works.
+///
+/// The preparation programs used to be run with `Command::output`, which owns
+/// its child and hands it to nobody: `Zrušit` during `Připravuji přesné
+/// přehrávání` set the cancel flag, found no process to kill, and the ffmpeg
+/// encoding a 34-minute MP3 carried on to the end. A job passes its own
+/// implementation, which registers the child before waiting on it.
+pub trait CommandRunner {
+    /// Runs to completion and returns the exit status with whatever the
+    /// program wrote to stderr. `None` means it was killed rather than
+    /// finished, and the caller must not judge its output.
+    fn run(&self, command: Command) -> std::io::Result<Option<(std::process::ExitStatus, String)>>;
+}
+
+/// For the places where no job owns the program and nothing can cancel it —
+/// preparing playback on demand when a finished transcript is opened.
+pub struct PlainRunner;
+
+impl CommandRunner for PlainRunner {
+    fn run(
+        &self,
+        mut command: Command,
+    ) -> std::io::Result<Option<(std::process::ExitStatus, String)>> {
+        let output = command
+            .stdout(Stdio::null())
+            .stderr(Stdio::piped())
+            .output()?;
+        Ok(Some((
+            output.status,
+            String::from_utf8_lossy(&output.stderr).trim().to_string(),
+        )))
+    }
+}
+
 // ---------------------------------------------------------------- prenosnost
 
 /// Slozka, ve ktere lezi spustitelny soubor aplikace.
@@ -494,18 +528,22 @@ pub fn convert_to_wav(
     ffmpeg: &Path,
     input: &Path,
     output: &Path,
+    runner: &dyn CommandRunner,
 ) -> std::result::Result<(), UserMessage> {
-    let status = command(ffmpeg)
+    let mut program = command(ffmpeg);
+    program
         .args(["-hide_banner", "-loglevel", "error", "-y", "-i"])
         .arg(input)
         .args(["-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le"])
-        .arg(output)
-        .stdout(Stdio::null())
-        .stderr(Stdio::piped())
-        .output()?;
-    if !status.status.success() {
-        return Err(UserMessage::new("transcription.audio_conversion_failed")
-            .with("reason", String::from_utf8_lossy(&status.stderr).trim()));
+        .arg(output);
+    let Some((status, stderr)) = runner.run(program)? else {
+        // Killed. The worker reads its own cancel flag before this message.
+        return Err(UserMessage::new("transcription.cancelled"));
+    };
+    if !status.success() {
+        return Err(
+            UserMessage::new("transcription.audio_conversion_failed").with("reason", stderr)
+        );
     }
     Ok(())
 }
@@ -586,6 +624,7 @@ pub fn ensure_seekable_playback(
     db_path: &Path,
     recording_id: &str,
     source: &Path,
+    runner: &dyn CommandRunner,
 ) -> std::result::Result<PathBuf, UserMessage> {
     if !source.is_file() {
         return Err(UserMessage::new("playback.source_missing"));
@@ -613,7 +652,8 @@ pub fn ensure_seekable_playback(
         safe_cache_key(recording_id),
         uuid::Uuid::new_v4()
     ));
-    let output = command(ffmpeg)
+    let mut program = command(ffmpeg);
+    program
         .args(["-hide_banner", "-loglevel", "error", "-y", "-i"])
         .arg(source)
         .args([
@@ -629,12 +669,17 @@ pub fn ensure_seekable_playback(
             "-movflags",
             "+faststart",
         ])
-        .arg(&temporary)
-        .output()?;
-    if !output.status.success() {
+        .arg(&temporary);
+    let outcome = runner.run(program)?;
+    let Some((status, stderr)) = outcome else {
+        // Killed mid-encode: the half-written temporary is ours alone, and
+        // leaving it behind would be a growing pile of dead .part files.
         let _ = std::fs::remove_file(&temporary);
-        return Err(UserMessage::new("playback.conversion_failed")
-            .with("reason", String::from_utf8_lossy(&output.stderr).trim()));
+        return Err(UserMessage::new("transcription.cancelled"));
+    };
+    if !status.success() {
+        let _ = std::fs::remove_file(&temporary);
+        return Err(UserMessage::new("playback.conversion_failed").with("reason", stderr));
     }
 
     // Another request may have finished while this one was encoding. Keep the

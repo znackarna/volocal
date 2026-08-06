@@ -827,6 +827,9 @@ async fn playback_source(app: State<'_, AppState>, id: String) -> Reported<Strin
             &db_path,
             &recording_id,
             &source,
+            // Nothing owns this one: it is prepared on demand when a finished
+            // transcript is opened, and there is no job to cancel.
+            &tools::PlainRunner,
         )
     })
     .await

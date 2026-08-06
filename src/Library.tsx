@@ -609,12 +609,46 @@ export default function Library({
         }
       }}
     >
-      <LibraryDropZone
-        onAdd={onAdd}
-        automatic={automatic}
-        onAutomatic={onAutomatic}
-        compact={dropZoneCompact}
-      />
+      {/* The hero and the filter row are one pinned block, so the toolbar's
+          offset is never a number somebody has to keep in step with the
+          hero's height. What passes underneath dissolves into it through the
+          blur below its edge rather than being cut in half. */}
+      <div className="archive-sticky">
+        <LibraryDropZone
+          onAdd={onAdd}
+          automatic={automatic}
+          onAutomatic={onAutomatic}
+          compact={dropZoneCompact}
+        />
+        <div className="knihovna-lista">
+          <div className="hledani">
+            <input
+              type="search"
+              placeholder={t("library.search.placeholder")}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              spellCheck={false}
+            />
+          </div>
+
+          <ArchiveDateFilter
+            value={dateFilter}
+            onChange={setDateFilter}
+          />
+
+          <ArchiveOrderSelect
+            value={order}
+            items={ARCHIVE_ORDERS.map((archiveOrder) => ({
+              value: archiveOrder.value as string,
+              label: t(archiveOrder.labelKey),
+            }))}
+            onChange={(value) => setOrder(value as ArchiveOrder)}
+            description={t("library.sort.description")}
+          />
+
+          <ArchiveViewToggle value={view} onChange={setView} />
+        </div>
+      </div>
 
       <div className="archive-scroll-content">
       {issues.length > 0 && (
@@ -644,34 +678,6 @@ export default function Library({
         />
       )}
 
-      <div className="knihovna-lista">
-        <div className="hledani">
-          <input
-            type="search"
-            placeholder={t("library.search.placeholder")}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            spellCheck={false}
-          />
-        </div>
-
-        <ArchiveDateFilter
-          value={dateFilter}
-          onChange={setDateFilter}
-        />
-
-        <ArchiveOrderSelect
-          value={order}
-          items={ARCHIVE_ORDERS.map((archiveOrder) => ({
-            value: archiveOrder.value as string,
-            label: t(archiveOrder.labelKey),
-          }))}
-          onChange={(value) => setOrder(value as ArchiveOrder)}
-          description={t("library.sort.description")}
-        />
-
-        <ArchiveViewToggle value={view} onChange={setView} />
-      </div>
 
       {open && (
         <div className="folder-crumb">

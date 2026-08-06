@@ -8,7 +8,7 @@ use anyhow::{anyhow, Result};
 use regex::Regex;
 use serde::Serialize;
 use std::collections::{HashMap, HashSet, VecDeque};
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, BufReader, Read};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::{Arc, Condvar, Mutex};
@@ -209,6 +209,39 @@ impl TranscriptionTask {
         self.forget_cancellation(id);
         self.processes.lock().unwrap().remove(id);
         self.running.lock().unwrap().remove(id);
+    }
+}
+
+/// A `CommandRunner` that puts each child into the job's registry, so that
+/// `Zrušit` reaches the preparation programs and not only whisper.
+///
+/// Waiting is done by reading stderr to its end rather than by holding the
+/// child: the pipe closes when the process does, whether it finished or was
+/// killed, and only then is the child taken back out of the registry. If it
+/// is no longer there, cancellation took it — the same handshake
+/// `start_whisper` has always used.
+struct JobRunner<'a> {
+    task: &'a TranscriptionTask,
+    recording_id: &'a str,
+}
+
+impl tools::CommandRunner for JobRunner<'_> {
+    fn run(
+        &self,
+        mut command: std::process::Command,
+    ) -> std::io::Result<Option<(std::process::ExitStatus, String)>> {
+        let mut child = command
+            .stdout(Stdio::null())
+            .stderr(Stdio::piped())
+            .spawn()?;
+        let stderr = child.stderr.take().unwrap();
+        self.task.record_process(self.recording_id, child);
+        let mut text = String::new();
+        let _ = BufReader::new(stderr).read_to_string(&mut text);
+        match self.task.take_process(self.recording_id) {
+            Some(mut child) => Ok(Some((child.wait()?, text.trim().to_string()))),
+            None => Ok(None),
+        }
     }
 }
 
@@ -448,7 +481,12 @@ fn run_diarization(
         .join(recording_id);
     std::fs::create_dir_all(&working_directory)?;
     let wav = working_directory.join("zvuk.wav");
-    tools::convert_to_wav(Path::new(&ffmpeg), Path::new(&recording.path), &wav)?;
+    tools::convert_to_wav(
+        Path::new(&ffmpeg),
+        Path::new(&recording.path),
+        &wav,
+        &JobRunner { task, recording_id },
+    )?;
 
     // No fixed percentage here: sherpa reports its own and `diarize` passes
     // it straight through. Ten per cent is where the audio conversion ended.
@@ -557,14 +595,13 @@ fn run(
     std::fs::create_dir_all(&working_directory)?;
     let wav = working_directory.join("zvuk.wav");
 
+    let runner = JobRunner { task, recording_id };
     tools::convert_to_wav(
         Path::new(check.ffmpeg.as_ref().unwrap()),
         Path::new(&recording.path),
         &wav,
+        &runner,
     )?;
-    // The preparation programs are not killed mid-run: each is bounded and
-    // short beside whisper or sherpa. Cancelling during one of them therefore
-    // takes effect here, at the end of that step, rather than instantly.
     stop_if_cancelled(task, recording_id)?;
 
     // Long VBR MP3 files need an indexed M4A playback copy for precise
@@ -583,10 +620,15 @@ fn run(
             db_path,
             recording_id,
             Path::new(&recording.path),
+            &runner,
         ) {
             eprintln!("playback preparation failed for {recording_id}: {error:#}");
         }
     }
+    // This is the longest of the preparation steps on a long MP3, and its own
+    // caption names it, so it is the one somebody cancels during. Losing the
+    // playback cache is deliberately not an error; being cancelled is.
+    stop_if_cancelled(task, recording_id)?;
 
     // Generate both the timeline waveform and frequency peaks while the
     // normalized WAV file is already available.
@@ -600,6 +642,10 @@ fn run(
     }
 
     // ------------------------------------------------------------ prepis
+    // Whisper is the expensive one. Starting it after a cancellation that
+    // arrived during preparation is how `Zrušit` used to look like it did
+    // nothing at all: the request was noted and the run went on for minutes.
+    stop_if_cancelled(task, recording_id)?;
     status(
         app,
         recording_id,
@@ -2743,6 +2789,71 @@ mod cancellation_tests {
         assert!(
             task.take_process("a").is_none(),
             "cancelling kills and removes whatever was running"
+        );
+    }
+
+    /// Not a test. It is a stand-in for a long program — ffmpeg encoding a
+    /// 34-minute MP3 — spawned by the test below, which then kills it. The
+    /// test binary is the one program certain to exist on every platform this
+    /// is built for.
+    #[test]
+    #[ignore = "spawned by cancelling_a_preparation_program_kills_it"]
+    fn stands_in_for_a_long_program() {
+        std::thread::sleep(std::time::Duration::from_secs(30));
+    }
+
+    /// `Zrušit` during `Připravuji přesné přehrávání` did nothing: the
+    /// preparation programs were run with `Command::output`, which hands the
+    /// child to nobody, so there was nothing to kill and the encode ran on.
+    #[test]
+    fn cancelling_a_preparation_program_kills_it() {
+        let task = TranscriptionTask::default();
+        task.begin("a");
+
+        let mut program = std::process::Command::new(std::env::current_exe().unwrap());
+        program.args([
+            "--exact",
+            "transcription::cancellation_tests::stands_in_for_a_long_program",
+            "--ignored",
+            "--test-threads=1",
+        ]);
+
+        let running = task.clone();
+        let worker = std::thread::spawn(move || {
+            use crate::tools::CommandRunner;
+            JobRunner {
+                task: &running,
+                recording_id: "a",
+            }
+            .run(program)
+        });
+
+        // Wait for the child to be registered rather than guessing at a delay:
+        // killing before the spawn would prove nothing.
+        let started = std::time::Instant::now();
+        while task
+            .processes
+            .lock()
+            .unwrap()
+            .get("a")
+            .is_none_or(Vec::is_empty)
+        {
+            assert!(
+                started.elapsed().as_secs() < 10,
+                "the stand-in never started"
+            );
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
+
+        assert!(task.cancel("a"));
+        let outcome = worker.join().expect("the runner thread does not panic");
+        assert!(
+            matches!(outcome, Ok(None)),
+            "a killed program reports that it was killed, not an exit code"
+        );
+        assert!(
+            started.elapsed().as_secs() < 25,
+            "it stopped when it was told, not when it would have finished on its own"
         );
     }
 }

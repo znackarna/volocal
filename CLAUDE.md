@@ -7089,3 +7089,84 @@ opens it, and the card takes the paper yellow the notes already use.
   Smazat přepis · Vložit do složky · **Vyjmout ze složky** · Uložit zvuk… ·
   Odebrat z archivu; in the root the same list without it. The submenu keeps
   its folders and `Nová složka…`.
+
+### 2026-08-06 — Zrušit reaches the preparation programs, not only whisper
+
+- What Jakub saw, with a 34-minute MP3 sitting at `Připravuji přesné
+  přehrávání`: `Zrušit` does nothing at all. It did not.
+- Cause: the preparation programs were run through `Command::output`, which
+  owns its child and hands it to nobody. `cancel` set the flag, found nothing
+  in `processes` to kill, and the ffmpeg encoding the whole recording to AAC
+  ran to the end — followed by the waveform pass, and then **whisper**, which
+  starts many minutes of work with no cancel check between it and the request.
+  An earlier entry argued the preparation programs are "bounded and short
+  beside whisper", which is true of the 16 kHz WAV pass on a short file and
+  false of a 34-minute MP3 — and the playback step is the one whose caption
+  names it, so it is the one somebody cancels during.
+- Changed: `tools::CommandRunner` — a program is now run *by* somebody.
+  `JobRunner` in `transcription.rs` registers each child before waiting on it,
+  so `Zrušit` kills whatever is running; `PlainRunner` is for the one caller
+  that no job owns, preparing playback on demand when a finished transcript is
+  opened. `convert_to_wav` and `ensure_seekable_playback` take one.
+- Waiting without holding the child: stderr is read to its end, which is what
+  the pipe closing means, and only then is the child taken back out of the
+  registry. Gone from there means cancellation took it — the same handshake
+  `start_whisper` has always used. A killed encode deletes its own half-written
+  `.part` file rather than leaving a growing pile of them.
+- Changed: two more `stop_if_cancelled` — after the playback step, and
+  immediately before whisper is started. Losing the playback cache is
+  deliberately still not an error; being cancelled is, and starting the
+  expensive program after a cancellation is what made the button look dead.
+- Files: `src-tauri/src/tools.rs`, `src-tauri/src/transcription.rs`,
+  `src-tauri/src/main.rs`, `CLAUDE.md`.
+- Verified: `cargo fmt --all`; `cargo check` with no warnings; `cargo test`
+  (71 passed). The new test spawns a real long-running child — the test binary
+  itself, running an ignored test that sleeps, so it exists on every platform
+  — waits for it to be registered rather than guessing at a delay, cancels,
+  and asserts the runner reports it was killed and that it stopped in under
+  25 seconds rather than at its own end. The guard was proven by making it
+  fail: with the child kept private again, exactly as it used to be, it failed
+  and everything else passed. `npx tsc --noEmit`; `node scripts/i18n.mjs
+  check`.
+
+### 2026-08-06 — The pinned header, and the list dissolving into it
+
+- Supersedes `The hero shrinks first, then scrolls away with everything else`
+  from earlier today. Jakub's proposal, and it is the better answer: keep the
+  hero and the filter row pinned, let the content pass under them once the
+  hero has shrunk, and put a shadow or a gradient blur over what passes.
+- Why it works where every earlier attempt did not: the problem with a pinned
+  header was never that content goes under it — it is that the content is
+  *cut*, mid-card, mid-control, with a hard edge that reads as a defect. Three
+  earlier entries tried to fix that with z-index, opaque padding and a
+  gradient, and each moved the seam rather than removing it. A blur removes
+  it: what approaches the edge softens and fades out, so the boundary reads as
+  glass the list slides under.
+- Changed: `.archive-sticky` wraps the hero and the toolbar and is the one
+  pinned layer. One layer, not two — two is what used to cover the first
+  card's top edge — and the toolbar's offset is now its own place in that
+  block rather than a copy of the compact hero's height that somebody has to
+  keep in step with it.
+- The blur is two masked layers below the block's edge, not one: 42 px of
+  `blur(3px)` carrying the colour fade, and 18 px of `blur(9px)` above it.
+  Stronger and shorter nearest the block, weaker over a longer run below —
+  that progression is what makes it read as a gradient rather than as a
+  frosted band with an edge of its own. Both are masked to nothing at their
+  far end, and both are `pointer-events: none`: this is glass, not a surface.
+  Where `backdrop-filter` is unavailable the colour fade alone still reads as
+  the list dissolving upward.
+- Kept: the collapse. The first downward gesture shrinks the block from 454 px
+  to 187 px without moving the list; only the next one scrolls. That was
+  Jakub's rule before the hero was unpinned and it is still his rule now.
+- `.archive-drop-zone` itself stays `position: relative`; it is the wrapper
+  that is pinned. Do not make both sticky.
+- Files: `src/Library.tsx`, `src/styles.css`, `CLAUDE.md`.
+- Verified: the real `Library` bundled with esbuild against stubbed Tauri
+  modules and driven in a browser against the real stylesheet at 2× over
+  fourteen recordings. Measured: the block is `sticky` at the scroller's top
+  through every scroll position, the toolbar's bottom edge is the block's own
+  bottom edge, and the list scrolls beneath both. Screenshotted with a card
+  deliberately straddling the boundary, in both colour schemes — the card's
+  text blurs and fades out instead of ending in a line. The date filter's
+  popover was opened over the strip and stays sharp and opaque, because
+  `.knihovna-lista` keeps its own stacking context above the two glass layers.
