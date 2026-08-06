@@ -1,0 +1,103 @@
+SLOBOT
+Licenční ujednání / Licence terms
+značkárna s.r.o., 2026
+
+
+ČESKY
+=====
+
+1. Program
+
+Slobot je majetkem značkárna s.r.o. Instalací a používáním získáváte právo
+program užívat. Program nesmíte prodávat, pronajímat ani vydávat za svůj.
+
+Program pracuje výhradně na vašem počítači. Nahrávky, přepisy ani nastavení
+nikam neodesílá.
+
+
+2. Součásti, které si program stáhne sám
+
+Instalátor obsahuje pouze samotný program. Nástroje a jazykové modely, které
+Slobot k práci potřebuje, se stahují až při prvním spuštění, přímo od jejich
+autorů. Nejsou tedy součástí této instalace a každý se řídí vlastní licencí.
+
+Úplný seznam i s licencemi najdete v aplikaci pod Nastavení → O aplikaci.
+Naprostá většina je open source (MIT, Apache 2.0, SIL OFL, Unlicense, public
+domain). Dvě položky mají podmínky, které je dobré znát předem:
+
+  FFmpeg
+  Stažené sestavení je pod licencí GNU GPL verze 3. Pro vlastní používání to
+  pro vás neznamená nic navíc. Jakmile ale předáte dál přenosnou kopii Slobotu
+  (Nastavení → Soubory → Přenosná kopie), předáváte s ní i FFmpeg, a platí
+  podmínky GPL v3 — příjemci mimo jiné náleží právo na zdrojový kód FFmpegu.
+  Ten je dostupný na https://ffmpeg.org.
+
+  Gemma (jazykové modely pro vylepšení přepisu)
+  Není open source. Řídí se dokumentem Gemma Terms of Use společnosti Google
+  a její Gemma Prohibited Use Policy. Pokud modely předáte dál, musíte s nimi
+  předat i tyto podmínky a příjemce je jimi vázán stejně jako vy.
+  Podmínky: https://ai.google.dev/gemma/terms
+
+
+3. Záruka
+
+Program se poskytuje „jak stojí a leží“, bez záruky jakéhokoli druhu.
+Přepis pořízený strojem je podklad ke kontrole, ne úřední dokument.
+Za škodu vzniklou používáním programu značkárna s.r.o. neodpovídá.
+
+
+4. Vaše data
+
+Archiv s nahrávkami a přepisy zůstává na vašem počítači i po odinstalaci.
+Odinstalace odebere pouze program. Kde archiv leží, ukazuje aplikace pod
+Nastavení → Soubory.
+
+
+ENGLISH
+=======
+
+1. The program
+
+Slobot is the property of značkárna s.r.o. Installing it grants you the right
+to use it. You may not sell it, rent it out, or present it as your own.
+
+The program works entirely on your computer. It sends no recordings,
+transcripts or settings anywhere.
+
+
+2. Components the program downloads itself
+
+This installer contains the program alone. The tools and language models
+Slobot needs are downloaded on first run, directly from their authors. They
+are therefore not part of this installation and each follows its own licence.
+
+The full list with licences is in the application under Settings → About.
+Nearly all of it is open source (MIT, Apache 2.0, SIL OFL, Unlicense, public
+domain). Two entries carry terms worth knowing in advance:
+
+  FFmpeg
+  The build that is downloaded is licensed under the GNU GPL version 3. For
+  your own use this asks nothing extra of you. But once you pass on a portable
+  copy of Slobot (Settings → Files → Portable copy), you pass FFmpeg on with
+  it, and the GPL v3 applies — the recipient is entitled to FFmpeg's source
+  code, among other things. It is available at https://ffmpeg.org.
+
+  Gemma (the language models that enhance a transcript)
+  Not open source. Governed by Google's Gemma Terms of Use and its Gemma
+  Prohibited Use Policy. If you pass the models on, you must pass these terms
+  on with them, and the recipient is bound by them exactly as you are.
+  Terms: https://ai.google.dev/gemma/terms
+
+
+3. Warranty
+
+The program is provided "as is", without warranty of any kind. A transcript
+produced by a machine is material to be checked, not an official document.
+značkárna s.r.o. is not liable for damage arising from use of the program.
+
+
+4. Your data
+
+The archive of recordings and transcripts stays on your computer after
+uninstallation. Uninstalling removes the program only. The application shows
+where the archive lives under Settings → Files.

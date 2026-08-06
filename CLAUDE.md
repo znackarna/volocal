@@ -7679,3 +7679,67 @@ opens it, and the card takes the paper yellow the notes already use.
   (73 passed), `npx tsc --noEmit`, `node scripts/i18n.mjs check`. The workflow
   file parses as YAML. The Tauri system libraries the Linux `cargo check`
   needs are installed explicitly in the job.
+
+### 2026-08-06 — The installer says who made it, and what it is not carrying
+
+Jakub's three decisions, taken on the questions the audit left open: the
+publisher is the company, uninstalling keeps everything, and the program is to
+be signed.
+
+- **Publisher.** `tauri.conf.json` said `Radomil Martinec` while `Cargo.toml`
+  said `značkárna s.r.o.` — the name a reader meets in the installer, in the
+  file's own properties and in the SmartScreen window disagreed with the name
+  in the package. Both now say `značkárna s.r.o.`, which is also what
+  `cz.znackarna.whisp` and the repository already said. Added `copyright`
+  beside it.
+- **Three descriptions, one sentence.** `Cargo.toml` said "Local audio
+  transcription with Whisper", `shortDescription` said `Přepis zvukových
+  záznamů`, and the About card says `Převádí mluvené slovo na text.` The last
+  one is the settled tagline, so `shortDescription` is now that; the new
+  `longDescription` is the About card's own paragraph; the Cargo description
+  is developer-facing and stays English, but says the same thing.
+- **The licence page, and the thing worth getting right.** `bundle.licenseFile`
+  points at a new `src-tauri/LICENSE.txt`, shown by NSIS before installing.
+  The interesting part is what it can honestly claim: **the installer carries
+  the program alone.** Every tool and model — ffmpeg included — is downloaded
+  on first run, directly from its author, by `download.rs`. So this installer
+  does not distribute FFmpeg, and its GPL v3 is not triggered by handing
+  somebody the setup file. It *is* triggered by the portable copy, which
+  bundles `bin/`, and the About card has said so since it was written. The
+  licence page names both cases separately rather than blurring them into one
+  warning, and does the same for Gemma, which is not open source at all.
+- **Uninstalling keeps both folders**, Jakub's call and the default:
+  `%LOCALAPPDATA%\Whisp` (2–12 GB of models) and
+  `%APPDATA%\cz.znackarna.whisp` (the archive — somebody's recordings). NSIS
+  removes the program only. Nothing had to be configured for this; it is
+  recorded because it is a decision, and because the README now tells the
+  reader where to look if they do want to clear it.
+- **Signing** is documented rather than configured, and deliberately.
+  A thumbprint identifies a certificate on one machine, so a value committed
+  here would break the build for anyone else and be wrong the moment the
+  certificate is replaced. `README.md` gained a `Vydání` section with the
+  three lines to add and how to read the thumbprint out of the certificate
+  store.
+- Worth knowing before the certificate is bought, and it is why the README
+  says it rather than just listing steps: since June 2023 the private key must
+  live on a hardware token or in a cloud HSM for **both** OV and EV — the
+  downloadable `.pfx` is gone. And the difference that matters here is not the
+  strength of the signature but SmartScreen's reputation: EV is trusted
+  immediately, OV has to earn it through downloads. Buying OV to make the blue
+  window go away does not make the blue window go away.
+- Added `publish = false` to `Cargo.toml`. Nobody is going to publish this to
+  crates.io on purpose.
+- Files: `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`,
+  `src-tauri/LICENSE.txt`, `README.md`.
+- Verified: `tauri.conf.json` still parses as JSON and every field added was
+  checked against `tauri-utils 2.9.3`'s own `BundleConfig` rather than
+  remembered — `copyright`, `shortDescription`, `longDescription` and
+  `licenseFile` (serde `license_file`) all exist there, which is what the
+  published schema is generated from. `cargo fmt --all --check`;
+  `cargo check --all-targets` with warnings as errors; `cargo test`
+  (73 passed); `npx tsc --noEmit`; `node scripts/i18n.mjs check`.
+- Not verified here, and it needs the real machine: `npm run tauri build` has
+  never been run against this configuration. The field names are right, but
+  whether the NSIS licence page renders `LICENSE.txt` the way it reads on
+  paper is something only a build on Windows can show. Run it once before
+  handing the installer to anybody.

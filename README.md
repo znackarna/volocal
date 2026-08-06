@@ -115,6 +115,54 @@ npm run i18n:check      # texty ve slovníku, množné tvary, vykání, stáří
 cargo fmt --all ; cargo check ; cargo test
 ```
 
+### Vydání
+
+```powershell
+npm run tauri build
+```
+
+Výsledek je `src-tauri\target\release\bundle\nsis\Slobot_0.9.0_x64-setup.exe`.
+Instalátor obsahuje **jen program** — nástroje a modely si Slobot stahuje sám
+při prvním spuštění, takže má řádově megabajty, ne gigabajty. Instaluje se pro
+přihlášeného uživatele (`installMode: currentUser`), takže nechce práva správce.
+
+Odinstalace odebere jen program. Modely v `%LOCALAPPDATA%\Whisp\` i archiv
+v `%APPDATA%\cz.znackarna.whisp\` zůstanou — přeinstalace je pak okamžitá a
+nikdo nepřijde o přepisy. Kdo je chce uklidit, smaže obě složky ručně.
+
+Verze se píše na třech místech a musí souhlasit: `package.json`,
+`src-tauri/Cargo.toml` a `src-tauri/tauri.conf.json`.
+
+#### Podpis
+
+Bez podpisu ukáže Windows při prvním spuštění SmartScreen
+(„Windows ochránil váš počítač" → *Další informace* → *Přesto spustit*).
+
+Od června 2023 nelze certifikát stáhnout jako soubor — soukromý klíč musí být
+na hardwarovém tokenu nebo v cloudovém HSM, a to u OV i EV. Rozdíl mezi nimi
+není v síle podpisu, ale v pověsti u SmartScreenu: **EV má důvěru okamžitě, OV
+si ji musí teprve odchodit** stahováním. Kdo kupuje certifikát právě proto, aby
+zmizelo modré okno, chce EV; OV ho na začátku stejně uvidí.
+
+Až certifikát bude, přidá se do `src-tauri/tauri.conf.json` pod `bundle.windows`:
+
+```jsonc
+"digestAlgorithm": "sha256",
+"timestampUrl": "http://timestamp.sectigo.com",
+"certificateThumbprint": "OTISK BEZ MEZER"
+```
+
+Otisk vypíše `Get-ChildItem Cert:\CurrentUser\My | Format-List Subject,Thumbprint`
+poté, co je certifikát vidět ve Windows (token nebo klient cloudové služby).
+Časové razítko je důležité: bez něj přestanou podepsané soubory platit v den,
+kdy certifikátu vyprší platnost, s ním platí dál.
+
+Nástroj, který certifikát ve Windows nezpřístupní, se místo otisku zapojí přes
+`"signCommand"` — `%1` je zástupný symbol za cestu k podepisovanému souboru.
+
+Otisk je vázaný na konkrétní stroj, takže do repozitáře nepatří; drž ho
+v lokální kopii konfigurace, nebo si ho na počítači, kde se vydává, doplň.
+
 ### Architektura
 
 ```

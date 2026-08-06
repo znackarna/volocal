@@ -32,8 +32,11 @@
   "bundle": {
     "active": true,
     "targets": ["nsis"],
-    "publisher": "Radomil Martinec",
-    "shortDescription": "Přepis zvukových záznamů",
+    "publisher": "značkárna s.r.o.",
+    "copyright": "© 2026 značkárna s.r.o.",
+    "shortDescription": "Převádí mluvené slovo na text",
+    "longDescription": "Slobot převádí mluvené slovo na text. Přepíše nahrávky i videa v češtině a dalších jazycích, rozpozná jednotlivé mluvčí, označí místa, kde si nebyl jistý, a přehrává přesně na slovo. Nahrávky, přepisy i jazykové modely běží na vašem počítači a nic se neodesílá ven.",
+    "licenseFile": "LICENSE.txt",
     "windows": {
       "nsis": {
         "languages": ["Czech", "English"],
