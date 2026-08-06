@@ -7202,3 +7202,30 @@ opens it, and the card takes the paper yellow the notes already use.
   empty folder opened at the top reports the glass off and its breadcrumb
   sharp. The scrollbar route was driven by setting `scrollTop` directly, with
   no wheel event at all, and the hero came back.
+
+### 2026-08-06 — A choice card lifts under the pointer
+
+- Changed, Jakub's ask and explicitly across the whole application: hovering a
+  choice card adds the shared low `--stin` beside the border change it already
+  had. One rule on `.volba`, so it reaches every one of them at once — the
+  three sources in `Nový přepis`, the transcription models, the acceleration
+  cards, the three language-editing tiers, the wizard's quality cards and the
+  AI dialog's modes.
+- The token is the one an archive row already lifts with, not a shadow chosen
+  for these cards. A second elevation value is how two families that should
+  read alike stop doing so.
+- The keyboard gets the same lift (`:focus-visible`). The focus ring says where
+  you are; the shadow says the thing under it is pickable, and that is the same
+  statement whichever way you arrived.
+- Not given one: `.modul-dlazdice`. It shares the card's frame but is a status
+  tile, not a button — nothing happens when it is pointed at, and a shadow
+  would promise that something does.
+- Files: `src/styles.css`, `CLAUDE.md`.
+- Verified: the real `AddRecordingDialog` bundled with esbuild against stubbed
+  Tauri modules and driven in a browser against the real stylesheet at 3× in
+  both colour schemes, with the computed `box-shadow` read off all three cards
+  rather than judged from a screenshot: `none, none, none` at rest and
+  `none, 0 1px 4px, none` with the middle one hovered — so the lift belongs to
+  the card under the pointer and to no other. The dialog's own autofocus makes
+  the first card `:focus-visible` on open, which is what the keyboard half of
+  the rule is for; the reading above was taken after blurring it.

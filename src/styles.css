@@ -1658,9 +1658,18 @@ mark { background: var(--zvyrazneni); color: inherit; padding: 0 2px; border-rad
   display: flex; flex-direction: column; gap: 4px; width: 100%;
   text-align: left; cursor: pointer;
   transition: border-color var(--hover-duration) var(--hover-ease),
-    background var(--hover-duration) var(--hover-ease);
+    background var(--hover-duration) var(--hover-ease),
+    box-shadow var(--hover-duration) var(--hover-ease);
 }
-.volba:hover { border-color: var(--linka-pole); }
+/* Under the pointer a choice card lifts, exactly as an archive row does — the
+   shared low `--stin`, not a shadow chosen for these cards. The keyboard gets
+   the same lift: the focus ring says where you are, the shadow says the thing
+   under it is pickable, and that is the same statement in both directions.
+   One rule for every choice card in the application — the three sources in
+   `Nový přepis`, the transcription models, the acceleration and the
+   language-editing tiers, the wizard's quality cards, the AI dialog's modes. */
+.volba:hover,
+.volba:focus-visible { border-color: var(--linka-pole); box-shadow: var(--stin); }
 .volba.zvolena { border-color: var(--akcent-linka); background: var(--akcent-svetly); }
 .volba-hlava { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
 .volba-nazev { font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 8px; }
