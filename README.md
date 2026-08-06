@@ -133,42 +133,6 @@ nikdo nepřijde o přepisy. Kdo je chce uklidit, smaže obě složky ručně.
 Verze se píše na třech místech a musí souhlasit: `package.json`,
 `src-tauri/Cargo.toml` a `src-tauri/tauri.conf.json`.
 
-#### Aktualizace
-
-Aplikace se jednou denně zeptá veřejného repozitáře **znackarna/slobot-releases**,
-jaká je poslední verze. Kód zůstává v privátním repu; ve veřejném jsou jen
-vydání — instalátor, balík pro updater a `latest.json`. Do rozdané aplikace
-nepatří žádné tajemství, takže tam nesmí být token: proto ta vydání veřejná
-jsou.
-
-**Podepisovací klíč** je jednorázová věc a **do repozitáře nepatří**:
-
-```powershell
-npm run tauri signer generate -- -w $env:USERPROFILE\.tauri\slobot.key
-```
-
-Vypsaný **veřejný** klíč patří do `src-tauri/tauri.conf.json` pod
-`plugins.updater.pubkey` (dnes je tam `ZDE_PATRI_VEREJNY_KLIC`). Soukromý zůstane
-na disku; kdo ho ztratí, nemůže vydat aktualizaci, kterou by už nainstalované
-kopie přijaly.
-
-Vydání pak vypadá takhle:
-
-```powershell
-$env:TAURI_SIGNING_PRIVATE_KEY = Get-Content $env:USERPROFILE\.tauri\slobot.key -Raw
-$env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = "<heslo ke klici>"
-npm run tauri build
-npm run release
-```
-
-`npm run release` sestaví `latest.json` a **odmítne to**, když se verze ve třech
-souborech neshodují, když balík neodpovídá verzi, nebo když chybí podpis. Pak
-založ ve `slobot-releases` vydání označené `v<verze>` a nahraj do něj
-`setup.exe`, `.nsis.zip` a `latest.json`. Ten název musí zůstat, endpoint míří
-na `releases/latest/download/latest.json`.
-
-Poznámky k verzi bere skript z `RELEASE_NOTES.md`, pokud existuje.
-
 #### Podpis
 
 Bez podpisu ukáže Windows při prvním spuštění SmartScreen

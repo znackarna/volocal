@@ -13,13 +13,6 @@ export const enSettings: Partial<Record<keyof typeof csSettings, string>> = {
   "settings.about.description":
     "It turns speech into text. Recordings, transcripts and language models run on your computer alone, and nothing is sent out.",
   "settings.about.version": "Version",
-  "settings.about.update": "Updates",
-  "settings.about.updateCurrent": "You have the latest version.",
-  "settings.about.updateCheck": "Check now",
-  "settings.about.updateFound": "Version {version} is available.",
-  "settings.about.updateInstall": "Update",
-  "settings.about.updateBusy": "Let what is running finish first.",
-  "settings.about.updateNote": "Once a day the application asks what the latest version is. It sends nothing about you or your recordings.",
   "settings.about.author": "Author",
   "settings.about.abilities": "What it can do",
   "settings.about.abilityTranscribe": "Transcribes recordings and videos, in Czech and other languages.",

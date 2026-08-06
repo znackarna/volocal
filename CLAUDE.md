@@ -8195,3 +8195,30 @@ repository that holds only releases.
   is in README under `Vydání`. The private key must never reach the repository:
   without it no update can be published that already-installed copies would
   accept.
+
+### 2026-08-06 — Correcting entry: the updater is withdrawn
+
+- Reverted, on Jakub's word, everything in the entry above: the plugins, the
+  config, `src/updates.ts`, `scripts/release.mjs`, the row on the About card
+  and its strings. His reason, and it is the right one — a better way will turn
+  up, and 0.9.0 does not need this to go out.
+- The entry above stays where it is rather than being deleted. The reasoning in
+  it is the part worth keeping: **why the releases repository has to be public**
+  (a token inside an application handed to other people is not a secret, and it
+  expires where nobody can replace it), what the check may and may not do
+  (once a day, silent on failure, never in front of the window), and why
+  installing must refuse while a run is going. Whoever picks this up next
+  starts from there rather than from nothing.
+- Kept from that work, because it was a defect of its own and nothing to do
+  with updating: the About card's heading said `Whisp`, a name the application
+  has not had since 2026-08-05. It says `Slobot`.
+- Also true and worth stating plainly: the reason it had to be reverted rather
+  than paused is that it **blocked the build**. `createUpdaterArtifacts` wants
+  a signing key at build time, so the configuration cannot sit in the
+  repository half-finished — it is either complete or it is out.
+- Files: `src-tauri/Cargo.toml`, `src-tauri/Cargo.lock`,
+  `src-tauri/tauri.conf.json`, `src-tauri/capabilities/default.json`,
+  `src-tauri/src/main.rs`, `src/App.tsx`, `src/Settings.tsx`,
+  `src/styles.css`, `package.json`, `package-lock.json`, `README.md`,
+  `src/locales/{cs,en}/{app,settings}.ts`, `src/locales/sources.json`;
+  `src/updates.ts` and `scripts/release.mjs` removed.

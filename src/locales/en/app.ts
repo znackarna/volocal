@@ -6,7 +6,6 @@ export const enApp: Partial<Record<keyof typeof csApp, string>> = {
   "app.newTranscript": "New transcript",
   "app.download.running": "Downloading {name}",
   "app.download.cancel": "Cancel the download",
-  "app.update.installing": "Installing version {version}",
   "app.shell.statusBar": "Application status",
   "app.shell.statusItem": "{label}: {value}",
   "app.shell.transcriptCount": "Transcripts",

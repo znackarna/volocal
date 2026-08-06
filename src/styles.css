@@ -3000,10 +3000,3 @@ button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
 .kontextova-nabidka .nabidka-akci-seznam {
   position: static; min-width: 208px;
 }
-
-/* The updates row on the About card: a sentence and the action it belongs to,
-   on one line, ending at the panel's own right edge like every other value. */
-.about-aktualizace {
-  display: flex; align-items: center; justify-content: flex-end; gap: 12px;
-}
-.about-aktualizace .tlacitko { height: 28px; padding: 0 12px; font-size: 12.5px; }

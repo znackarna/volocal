@@ -18,8 +18,6 @@ import AddRecordingDialog from "./AddRecordingDialog";
 import SpeakerCountDialog from "./SpeakerCountDialog";
 import RecordingMetadataIcon from "./RecordingMetadataIcon";
 import ProgressBubble from "./ProgressBubble";
-import { lookForUpdate, installUpdate } from "./updates";
-import type { UpdateOffer } from "./updates";
 import type { CSSProperties } from "react";
 import type { RecordingMetadataKind } from "./RecordingMetadataIcon";
 // inlined into the page rather than via <img>, for sharpness and colours
@@ -188,8 +186,6 @@ export default function App() {
   /* Only so the bubble can say which component, by the name the catalogue
      gives it rather than by its id. */
   const [catalogItems, setCatalogItems] = useState<DownloadComponent[]>([]);
-  const [update, setUpdate] = useState<UpdateOffer | null>(null);
-  const [updating, setUpdating] = useState<number | null>(null);
   const [liveSegments, setLiveSegments] = useState<Record<string, LiveSegment[]>>({});
   const [watchCandidates, setWatchCandidates] = useState<WatchFolderCandidate[]>([]);
   const [watchDecisionRunning, setWatchDecisionRunning] = useState(false);
@@ -441,12 +437,6 @@ export default function App() {
     // Names for the download bubble. One call at start-up; the catalogue is a
     // constant list compiled into the backend, not something that changes.
     api.catalog().then(setCatalogItems).catch(() => {});
-    // Deliberately after the window is up and deliberately not awaited: the
-    // first thing a person sees must not wait on somebody else's server.
-    const askAboutUpdate = window.setTimeout(
-      () => void lookForUpdate().then(setUpdate),
-      4000
-    );
     loadToolCheck().then((k) => {
       if (k && k.issues.length > 0) {
         setWizardRequired(true);
@@ -454,7 +444,6 @@ export default function App() {
         setScreen("wizard");
       }
     });
-    return () => window.clearTimeout(askAboutUpdate);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadRecordings, loadToolCheck]);
 
@@ -1000,27 +989,6 @@ export default function App() {
     };
   }, [formats, labels, recordings, selectedId]);
 
-  /** Nothing is worth interrupting a run for. The installer closes the
-   *  application and restarts it, which mid-transcription is the orphaned
-   *  process and the lost run all over again — so the offer stays and the
-   *  button says why. */
-  const busyWithWork =
-    Object.keys(progress).length > 0 ||
-    Object.keys(aiProgress).length > 0 ||
-    diarizingIds.length > 0 ||
-    downloading !== null;
-
-  const startUpdate = useCallback(async () => {
-    if (!update || busyWithWork) return;
-    setUpdating(0);
-    try {
-      await installUpdate(update, (state) => setUpdating(state.percent ?? 0));
-    } catch (error) {
-      setUpdating(null);
-      reportError(error instanceof Error ? error.message : String(error));
-    }
-  }, [update, busyWithWork, reportError]);
-
   const leaveWizard = useCallback(() => {
     setWizardRequired(false);
     setMissingModule(null);
@@ -1330,10 +1298,6 @@ export default function App() {
 
       {screen === "settings" && (
         <SettingsScreen
-          update={update}
-          updateBusy={busyWithWork || updating !== null}
-          onCheckForUpdate={() => lookForUpdate(true).then(setUpdate)}
-          onInstallUpdate={() => void startUpdate()}
           onComplete={() => {
             loadToolCheck();
             loadAppearance();
@@ -1489,17 +1453,9 @@ export default function App() {
         onSubmit={(name) => void submitFolderDialog(name)}
       />
 
-      {updating !== null && (
-        <ProgressBubble
-          variant="download"
-          description={t("app.update.installing", { version: update?.version ?? "" })}
-          percent={updating}
-        />
-      )}
-
       {/* Not on the wizard: that screen lists every component with its own
           progress, and a bubble repeating one of them would be noise. */}
-      {downloading && screen !== "wizard" && updating === null && (
+      {downloading && screen !== "wizard" && (
         <ProgressBubble
           variant="download"
           description={t("app.download.running", {

@@ -29,21 +29,9 @@
       }
     }
   },
-  "plugins": {
-    "updater": {
-      "endpoints": [
-        "https://github.com/znackarna/slobot-releases/releases/latest/download/latest.json"
-      ],
-      "windows": {
-        "installMode": "passive"
-      },
-      "pubkey": "ZDE_PATRI_VEREJNY_KLIC"
-    }
-  },
   "bundle": {
     "active": true,
     "targets": ["nsis"],
-    "createUpdaterArtifacts": true,
     "publisher": "značkárna s.r.o.",
     "copyright": "© 2026 značkárna s.r.o.",
     "shortDescription": "Převádí mluvené slovo na text",
