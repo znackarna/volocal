@@ -9249,3 +9249,81 @@ Nobody packages it because it is three existing pieces in a new order.
   from documentation prose. **Not compiled** — no cargo in that session, and the
   probe is outside the workspace so CI does not build it either. The first
   machine to compile this is the one that runs it.
+
+### 2026-08-07 — What DirectML is worth, measured on the real machine
+
+The probe compiled first time and ran on Jakub's Radeon. Numbers, median of 20
+runs after a discarded warm-up, so that anyone can stop guessing.
+
+**CAM++, the speaker embedding — the graphics card wins, but only in bulk.**
+
+| batch | DirectML | processor | per segment on DML |
+|---|---|---|---|
+| 1 | 5.57 ms | 8.26 ms | 5.571 ms |
+| 4 | 69.36 ms | 21.42 ms | 17.339 ms |
+| 16 | 70.31 ms | 68.87 ms | 4.394 ms |
+| 64 | 86.46 ms | 312.31 ms | 1.351 ms |
+| 256 | 155.45 ms | 1390.43 ms | **0.607 ms** |
+
+One segment at a time is 1.5×, which is nothing; 256 at a time is **8.9×**, and
+the per-segment curve is still falling. The card was idle, not slow. Note the
+constant ~65 ms that appears from batch 4 upward and does not grow with the
+work — fixed overhead, and a hint that `with_dimension_override` would help,
+since both of this model's dimensions are dynamic.
+
+**pyannote, the segmentation — the graphics card is useless here.**
+
+| batch | DirectML | processor |
+|---|---|---|
+| 1 | 22.08 ms | 12.21 ms |
+| 4 | 1759.83 ms | 34.98 ms |
+| 16 | 1762.01 ms | 94.30 ms |
+| 64 | 1755.93 ms | 361.44 ms |
+| 256 | 1783.17 ms | 1351.33 ms |
+
+**Pinned at 1.76 s from batch 4 to batch 256** — sixty times the work in the
+same time. That is not computation, it is a fixed cost paid every run, and the
+processor is faster in every single row. The likely cause is that pyannote
+carries a recurrent layer DirectML cannot place, so ONNX Runtime splits the
+graph and copies tensors between device and host on every run. Not diagnosed
+further, because the conclusion does not change: this model stays on the CPU.
+
+- **And a number that does not add up, which matters more than either table.**
+  Ten minutes of audio is on the order of 150 segments; at the measured CPU
+  cost that is about a second of embedding, and the segmentation windows come
+  to a few seconds more. The whole diarization takes 95 seconds. **So neither
+  model's inference is where the time goes** — it is in feature extraction, in
+  clustering, or in sherpa computing far more windows than assumed. Accelerating
+  the models was the wrong thing to measure, and that is the finding.
+- Files: `probe/ort-dml/src/main.rs` (gained `--sweep` and `--batch`).
+
+### 2026-08-07 — Correcting entry: the embedding test was measured on the worst possible sample
+
+- With the model reachable from Python in the session, the real CAM++ was run
+  over Jakub's interview against his ten hand-labelled windows, to see whether
+  "name a few voices, assign the rest" works with proper embeddings where cheap
+  DSP scored 4 of 8. It scored **2 of 8**, and same-speaker cosine averaged
+  0.159 where a working speaker embedding gives 0.7 or better.
+- That reads as a catastrophic result and it is not one. The control says so:
+  Jakub's own voice against itself is **+0.445**, and against a voice from the
+  interview **−0.086**. Positive against negative — the model separates people
+  cleanly. Nothing is broken.
+- **The sample was the defect, and it was mine.** Those ten windows were chosen
+  by *maximum mutual distance* in the cheap-DSP feature space — that is, the ten
+  least typical moments in the recording: laughter, overlap, and places where a
+  speaker changes mid-window. Two adjacent three-second windows at 2:02 score
+  0.129 against each other, which is a speaker change, not a bad embedding. The
+  model was scored on the hardest material in the file and the number reported
+  as its accuracy.
+- Second defect, smaller: the fbank here is hand-written and only approximates
+  Kaldi's. Same-speaker similarity around 0.44 rather than 0.7 is the tell. A
+  faithful implementation is `knf-rs`/`kaldi-native-fbank`, which is what sherpa
+  itself uses.
+- **So the question is still open.** A fair test picks windows from long
+  continuous single-speaker stretches — medoids rather than outliers — and
+  discards any window whose two halves disagree with each other, because that
+  window contains a handover. Recorded so the next attempt does not repeat the
+  selection error rather than the measurement.
+- Lesson, and it is the third time today in a different costume: a measurement
+  is only as good as its sample. Choosing the most extreme examples felt like
+  choosing the most informative ones, and it was the opposite.
