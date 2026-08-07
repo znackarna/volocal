@@ -280,6 +280,135 @@ pub fn windows(blocks: &[(f64, f64)]) -> Vec<Window> {
     out
 }
 
+// ------------------------------------------------------------------- model
+
+/// CAM++ returns this many numbers per voice.
+pub const EMBEDDING: usize = 192;
+
+/// How many windows go to the card at once.
+///
+/// Measured, not guessed: one at a time the card is 1.5x the processor and most
+/// of that time is spent moving data across the bus; at 256 it is 8.9x and the
+/// per-window cost is still falling — 5.571 ms each at a batch of one against
+/// 0.607 ms at 256. The ceiling is memory, and 256 windows of two seconds is
+/// about 16 MB, which is nothing.
+const BATCH: usize = 256;
+
+/// The speaker model, held open for the length of one recording.
+///
+/// It replaces `sherpa-onnx-offline-speaker-diarization.exe`: same model file,
+/// but in this process, so the embeddings themselves are available rather than
+/// only the groups sherpa decided on. That is what lets somebody name two
+/// voices and have the rest assigned by similarity — the executable's stdout
+/// could never give us the numbers.
+pub struct Voices {
+    session: ort::session::Session,
+    input: String,
+}
+
+impl Voices {
+    /// Opens the model that the installer already downloads.
+    pub fn open(model: &std::path::Path) -> anyhow::Result<Self> {
+        use ort::session::{builder::GraphOptimizationLevel, Session};
+
+        let mut providers = Vec::new();
+        #[cfg(windows)]
+        providers.push(ort::ep::DirectML::default().build());
+        // Last in line, and reached silently: when a provider cannot be
+        // registered ONNX Runtime falls through to the next one and logs at a
+        // level nobody subscribes to. So nothing here reports which one ran —
+        // only the clock can, which is what the probe in `probe/ort-dml` is for.
+        providers.push(ort::ep::CPU::default().build());
+
+        let builder = Session::builder()?.with_optimization_level(GraphOptimizationLevel::Level3)?;
+        // Not tuning but a condition: DirectML refuses to create a session
+        // while memory-pattern optimisation is on, and it is on by default.
+        #[cfg(windows)]
+        let builder = builder.with_memory_pattern(false)?;
+
+        let session = builder
+            .with_execution_providers(providers)?
+            .commit_from_file(model)?;
+
+        // Read the name rather than writing `x` here: it is the model's to
+        // choose, and it is one less thing to be quietly wrong.
+        let input = session
+            .inputs()
+            .first()
+            .ok_or_else(|| anyhow::anyhow!("the speaker model declares no input"))?
+            .name()
+            .to_owned();
+
+        Ok(Voices { session, input })
+    }
+
+    /// A unit-length voiceprint per window, in the order the windows came in.
+    ///
+    /// Windows of different lengths cannot share one batch — the model's middle
+    /// dimension is the frame count and a batch has one of it — so they are
+    /// grouped by length first. In practice almost every window is the full two
+    /// seconds, so the groups are large and the batching is worth having.
+    pub fn embed(&mut self, windows: &[Features]) -> anyhow::Result<Vec<Vec<f32>>> {
+        let mut out = vec![Vec::new(); windows.len()];
+        for (frames, group) in by_length(windows) {
+            for chunk in group.chunks(BATCH) {
+                let mut data = Vec::with_capacity(chunk.len() * frames * BANDS);
+                for &index in chunk {
+                    data.extend_from_slice(&windows[index].data);
+                }
+                let shape = vec![chunk.len() as i64, frames as i64, BANDS as i64];
+                let tensor = ort::value::TensorRef::from_array_view((shape, data.as_slice()))?;
+                let result = self.session.run(ort::inputs![self.input.as_str() => tensor])?;
+                let (_, values) = result[0].try_extract_tensor::<f32>()?;
+                if values.len() != chunk.len() * EMBEDDING {
+                    anyhow::bail!(
+                        "the speaker model returned {} numbers for {} windows, expected {}",
+                        values.len(),
+                        chunk.len(),
+                        chunk.len() * EMBEDDING
+                    );
+                }
+                for (row, &index) in chunk.iter().enumerate() {
+                    out[index] = unit(&values[row * EMBEDDING..(row + 1) * EMBEDDING]);
+                }
+            }
+        }
+        Ok(out)
+    }
+}
+
+/// Indices grouped by frame count, so each group can go in one batch.
+fn by_length(windows: &[Features]) -> Vec<(usize, Vec<usize>)> {
+    let mut groups: Vec<(usize, Vec<usize>)> = Vec::new();
+    for (index, w) in windows.iter().enumerate() {
+        match groups.iter_mut().find(|(frames, _)| *frames == w.frames) {
+            Some((_, list)) => list.push(index),
+            None => groups.push((w.frames, vec![index])),
+        }
+    }
+    groups
+}
+
+/// Scaled to length one, because everything downstream compares by cosine and
+/// a comparison against vectors of different lengths measures loudness as much
+/// as voice.
+fn unit(values: &[f32]) -> Vec<f32> {
+    let norm = values.iter().map(|v| v * v).sum::<f32>().sqrt();
+    if norm <= f32::EPSILON {
+        return values.to_vec();
+    }
+    values.iter().map(|v| v / norm).collect()
+}
+
+/// How alike two voiceprints are, between -1 and 1. Both are unit length, so
+/// this is the dot product and nothing else.
+///
+/// For scale, measured on two-second windows of a real interview: the same
+/// person averages 0.36 and two different people 0.06.
+pub fn alike(a: &[f32], b: &[f32]) -> f32 {
+    a.iter().zip(b).map(|(x, y)| x * y).sum()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -498,5 +627,78 @@ mod tests {
         assert!(w.iter().any(|x| x.segment == 1));
         assert!(w.iter().any(|x| x.segment == 2));
         assert!(w.iter().all(|x| x.end > x.start));
+    }
+
+    // --------------------------------------------------------------- model
+
+    fn dummy(frames: usize) -> Features {
+        Features {
+            data: vec![0.0; frames * BANDS],
+            frames,
+        }
+    }
+
+    /// The model's middle dimension is the frame count, so a batch has one of
+    /// it. Windows of different lengths therefore cannot travel together, and
+    /// the grouping is what makes batching possible at all.
+    #[test]
+    fn windows_of_one_length_travel_together() {
+        let w = [dummy(198), dummy(80), dummy(198), dummy(198), dummy(80)];
+        let mut groups = by_length(&w);
+        groups.sort_by_key(|(frames, _)| *frames);
+
+        assert_eq!(groups.len(), 2, "two lengths, two groups");
+        assert_eq!(groups[0], (80, vec![1, 4]));
+        assert_eq!(groups[1], (198, vec![0, 2, 3]));
+    }
+
+    /// Every window must come back, and in its own place — the caller matches
+    /// answers to blocks by index.
+    #[test]
+    fn the_grouping_loses_nothing_and_reorders_nothing() {
+        let w: Vec<Features> = (0..50).map(|i| dummy(100 + i % 3)).collect();
+        let groups = by_length(&w);
+        let mut seen: Vec<usize> = groups.iter().flat_map(|(_, list)| list.clone()).collect();
+        seen.sort_unstable();
+        assert_eq!(seen, (0..50).collect::<Vec<_>>());
+        for (frames, list) in &groups {
+            for &i in list {
+                assert_eq!(w[i].frames, *frames);
+            }
+            assert!(
+                list.windows(2).all(|p| p[0] < p[1]),
+                "order kept inside a group"
+            );
+        }
+    }
+
+    #[test]
+    fn a_voiceprint_is_scaled_to_length_one() {
+        let v = unit(&[3.0, 4.0]);
+        assert!((v[0] - 0.6).abs() < 1e-6 && (v[1] - 0.8).abs() < 1e-6);
+        assert!(
+            (alike(&v, &v) - 1.0).abs() < 1e-6,
+            "a voice is identical to itself"
+        );
+    }
+
+    /// Nothing to divide by, and nothing to say about it either — but it must
+    /// not become a vector of NaN that quietly poisons every comparison.
+    #[test]
+    fn silence_does_not_become_nonsense() {
+        let v = unit(&[0.0; EMBEDDING]);
+        assert_eq!(v.len(), EMBEDDING);
+        assert!(v.iter().all(|x| x.is_finite()));
+    }
+
+    #[test]
+    fn opposite_voices_are_told_apart() {
+        let a = unit(&[1.0, 0.0, 0.0]);
+        let b = unit(&[0.0, 1.0, 0.0]);
+        assert!(
+            alike(&a, &b).abs() < 1e-6,
+            "unrelated directions score zero"
+        );
+        assert!(alike(&a, &unit(&[-1.0, 0.0, 0.0])) < -0.99);
     }
 }

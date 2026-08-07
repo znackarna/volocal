@@ -4,7 +4,9 @@ version = "0.9.0"
 description = "Slobot turns speech into text, on your own machine"
 authors = ["značkárna s.r.o."]
 edition = "2021"
-rust-version = "1.77"
+# Raised from 1.77 by `ort`, which is edition 2024 and declares 1.88 itself.
+# Declaring less than a dependency needs is a promise the build cannot keep.
+rust-version = "1.88"
 # Not a crate anybody publishes; the guard is here so nobody does by accident.
 publish = false
 
@@ -25,6 +27,15 @@ windows = { version = "0.61.3", features = [
     "Win32_System_JobObjects",
     "Win32_System_Threading",
 ] }
+# The graphics card, and the reason it is only asked for here. ONNX Runtime has
+# no Vulkan provider and never has, so the AMD route is DirectML — which exists
+# on Windows and nowhere else. `ort` merges this with the plain dependency
+# below, so Linux still builds; it simply has no `ort::ep::DirectML` to name.
+#
+# Measured on the machine this was written for: 8.9x faster than the processor
+# at a batch of 256, and 1.5x at a batch of one. It is worth having only because
+# the work arrives in batches.
+ort = { version = "=2.0.0-rc.13", features = ["directml"] }
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
@@ -43,6 +54,13 @@ chrono = "0.4"
 # stahovani nastroju a modelu primo z aplikace
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "rustls-tls"] }
 zip = "2"
+# Speaker embedding, in this process instead of a downloaded executable.
+# Pinned with `=` on purpose: `ort` is in release candidates and the API breaks
+# between them — between rc.9 and rc.13 nearly every call this uses was renamed.
+# `download-binaries` is a default feature, so ONNX Runtime arrives on its own;
+# on Windows there is no plain build in its distribution table, so the one it
+# fetches is the DirectML build.
+ort = "=2.0.0-rc.13"
 
 [profile.release]
 opt-level = "s"

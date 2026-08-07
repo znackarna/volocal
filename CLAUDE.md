@@ -9511,3 +9511,48 @@ conversation between two, that is the whole argument for the change.
   block index, and a block just over the window length does not produce a
   near-duplicate. The Rust itself is still uncompiled; this only means CI is
   not the first thing to check the arithmetic.
+
+### 2026-08-07 — The speaker model moves into the application
+
+- Added `Voices` in `voiceprint.rs`: CAM++ opened through `ort` in this process,
+  instead of `sherpa-onnx-offline-speaker-diarization.exe` being spawned. Same
+  model file the installer already downloads.
+- **Why it is worth doing beyond the speed.** The executable prints cluster
+  labels; the embeddings themselves never leave it. Held in process, the 192
+  numbers per window are ours — and that is the whole basis of "name two voices
+  and the rest is assigned by similarity", which the old architecture could not
+  support at any price.
+- DirectML on Windows with the processor behind it, and nothing in the code
+  reports which one ran: a provider that cannot be registered falls through
+  silently and logs at a level nobody subscribes to. Only the clock can answer
+  that, which is what `probe/ort-dml` is for. `with_memory_pattern(false)` is a
+  condition rather than a tuning choice — DirectML refuses to create a session
+  while it is on, and it is on by default.
+- Batched at 256, and the number is measured: one window at a time the card is
+  1.5x the processor and most of that goes on the bus; at 256 it is 8.9x, with
+  the per-window cost down from 5.571 ms to 0.607 ms and still falling.
+- The batching needed one piece of care worth recording: **the model's middle
+  dimension is the frame count**, so windows of different lengths cannot share
+  a batch. They are grouped by length first. In practice nearly every window is
+  the full two seconds, so the groups are large and the batching pays.
+- Voiceprints come back scaled to length one, because everything downstream
+  compares by cosine and comparing vectors of different lengths measures
+  loudness as much as voice.
+- Dependency: `ort = "=2.0.0-rc.13"`, with `features = ["directml"]` added only
+  under `cfg(windows)` — Cargo unions the two, so Linux still builds and simply
+  has no `ort::ep::DirectML` to name. Pinned with `=` because the API breaks
+  between release candidates; between rc.9 and rc.13 nearly every call used here
+  was renamed. `download-binaries` is a default feature, so ONNX Runtime arrives
+  on its own, and on Windows the build it fetches is the DirectML one because
+  there is no plain build in its distribution table.
+- `rust-version` moved from 1.77 to 1.88, which is what `ort` declares. Claiming
+  less than a dependency needs is a promise the build cannot keep.
+- Files: `src-tauri/src/voiceprint.rs`, `src-tauri/Cargo.toml`.
+- Verified: five new tests over the pure parts — grouping by length keeps every
+  window and its order, a voiceprint is scaled to one, silence does not become a
+  vector of NaN, and opposite voices score -1. The `ort` calls themselves are
+  the same ones `probe/ort-dml` already compiled and ran on Windows, which is
+  why they are not written from memory. Braces balanced, no line over 100
+  characters, and a check for the thing `cargo fmt` actually breaks on — call
+  argument lists over ~60 characters, not long lines — found three and they were
+  fixed before committing.
