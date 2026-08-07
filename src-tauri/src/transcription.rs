@@ -3063,11 +3063,7 @@ mod onset_tests {
             order: 0,
             start,
             end,
-            text: words
-                .iter()
-                .map(|(s, _)| *s)
-                .collect::<Vec<_>>()
-                .join(" "),
+            text: words.iter().map(|(s, _)| *s).collect::<Vec<_>>().join(" "),
             speakers: None,
             confidence: None,
             edited: false,
