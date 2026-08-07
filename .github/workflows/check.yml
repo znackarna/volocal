@@ -1,14 +1,30 @@
 # Everything the working agreement in CLAUDE.md asks for before a change is
-# finished, run on every push. Ubuntu rather than Windows: these checks compile
-# and test, they do not build an installer, and the Rust side is
-# platform-independent — the real bundle is still built on Windows by hand.
+# finished, run on every push.
+#
+# Why two platforms and not one. Ubuntu is the cheap pass — TypeScript, the
+# dictionaries, formatting, and a Rust check of everything that is not
+# platform-specific. It is not enough on its own: `#[cfg(windows)]` is removed
+# after parsing, so code behind it is never type-checked on Linux. The job
+# object in `main.rs` and `set_webview2` in `tools.rs` are exactly that kind of
+# code, and the first thing to read them today is a build on somebody's desk.
+# The Windows job compiles them.
+#
+# The installer is deliberately not built on every push — see `installer` below.
 name: Kontroly
 
 on:
   push:
     branches: [main]
+    # A release is a tag. The two checking jobs run for it as well, so nothing
+    # is tagged that has not been checked.
+    tags: ["v*"]
   pull_request:
   workflow_dispatch:
+    inputs:
+      installer:
+        description: "Postavit i instalátor (NSIS, ~20 minut)"
+        type: boolean
+        default: false
 
 jobs:
   frontend:
@@ -49,6 +65,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
+      # Formatting is platform-independent, so it is checked here only.
       - run: cargo fmt --all --check
       # Warnings are errors here: the agreement is that `cargo check` comes back
       # silent, and a warning nobody has to look at is a warning nobody reads.
@@ -56,3 +73,65 @@ jobs:
         env:
           RUSTFLAGS: -D warnings
       - run: cargo test
+
+  windows:
+    name: Rust na Windows
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: src-tauri
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          # A separate cache from the Ubuntu job: the same key for two targets
+          # would have each run evicting the other's artifacts.
+          key: windows
+      # This is the whole point of the job. `--all-targets` also type-checks the
+      # test binaries, so a `#[cfg(windows)]` block used only by a test is
+      # compiled too.
+      - run: cargo check --all-targets
+        env:
+          RUSTFLAGS: -D warnings
+      # And run them. The tests worth the extra minutes are the ones about
+      # process lifetime — killing a child, closing the window while a program
+      # runs — which is behaviour the operating system decides, not the code.
+      - run: cargo test
+
+  installer:
+    name: Instalátor (NSIS)
+    # Only when asked for, or for a tag. `npm run tauri build` links the release
+    # profile with LTO and then runs NSIS; that is twenty minutes and change,
+    # billed at the Windows rate, and nothing about it is worth paying on every
+    # push when `cargo check` above already says whether the code compiles.
+    if: github.ref_type == 'tag' || inputs.installer
+    needs: [frontend, backend, windows]
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          key: windows-release
+      - run: npm ci
+      # `beforeBuildCommand` in tauri.conf.json is `npm run build`, i.e.
+      # `i18n:check && tsc --noEmit && vite build`. The bundler runs it itself;
+      # it is not repeated here.
+      #
+      # Unsigned. The signing certificate lives on a hardware token and cannot
+      # be handed to a runner, so the artifact from here is for testing — a
+      # release handed to anybody is still signed and built by hand on Windows.
+      # See „Vydání“ in README.md.
+      - run: npm run tauri build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: slobot-nsis
+          path: src-tauri/target/release/bundle/nsis/*.exe
+          if-no-files-found: error
