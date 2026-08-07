@@ -9210,3 +9210,42 @@ Nobody packages it because it is three existing pieces in a new order.
 - **The one measurement to make first**, before any of it: whether `ort` with
   DirectML actually gets that Radeon under load. If it does not, none of this
   changes the 95 seconds.
+
+### 2026-08-07 — A measuring stick for the DirectML question
+
+- Added `probe/ort-dml/`, a standalone crate that is **deliberately not part of
+  the application**: it loads the CAM++ model the installer already downloads,
+  feeds it synthetic input of whatever shape the model declares, and times N
+  runs on DirectML and on the processor. Two commands, one number each.
+- It is separate on purpose. `ort` in the application's own dependencies would
+  pull the whole of ONNX Runtime into every build, and that is too much to pay
+  for answering one question. If the answer is yes, this folder becomes the
+  start of the real integration; if no, it is deleted.
+- Pinned with `=` rather than a caret. `ort` is in release candidates and the
+  API genuinely breaks between them — between rc.9 and rc.13 almost everything
+  this probe touches was renamed (`ort::execution_providers` → `ort::ep`,
+  `commit()` stopped returning a `Result`, `session.inputs` became a method,
+  `ValueType::Tensor`'s `dimensions` became `shape`). Anything written from
+  memory or from a blog post is rc.9-era and will not compile.
+- Two things in it are requirements rather than tuning, and both are commented
+  at the line: `with_memory_pattern(false)` is mandatory when DirectML is
+  registered — Microsoft's documentation says session creation *errors* without
+  it — and the warm-up run is excluded from the average because on DirectML it
+  carries driver start-up and graph compilation and is much the longest.
+- Why the timings are the answer and the log is not: a provider that fails to
+  register falls through to the next one **silently**, with only a `tracing`
+  error nobody is subscribed to, and even a successfully registered provider
+  may still have ONNX Runtime place the nodes on the CPU. `is_available()`
+  reports whether the build contains DirectML, not whether this machine can use
+  it. Wall-clock is the only honest signal.
+- Expect the dynamic frame count to be the biggest single factor if the numbers
+  disappoint: DirectML's own documentation says it performs best when shapes
+  are known at session creation, and CAM++ declares a variable number of
+  frames. `with_dimension_override` is the lever, and the probe prints the
+  symbol names needed to use it.
+- Files: `probe/ort-dml/Cargo.toml`, `probe/ort-dml/src/main.rs`, `.gitignore`.
+- Verified: every signature, feature name and default was read out of the
+  `ort 2.0.0-rc.13` and `ort-sys 2.0.0-rc.13` sources on crates.io rather than
+  from documentation prose. **Not compiled** — no cargo in that session, and the
+  probe is outside the workspace so CI does not build it either. The first
+  machine to compile this is the one that runs it.

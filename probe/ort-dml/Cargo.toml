@@ -1,0 +1,22 @@
+# Stojí stranou aplikace schválně.
+#
+# Tohle není součást Slobota a nikdy nemá být — je to jednorázové měřidlo,
+# které má odpovědět na jedinou otázku: rozhýbe DirectML tuhle grafickou kartu?
+# Kdyby `ort` viselo v závislostech aplikace, stahoval by se s ním při každém
+# překladu i celý ONNX Runtime, a to za odpověď na jednu otázku nestojí.
+#
+# Až bude odpověď známá, tahle složka buď zmizí, nebo se z ní stane základ
+# skutečné integrace.
+[package]
+name = "ort-dml-probe"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+# Přesná verze, ne stříška: `ort` je v release-candidate fázi a API se mezi
+# jednotlivými rc opravdu láme (mezi rc.9 a rc.13 se přejmenovalo skoro všechno,
+# co tenhle program používá). `download-binaries` je výchozí featura, takže se
+# ONNX Runtime stáhne sám — na Windows je to shodou okolností právě ten build
+# s DirectML, jiný pro x64 ani neexistuje.
+ort = { version = "=2.0.0-rc.13", features = ["directml"] }
