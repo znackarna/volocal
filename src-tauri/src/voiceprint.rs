@@ -321,7 +321,9 @@ mod tests {
     fn every_band_averages_zero_after_normalisation() {
         let f = features(&reference_signal()).unwrap();
         for b in 0..BANDS {
-            let mean: f64 = (0..f.frames).map(|i| f.data[i * BANDS + b] as f64).sum::<f64>()
+            let mean: f64 = (0..f.frames)
+                .map(|i| f.data[i * BANDS + b] as f64)
+                .sum::<f64>()
                 / f.frames as f64;
             assert!(mean.abs() < 1e-4, "band {b} averages {mean}, not zero");
         }
@@ -389,7 +391,12 @@ mod tests {
     #[test]
     fn the_filterbank_and_the_window_match_the_reference() {
         let w = window();
-        close(w.iter().sum::<f64>() as f32, 212.146_985, 1e-2, "window sum");
+        close(
+            w.iter().sum::<f64>() as f32,
+            212.146_985,
+            1e-2,
+            "window sum",
+        );
         close(w[0] as f32, 0.0, 1e-9, "window starts at zero");
         close(w[200] as f32, 0.999_987, 1e-5, "window peaks near one");
 
