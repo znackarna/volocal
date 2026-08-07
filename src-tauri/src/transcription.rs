@@ -562,7 +562,8 @@ fn run_diarization(
     )?;
     stop_if_cancelled(task, recording_id)?;
 
-    let segments = assign_speakers(segments, &turns);
+    let mut segments = assign_speakers(segments, &turns);
+    bridge_unknown(&mut segments);
 
     status(app, recording_id, "saving", 90, step("saving"));
 
@@ -790,7 +791,10 @@ fn run(
                 // Diarization owns 90..95; saving takes it from there.
                 Some((app, recording_id, TRANSCRIPTION_END_PERCENT as f64, 95.0)),
             ) {
-                Ok(turns) => segments = assign_speakers(segments, &turns),
+                Ok(turns) => {
+                    segments = assign_speakers(segments, &turns);
+                    bridge_unknown(&mut segments);
+                }
                 Err(error) => {
                     // Diarizace je bonus. Kdyz selze, prepis prece nezahodime.
                     // The reason itself is the caption: it is one finished
@@ -2572,6 +2576,63 @@ fn speaker_for(start: f64, end: f64, turns: &[SpeakerTurn]) -> Option<String> {
 /// the speech changes hands.
 ///
 /// Returns a new list — there may be more segments than before.
+/// Longest gap this will bridge. A block goes unidentified because it is too
+/// short to ask the model about — under 0.8 s, in the recording this was
+/// measured on — so anything appreciably longer is unidentified for some other
+/// reason and is not ours to fill in.
+const BRIDGE_LONGEST: f64 = 2.0;
+
+/// A short block nobody could identify, with the same voice on both sides of
+/// it, belongs to that voice.
+///
+/// It is not a guess. "Yeah." and "Okay." are a third of a second, which is far
+/// too little to recognise anybody from, so the model is never asked about
+/// them — 34 of 371 blocks in the interview this was written for. Of those 34,
+/// **25 sat between two blocks of one person**: Damon before, Damon after, a
+/// third of a second in between. The remaining 9 lay between two different
+/// people and are left alone, because there it really is not known.
+///
+/// It also settles the repeated name in exports. A block with no speaker used
+/// to break the turn, so a label was printed again on the other side of every
+/// "Yeah." — and it was exactly those 25 that caused it.
+fn bridge_unknown(segments: &mut [Segment]) -> usize {
+    let mut filled = 0;
+    let mut at = 0;
+    while at < segments.len() {
+        if segments[at].speakers.is_some() {
+            at += 1;
+            continue;
+        }
+        let mut end = at;
+        while end < segments.len() && segments[end].speakers.is_none() {
+            end += 1;
+        }
+        // Both sides must exist and agree. A run at either edge of the
+        // recording has only one neighbour and stays as it is.
+        let before = at
+            .checked_sub(1)
+            .and_then(|i| segments[i].speakers.clone());
+        let after = segments.get(end).and_then(|s| s.speakers.clone());
+        let bridged = match (before, after) {
+            (Some(a), Some(b)) if a == b => Some(a),
+            _ => None,
+        };
+        if let Some(voice) = bridged {
+            let long = segments[at..end]
+                .iter()
+                .any(|s| s.end - s.start > BRIDGE_LONGEST);
+            if !long {
+                for segment in &mut segments[at..end] {
+                    segment.speakers = Some(voice.clone());
+                    filled += 1;
+                }
+            }
+        }
+        at = end.max(at + 1);
+    }
+    filled
+}
+
 fn assign_speakers(segments: Vec<Segment>, turns: &[SpeakerTurn]) -> Vec<Segment> {
     let mut output: Vec<Segment> = Vec::with_capacity(segments.len());
 
@@ -3309,6 +3370,103 @@ mod cancellation_tests {
             started.elapsed().as_secs() < 25,
             "it stopped when it was told, not when it would have finished on its own"
         );
+    }
+}
+
+#[cfg(test)]
+mod bridge_tests {
+    use super::*;
+
+    /// A block of `length` seconds credited to `voice`, or to nobody.
+    fn block(start: f64, length: f64, voice: Option<&str>) -> Segment {
+        Segment {
+            id: format!("{start}"),
+            recording_id: "r".into(),
+            order: 0,
+            start,
+            end: start + length,
+            text: "…".into(),
+            speakers: voice.map(str::to_string),
+            confidence: None,
+            edited: false,
+            verified: false,
+            original: None,
+            words: None,
+        }
+    }
+
+    fn voices(segments: &[Segment]) -> Vec<Option<&str>> {
+        segments.iter().map(|s| s.speakers.as_deref()).collect()
+    }
+
+    /// The reported case, and three quarters of them: "Yeah." between two
+    /// blocks of one person.
+    #[test]
+    fn a_short_gap_between_one_voice_is_that_voice() {
+        let mut s = vec![
+            block(0.0, 5.0, Some("speaker_0")),
+            block(5.0, 0.3, None),
+            block(5.3, 5.0, Some("speaker_0")),
+        ];
+        assert_eq!(bridge_unknown(&mut s), 1);
+        assert_eq!(voices(&s), vec![Some("speaker_0"); 3]);
+    }
+
+    /// Between two different people it really is not known, and a guess there
+    /// would be a wrong name rather than a missing one.
+    #[test]
+    fn a_gap_between_two_voices_is_left_alone() {
+        let mut s = vec![
+            block(0.0, 5.0, Some("speaker_0")),
+            block(5.0, 0.3, None),
+            block(5.3, 5.0, Some("speaker_1")),
+        ];
+        assert_eq!(bridge_unknown(&mut s), 0);
+        assert_eq!(s[1].speakers, None);
+    }
+
+    #[test]
+    fn a_run_of_short_gaps_is_filled_together() {
+        let mut s = vec![
+            block(0.0, 5.0, Some("speaker_2")),
+            block(5.0, 0.3, None),
+            block(5.3, 0.4, None),
+            block(5.7, 5.0, Some("speaker_2")),
+        ];
+        assert_eq!(bridge_unknown(&mut s), 2);
+        assert_eq!(
+            voices(&s),
+            vec![Some("speaker_2"); 4],
+            "the whole run takes the voice on both sides of it"
+        );
+    }
+
+    /// One neighbour is not two. A run at either edge stays as it is.
+    #[test]
+    fn a_gap_at_the_edge_of_the_recording_is_left_alone() {
+        let mut s = vec![block(0.0, 0.3, None), block(0.3, 5.0, Some("speaker_0"))];
+        assert_eq!(bridge_unknown(&mut s), 0);
+        let mut s = vec![block(0.0, 5.0, Some("speaker_0")), block(5.0, 0.3, None)];
+        assert_eq!(bridge_unknown(&mut s), 0);
+    }
+
+    /// A block goes unidentified because it is too short to ask about. A long
+    /// one is unidentified for some other reason and is not ours to fill in.
+    #[test]
+    fn a_long_gap_is_not_bridged() {
+        let mut s = vec![
+            block(0.0, 5.0, Some("speaker_0")),
+            block(5.0, 9.0, None),
+            block(14.0, 5.0, Some("speaker_0")),
+        ];
+        assert_eq!(bridge_unknown(&mut s), 0);
+    }
+
+    #[test]
+    fn a_transcript_with_nobody_in_it_is_not_a_crash() {
+        let mut s = vec![block(0.0, 1.0, None), block(1.0, 1.0, None)];
+        assert_eq!(bridge_unknown(&mut s), 0);
+        assert_eq!(bridge_unknown(&mut []), 0);
     }
 }
 

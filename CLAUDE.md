@@ -9837,3 +9837,38 @@ first change to the pipeline that produces the speakers in a real transcript.
   wrapped onto its own. `max-width: 100%` stays as the net against a heading
   long enough to overflow on its own, which none of today's are.
 - Files: `src/styles.css`.
+
+### 2026-08-07 — A short gap between one voice belongs to that voice
+
+- Jakub's observation, and it is what stopped a much larger design: the blocks
+  the machine gets wrong are not misplaced *boundaries*, they are the short
+  interjections — "Yeah.", "Okay.", "like," — that never get a name at all. So
+  the selection-and-splitting scheme proposed an hour earlier solved a problem
+  he does not have. It was dropped.
+- **Measured before deciding**, on his own five-person interview: 34 of 371
+  blocks have no speaker, every one of them under 0.8 s — that is, under the
+  threshold at which a window is even asked for. And of those 34:
+
+  | where the unnamed block sits | count |
+  |---|---|
+  | between two blocks of **one** person | **25** |
+  | between two different people | 9 |
+  | at either edge of the recording | 0 |
+
+- Changed: `bridge_unknown` fills a run of unidentified blocks when the voice
+  before it and the voice after it are the same. Damon before, Damon after, a
+  third of a second in between — that is not a guess, it is a gap. The nine
+  that lie between two different people are left alone, because there it really
+  is not known, and a wrong name is worse than a missing one.
+- **It also settles the repeated label in exports**, which is what Jakub
+  reported first. A block with no speaker used to break the turn, so the name
+  was printed again on the far side of every "Yeah." — and it was exactly those
+  25 that caused it. One rule, both symptoms.
+- `BRIDGE_LONGEST` is 2 seconds: a block goes unidentified because it is too
+  short to ask the model about, so anything appreciably longer is unidentified
+  for some other reason and is not ours to fill in.
+- Files: `src-tauri/src/transcription.rs`.
+- Verified: six new tests — the reported case, a gap between two voices left
+  alone, a run filled together, both edges of the recording left alone, a long
+  gap not bridged, and a transcript with nobody in it. All six were run against
+  the same logic in Python before the Rust was committed.
