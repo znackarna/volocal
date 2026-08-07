@@ -9128,3 +9128,25 @@ stands.
   embedding model exists in ggml, which is where Vulkan would come from free.
 - Left as it is by decision, in the hope of a better idea. Nothing here argues
   for removing it.
+
+**Two candidates checked the same day, so they are not checked again.**
+
+- **FunASR** (modelscope). Its diarization *is* CAM++ — the same 7.2M embedder
+  sherpa already loads — so there is no accuracy headroom in it by
+  construction. And it lives only in the PyTorch pipeline: the Python-free GGUF
+  runtime ships three ASR binaries and a VAD, no speaker model at all, and its
+  Windows Vulkan package accelerates SenseVoiceSmall alone. Chinese-first
+  throughout; no Czech in any GGUF-available model. Code MIT, weights under a
+  separate FunASR licence.
+- **vibevoice.cpp** (localai-org). The more interesting no. It does ASR,
+  diarization and timestamps *jointly*, one ggml model, no CAM++, no clustering
+  stage — architecturally the thing this problem wants. It fails on speed by an
+  order of magnitude: their own benchmark is RTF 2.195 on CPU on a Ryzen
+  9950X3D, against roughly 0.16 for the sherpa path being replaced. Vulkan is
+  claimed in one line of prose and never built, benchmarked or documented.
+  Fourteen commits, one author, no releases, no Windows build, Czech unstated.
+  Revisit only if it ships a Vulkan Windows binary and publishes Czech numbers.
+- Worth stealing from FunASR, and it is not code: they publish a
+  `windows-x64-vulkan.zip` that deliberately relies on the driver's own
+  `vulkan-1.dll` instead of carrying an SDK. That is proof the packaging this
+  application would need works, for the day a ggml speaker model exists.
