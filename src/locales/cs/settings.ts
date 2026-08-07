@@ -216,7 +216,7 @@ export const csSettings = {
   // Copies of the archive database.
   "settings.backups.title": "Záloha archivu",
   "settings.backups.description":
-    "Archiv tvoří jediný soubor. Při každém spuštění aplikace se vytvoří jeho kopie: zůstávají tři poslední a k tomu jedna z každého z posledních sedmi dnů.",
+    "Archiv tvoří jediný soubor. Při každém spuštění vznikne jeho kopie: zůstávají tři poslední a k tomu jedna z každého z posledních sedmi dnů.",
   "settings.backups.latest": "Poslední záloha",
   "settings.backups.none": "zatím žádná",
   "settings.backups.count": "Uloženo kopií",

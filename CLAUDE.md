@@ -9029,3 +9029,21 @@ versioned, so it is corrected only here.
   `src/locales/sources.json`.
 - Verified: `node scripts/i18n.mjs check` reports 891/891 and no problems; the
   English was approved with `i18n:approve`.
+
+### 2026-08-07 — The backup sentence drops a word it did not need
+
+- Changed: `settings.backups.description` says `Při každém spuštění vznikne
+  jeho kopie` instead of `Při každém spuštění aplikace se vytvoří jeho kopie`.
+  What starts is obvious from the screen it is written on, and `vznikne` says
+  in one word what `se vytvoří` said in two.
+- English is unchanged: `every time the app starts` is idiomatic, and dropping
+  the noun there would leave `it` pointing at the archive rather than at the
+  application.
+- Worth recording because it is the guard working as designed: changing the
+  Czech alone made `i18n:check` fail with `en: 1 překladů proti změněnému
+  zdroji` — the fingerprint said this English was written from a sentence that
+  no longer exists. It was approved rather than rewritten, which is exactly the
+  case `i18n:approve` was added for.
+- Files: `src/locales/cs/settings.ts`, `src/locales/sources.json`.
+- Verified: the check was watched failing before the approval and passing after
+  it; 891/891 and no problems.
