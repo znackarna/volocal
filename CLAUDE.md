@@ -9485,3 +9485,29 @@ conversation between two, that is the whole argument for the change.
   braces balanced; the inner attribute sits after the module docs and before the
   first item. **Not compiled** — no cargo here. CI is the first reader, as with
   everything else in Rust today.
+
+### 2026-08-07 — Where to look, taken from the transcript instead of a second model
+
+- Added `windows()` to `voiceprint.rs`: transcript blocks in, stretches of audio
+  worth asking the model about out. This is the step that lets pyannote and
+  `sherpa-onnx.exe` go — their job was to find where speech is, and Whisper has
+  already timestamped every word, so the expensive model was being paid for
+  something the application had on hand.
+- Blocks rather than words: a word is a fifth of a second, far too little to
+  recognise a voice from, and a block boundary is where the application already
+  believes a thought ends. Measured: one second reads 80 % correct, two 86 %.
+- A block longer than the window is cut into overlapping two-second windows at
+  a one-second hop, so that two people inside one block are not averaged into a
+  single answer, and a handover always has a whole window on each side of it.
+  The end of a block is always covered, by a full-length window reaching back
+  into the one before it — somebody taking the floor for the last second and a
+  half is exactly the case this exists for.
+- Files: `src-tauri/src/voiceprint.rs`.
+- Verified: the same logic was written a second time in Python and the seven
+  test expectations run against it before the Rust was committed — a block of
+  the right length gives one window, a block under 0.8 s gives none, six
+  seconds gives five overlapping windows that never leave the block, a 5.5 s
+  block ends with a window that ends where it does, every window carries its
+  block index, and a block just over the window length does not produce a
+  near-duplicate. The Rust itself is still uncompiled; this only means CI is
+  not the first thing to check the arithmetic.

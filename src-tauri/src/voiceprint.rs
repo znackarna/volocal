@@ -206,6 +206,80 @@ pub fn features(samples: &[f32]) -> Option<Features> {
     Some(Features { data, frames })
 }
 
+/// A stretch of one recording that is worth asking the model about.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Window {
+    pub start: f64,
+    pub end: f64,
+    /// Which transcript block it came from, so an answer can be given back to
+    /// the right piece of text.
+    pub segment: usize,
+}
+
+/// About two seconds, which is where the measurement put the sweet spot.
+const WINDOW: f64 = 2.0;
+/// Windows overlap, so a handover inside a block still leaves whole windows on
+/// both sides of it rather than one straddling window and nothing else.
+const HOP: f64 = 1.0;
+/// Under this there is not enough voice to describe. One second reads 80 %
+/// against two seconds' 86 %, so a short block is worth asking about — but only
+/// just, and anything shorter is noise.
+const SHORTEST: f64 = 0.8;
+
+/// Where to look, taken from the transcript rather than from a second model.
+///
+/// This is the step that lets `sherpa-onnx.exe` and its pyannote segmentation
+/// go. Their job was to find where speech is; the transcript already knows,
+/// because Whisper timestamped every word. Doing it again cost most of the 95
+/// seconds a ten-minute recording used to spend.
+///
+/// Blocks are the unit rather than words: a word is a fifth of a second, far
+/// too little to recognise a voice from, and block boundaries are where the
+/// application already believes a thought ends. A long block is cut into
+/// overlapping windows so that two people inside one block are not averaged
+/// into a single answer.
+pub fn windows(blocks: &[(f64, f64)]) -> Vec<Window> {
+    let mut out = Vec::new();
+    for (index, (start, end)) in blocks.iter().enumerate() {
+        let length = end - start;
+        if length < SHORTEST {
+            continue;
+        }
+        if length <= WINDOW {
+            out.push(Window {
+                start: *start,
+                end: *end,
+                segment: index,
+            });
+            continue;
+        }
+        let mut from = *start;
+        let mut reached = *start;
+        while from + WINDOW <= *end {
+            out.push(Window {
+                start: from,
+                end: from + WINDOW,
+                segment: index,
+            });
+            reached = from + WINDOW;
+            from += HOP;
+        }
+        // Whatever the last whole window did not reach. Somebody taking the
+        // floor for the final second is exactly the case this exists for, so
+        // the end is always covered — by a full-length window reaching back
+        // into the one before it. The quarter second is only to avoid a window
+        // that would be a near-duplicate of its predecessor.
+        if *end - reached > 0.25 {
+            out.push(Window {
+                start: (*end - WINDOW).max(*start),
+                end: *end,
+                segment: index,
+            });
+        }
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -344,5 +418,67 @@ mod tests {
     fn a_fragment_shorter_than_one_frame_has_no_features() {
         assert!(features(&vec![0.0; FRAME - 1]).is_none());
         assert!(features(&vec![0.0; FRAME]).is_some());
+    }
+
+    // ------------------------------------------------------------- windows
+
+    /// The ordinary block: one question, one answer.
+    #[test]
+    fn a_block_about_the_right_length_is_asked_about_once() {
+        let w = windows(&[(1.0, 2.8)]);
+        assert_eq!(w.len(), 1);
+        assert_eq!(w[0], Window { start: 1.0, end: 2.8, segment: 0 });
+    }
+
+    /// Too little voice to describe. The measurement gives one second 80 %
+    /// against two seconds' 86 %; below that it is not worth an answer.
+    #[test]
+    fn a_block_too_short_to_recognise_is_skipped() {
+        assert!(windows(&[(0.0, 0.5)]).is_empty());
+        assert_eq!(windows(&[(0.0, 0.9)]).len(), 1);
+    }
+
+    /// A long block is where two people hide, so it is cut into overlapping
+    /// windows rather than averaged into one answer.
+    #[test]
+    fn a_long_block_is_cut_into_overlapping_windows() {
+        let w = windows(&[(0.0, 6.0)]);
+        assert!(w.len() >= 4, "six seconds should give several windows, got {}", w.len());
+        for pair in w.windows(2) {
+            assert!(
+                pair[1].start > pair[0].start,
+                "windows must advance: {pair:?}"
+            );
+            assert!(
+                pair[1].start < pair[0].end,
+                "and overlap, or a handover falls between them: {pair:?}"
+            );
+        }
+        assert!(w.iter().all(|x| x.segment == 0));
+        assert!(
+            w.iter().all(|x| x.start >= 0.0 && x.end <= 6.0),
+            "no window may leave its block"
+        );
+    }
+
+    /// The end of a long block must be covered too — a speaker who takes over
+    /// for the last second and a half is exactly the case this is for.
+    #[test]
+    fn the_end_of_a_long_block_is_not_left_out() {
+        let w = windows(&[(0.0, 5.5)]);
+        let last = w.last().expect("there are windows");
+        assert!(
+            (last.end - 5.5).abs() < 1e-9,
+            "the last window should end with the block, got {last:?}"
+        );
+    }
+
+    #[test]
+    fn every_window_says_which_block_it_came_from() {
+        let w = windows(&[(0.0, 2.0), (10.0, 16.0), (20.0, 21.0)]);
+        assert!(w.iter().any(|x| x.segment == 0));
+        assert!(w.iter().any(|x| x.segment == 1));
+        assert!(w.iter().any(|x| x.segment == 2));
+        assert!(w.iter().all(|x| x.end > x.start));
     }
 }
