@@ -9819,3 +9819,21 @@ first change to the pipeline that produces the speakers in a real transcript.
   a block — everything from one word onwards — to the neighbouring speaker.
   That needs the block split in two first, which is a change to stored
   segments rather than to one column, so it is its own step.
+
+### 2026-08-07 — Correcting entry: the sidebar headings gave way instead of the actions
+
+- What Jakub saw: every section in the sidebar read `Mlu…`, `Kontr…`, `Opra…`,
+  `Poznám…`. My own entry from this morning predicted it in as many words —
+  "if the heading now truncates too eagerly, the next step is to let the
+  action's label give way first, since every section heading here is a single
+  short word" — and then left it as a note rather than doing it.
+- Cause: `max-width: 100%` on the toggle fixed the overlap by making the
+  heading shrinkable, which made it the thing that gives way. It is the wrong
+  thing to give way: `Mluvčí`, `Kontrola`, `Opravy`, `Poznámky` are the only
+  thing the row has to say, while `Rozpoznat znovu` beside it can move down a
+  line without losing anything.
+- Fixed: the header wraps. The heading does not shrink at all; the action keeps
+  the far right while they share a line and takes the far left once it has
+  wrapped onto its own. `max-width: 100%` stays as the net against a heading
+  long enough to overflow on its own, which none of today's are.
+- Files: `src/styles.css`.
