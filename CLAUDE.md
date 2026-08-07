@@ -8961,3 +8961,34 @@ versioned, so it is corrected only here.
   been run, and none of them has been seen to fail against the old behaviour.
   CI compiles and runs them on both platforms. Treat the first green run as the
   first reading of this code.
+
+### 2026-08-07 — Correcting entry: the onset tests asked for a precision the frame cannot give
+
+- The first CI run over the entry above came back red, and it is worth
+  recording what was and was not wrong. **The code compiled**, on Linux and on
+  Windows, and 90 of 93 tests passed. The three that failed were the three new
+  ones, all with the same complaint: `expected the onset at about 0.76 s, got
+  0.74`.
+- Cause, and it is in the test rather than in the rule: the envelope is built
+  in 20 ms frames, so the frame that *contains* the first sound begins up to
+  one frame before the sound itself. On the synthetic signal — silence for
+  exactly 0.75 s, then a tone — the first frame carrying any of that tone
+  starts at 0.74, and 0.74 is the correct answer. The 0.76 came from the real
+  recording, where the boundary happens to fall elsewhere in a frame, and it
+  had no business being asserted against a different signal.
+- The tolerance did not save it either: `(0.74 - 0.76).abs()` is
+  0.020000000000000018, which is not `<= 0.02`. A margin written as exactly the
+  error it is meant to absorb is not a margin.
+- Fixed: all three assert that the onset lands within one frame of the true
+  0.75 boundary, through a shared `TOLERANCE` equal to `FRAME_SECONDS`. That is
+  what the rule can guarantee, and saying so is more useful than a number that
+  fell out of one particular file.
+- Worth keeping, because it is the opposite of the usual lesson in this file:
+  the guard did its job. It caught a wrong expectation on its first run, on
+  both platforms, in three minutes — and the two tests that describe behaviour
+  rather than a number (`a_block_that_begins_on_speech_is_left_alone`,
+  `the_first_word_never_moves_past_the_second`) passed. The assertions that
+  broke were the ones tied to a measurement instead of to a property.
+- Files: `src-tauri/src/transcription.rs`.
+- Verified: by CI, which is the only thing in this session that can compile
+  Rust at all.

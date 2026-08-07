@@ -3083,13 +3083,19 @@ mod onset_tests {
         list[0]["t"].as_f64().unwrap()
     }
 
+    /// The envelope is built in 20 ms frames, so the frame that *contains* the
+    /// first sound begins up to one frame before it. One frame is the accuracy
+    /// this rule can offer, and the assertions say so rather than naming a
+    /// number that happens to fall out of one particular signal.
+    const TOLERANCE: f64 = onset::FRAME_SECONDS;
+
     #[test]
     fn silence_is_skipped_and_the_onset_is_found() {
         let env = onset::envelope(&silence_then_sound(0.75, 2.0), RATE);
         let found = onset::first_audible(&env, 0.52, 2.0).expect("there is sound in this stretch");
         assert!(
-            (found - 0.76).abs() <= 0.02,
-            "expected the onset at about 0.76 s, got {found}"
+            (found - 0.75).abs() <= TOLERANCE,
+            "expected the onset within a frame of 0.75 s, got {found}"
         );
     }
 
@@ -3108,7 +3114,7 @@ mod onset_tests {
 
         assert_eq!(moved, 1);
         assert!(
-            (segments[0].start - 0.76).abs() <= 0.02,
+            (segments[0].start - 0.75).abs() <= TOLERANCE,
             "the block should begin where the sound does, got {}",
             segments[0].start
         );
@@ -3172,8 +3178,8 @@ mod onset_tests {
 
         let found = onset::first_audible(&env, 0.0, 2.0).expect("quiet is still sound");
         assert!(
-            (found - 0.76).abs() <= 0.02,
-            "expected the onset at about 0.76 s, got {found}"
+            (found - 0.75).abs() <= TOLERANCE,
+            "expected the onset within a frame of 0.75 s, got {found}"
         );
     }
 }
