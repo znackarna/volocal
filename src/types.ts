@@ -393,6 +393,9 @@ export interface SearchResult {
 export interface TranscriptionProgress {
   recording_id: string;
   phase:
+    // Sent when a run finds another one ahead of it: the heavy programs take
+    // the whole graphics card, so they go one at a time.
+    | "queued"
     | "preparation"
     | "playback"
     | "transcription"

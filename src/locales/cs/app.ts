@@ -33,6 +33,13 @@ export const csApp = {
   "app.notice.onlineAddedTranscribing": "Online nahrávka je přidaná a přepis začal.",
   "app.notice.onlineAdded": "Online nahrávka je přidaná do archivu.",
 
+  // ---------------------------------------------------------------- crash
+  "app.crash.title": "Aplikace narazila na chybu",
+  "app.crash.text":
+    "Okno se nepodařilo vykreslit. Nahrávky ani přepisy v archivu tím nijak netrpí.",
+  "app.crash.detailLabel": "Popis chyby, který se hodí poslat dál:",
+  "app.crash.reload": "Obnovit okno",
+
   // ----------------------------------------------------------- file picker
   "app.filePicker.audioAndVideo": "Zvuk a video",
 
@@ -76,6 +83,14 @@ export const csApp = {
 } as const;
 
 export const csAppContext: Partial<Record<keyof typeof csApp, string>> = {
+  "app.crash.title":
+    "Nadpis obrazovky, která se objeví místo aplikace, když se okno nepodaří " +
+    "vykreslit. Konstatování, ne omluva.",
+  "app.crash.text":
+    "Věta pod nadpisem. Druhá polovina uklidňuje: chyba je ve vykreslení okna, " +
+    "ne v datech.",
+  "app.crash.detailLabel": "Popisek nad technickým výpisem chyby, který jde označit a zkopírovat.",
+  "app.crash.reload": "Tlačítko, které načte okno aplikace znovu.",
   "app.name":
     "Jméno aplikace v hlavičce okna. Popisuje, co dělá; není to značka.",
   "app.newTranscript":

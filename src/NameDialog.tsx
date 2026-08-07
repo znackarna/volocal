@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { useI18n } from "./i18n";
+import { useDialog } from "./useDialog";
 
 /**
  * Giving something a name — a new folder, an existing folder, a transcript.
@@ -35,24 +36,12 @@ export default function NameDialog({
 }) {
   const { t } = useI18n();
   const [name, setName] = useState(initialName);
-  const field = useRef<HTMLInputElement>(null);
+  const dialog = useDialog<HTMLDivElement>(onClose, open);
 
   // The field starts on whatever the dialog was opened with, each time.
   useEffect(() => {
     if (open) setName(initialName);
   }, [open, initialName]);
-
-  useEffect(() => {
-    if (!open) return;
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        onClose();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [open, onClose]);
 
   if (!open) return null;
 
@@ -66,6 +55,7 @@ export default function NameDialog({
   return (
     <div className="prekryv-dialogu" onMouseDown={onClose}>
       <div
+        ref={dialog}
         className="dialog"
         role="dialog"
         aria-modal="true"
@@ -79,7 +69,6 @@ export default function NameDialog({
           <label htmlFor="name-dialog-field">{label}</label>
           <input
             id="name-dialog-field"
-            ref={field}
             value={name}
             autoFocus
             onChange={(event) => setName(event.target.value)}

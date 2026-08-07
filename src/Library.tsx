@@ -430,6 +430,13 @@ function RecordingMetadataItem({
 
 
 
+/** What the card shows. A recording keeps its file name until somebody
+ *  renames it, so this is the name on screen and therefore the name to
+ *  sort by. */
+function shownName(recording: Recording): string {
+  return recording.title || fileName(recording.path);
+}
+
 export default function Library({
   recordings,
   progress,
@@ -548,11 +555,14 @@ export default function Library({
 
     return filtered.sort((a, b) => {
       if (order === "oldest") return recordingTimestamp(a) - recordingTimestamp(b);
+      // The same expression the card renders. Sorting the raw title while
+      // showing `title || fileName(path)` gathered every unnamed recording at
+      // one end, under a name that is not on screen anywhere.
       if (order === "title-asc") {
-        return compare(a.title, b.title);
+        return compare(shownName(a), shownName(b));
       }
       if (order === "title-desc") {
-        return compare(b.title, a.title);
+        return compare(shownName(b), shownName(a));
       }
       return recordingTimestamp(b) - recordingTimestamp(a);
     });
@@ -1199,7 +1209,7 @@ function Row({
         label={t("dialogs.rename.label")}
         placeholder={t("dialogs.rename.placeholder")}
         submitLabel={t("common.save")}
-        initialName={recording.title || fileName(recording.path)}
+        initialName={shownName(recording)}
         onClose={() => setRenaming(false)}
         onSubmit={(name) => {
           setRenaming(false);
@@ -1217,7 +1227,7 @@ function Row({
             <span className="radek-status-icon" aria-hidden>
               <span className={`znak ${recording.status}`} />
             </span>
-            <span className="radek-jmeno">{recording.title || fileName(recording.path)}</span>
+            <span className="radek-jmeno">{shownName(recording)}</span>
           </span>
           <span className="recording-metadata">
             <RecordingMetadataItem

@@ -1,6 +1,5 @@
-import { useEffect, useRef } from "react";
-
 import { useI18n } from "./i18n";
+import { useDialog } from "./useDialog";
 
 export interface ConfirmationRequest {
   nadpis: string;
@@ -36,7 +35,10 @@ export default function ConfirmationDialog({
   onError?: (message: string) => void;
 }) {
   const { t } = useI18n();
-  const confirmButtonRef = useRef<HTMLButtonElement>(null);
+  // Escape and the focus trap are one shared rule now; the focus itself starts
+  // on Cancel rather than on the confirming button, because for an
+  // irreversible action a blind Enter must not delete anything.
+  const dialog = useDialog<HTMLDivElement>(onZavri, query != null);
 
   /** Closes first, then waits: the dialog answered the question and has no
    *  business staying on screen while the work runs. A rejection is reported
@@ -50,25 +52,12 @@ export default function ConfirmationDialog({
     }
   };
 
-  useEffect(() => {
-    if (!query) return;
-    // Focus starts on Cancel rather than on the confirming button: for an
-    // irreversible action, a blind Enter must not delete anything.
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        onZavri();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [query, onZavri]);
-
   if (!query) return null;
 
   return (
     <div className="prekryv-dialogu" onMouseDown={onZavri}>
       <div
+        ref={dialog}
         className="dialog"
         role="alertdialog"
         aria-modal="true"
@@ -92,7 +81,6 @@ export default function ConfirmationDialog({
             </button>
           )}
           <button
-            ref={confirmButtonRef}
             className={`tlacitko ${query.nicive ? "nicive" : "hlavni"}`}
             onClick={() => {
               void run(query.action);

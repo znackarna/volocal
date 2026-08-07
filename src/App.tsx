@@ -61,6 +61,17 @@ const AUDIO_FORMAT_LABELS: Record<string, TranslationKey> = {
 
 
 
+/** Does the watch folder hold the same files as a moment ago? Compared by
+ *  content, because every scan returns a fresh array and the poll runs every
+ *  five seconds. The fingerprint carries size and modification time, so a file
+ *  rewritten at the same path is a different candidate. */
+function sameCandidates(a: WatchFolderCandidate[], b: WatchFolderCandidate[]): boolean {
+  return (
+    a.length === b.length &&
+    a.every((one, i) => one.path === b[i].path && one.fingerprint === b[i].fingerprint)
+  );
+}
+
 /** The last part of a path, whichever separator the system uses. */
 function folderName(path: string): string {
   const parts = path.split(/[\\/]/).filter(Boolean);
@@ -102,6 +113,10 @@ const NOTICE_LIFE = { info: 5000, error: 9000 } as const;
 /** The order the pipeline goes through. Used only to spot a report that
  *  arrives out of turn. */
 const PHASE_ORDER = [
+  // A run that found another one ahead of it starts here, before it has done
+  // anything. Listing it keeps a late report from throwing the caption back to
+  // the queue after the work has begun.
+  "queued",
   "preparation",
   "playback",
   "transcription",
@@ -282,14 +297,17 @@ export default function App() {
     }
   }, [userMessage]);
 
-  /** Runs the transcriptions once the speaker question is settled. */
+  /** Runs the transcriptions once the speaker question is settled. Answers
+   *  whether they actually started: the backend refuses a recording another
+   *  worker already holds, and a screen that lights itself up on the strength
+   *  of the click would then stay lit with nothing behind it. */
   const runTranscription = useCallback(
     async (
       ids: string[],
       language: string | undefined,
       speakerCount: number | null,
       diarizeOnly = false
-    ) => {
+    ): Promise<boolean> => {
       // A finished run leaves `complete` behind for this recording. The screens
       // read that as "the work is over" the moment a new one starts, so the
       // stale entry goes before the first event of the new run arrives.
@@ -307,6 +325,7 @@ export default function App() {
         return next;
       });
       if (diarizeOnly) setDiarizingIds((current) => [...new Set([...current, ...ids])]);
+      let started = true;
       try {
         for (const id of ids) {
           if (diarizeOnly) await api.diarizeSpeakers(id, speakerCount);
@@ -314,10 +333,12 @@ export default function App() {
           else await api.startTranscription(id, speakerCount);
         }
       } catch (e) {
+        started = false;
         if (diarizeOnly) setDiarizingIds((current) => current.filter((x) => !ids.includes(x)));
         reportError(userMessage(e));
       }
       await loadRecordings();
+      return started;
     },
     [loadRecordings, reportError, userMessage]
   );
@@ -328,8 +349,7 @@ export default function App() {
   const askAboutSpeakers = useCallback(
     async (ids: string[], language?: string) => {
       if (!speakerSetup.separates) {
-        await runTranscription(ids, language, null);
-        return true;
+        return await runTranscription(ids, language, null);
       }
       setPendingTranscription({ ids, language });
       return false;
@@ -408,7 +428,11 @@ export default function App() {
           autoTranscribeRef.current(found);
           return;
         }
-        setWatchCandidates(found);
+        /* The scan answers every five seconds, almost always with the same
+           thing — usually with nothing at all. A fresh array is a new
+           reference, and storing it re-rendered the whole application twelve
+           times a minute for a list that had not changed. */
+        setWatchCandidates((current) => (sameCandidates(current, found) ? current : found));
       } catch (error) {
         const message = userMessage(error);
         if (alive && lastWatchError.current !== message) {
@@ -986,6 +1010,13 @@ export default function App() {
       duration: recording.duration > 0 ? formatTime(recording.duration) : null,
       language: recording.language ? labels.languageCapitalized(recording.language) : null,
       segments: recording.status === "hotova" ? formats.segmentCount(recording.segment_count) : null,
+      /* `Uloženo` used to be a constant, lit for every detail — including a
+         recording with no transcript at all, where there is nothing saved to
+         speak of. It is a statement about a stored document, so it appears
+         where one exists. There is no unsaved state to report: every edit is
+         written as it is made, which is what makes this a fact rather than a
+         progress indicator. */
+      saved: recording.status === "hotova",
     };
   }, [formats, labels, recordings, selectedId]);
 
@@ -1330,11 +1361,13 @@ export default function App() {
             </div>
           ) : (
             <div className="app-status-footer-group">
-              <FooterStatusItem
-                kind="saved"
-                value={t("common.saved")}
-                label={t("app.shell.documentState")}
-              />
+              {detailFooterStatus?.saved && (
+                <FooterStatusItem
+                  kind="saved"
+                  value={t("common.saved")}
+                  label={t("app.shell.documentState")}
+                />
+              )}
             </div>
           )}
           {screen === "library" && (archiveSetup.watchFolder || archiveSetup.model) && (

@@ -5,6 +5,7 @@ import { api } from "./api";
 import { equalizerAtTime, handleRatio, Waveform } from "./player";
 import { LineIcon } from "./icons";
 import { recorderTime, useRecorder, useSpectrum } from "./recorder";
+import { useDialog } from "./useDialog";
 import { useI18n } from "./i18n";
 import { useProgressMessage, useUserMessage } from "./messages";
 import type { DownloadProgress, Recording, UserMessage } from "./types";
@@ -49,6 +50,7 @@ export default function AddRecordingDialog({
   const { t, formatNumber } = useI18n();
   const userMessage = useUserMessage();
   const progressMessage = useProgressMessage();
+  const dialog = useDialog<HTMLDivElement>();
   const [view, setView] = useState<"source" | "online" | "microphone">(initialView);
   const recorder = useRecorder();
   const [url, setUrl] = useState("");
@@ -166,6 +168,10 @@ export default function AddRecordingDialog({
       }}
     >
       <div
+        // The trap only. Escape here has a meaning of its own — it minimises a
+        // running take into the header's pill rather than throwing it away —
+        // so this dialog keeps its own key handler.
+        ref={dialog}
         className="dialog add-recording-dialog"
         role="dialog"
         aria-modal="true"

@@ -44,12 +44,16 @@ const AMPLITUDE_PEAK = 0.55;
 function AudioBackdrop({
   waveform,
   readTime,
+  time,
   duration,
   isPlaying,
   geometry,
 }: {
   waveform: Waveform;
   readTime: () => number;
+  /** The position React knows about. It only moves while paused when somebody
+   *  seeks, which is exactly when a still picture has to be drawn again. */
+  time: number;
   duration: number;
   isPlaying: boolean;
   /** Timeline dimensions determine the stable number and placement of bars. */
@@ -59,6 +63,11 @@ function AudioBackdrop({
   const liveState = useRef({ waveform, geometry, readTime, duration });
   liveState.current = { waveform, geometry, readTime, duration };
 
+  /* While playing, the position comes from the audio clock inside the loop, so
+     the eight ticks a second React receives must not restart it. Standing
+     still they are the only thing that can move the picture. */
+  const stillTime = isPlaying ? 0 : time;
+
   useEffect(() => {
     const target = canvas;
     if (!target) return;
@@ -66,15 +75,13 @@ function AudioBackdrop({
     let color = "";
     let playedColor = "";
     let colorReadAt = 0;
-    /* What the last frame drew. An open transcript that is not playing has an
-       unchanging picture, and this loop used to redraw it sixty times a second
-       for as long as the screen was open. The frame is still scheduled — the
-       position can start moving at any moment — but the canvas work only
-       happens when the result would differ. */
+    let frame = 0;
+    /* What the last frame drew. Even while playing, two consecutive frames can
+       land on the same picture — the audio clock does not advance every frame
+       — so the canvas work only happens when the result would differ. */
     let drawn = "";
 
     const drawFrame = (now: number) => {
-      if (!running) return;
       const current = liveState.current;
       const pixelRatio = window.devicePixelRatio || 1;
       if (
@@ -116,10 +123,7 @@ function AudioBackdrop({
           playedColor,
           current.readTime(),
         ].join("|");
-        if (signature === drawn) {
-          requestAnimationFrame(drawFrame);
-          return;
-        }
+        if (signature === drawn) return;
         drawn = signature;
 
         drawBars(
@@ -138,14 +142,29 @@ function AudioBackdrop({
           }
         );
       }
-      requestAnimationFrame(drawFrame);
     };
 
-    requestAnimationFrame(drawFrame);
+    const tick = (now: number) => {
+      if (!running) return;
+      drawFrame(now);
+      frame = requestAnimationFrame(tick);
+    };
+
+    /* The loop belongs to playback, exactly as the sister loop driving the
+       handle and the ring does. Silence leaves an unchanging picture, and this
+       used to schedule a callback, measure the canvas and assemble a signature
+       sixty times a second for as long as a transcript was open. Standing
+       still, one frame is drawn and that is the whole of it — the position can
+       only move by a seek, and a seek changes `time`, which brings the effect
+       back. */
+    frame = requestAnimationFrame(isPlaying ? tick : drawFrame);
     return () => {
       running = false;
+      cancelAnimationFrame(frame);
     };
-  }, [canvas]);
+    // `stillTime` is what redraws a still picture after a seek; `waveform`,
+    // `duration` and `geometry` are the other three things that change it.
+  }, [canvas, isPlaying, stillTime, duration, waveform, geometry]);
 
   if (waveform.equalizer.length === 0) return null;
 
@@ -414,6 +433,7 @@ export default function PlaybackControls({
       <AudioBackdrop
         waveform={waveform}
         readTime={readTime}
+        time={time}
         duration={duration}
         isPlaying={isPlaying}
         geometry={geometry}

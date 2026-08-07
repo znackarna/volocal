@@ -8222,3 +8222,519 @@ repository that holds only releases.
   `src/styles.css`, `package.json`, `package-lock.json`, `README.md`,
   `src/locales/{cs,en}/{app,settings}.ts`, `src/locales/sources.json`;
   `src/updates.ts` and `scripts/release.mjs` removed.
+
+### 2026-08-07 — A recording one worker holds is not offered to another
+
+- What it was: `diarize_speakers` asked the registry *and* the row;
+  `start_transcription` and `transcribe_in_language` asked only the row. Speaker
+  recognition sets that row to `prepisuje` inside its worker, **after** the
+  queue — so a recognition standing in line left the row on `hotova`, and
+  `Přepsat` on the same recording went straight through. Two workers, one
+  `recording_id`. The queue serialises them, but they aim at the same archive.
+- Changed: one rule, `recording_is_busy(running, status)`, and all three
+  commands ask it. Both sources are needed and the comment says why — the
+  registry knows from the instant a run is started, including one still
+  waiting; the row outlives the process, so it is what catches a run
+  interrupted by a crash before `recover_interrupted` has had its say.
+- Behaviour change worth stating out loud: `start_transcription` and
+  `transcribe_in_language` used to answer `Ok(())` silently when the row
+  already said `prepisuje`. They now return `transcription.still_running`,
+  exactly as `diarize_speakers` already did. Silence is the wrong answer for
+  the case this fixes: the caller cannot tell *already doing it* from *did
+  nothing*, and the interface would light the screen up for a run that never
+  started — which is the defect fixed on 2026-08-06 arriving through the other
+  door.
+- Changed with it, because the point above makes the return value matter:
+  `runTranscription` answers whether a run actually started, and
+  `askAboutSpeakers` passes that answer on instead of returning `true`
+  unconditionally. Detail already refuses to set `prepisuje` on a `false`, so
+  nothing else had to move.
+- Files: `src-tauri/src/main.rs`, `src/App.tsx`.
+- Verified: `cargo fmt --all --check`; `cargo check --all-targets` with
+  `RUSTFLAGS=-D warnings`; `cargo test` — **86 passed** (83 plus three new over
+  `recording_is_busy`); `npx tsc --noEmit`; `node scripts/i18n.mjs check`
+  (886/886). The guard test was proven by making it fail: with the rule
+  reverted to `status == "prepisuje"` alone,
+  `a_queued_run_counts_as_busy_although_its_row_does_not_say_so` failed while
+  the other two passed — which is what tells a guard from a description.
+- Honest limits, two. The tests cover the *rule*, not the command:
+  `start_transcription` needs Tauri `State`, so the wiring itself is verified
+  by reading. And this ran on Linux, so the `#[cfg(windows)]` block
+  (`allow_microphone`) was not compiled by any of it.
+- The manual reproduction, for the next run on Windows: switch speaker
+  recognition on, start transcribing A, press `Rozpoznat mluvčí` on B so it
+  queues, then press `Přepsat` on B. It must say `Počkejte, až doběhne přepis.`
+  rather than starting a second worker.
+
+### 2026-08-07 — A setting is written from what landed, not from what was asked for
+
+- What it was: the wizard already knew a cancelled download is not a finished
+  one (2026-08-06) and offered the component again. But `download:complete`
+  arrived unconditionally and `dokonci()` ran on it regardless, writing
+  `changesApplied.model = MODELS[quality].settings` — **a model that was never
+  downloaded**, from the moment Stop was pressed during the first one on a
+  fresh installation. `load_settings` repairs that mismatch for `editor_model`
+  and not for `model`.
+- Second half, and it made a comment in the file untrue: the batch `break`s on
+  a cancellation after reporting only the component it was interrupted on.
+  Everything after it got no event at all — no phase, indistinguishable from
+  still running — while the comment above `failedIds` said the opposite.
+- Changed: cancelling reports `cancelled` for every component still in the
+  batch, and `download:complete` carries the list of what did not land. The
+  window cannot work that list out for itself, which is the whole reason it
+  is sent rather than inferred.
+- Changed: `dokonci(unfinished)` judges **each choice on its own component**.
+  A language model that failed no longer throws away a transcription model
+  that landed, and `diarization` is only switched on when all three of its
+  components are there. `editingQuality === "off"` still writes the empty
+  string — turning the feature off cannot fail to download.
+- Preserve: `failedIds` stays as it is. It is the screen's own reading from
+  the phases it saw, and it drives what step 5 shows. What a *setting* is
+  written from must not depend on whether an event arrived, which is why that
+  one now comes from the backend's list instead.
+- Files: `src-tauri/src/download.rs`, `src/SetupWizard.tsx`.
+- Verified: `cargo fmt --all --check`; `cargo test` — 86 passed;
+  `npx tsc --noEmit`; `node scripts/i18n.mjs check`. The type checker caught
+  the second caller of `dokonci` — the `Nothing to download` button on the
+  last step, which passes an empty list because everything is already on disk.
+- Honest limit: no automated test. `install_bundle` spawns a thread and needs
+  an `AppHandle`, so both halves are verified by reading. The manual
+  reproduction: start a fresh setup with the Precizní model, press Stop during
+  the first download, then open Nastavení → Přepis. The model card must not
+  claim a model that is not on the disk.
+
+### 2026-08-07 — Everything this application starts dies with it
+
+- What it was: `kill_all` on `ExitRequested` reaches the children a run
+  registered in `JobRunner`, and that is the ordinary path. It reaches nothing
+  else. Four spawners were never registered — `waveform_amplitude` and
+  `equalizer_peaks` (`tools.rs`, both ffmpeg over the whole recording, both
+  started from a detached thread), the `PlainRunner` conversion that prepares
+  seekable playback, and the `ffprobe` duration probe. It cannot reach a
+  grandchild at all. And it does not run when the process is killed rather
+  than closed.
+- Changed: `die_with_this_process()` in `main()`, before anything is started.
+  It creates an unnamed Windows job object with
+  `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE` and assigns this process to it. A
+  process in a job puts its children in it too, so the limit fires on the whole
+  tree when the last handle to the job goes — which is when this process ends,
+  however it ends.
+- The handle is deliberately never closed, and the comment says why rather than
+  leaving it to look like a leak: `HANDLE` is a plain `Copy` value with no
+  destructor, so letting it fall out of scope closes nothing, while calling
+  `CloseHandle` would fire the limit at once and kill the application it is
+  protecting.
+- Preserve `kill_all`. The job is the class, `kill_all` is the case: it still
+  stops a run's programs on a normal close, on a machine where the job could
+  not be created, and it is what the existing test asserts on. Neither replaces
+  the other.
+- Silent on failure, all three steps. Nested jobs have been allowed since
+  Windows 8, so sitting inside a debugger's job is not a reason to refuse to
+  start; a machine where this cannot be done must still run the application.
+  Each failure writes one line to stderr and carries on.
+- Dependency: `windows = "0.61.3"` under `cfg(windows)`, four features. Same
+  rule and same reason as `webview2-com` beside it — 0.61.3 is the version
+  already in the tree, so this adds feature flags and no second copy of the
+  Win32 bindings. `Cargo.lock` gains exactly one line, and `windows` still
+  resolves to a single version.
+- Files: `src-tauri/src/main.rs`, `src-tauri/Cargo.toml`,
+  `src-tauri/Cargo.lock`.
+- Verified as far as a Linux session can: `cargo fmt --all --check`;
+  `cargo check --all-targets` with `RUSTFLAGS=-D warnings`; `cargo test`
+  (86 passed). `cfg` stripping happens after parsing, so the **syntax** of the
+  new block is checked by all of that; its **types are not**, because
+  `rustup target add x86_64-pc-windows-msvc` cannot reach
+  `static.rust-lang.org` from here.
+- Every name and signature was therefore read out of the vendored source of
+  `windows 0.61.3` rather than remembered: `CreateJobObjectW` (behind
+  `Win32_Security`, second argument `P1: Param<PCWSTR>`),
+  `SetInformationJobObject`, `AssignProcessToJobObject`, `GetCurrentProcess`,
+  `JOBOBJECT_EXTENDED_LIMIT_INFORMATION` (derives `Default`, gated on
+  `Win32_System_Threading`, which is why that feature is listed),
+  `JobObjectExtendedLimitInformation`, and `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`
+  typed as `JOB_OBJECT_LIMIT`, matching `BasicLimitInformation.LimitFlags`.
+  `PCWSTR::null()` exists in `windows-strings` and reaches `windows::core`
+  through `pub use windows_strings::*`; `PCWSTR: TypeKind<TypeKind = CopyType>`
+  plus the reflexive `impl<T> CanInto<T> for T` is what satisfies the bound.
+- **The first machine to compile this is yours.** Same shape of gap as the
+  `webview2-com` entry from 2026-08-06, and it is worth saying twice rather
+  than assuming it was read once.
+- The manual reproduction, once it builds: start a transcription of a long MP3,
+  wait for `Připravuji přesné přehrávání`, close the window from the title bar,
+  and look in Správce úloh. No `ffmpeg.exe`, `whisper-cli.exe`, `sherpa-onnx*`
+  or `llama-server.exe` may be left. Repeat with `Ukončit úlohu` instead of
+  closing — that is the half `kill_all` never covered.
+
+### 2026-08-07 — Every modal keeps the keyboard, and five smaller repairs
+
+- Added `src/useDialog.ts`. Escape closes, Tab stays inside, and when the
+  dialog goes the focus returns where it came from. All seven modals declare
+  `aria-modal="true"`, which promises exactly that; three handled Escape, four
+  did not, and `key === "Tab"` did not appear anywhere in `src/`. Tab therefore
+  walked into the screen behind — the one the dialog says is not there.
+- Applied to `ConfirmationDialog`, `NameDialog`, `SpeakerCountDialog` and the
+  three modals in `Detail` (`missing`, `configure`, `preview`), which were the
+  four Escape did nothing in. `AddRecordingDialog` takes the trap and keeps its
+  own key: Escape there minimises a running take into the header's pill rather
+  than throwing it away.
+- Two things the browser taught rather than the code, both found by driving the
+  real component and both wrong on the first attempt:
+  1. **`document.activeElement` at effect time is already inside the dialog.**
+     `autoFocus` runs while the DOM is committed, before a passive effect, so
+     the "focus before" it reads is a control that is about to be removed.
+     A module-level `focusin` listener remembers the last element focused
+     outside a dialog instead — and it has to be installed on import, not when
+     a dialog opens, because the click that opens the first one is the focus
+     change that matters.
+  2. **`!document.activeElement?.isConnected` is not how lost focus looks.**
+     Closing drops it on `document.body`, which is connected, so the restore
+     never ran. The condition is `!active || active === document.body`.
+- Five repairs beside it:
+  - A speaker's name is saved on blur, not on every keystroke. Writing
+    `Pavel` was five IPC calls, five writes, and five times marking the
+    improved document stale. Leaving the field unchanged now writes nothing,
+    and the merge-by-name runs after the save, so it judges the stored name.
+  - That field also has an accessible name at last
+    (`detail.speakers.nameLabel`) — it had no `aria-label`, no `<label>`, no
+    `placeholder` and no `title`.
+  - A dictionary row with a side emptied goes back to what is stored. Doing
+    nothing at all was worse than either saving or refusing: the screen showed
+    one thing, the archive held another, and nobody was told. `dictionaryRef`
+    is what the archive holds, as against `dictionary`, which follows the
+    keystrokes.
+  - Sorting by name uses `shownName()`, the same expression the card renders.
+    Sorting the raw `title` while showing `title || fileName(path)` gathered
+    every unnamed recording at one end under a name that is nowhere on screen.
+    Both render sites now call the helper too, so the two cannot drift again.
+  - `Uloženo` in the detail footer appears for a recording that has a
+    transcript. It was a constant, lit even for a recording with nothing saved
+    at all. There is no unsaved state to report — every edit is written as it
+    is made — so it is a fact about a stored document, not a progress light.
+- Files: `src/useDialog.ts` (new), `src/ConfirmationDialog.tsx`,
+  `src/NameDialog.tsx`, `src/SpeakerCountDialog.tsx`,
+  `src/AddRecordingDialog.tsx`, `src/Detail.tsx`, `src/Settings.tsx`,
+  `src/Library.tsx`, `src/App.tsx`, `src/locales/{cs,en}/detail.ts`,
+  `src/locales/sources.json`.
+- Verified: `npx tsc --noEmit`; `node scripts/i18n.mjs check` (887/887, the new
+  key approved with `i18n:approve`); `cargo test` (86 passed, untouched). The
+  trap was driven in a real browser against the real `ConfirmationDialog`
+  bundled with esbuild — not hand-written markup, which is the lesson from the
+  duplicated empty state. Measured: focus opens on `Cancel`; six Tabs cycle
+  Cancel → Jen složku → Smazat → Cancel and never reach the button behind the
+  overlay; three Shift+Tabs walk back; Escape closes it; the focus returns to
+  the control that opened it; no console error.
+- Not done, and it needs a decision rather than a fix: the keyboard path to a
+  **word** in the transcript. Giving every `<span>` a `tabIndex` would be ten
+  thousand tab stops on an hour of audio, which is worse than today. Roving
+  tabindex — the segment is one stop, arrows walk the words — is the shape that
+  fits, and it changes how the transcript is operated.
+
+### 2026-08-07 — A start that fails says so, and four commands stop holding the window
+
+**A broken archive used to take the application with it, silently.** The failure
+travelled out of `setup`, `build()` returned it, `.expect()` panicked — and with
+`windows_subsystem = "windows"` there is no console for a panic to be printed
+into. The window flashed and was gone, and the backups one folder away might as
+well not have existed. `archive_path` is now separate from `connect_database`,
+so the file can still be named when it cannot be opened, and
+`report_unusable_archive` hides the window, shows a modal with the archive's
+path and its backup folder, and ends the process when it is dismissed. The
+dialog is opened from a thread of its own: `blocking_show` waits for a closure
+the event loop has yet to run, so on the main thread — which `setup` is — it
+would wait for ever. Hence `setup` returning `Ok`, and hence `try_state` in the
+`RunEvent` handler, which would otherwise panic over a state that was never
+managed. This is the one place where text a person reads is written in Rust,
+and the comment says why: the dictionary lives in the window, which does not
+exist yet, and the language they chose lives in the archive, which is the thing
+that cannot be read.
+
+**The download client can be interrupted, with one limit it still does not
+have.** `timeout(None)` and nothing else meant a peer that vanished without
+closing the connection left the reading thread blocked in `read` for as long as
+the operating system allows — two hours on Windows — and `Zrušit` could not
+reach it, because the flag is read between chunks and no further chunk was
+coming. There is now a 15-second connect timeout, and TCP keepalive (30 s idle,
+10 s apart, 6 tries) in place of a read timeout: reqwest's *blocking* client
+exposes none — `read_timeout` is on the asynchronous one — and its `timeout` is
+one deadline over the request and the reading of its body, so any value large
+enough not to abandon a legitimate three-gigabyte download is not a limit at
+all. The GitHub release listings do get a whole-request deadline of 30 seconds,
+because a page of JSON has no reason to take one. Recorded rather than
+pretended away: a peer that is alive and answers probes while sending nothing
+still stalls, and fixing that means the asynchronous client and a new download
+loop.
+
+**Four commands no longer run on the window's thread.** In the whole of
+`main.rs`, `#[tauri::command(async)]` appeared once. `create_portable_copy` is
+the one that could not be anything else — it copies up to ten gigabytes and
+reports its own progress, so the single command with a progress bar was the one
+that could not draw it moving. `export_audio` converts an hour of audio,
+`benchmark_compute` runs whisper once per installed backend, and `add_recording`
+waits on ffprobe over a file that may be on a sleeping external disk. That last
+one also held the archive's lock across the probe, so adding one recording
+stopped every other command until it answered: `probe_duration` is now its own
+step, taken before the lock, and `create_recording` receives the number. Its two
+other callers were changed the same way.
+
+**A waveform job gives its place back however it ends.** The removal from
+`WAVEFORM_JOBS` was the last line of the worker closure, so a panic on the way
+there left the id in the list for the lifetime of the process — after which that
+recording's waveform was for ever "being computed" and no further attempt was
+ever made. `WaveformJob` claims and releases through `Drop`, the same shape as
+`INSTALLING` in `download.rs`, and it takes the id back out of a mutex poisoned
+by an earlier panic as well.
+
+**Deleting a folder takes one lock.** The contents were read under one lock and
+deleted under another, so a recording moved into the folder in between survived
+into the archive's root instead of going with it. The list is now read inside
+the transaction that deletes it.
+
+**The capability narrows.** `opener:default` grants `allow-open-url` beside the
+reveal; nothing in this application opens a URL — `revealItemInDir` in Settings
+is the only call — so the permission is now `opener:allow-reveal-item-in-dir`
+alone.
+
+**`eprintln!` in a released build goes nowhere**, and twenty-four of them are the
+only record that something happened to somebody's archive: a backup that failed
+before a schema upgrade, settings that could not be read and were copied aside,
+transcriptions recovered after a crash, child processes that may have outlived
+the window. `src-tauri/src/diagnostics.rs` and its `note!` macro write the same
+line to stderr — `tauri dev` is unchanged — and to `slobot-log.txt` beside the
+archive, capped at 512 kB. Deliberately not a logging library: there is no level
+to filter on, no target to route by, and nothing here is written in a loop. What
+was needed is a file somebody can be asked to send. The path is set as soon as
+the archive's location is known, so the two lines from `main()` about the job
+object still reach stderr only.
+
+**Considered and left alone: the paths that arrive from the window.**
+`export_audio`, `create_portable_copy` and `add_recording` take a path as it
+comes, while `validate_watch_candidate` canonicalises and checks its parent. The
+inconsistency is real and it is not a defect. Those three are answers to a system
+file dialog — the picker is the person, so a rule invented here could only refuse
+a folder they deliberately chose — and there is no attacker on the other side,
+because the webview loads the bundled interface and nothing else; if there were,
+it would call `delete_recording` long before it bothered writing an MP3
+somewhere. A watched candidate is a different kind of thing: a list this program
+produced earlier and handed out, acted on by starting a transcription, and the
+settings say which directory it may come from. That is what makes checking
+meaningful there and theatre here. The reasoning now sits above
+`validate_watch_candidate` rather than in a change log nobody greps.
+
+- Files: `src-tauri/src/main.rs`, `src-tauri/src/diagnostics.rs` (new),
+  `src-tauri/src/download.rs`, `src-tauri/src/db.rs`,
+  `src-tauri/src/transcription.rs`, `src-tauri/capabilities/default.json`.
+- Verified: `cargo fmt --all -- --check`; `cargo check --all-targets` with
+  warnings as errors; `cargo test` (88 passed — the 86 plus two over the waveform
+  guard); `node scripts/i18n.mjs check`. Both new tests were made to fail first —
+  with `Drop for WaveformJob` returning immediately, which is the old behaviour,
+  exactly those two failed and the other 87 passed.
+- Honest limits, and they all point the same way: none of this ran on Windows.
+  The startup dialog is assembled from `tauri-plugin-dialog`'s own source —
+  `show_message_dialog` posts through `run_on_main_thread` — not from watching it
+  appear, and if the dialog cannot be shown at all the process now waits with a
+  hidden window instead of crashing. The keepalive numbers are a choice, not a
+  measurement. The four `async` commands are verified by compiling, not by
+  clicking.
+
+### 2026-08-07 — A white window is not an error message
+
+Four things that could take the screen away, or spend a machine on nothing.
+
+**A remembered panel state could take the window down.** `readOpenSections`
+parsed `sidebar-sections` with no `try`, as a `useState` initialiser — so a
+corrupt record, or a storage the engine refuses to read, threw during render
+and left a white window with no way back. It is caught now and falls back to
+every section open, which is what a fresh installation shows anyway.
+
+**And nothing was there to catch it.** The project had no error boundary at
+all, so any throw below the root unmounted the tree and left nothing — not
+even something to report. `src/ErrorBoundary.tsx` is the one class component
+here, because catching a render error is the only thing React has no hook for.
+It sits inside `I18nProvider` and around the player, the recorder and the
+application: the crash screen has to be able to say what happened, and those
+three are what can throw. It shows the heading, the sentence that matters —
+the archive is untouched, this is a drawing failure — the stack and the
+component stack in a selectable block, and `Obnovit okno`. The message is not
+printed twice: V8 opens `stack` with the line it was built from.
+
+**The waveform redrew silence sixty times a second.** `AudioBackdrop`'s frame
+loop depended on `[canvas]` alone, so an open transcript scheduled a callback,
+measured the canvas and assembled a signature for as long as it was open. The
+loop belongs to playback now, exactly as the sister loop driving the handle
+and the ring already did; standing still, one frame is drawn and that is all.
+The trap the signature was written for still holds — `readTime()` goes into it
+whole, not quantised to the played pixel, or the picture would freeze during
+playback. `stillTime = isPlaying ? 0 : time` keeps the eight ticks a second
+React receives from restarting the loop it is not driving.
+
+**The watch folder re-rendered the application twelve times a minute.** The
+scan answers every five seconds with a fresh array, almost always holding the
+same thing and usually nothing at all — and a new reference stored is a new
+render of everything below. `sameCandidates` compares path and fingerprint;
+an unchanged answer is dropped.
+
+**Also:** `queued` was missing from `TranscriptionProgress.phase` while the
+backend has been sending it since the serial queue was built, and from
+`PHASE_ORDER`, where its absence let a late report throw the caption back to
+the queue after the work had begun.
+
+- Files: `src/Detail.tsx`, `src/ErrorBoundary.tsx`, `src/main.tsx`,
+  `src/PlaybackControls.tsx`, `src/App.tsx`, `src/types.ts`,
+  `src/locales/{cs,en}/app.ts`, `src/locales/sources.json`.
+- Verified: `npx tsc --noEmit`; `node scripts/i18n.mjs check` (891/891, no
+  problems). The two that cannot be judged by reading were driven in a browser
+  against the real components bundled with esbuild, with
+  `requestAnimationFrame` and the canvas context wrapped in counters rather
+  than watched. The loop, over two seconds: 121 frames in silence before, 0
+  after; 35 frames for a seek while paused before, 1 after; 240 frames and 32
+  canvas calls while playing, unchanged, with the same 4,400 painted pixels on
+  a 566 × 40 canvas — the picture is identical, only the work in silence is
+  gone. The boundary, in both languages: the crash screen replaces the tree
+  rather than emptying it, the block reports `user-select: text` over 16 lines,
+  the button measures the shared 34 px pill, and pressing it fired a real
+  `load` and brought the application back. Both palettes read their tokens.
+
+**Left alone, and it is the larger one.** The player's context ticks eight
+times a second and `App` consumes it, so the whole application — the archive
+list included — re-renders with the clock while anything plays. `memo(Library)`
+at the call site cannot pass: it receives about twenty inline closures, which
+would have to be stabilised first, and that is a rebuild of `App.tsx` rather
+than a cheap win. The transcript itself is already safe — `SegmentRow` is
+memoised with a comparison where the time only matters to the segment currently
+sounding. The fix belongs in `player.tsx`: `time` wants its own context, or a
+subscription like `readTime`, so a consumer that only needs `recordingId` does
+not repaint with the clock.
+
+### 2026-08-07 — Colour that carries text, and the rules the file stopped obeying
+
+- Fixed, all three measured in both palettes rather than taken on trust: white
+  on the notice bar was 3.29 : 1 in the dark palette, white on every
+  destructive button 3.69 / 3.50, and the `Uloženo` pill 2.36 : 1 in the light
+  one. Three tokens now carry text where the brand value is tuned for the
+  opposite job — `--akcent-plny` (4.77 both), `--vystraha-plna` (5.17 / 5.49)
+  and `--uspech-text` (5.24 on a panel, 4.82 on the page). Same hue, same
+  saturation, only the lightness moves, and the brand tokens above them do not,
+  so nothing that merely borrows the colour follows.
+- `--vystraha-plna` is 44 % and not 46 for one reason: at 46 the resting state
+  passes at 4.79 but `filter: brightness(1.08)` takes the hover to 4.19. The
+  hover is measured too.
+- `--uspech-text` went to all five places that write grass on the grass/0.14
+  tint, not only the pill the report named. It is one measured pair; fixing one
+  of five and leaving the siblings failing would have been the worse half of a
+  tidy-up. One token to revert if that is wrong.
+- Not fixed, and worth knowing: the notice bar's own `Zavřít` chip is white on
+  white/0.2 over the bar — 3.48 : 1, better than before because the bar
+  darkened, still short. White on `--akcent` also survives on the archive
+  calendar's month header on hover, at 9 px. The token exists for both.
+- `.pruvodce h2` never drew anything. `.rucni h2` restated the type 1,580 lines
+  later at the same specificity and won on file order alone, and the only `<h2>`
+  in the wizard is inside `.rucni` — so the group label the type scale declares
+  as 17/700 was always rendering as 13 px small caps. The scale is what settles
+  it: `.rucni h2` keeps its margin, the type comes from one place, and both
+  rules now say so.
+- The scale itself: `550` ×3, `750` and `800` are gone. `.mic-stav.chyba` only
+  reduced 600 to 550, which on the declared scale is the weight it overrode, so
+  the declaration went and the colour stayed.
+- Six circular button sizes, and only two of them documented. Three are load-
+  bearing arithmetic recorded in this file — the 83 px compact pill is built on
+  two 30 px buttons — so they are commented rather than resized.
+  `.zkratky-skryt` is 20 px because the strip measures 35 px and a 32 px cross
+  takes it to 47: measured both ways rather than argued.
+- Seven radii outside the four tokens. Three had no reason and took one
+  (`--r-karta` on the compact row, which stays 56 px tall; `--r-maly` on a focus
+  ring; 3 px and 4 px were the same inline highlight twice). Four had a reason
+  and got a comment naming it and the amount.
+- Nine dead rule blocks removed, each re-verified by grep across `src/` in
+  className position and whole-word — `odkaz` survives only inside Czech copy.
+  A tenth, `.export`, is dead as well and was left because it was not on the
+  list.
+- `--pismo-cesty` was defined nowhere and lived on the fallback in two
+  `var()`s, which could have drifted apart with nothing to notice. It is a token
+  now.
+- Two hard-coded black shadows aligned: the archive calendar takes `--stin`
+  (`rgba(0,0,0,0.3)` in the dark palette where 8 % black was invisible), and the
+  speaker preview's hover halo takes the foreground. The two knobs keep black on
+  purpose — a white knob lifted off its own track is the one shadow that must
+  not follow the palette — and now say so.
+- Five media queries that cannot fire below the window's 1000 px minimum keep
+  their place as nets, like the 900 px rule already does, each with the width
+  and what it would do written above it.
+- Reported, not changed: `--postup` is written to the slider on every frame by
+  `PlaybackControls.tsx` and read by no rule. It is vestigial — the played part
+  of the timeline has been painted by the waveform canvas since `playedRatio`,
+  and a rule reading it now would paint that part twice. The write is what
+  should go.
+- File: `src/styles.css`.
+- Verified: `npx tsc --noEmit`; braces balanced; and measured in a browser
+  against the real stylesheet in both palettes — every contrast figure above is
+  read off the rendered element and its composited backdrop, after the
+  transitions settle, with the hover measured separately. Row heights (85 / 56),
+  the tips strip (35 → 47) and the wizard heading (17 px / 700 / none) were
+  measured, not looked at. No console errors.
+
+### 2026-08-07 — The repository says what it stands on, and CI compiles the half it could not see
+
+- **The hole this closes.** `#[cfg(windows)]` is stripped after parsing, so code
+  behind it is parsed on Linux and never type-checked. The job object in
+  `main.rs` and `set_webview2` in `tools.rs` are exactly that, and both landed
+  with the two Ubuntu jobs reporting green — the first thing to read them was a
+  build on somebody's desk. A `windows-latest` job now runs `cargo check
+  --all-targets` (which type-checks the test binaries too) and `cargo test`. The
+  tests earn their Windows minutes because the ones worth running are about
+  process lifetime — killing a child, closing the window mid-run — which the
+  operating system decides, not the code. `cargo fmt` stays on Ubuntu alone;
+  formatting is platform-independent.
+- **The installer is built on request, not on every push.** `npm run tauri
+  build` links the release profile with LTO and then runs NSIS: twenty minutes
+  at the Windows rate, for an answer `cargo check` has already given. The job is
+  gated on a `v*` tag or a `workflow_dispatch` checkbox, needs the three
+  checking jobs, and uploads the NSIS artifact. Tags were added to `on.push` so
+  nothing is tagged that has not been checked. The artifact is unsigned and says
+  so: the certificate lives on a hardware token and cannot be handed to a
+  runner, so a release for anybody is still built by hand.
+- **`SECURITY.md`, bilingual, Czech first** — the shape `LICENSE.txt` already
+  has, and for the same reason: the users and the author are Czech, whoever
+  finds a vulnerability may not be. It names `jsme@znackarna.cz`, and refuses to
+  invent either a response window or a PGP key nobody holds.
+- It also names, plainly, the two things that are true of this code. Downloaded
+  programs are verified by **neither checksum nor signature** — the only check in
+  `download.rs` is that `verification_path` exists once the archive is unpacked,
+  so the whole integrity guarantee is HTTPS and the certificate chain; and six
+  catalogue entries are found by **a regular expression over live GitHub
+  releases**, so what is installed depends on what those projects publish at that
+  moment. Then `csp: null` and `assetProtocol.scope: ["**"]`, with the scope's
+  reason (a recording may sit on any drive) and its consequence (no second line
+  of defence if foreign code ever reached the interface) stated separately
+  rather than blurred. What holds today is the input side, and that was verified
+  rather than assumed: the only three `dangerouslySetInnerHTML` in `src/` insert
+  the same bundled `mark.svg`.
+- **`NOTICE`**, built from the About card's own list and `package.json` — not
+  from memory, which is how a licence gets invented. FFmpeg under GPL v3 and
+  Gemma under Google's terms are lifted out of the list into their own section,
+  with the distinction the list cannot carry: the installer contains neither, so
+  handing somebody the installer triggers nothing, while a portable copy carries
+  both and passing it on is distribution.
+- The SIL OFL text travels with the fonts, as the licence requires — the fonts
+  are the one third-party work bundled in the program itself rather than
+  downloaded. It is byte-identical to the `LICENSE` in the font packages, and
+  identical across all five, so it appears once with the five copyright lines
+  above it. Source Serif 4's reads only `Google Inc.` in its package; it is
+  copied as it stands rather than corrected on the author's behalf.
+- **Fixed: `slozky-analyza.md` was versioned.** `*-analyza-*.md` demanded a
+  hyphen on both sides of the word and matched only `slobot-analyza-0.9.0.md`.
+  Both shapes are now one rule, and `*hodnoceni*.md` follows rather than waiting
+  to be caught out by the next name. Note that ignoring it does not untrack it:
+  `git rm --cached slozky-analyza.md` is still owed.
+- Files: `.github/workflows/check.yml`, `SECURITY.md`, `NOTICE`, `.gitignore`.
+- Verified: the workflow parses as YAML, four jobs, the installer job carries
+  its `if` and its `needs`. `git check-ignore -v` against real names in both
+  directions — the analysis names are caught, `README.md`, `ARCHITECTURE.md`,
+  `CLAUDE.md`, `NOTICE`, `SECURITY.md` and `CHANGELOG.md` are not, and no
+  tracked file is newly ignored. The OFL text `diff`s clean against the font
+  package. Every licence in `NOTICE` was read out of a file — which is where
+  `typescript` turned out to be Apache-2.0 rather than MIT.
+- Not verified, and it needs a push: none of this has run on a runner.
+- Not done, deliberately: no root `LICENSE`. Choosing one is the owner's legal
+  decision. Worth knowing when it is taken — there is no GPL code in this
+  repository at all, FFmpeg and Gemma are both fetched at runtime, so copyleft
+  touches the portable copy and not the source tree.

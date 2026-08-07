@@ -33,6 +33,28 @@
   --vystraha: hsl(var(--ds-destructive));
   --vystraha-svetla: hsl(var(--ds-destructive) / 0.08);
   --uspech: hsl(var(--ds-grass));
+
+  /* Three colours that carry text, where the brand value is tuned for the
+     opposite job — being read *against* a neutral surface rather than under
+     white, or written on its own tint. Each one below is the same hue and
+     saturation taken to the lightness that reaches 4.5 : 1, and each is used
+     only where that pair actually occurs. The brand tokens above do not move,
+     so nothing that merely borrows the colour changes with them.
+
+     --akcent-plny   white on a filled accent bar: 4.47 : 1 light and
+       3.29 : 1 dark, where the accent is lightened so it can be read as text.
+       One value for both palettes, 4.76 : 1 — a filled bar has the same job
+       whatever is behind it.
+     --vystraha-plna white on a filled red surface: 3.69 / 3.50 before.
+       44 % rather than 46 so the brightness(1.08) hover still clears 4.5
+       (4.53 light, 4.82 dark) instead of falling to 4.19.
+     --uspech-text   grass written on the grass/0.14 tint it always sits on:
+       2.36 : 1 in the light palette. The tint is unchanged, only the ink —
+       5.26 : 1 on a panel, 4.84 : 1 on the page background. The dark palette
+       already clears it at 4.93 and keeps its own value. */
+  --akcent-plny: hsl(218 100% 53%);
+  --vystraha-plna: hsl(6 91% 44%);
+  --uspech-text: hsl(101 51% 29%);
   --zvyrazneni: hsl(var(--ds-amber) / 0.22);
   /* Notes are the one surface that is not part of the neutral chrome. Paper
      yellow says "written by hand" at a glance, without a label. */
@@ -60,6 +82,10 @@
   /* Overwritten from Settings at runtime; this is only the default. */
   --pismo: "Geist Variable", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
   --pismo-text: "Literata Variable", Georgia, "Times New Roman", serif;
+  /* Paths and other fixed-pitch values. Not written from Settings — it was
+     used through a fallback in two places and defined nowhere, so the two
+     could have drifted apart without anything noticing. */
+  --pismo-cesty: ui-monospace, "Cascadia Mono", "Consolas", monospace;
   --velikost-textu: 17.5px;
   --radkovani: 1.72;
 }
@@ -92,6 +118,11 @@
   --listek-linka: hsl(46 14% 31%);
   --listek-pole: hsl(46 12% 15%);
   --akcent-svetly: hsl(var(--ds-petrol) / 0.14);
+  /* `--akcent-plny` is deliberately the same in both palettes; the other two
+     follow their own palette's hue and saturation. Grass at 52 % already
+     reads 4.93 : 1 on its own tint here, so it keeps the brand value. */
+  --vystraha-plna: hsl(6 80% 44%);
+  --uspech-text: hsl(var(--ds-grass));
   --zvyrazneni: hsl(var(--ds-amber) / 0.28);
   --zaves: rgb(0 0 0 / 0.55);
   --stin: 0 1px 4px rgb(0 0 0 / 0.3);
@@ -140,8 +171,12 @@ button, input, select, textarea { font: inherit; color: inherit; }
   letter-spacing: -0.005em; color: var(--text);
 }
 /* A group label above a list in the wizard — deliberately below the 19 px of
-   a card or a dialog heading, because it labels one part of a screen. The rule
-   used to name .nastaveni h2 as well, where it never won. */
+   a card or a dialog heading, because it labels one part of a screen. This is
+   the "wizard group label 17/700" of the type scale, and the only <h2> in the
+   wizard is the one it describes: the group heading in the manual component
+   list. `.rucni h2` further down used to redeclare the type at the same
+   specificity and win purely on file order, so this rule never drew anything;
+   it now carries only that list's own margin. */
 .pruvodce h2 {
   font-size: 17px; font-weight: 700; color: var(--text);
   letter-spacing: -0.01em; text-transform: none;
@@ -200,7 +235,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
   height: var(--app-footer-height); padding: 0 20px; flex: 0 0 auto;
   border-top: 1px solid var(--linka); background: var(--panel);
-  color: var(--text-tichy); font-size: 11.5px; font-weight: 550;
+  color: var(--text-tichy); font-size: 11.5px; font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 .app-status-footer-group {
@@ -248,13 +283,6 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .tlacitko:disabled { opacity: 0.45; cursor: default; }
 
 
-.odkaz {
-  background: none; border: 0; padding: 10px 0 0;
-  color: var(--akcent); cursor: pointer;
-  font-size: 13px; font-weight: 600;
-}
-.odkaz:hover { text-decoration: underline; text-underline-offset: 3px; }
-
 /* ---------------------------------------------------------------- toast */
 
 /* Two kinds of message, two colours. Red is reserved for something that needs
@@ -268,11 +296,11 @@ button, input, select, textarea { font: inherit; color: inherit; }
   --notice-life: 5s;
   display: flex; justify-content: space-between; gap: 16px; align-items: center;
   padding: 10px 18px; color: #fff; font-weight: 500;
-  max-height: 120px; overflow: hidden; background: var(--akcent);
+  max-height: 120px; overflow: hidden; background: var(--akcent-plny);
   transform-origin: top;
   animation: notice-enter 0.32s ease-out both;
 }
-.hlaska.error { background: var(--vystraha); }
+.hlaska.error { background: var(--vystraha-plna); }
 /* The text takes the room the ring does not, so the close button keeps the
    right edge and the ring the left. */
 .hlaska > span { flex: 1 1 auto; }
@@ -457,6 +485,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
   position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none;
 }
 .watch-folder-checkbox {
+  /* 5 px, not --r-maly: on an 18 px box 8 would be nearly a circle, and a
+     circle is what this application uses for a radio, not a checkbox. */
   display: grid; place-items: center; width: 18px; height: 18px; flex: 0 0 auto;
   border: 1px solid var(--linka-pole); border-radius: 5px;
   background: var(--panel); color: transparent;
@@ -471,7 +501,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .watch-folder-file input:disabled ~ * { opacity: 0.55; }
 .watch-folder-file-name {
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  font-size: 13.5px; font-weight: 550;
+  font-size: 13.5px; font-weight: 600;
 }
 /* The note is about the list, not part of it. It had no gap at all: the rule
    below said 12 px, but `.settings-info-note.compact { margin: 0 }` is written
@@ -486,6 +516,10 @@ button, input, select, textarea { font: inherit; color: inherit; }
 }
 .watch-folder-selection { color: var(--text-tichy); font-size: 12.5px; }
 .watch-folder-actions { display: flex; gap: 8px; }
+/* Below the window's own 1000 px minimum (tauri.conf.json), so this cannot
+   fire today. Kept as a net, like the 900 px rule for the header pills, in
+   case the minimum ever drops or the interface is opened in a browser.
+   650 px: the notice's footer would stack. */
 @media (max-width: 650px) {
   .watch-folder-footer { align-items: flex-start; flex-direction: column; }
   .watch-folder-actions { align-self: stretch; justify-content: flex-end; }
@@ -583,7 +617,11 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .archive-filter-empty {
   margin: 22px auto 0; color: var(--text-tichy); text-align: center;
 }
-  @media (max-width: 760px) {
+/* Below the window's own 1000 px minimum (tauri.conf.json), so this cannot
+   fire today. Kept as a net, like the 900 px rule for the header pills, in
+   case the minimum ever drops or the interface is opened in a browser.
+   760 px: search takes its own row above the two filters. */
+@media (max-width: 760px) {
     .knihovna-lista {
       grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
   }
@@ -607,6 +645,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .vypinac-drazka::after {
   content: ""; position: absolute; top: 2px; left: 2px;
   width: 16px; height: 16px; border-radius: 50%;
+  /* Black rather than --stin: this is a white knob lifted off its own track,
+     the one shadow that must not follow the palette. 25 % at a 3 px blur. */
   background: #fff; box-shadow: 0 1px 3px rgb(0 0 0 / 0.25);
   transition: transform 0.18s ease;
 }
@@ -632,8 +672,10 @@ button, input, select, textarea { font: inherit; color: inherit; }
    The compact list keeps a tighter 8 px — density is what it is for. */
 .seznam { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
 .seznam.compact { gap: 8px; }
-.seznam.compact .radek { padding: 8px 12px 8px 8px; border-radius: 14px; }
+.seznam.compact .radek { padding: 8px 12px 8px 8px; border-radius: var(--r-karta); }
 .seznam.compact .radek-hlavni { align-items: center; gap: 10px; }
+/* 6 px against the roomy tile's 7: the same proportion on a 38 x 38 px mark.
+   Both are commented where `.recording-calendar` is defined. */
 .seznam.compact .recording-calendar {
   width: 38px; border-radius: 6px;
 }
@@ -660,6 +702,10 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .seznam.compact .recording-metadata-item.error > span {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+/* Below the window's own 1000 px minimum (tauri.conf.json), so this cannot
+   fire today. Kept as a net, like the 900 px rule for the header pills, in
+   case the minimum ever drops or the interface is opened in a browser.
+   720 px: the compact row's metadata drops below its title. */
 @media (max-width: 720px) {
   .seznam.compact .radek-text { flex-direction: column; align-items: flex-start; gap: 1px; }
   .seznam.compact .recording-metadata { flex-wrap: wrap; }
@@ -720,16 +766,18 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .recording-calendar {
   position: relative; overflow: hidden;
   display: flex; flex-direction: column; align-items: center;
+  /* 7 px, and 6 on the compact tile above: the radius is proportional to a
+     48 x 55 px tile, the same reasoning as the archive calendar popover. */
   width: 48px; height: var(--radek-znacka); flex: 0 0 auto;
   border: 1px solid var(--linka-pole); border-radius: 7px;
   background: var(--panel); color: var(--text);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
+  box-shadow: var(--stin);
   transition: box-shadow var(--hover-duration) var(--hover-ease);
 }
 .recording-calendar-month {
   width: 100%; padding: 4px 0 3px;
   background: var(--tlumene); color: var(--text-tichy); text-align: center;
-  font-size: 9px; font-weight: 800; line-height: 1;
+  font-size: 9px; font-weight: 700; line-height: 1;
   letter-spacing: 0.08em;
   transition: background var(--hover-duration) var(--hover-ease),
     color var(--hover-duration) var(--hover-ease);
@@ -739,7 +787,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .radek:hover .recording-calendar,
 .radek:focus-within .recording-calendar { box-shadow: none; }
 .recording-calendar-day {
-  margin-top: 3px; font-size: 20px; font-weight: 750; line-height: 1;
+  margin-top: 3px; font-size: 20px; font-weight: 700; line-height: 1;
   font-variant-numeric: tabular-nums;
 }
 .recording-calendar-year {
@@ -865,6 +913,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
     grid-template-areas: "mark" "copy" "actions";
   justify-items: center; align-items: center; gap: 14px;
   text-align: center;
+  /* 22 px, not --r-velky: a 320 px dashed panel, the largest surface in the
+     window. The drag overlay repeats the amount so the two read as one. */
   border: 1.5px dashed var(--linka-pole); border-radius: 22px;
   min-height: 320px; padding: 56px 32px 52px; background: var(--jemne);
   transition: min-height 0.18s ease, padding 0.18s ease, border-radius 0.18s ease,
@@ -936,7 +986,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .vysledky button:hover { border-color: var(--akcent-linka); background: var(--akcent-svetly); }
 .vysledek-kde { font-size: 12px; font-weight: 600; color: var(--text-tichy); font-variant-numeric: tabular-nums; }
 .vysledek-text { font-family: var(--pismo-text); font-size: 15px; }
-mark { background: var(--zvyrazneni); color: inherit; padding: 0 2px; border-radius: 3px; }
+/* 4 px, not --r-maly: an inline highlight is about 20 px tall, and 8 would
+   round it into a pill. Same amount as `.slovo`, which is the same idea. */
+mark { background: var(--zvyrazneni); color: inherit; padding: 0 2px; border-radius: 4px; }
 .prazdny-vysledek { color: var(--text-tichy); }
 
 /* ---------------------------------------------------------------- detail */
@@ -967,11 +1019,6 @@ mark { background: var(--zvyrazneni); color: inherit; padding: 0 2px; border-rad
 .ai-edit-button.ready { color: var(--akcent); border-color: var(--akcent-linka); }
 .ai-edit-button svg { flex: 0 0 auto; }
 .export { display: flex; gap: 2px; align-items: center; }
-.export-popis {
-  font-size: 11px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.09em; color: var(--text-tichy); white-space: nowrap;
-}
-.delic { width: 1px; height: 20px; background: var(--linka); flex: 0 0 auto; }
 
 .detail-progress-bubble {
   position: fixed; right: 22px;
@@ -1017,6 +1064,8 @@ mark { background: var(--zvyrazneni); color: inherit; padding: 0 2px; border-rad
   from { opacity: 0; transform: translateY(6px) scale(0.98); }
   to { opacity: 1; transform: none; }
 }
+/* 28 px, not 32: the bubble is a 340 px card and its close control must not
+   set the height of the row the phase description sits on. */
 .detail-progress-cancel {
   display: grid; place-items: center; flex: 0 0 auto;
   width: 28px; height: 28px; padding: 0;
@@ -1047,7 +1096,9 @@ mark { background: var(--zvyrazneni); color: inherit; padding: 0 2px; border-rad
   padding: 10px 18px; border-bottom: 1px solid var(--linka); background: var(--panel);
 }
 .prehrat {
-  /* Both layers share one grid cell, so they centre on each other. */
+  /* Both layers share one grid cell, so they centre on each other. 44 px,
+     not the 32 of an icon button: this is the transport's primary control
+     and the only circular button that leads a row. */
   display: grid; place-items: center;
   width: 44px; height: 44px; border-radius: 50%;
   border: 0; background: none; padding: 0; line-height: 0;
@@ -1097,7 +1148,9 @@ mark { background: var(--zvyrazneni); color: inherit; padding: 0 2px; border-rad
   border: 0; border-radius: 50%;
   /* The accent colour, matching the bars it leads. */
   background: var(--akcent);
-  /* A soft shadow separates the thumb from the equalizer underneath. */
+  /* A soft shadow separates the thumb from the equalizer underneath. Black
+     rather than --stin, and at 30 % rather than the token's 8: it has to hold
+     against the accent-coloured bars in both palettes. */
   box-shadow: 0 1px 3px rgb(0 0 0 / 0.3);
 }
 .posuvnik:focus-visible::-webkit-slider-thumb { box-shadow: var(--prstenec); }
@@ -1127,6 +1180,9 @@ mark { background: var(--zvyrazneni); color: inherit; padding: 0 2px; border-rad
 }
 .zkratky-nadpis::after { content: ":"; }
 .zkratky-skryt {
+  /* 20 px, not 32: the strip is 35 px tall on its 12 px line, and an
+     ordinary 32 px icon button would take it to 47 — the strip would be set
+     by its own dismiss control, which is the one thing it must not be. */
   margin-left: auto; flex: 0 0 auto;
   display: grid; place-items: center;
   width: 20px; height: 20px; padding: 0;
@@ -1157,7 +1213,6 @@ mark { background: var(--zvyrazneni); color: inherit; padding: 0 2px; border-rad
 
 .prepis { overflow-y: auto; padding: 26px 32px 120px; }
 .prepis.prepis > * { max-width: 760px; margin-inline: auto; }
-.bezi-pruh { margin-bottom: 18px; font-size: 13px; font-weight: 600; color: var(--text-tichy); }
 .zivy-prepis { font-family: var(--pismo-text); font-size: var(--velikost-textu); line-height: var(--radkovani); color: var(--text-tichy); }
 
 .mluvci-hlavicka {
@@ -1193,7 +1248,9 @@ mark { background: var(--zvyrazneni); color: inherit; padding: 0 2px; border-rad
 .slovo {
   cursor: pointer;
   /* The highlight is drawn around the text line, not the full line box —
-     otherwise the boxes of adjacent lines collide and form steps. */
+     otherwise the boxes of adjacent lines collide and form steps.
+     4 px, not --r-maly: on a line-height-tall inline box 8 would be a pill.
+     Same amount as `mark`. */
   border-radius: 4px;
   box-decoration-break: clone; -webkit-box-decoration-break: clone;
   padding: 1px 1px;
@@ -1242,7 +1299,7 @@ mark { background: var(--zvyrazneni); color: inherit; padding: 0 2px; border-rad
 }
 .postranni h2 { margin: 0 0 10px; }
 
-.mluvci-seznam, .slovnik-seznam { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.mluvci-seznam { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .mluvci-seznam li { display: flex; align-items: center; gap: 8px; }
 .tecka { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; }
 .mluvci-seznam input {
@@ -1258,7 +1315,6 @@ mark { background: var(--zvyrazneni); color: inherit; padding: 0 2px; border-rad
    own — only a width, or it would stretch and push the name into two lines. */
 .mluvci-seznam .vyber { flex: 0 0 auto; width: 132px; }
 .mluvci-seznam .vyber button { min-height: 30px; font-size: 12px; }
-.slovnik-seznam li { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
 
 .nabidka {
   position: fixed; left: 50%;
@@ -1290,7 +1346,7 @@ mark { background: var(--zvyrazneni); color: inherit; padding: 0 2px; border-rad
   position: fixed; right: 22px; bottom: 22px; z-index: 50;
   display: inline-flex; align-items: center; gap: 6px;
   padding: 6px 13px 6px 10px; border-radius: var(--r-pilulka);
-  background: hsl(var(--ds-grass) / 0.14); color: var(--uspech);
+  background: hsl(var(--ds-grass) / 0.14); color: var(--uspech-text);
   border: 1px solid hsl(var(--ds-grass) / 0.3);
   box-shadow: var(--stin-vysoky);
   font-size: 12.5px; font-weight: 700;
@@ -1459,7 +1515,7 @@ mark { background: var(--zvyrazneni); color: inherit; padding: 0 2px; border-rad
 }
 .settings-disclosure > summary::-webkit-details-marker { display: none; }
 .settings-disclosure > summary:hover { color: var(--text); }
-.settings-disclosure > summary:focus-visible { box-shadow: var(--prstenec); border-radius: 6px; }
+.settings-disclosure > summary:focus-visible { box-shadow: var(--prstenec); border-radius: var(--r-maly); }
 .settings-disclosure-chevron {
   display: grid; place-items: center; line-height: 0;
   transition: transform 0.16s ease;
@@ -1474,6 +1530,10 @@ mark { background: var(--zvyrazneni); color: inherit; padding: 0 2px; border-rad
 /* A panel inside the disclosure carries its own frame, so the indent's rule
    would be a second border beside the first. The panel stands on its own. */
 .settings-disclosure-content:has(> .kontrola) { padding-left: 0; border-left: 0; }
+/* Below the window's own 1000 px minimum (tauri.conf.json), so this cannot
+   fire today. Kept as a net, like the 900 px rule for the header pills, in
+   case the minimum ever drops or the interface is opened in a browser.
+   560 px: Settings loses its outer padding and the tabs scroll. */
 @media (max-width: 560px) {
   .nastaveni { padding: 24px 12px 72px; }
   .nastaveni section { padding: 22px 20px; }
@@ -1582,7 +1642,7 @@ mark { background: var(--zvyrazneni); color: inherit; padding: 0 2px; border-rad
 .kontrola li + li { border-top: 1px solid var(--linka); }
 .kontrola-znak {
   display: grid; place-items: center; width: 22px; height: 22px;
-  border-radius: 50%; background: hsl(var(--ds-grass) / 0.14); color: var(--uspech);
+  border-radius: 50%; background: hsl(var(--ds-grass) / 0.14); color: var(--uspech-text);
 }
 .kontrola li.ne .kontrola-znak { background: var(--vystraha-svetla); color: var(--vystraha); }
 .kontrola-nazev { font-weight: 600; line-height: 1.35; }
@@ -1592,7 +1652,7 @@ mark { background: var(--zvyrazneni); color: inherit; padding: 0 2px; border-rad
    itself reading left to right. */
 .kontrola-cesta {
   color: var(--text-tichy); font-size: 12.5px;
-  font-family: var(--pismo-cesty, ui-monospace, "Cascadia Mono", "Consolas", monospace);
+  font-family: var(--pismo-cesty);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   /* No `unicode-bidi: plaintext` here: it re-derives the direction from the
      text and moves the ellipsis back to the end, which cuts off the file
@@ -1699,7 +1759,7 @@ mark { background: var(--zvyrazneni); color: inherit; padding: 0 2px; border-rad
   padding: 2px 9px; border-radius: var(--r-pilulka); letter-spacing: 0.02em;
 }
 .odznak.nutny { background: var(--vystraha-svetla); color: var(--vystraha); }
-.odznak.hotovo { background: hsl(var(--ds-grass) / 0.14); color: var(--uspech); }
+.odznak.hotovo { background: hsl(var(--ds-grass) / 0.14); color: var(--uspech-text); }
 /* A badge that is the card's action, not its state. The whole card is the
    button, so this must read as something that happens, not as a label. */
 .odznak.akce { background: var(--akcent-svetly); color: var(--akcent); }
@@ -1724,14 +1784,14 @@ mark { background: var(--zvyrazneni); color: inherit; padding: 0 2px; border-rad
 
 .rucni { margin-bottom: 4px; }
 .rucni > div { margin-bottom: 16px; }
-.rucni h2 { margin: 0 0 8px; font-size: 13px; color: var(--text-tichy);
-  text-transform: uppercase; letter-spacing: 0.08em; }
+/* Only the gap under the label. The type comes from `.pruvodce h2` — see the
+   note there; this rule used to restate it and beat it on file order. */
+.rucni h2 { margin: 0 0 8px; }
 
 .soucasti { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .soucast { border: 1px solid var(--linka); background: var(--panel); border-radius: var(--r-karta); padding: 12px 15px; }
 .soucast.hotova { background: var(--jemne); }
 .soucast.hotova .soucast-text { color: var(--text-tichy); }
-.soucast.probiha { border-color: var(--akcent-linka); }
 .soucast label { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: start; cursor: pointer; }
 .soucast.hotova label { cursor: default; }
 .soucast input { margin-top: 3px; accent-color: var(--akcent); }
@@ -1741,13 +1801,11 @@ mark { background: var(--zvyrazneni); color: inherit; padding: 0 2px; border-rad
 .downloaded-mark {
   display: inline-grid; place-items: center;
   width: 22px; height: 22px; border-radius: 50%;
-  background: hsl(var(--ds-grass) / 0.14); color: var(--uspech);
+  background: hsl(var(--ds-grass) / 0.14); color: var(--uspech-text);
   /* Centred against the whole row, not against its first line: the mark is
      about the component, while the checkbox belongs to the title beside it. */
   align-self: center;
 }
-.soucast-prubeh { margin-top: 10px; display: flex; flex-direction: column; gap: 4px; }
-.soucast-chyba { color: var(--vystraha); font-size: 13px; margin: 8px 0 0; }
 
 /* ---------------------------------------------------------------- dialog */
 
@@ -1846,7 +1904,7 @@ button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
 }
 .mic-udaje { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .mic-stav { font-size: 13.5px; font-weight: 600; }
-.mic-stav.chyba { color: var(--vystraha); font-weight: 550; }
+.mic-stav.chyba { color: var(--vystraha); }
 .mic-cas {
   color: var(--text-tichy); font-size: 13px; font-weight: 600;
   font-variant-numeric: tabular-nums;
@@ -2220,9 +2278,9 @@ button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
 .ai-preview-actions .tlacitko.tichy:first-child { margin-right: auto; }
 
 .tlacitko.nicive {
-  background: var(--vystraha); border-color: var(--vystraha); color: #fff;
+  background: var(--vystraha-plna); border-color: var(--vystraha-plna); color: #fff;
 }
-.tlacitko.nicive:hover { filter: brightness(1.08); background: var(--vystraha); }
+.tlacitko.nicive:hover { filter: brightness(1.08); background: var(--vystraha-plna); }
 
 /* ---------------------------------------------------------------- drag and drop */
 
@@ -2234,6 +2292,7 @@ button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
 }
 .prekryv-obsah {
   background: var(--panel); border: 2px dashed var(--akcent);
+  /* 22 px: the drop zone's amount, because this is the same dashed panel. */
   border-radius: 22px; padding: 40px 60px; text-align: center;
   box-shadow: var(--stin-vysoky);
 }
@@ -2368,6 +2427,8 @@ button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
   font-size: 11.5px; font-weight: 600; color: var(--text-tichy);
   font-variant-numeric: tabular-nums; flex: 0 0 auto;
 }
+/* 30 px, not 32: the compact pill's 83 px width is arithmetic built on two
+   30 px buttons, and resizing this one moves a measured layout. */
 .mini-zavrit {
   width: 30px; height: 30px; border-radius: 50%;
   color: var(--text-tichy);
@@ -2493,6 +2554,8 @@ button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
      Without cancelling the columns the icon would land in the first one
      instead of in the middle. */
   grid-template-columns: none;
+  /* 28 px, not 32: it shares a row with one line of text in a 300 px panel,
+     and at 32 the row would be taller than the line it belongs to. */
   flex: 0 0 auto; display: grid; place-items: center;
   width: 28px; height: 28px; padding: 0;
   border: 0; background: none; cursor: pointer;
@@ -2513,7 +2576,7 @@ button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
 .moduly-mrizka { display: grid; gap: 8px; }
 .modul-dlazdice { display: flex; align-items: center; gap: 13px; }
 .modul-dlazdice.hotovo .volba-ikona {
-  background: hsl(var(--ds-grass) / 0.14); color: var(--uspech);
+  background: hsl(var(--ds-grass) / 0.14); color: var(--uspech-text);
 }
 .modul-dlazdice.chybi .volba-ikona {
   background: var(--vystraha-svetla); color: var(--vystraha);
@@ -2530,12 +2593,6 @@ button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
-/* a button pretending to be a link inside a sentence */
-.odkaz-veta {
-  border: 0; background: none; padding: 0; cursor: pointer;
-  color: var(--akcent); font: inherit; text-decoration: underline;
-  text-underline-offset: 2px;
-}
 .varovne-radek { color: var(--vystraha); }
 
 /* --------------------------------------------------- model choice cards */
@@ -2728,6 +2785,8 @@ button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
    one grid cell rather than swapped in JavaScript, so neither can shift the
    row by a pixel as it fades. */
 .folder-crumb-back {
+  /* 30 px, not 32: the same 30 px circle a sidebar section heading uses for
+     its mark, because at rest that is what this is. */
   display: grid; flex: 0 0 auto; place-items: center;
   width: 30px; height: 30px; padding: 0;
   border: 0; border-radius: 50%; cursor: pointer;
@@ -2758,6 +2817,7 @@ button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
 .folder-crumb-count { margin-left: 2px; }
 /* The menu sits with the name, not at the end of the row: it acts on the
    folder, and the facts after it are about the folder's contents. */
+/* 30 px, not 32: it sits beside the 30 px mark at the head of the same row. */
 .folder-crumb-menu > .ikona-tlacitko { width: 30px; height: 30px; }
 
 /* a recording with no transcript */
@@ -2780,8 +2840,6 @@ button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
   background: var(--akcent-svetly); color: var(--akcent);
 }
 .prepis-prazdny h2 { margin: 0 0 18px; font-size: 16px; font-weight: 680; }
-
-/* the cross beside a dictionary term — same hit area as other icon buttons */
 
 /* ------------------------------------------------------- save as */
 .ulozit { position: relative; }
@@ -2828,7 +2886,7 @@ button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
   max-width: 100%; padding: 4px 8px; margin: -4px -8px -4px 0;
   border: 0; border-radius: var(--r-pilulka); background: transparent;
   color: var(--text-tichy); cursor: pointer;
-  font-family: var(--pismo-cesty, ui-monospace, "Cascadia Mono", "Consolas", monospace);
+  font-family: var(--pismo-cesty);
   font-size: 12px; font-weight: inherit;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   direction: rtl;
@@ -2862,7 +2920,9 @@ button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
 }
 .mluvci-ukazka:hover {
   filter: brightness(1.08);
-  box-shadow: 0 0 0 3px rgb(0 0 0 / 8%);
+  /* A halo, not a drop shadow, so it takes the foreground rather than black:
+     8 % black around a coloured button is invisible in the dark palette. */
+  box-shadow: 0 0 0 3px hsl(var(--ds-foreground) / 0.08);
 }
 .mluvci-ukazka:focus-visible {
   outline: none;
@@ -2947,6 +3007,8 @@ button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
 .dictionary-head > span:first-child,
 .dictionary-head > span:nth-child(3) { padding-left: 12px; }
 
+/* 28 px, not 32: it stands at the end of a 34 px field row, and the trailing
+   column is shared with the composer's own button. */
 .dictionary-remove {
   display: grid; place-items: center; width: 28px; height: 28px;
   border: 0; border-radius: 50%; background: transparent;
@@ -2955,6 +3017,10 @@ button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
     color var(--hover-duration) var(--hover-ease);
 }
 .dictionary-remove:hover { background: var(--vystraha-svetla); color: var(--vystraha); }
+/* Below the window's own 1000 px minimum (tauri.conf.json), so this cannot
+   fire today. Kept as a net, like the 900 px rule for the header pills, in
+   case the minimum ever drops or the interface is opened in a browser.
+   560 px: a dictionary row drops to two columns. */
 @media (max-width: 560px) {
   .dictionary-row,
   .dictionary-list li { grid-template-columns: minmax(0, 1fr) auto; }

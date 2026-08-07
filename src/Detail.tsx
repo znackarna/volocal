@@ -20,6 +20,7 @@ import { useI18n } from "./i18n";
 import { localMessage, useProgressMessage, useUserMessage } from "./messages";
 import type { TranslationKey } from "./i18n";
 import { useLabels } from "./labels";
+import { useDialog } from "./useDialog";
 import { CONFIDENCE_THRESHOLD, formatTime, fileName } from "./types";
 import ProgressBubble from "./ProgressBubble";
 import type {
@@ -127,8 +128,17 @@ type SidebarSectionName = (typeof SIDEBAR_SECTIONS)[number];
 type SidebarOpenSections = Record<SidebarSectionName, boolean>;
 
 function readOpenSections(): SidebarOpenSections {
-  const stored = localStorage.getItem("sidebar-sections");
-  const parsed: unknown = stored ? JSON.parse(stored) : null;
+  let parsed: unknown = null;
+  try {
+    // This is a useState initialiser, so anything thrown here takes the whole
+    // window down to white. A remembered panel state is never worth that: a
+    // corrupt record — or a storage a browser refuses to read — falls back to
+    // every section open, which is what a fresh installation shows anyway.
+    const stored = localStorage.getItem("sidebar-sections");
+    if (stored) parsed = JSON.parse(stored);
+  } catch {
+    parsed = null;
+  }
   const saved = parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : {};
   return SIDEBAR_SECTIONS.reduce((all, name) => {
     // Unknown or missing means open: a panel that hides its content by
@@ -722,6 +732,14 @@ export default function Detail({
    *  fetch them when they are not, rather than failing on the way out. */
   const [speakersReady, setSpeakersReady] = useState(false);
   const [aiDialog, setAiDialog] = useState<"configure" | "preview" | "missing" | null>(null);
+  /* Three modals, three traps. They were the four dialogs Escape did nothing
+     in — closable only by clicking the overlay, which is not a thing the
+     keyboard can do. One `useDialog` each, because a hook cannot live inside
+     the conditional that renders them. */
+  const closeAiDialog = useCallback(() => setAiDialog(null), []);
+  const missingDialog = useDialog<HTMLDivElement>(closeAiDialog, aiDialog === "missing");
+  const configureDialog = useDialog<HTMLDivElement>(closeAiDialog, aiDialog === "configure");
+  const previewDialog = useDialog<HTMLDivElement>(closeAiDialog, aiDialog === "preview");
   const [aiMode, setAiMode] = useState<"faithful" | "clean" | "speakers">("faithful");
   const [previewTab, setPreviewTab] = useState<PreviewTab>("improved");
   const [summaryLength, setSummaryLength] = useState<SummaryLength>("standard");
@@ -1513,10 +1531,28 @@ export default function Detail({
     return m;
   }, [speakers]);
 
-  const rename = useCallback(
+  /** What is in the field. Typing is not a decision, so it goes no further
+   *  than the screen. */
+  const renameLocally = useCallback((key: string, name: string) => {
+    setSpeakers((s) => s.map((m) => (m.key === key ? { ...m, name } : m)));
+  }, []);
+
+  /** What the name was when the field was entered, so that leaving it without
+   *  changing anything writes nothing. */
+  const nameAtFocus = useRef("");
+
+  /** Saving is what leaving the field means.
+   *
+   *  It used to save on every keystroke: writing "Pavel" was five IPC calls,
+   *  five database writes, and five times marking the improved document stale.
+   *  The dictionary in Settings has always saved on blur; this now matches it.
+   *  Merging by name comes after the save, so the name the merge is judged on
+   *  is the one that was stored. */
+  const commitName = useCallback(
     async (key: string, name: string) => {
-      setSpeakers((s) => s.map((m) => (m.key === key ? { ...m, name } : m)));
-      setAiDocument((document) => document ? { ...document, stale: true } : null);
+      if (name === nameAtFocus.current) return;
+      nameAtFocus.current = name;
+      setAiDocument((document) => (document ? { ...document, stale: true } : null));
       try {
         await api.renameSpeaker(id, key, name);
       } catch (e) {
@@ -2193,8 +2229,16 @@ export default function Detail({
                       </button>
                       <input
                         value={speaker.name}
-                        onChange={(event) => rename(speaker.key, event.target.value)}
-                        onBlur={(event) => mergeByName(speaker.key, event.target.value)}
+                        aria-label={t("detail.speakers.nameLabel")}
+                        onChange={(event) => renameLocally(speaker.key, event.target.value)}
+                        onFocus={(event) => {
+                          nameAtFocus.current = event.target.value;
+                        }}
+                        onBlur={async (event) => {
+                          const typed = event.target.value;
+                          await commitName(speaker.key, typed);
+                          mergeByName(speaker.key, typed);
+                        }}
                         onKeyDown={(event) => {
                           if (event.key === "Enter") event.currentTarget.blur();
                         }}
@@ -2523,7 +2567,8 @@ export default function Detail({
 
       {aiDialog === "missing" && (
         <div className="prekryv-dialogu" role="presentation" onMouseDown={() => setAiDialog(null)}>
-          <div className="dialog" role="dialog" aria-modal="true" aria-labelledby="ai-missing-title"
+          <div ref={missingDialog} className="dialog" role="dialog" aria-modal="true"
+               aria-labelledby="ai-missing-title"
                onMouseDown={(event) => event.stopPropagation()}>
             <h2 id="ai-missing-title">{t("detail.ai.missingTitle")}</h2>
             <p>{t("detail.ai.missingText")}</p>
@@ -2550,7 +2595,7 @@ export default function Detail({
 
       {aiDialog === "configure" && (
         <div className="prekryv-dialogu" role="presentation" onMouseDown={() => setAiDialog(null)}>
-          <div className="dialog ai-edit-dialog" role="dialog" aria-modal="true"
+          <div ref={configureDialog} className="dialog ai-edit-dialog" role="dialog" aria-modal="true"
                aria-labelledby="ai-configure-title" onMouseDown={(event) => event.stopPropagation()}>
             <h2 id="ai-configure-title">{t("detail.ai.configureTitle")}</h2>
             <p>{t("detail.ai.configureText")}</p>
@@ -2636,7 +2681,7 @@ export default function Detail({
 
       {aiDialog === "preview" && aiDocument && (
         <div className="prekryv-dialogu" role="presentation" onMouseDown={() => setAiDialog(null)}>
-          <div className="dialog ai-preview-dialog" role="dialog" aria-modal="true"
+          <div ref={previewDialog} className="dialog ai-preview-dialog" role="dialog" aria-modal="true"
                aria-labelledby="ai-preview-title" onMouseDown={(event) => event.stopPropagation()}>
             <div className="ai-preview-header">
               <div>

@@ -10,6 +10,7 @@ import "@fontsource-variable/literata/wght.css";
 import "@fontsource-variable/source-serif-4/wght.css";
 
 import App from "./App";
+import ErrorBoundary from "./ErrorBoundary";
 import { applyTheme, rememberedTheme } from "./types";
 import { I18nProvider } from "./i18n";
 import { PlayerProvider } from "./player";
@@ -35,11 +36,16 @@ applyTheme(rememberedTheme());
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <I18nProvider>
-      <PlayerProvider>
-        <RecorderProvider>
-          <App />
-        </RecorderProvider>
-      </PlayerProvider>
+      {/* Inside the dictionary, outside everything else: the crash screen has
+          to be able to say what happened, and the player, the recorder and the
+          application are what can throw. */}
+      <ErrorBoundary>
+        <PlayerProvider>
+          <RecorderProvider>
+            <App />
+          </RecorderProvider>
+        </PlayerProvider>
+      </ErrorBoundary>
     </I18nProvider>
   </React.StrictMode>
 );

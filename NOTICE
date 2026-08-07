@@ -1,0 +1,269 @@
+NOTICE
+Slobot 0.9.0 — značkárna s.r.o.
+
+Slobot stojí na cizí práci. Tenhle soubor říká na čí, pod jakou licencí, a co
+z toho plyne, když program nebo jeho přenosnou kopii předáváte dál.
+
+Slobot is built on other people's work. This file says whose, under which
+licence, and what follows from that when you pass the program — or a portable
+copy of it — on to somebody else.
+
+Zdrojem pravdy je karta „O aplikaci“ v aplikaci (`src/Settings.tsx`, seznam
+`credits`) a `package.json`. Když se změní ta, změní se i tenhle soubor.
+The source of truth is the About card in the application (`src/Settings.tsx`,
+the `credits` list) and `package.json`. When those change, so does this file.
+
+
+================================================================================
+1. NEJDŘÍV TO PODSTATNÉ / THE PART THAT MATTERS
+================================================================================
+
+Naprostá většina toho, co je níž, je open source pod permisivní licencí (MIT,
+Apache 2.0, Unlicense, volné dílo, SIL OFL). Dvě položky nejsou a je potřeba
+o nich vědět předem.
+
+Nearly everything below is open source under a permissive licence (MIT,
+Apache 2.0, Unlicense, public domain, SIL OFL). Two entries are not, and are
+worth knowing about in advance.
+
+
+--- FFmpeg — GNU GPL v3 ---------------------------------------------------
+
+Slobot si při prvním spuštění stahuje sestavení `ffmpeg-release-essentials.zip`
+z gyan.dev. To sestavení je vydáváno pod GNU General Public License verze 3.
+
+  * Instalátor Slobotu FFmpeg NEOBSAHUJE. Stahuje se až při prvním spuštění,
+    přímo od autora sestavení, takže samotné předání instalátoru GPL v3
+    nespouští.
+  * Přenosná kopie (Nastavení → Soubory → Přenosná kopie) ho ale kopíruje s
+    sebou, protože kopíruje celou složku `bin`. Jakmile takovou kopii předáte
+    dál, distribuujete FFmpeg — a platí podmínky GPL v3. Příjemci mimo jiné
+    náleží právo na zdrojový kód FFmpegu: https://ffmpeg.org
+  * Pro vlastní používání na vlastním počítači z toho neplyne nic navíc.
+
+Slobot downloads the `ffmpeg-release-essentials.zip` build from gyan.dev on
+first run. That build is distributed under the GNU General Public License
+version 3. The installer does NOT contain FFmpeg — it is fetched on first run
+directly from its author, so handing somebody the installer does not trigger
+GPL v3. A portable copy does carry it, because it copies the whole `bin`
+directory; passing that copy on is distributing FFmpeg, and GPL v3 applies.
+The recipient is entitled to FFmpeg's source, at https://ffmpeg.org.
+
+
+--- Gemma (Google) — Gemma Terms of Use -----------------------------------
+
+Modely Gemma, které Slobot volitelně používá pro vylepšení přepisu, NEJSOU
+open source. Řídí se dokumenty:
+
+  Gemma Terms of Use          https://ai.google.dev/gemma/terms
+  Gemma Prohibited Use Policy https://ai.google.dev/gemma/prohibited_use_policy
+
+Podmínky se předávají spolu s vahami: pokud modely někomu dáte, musíte mu dát
+i tyto podmínky a příjemce je jimi vázán stejně jako vy. Stahují se přímo od
+Googlu z Hugging Face a v instalátoru nejsou.
+
+The Gemma models Slobot optionally uses to enhance a transcript are NOT open
+source. They follow Google's Gemma Terms of Use and its Prohibited Use Policy,
+and those terms travel with the weights: if you pass the models on, you must
+pass the terms on with them, and the recipient is bound exactly as you are.
+They are downloaded from Google on Hugging Face and are not in the installer.
+
+
+================================================================================
+2. SOUPIS / THE LIST
+================================================================================
+
+Skupiny odpovídají kartě „O aplikaci“.
+The groups match the About card.
+
+--- Aplikace / Application ------------------------------------------------
+
+  Tauri 2 ......................... MIT / Apache 2.0
+  React 18 ........................ MIT
+  SQLite .......................... volné dílo / public domain
+
+--- Přepis / Transcription ------------------------------------------------
+
+  whisper.cpp (ggml) .............. MIT
+  Whisper (OpenAI) ................ MIT
+  Silero VAD ...................... MIT
+
+--- Mluvčí / Speakers -----------------------------------------------------
+
+  sherpa-onnx ..................... Apache 2.0
+  ONNX Runtime .................... MIT
+  pyannote segmentation 3.0 ....... MIT
+  3D-Speaker CAM++ ................ Apache 2.0
+
+--- Jazyková úprava / Language editing ------------------------------------
+
+  llama.cpp ....................... MIT
+  Gemma (Google) .................. Gemma Terms of Use  (viz oddíl 1 / see 1)
+
+--- Zvuk a video / Audio and video ----------------------------------------
+
+  FFmpeg .......................... GPL v3              (viz oddíl 1 / see 1)
+  yt-dlp .......................... Unlicense
+  Deno ............................ MIT
+
+--- Písma / Fonts ---------------------------------------------------------
+
+  Geist ........................... SIL OFL 1.1
+  Inter ........................... SIL OFL 1.1
+  Schibsted Grotesk ............... SIL OFL 1.1
+  Literata ........................ SIL OFL 1.1
+  Source Serif 4 .................. SIL OFL 1.1
+
+  Písma jsou jediná cizí věc, která je přiložená přímo v programu — ostatní se
+  stahuje. Text jejich licence proto putuje s nimi, v oddílu 4.
+  The fonts are the only third-party work bundled in the program itself;
+  everything else is downloaded. Their licence therefore travels with them,
+  in section 4.
+
+
+================================================================================
+3. BALÍČKY OVĚŘENÉ V SOUBORU / PACKAGES VERIFIED IN A FILE
+================================================================================
+
+Verze a licence odečtené z `package.json` v `node_modules`, ne po paměti.
+Versions and licences read out of `package.json` in `node_modules`, not
+from memory.
+
+  react                        18.3.1   MIT
+  react-dom                    18.3.1   MIT
+  @tauri-apps/api              2.11.1   Apache-2.0 OR MIT
+  @tauri-apps/plugin-dialog     2.7.2   MIT OR Apache-2.0
+  @tauri-apps/plugin-opener     2.5.4   MIT OR Apache-2.0
+  @tauri-apps/cli              2.11.4   Apache-2.0 OR MIT   (jen sestavení / build only)
+  vite                         5.4.21   MIT                 (jen sestavení / build only)
+  @vitejs/plugin-react          4.7.0   MIT                 (jen sestavení / build only)
+  typescript                    5.9.3   Apache-2.0          (jen sestavení / build only)
+  @fontsource-variable/*        5.3.0   OFL-1.1
+
+Rustové knihovny (tauri, rusqlite se zabudovaným SQLite, serde, reqwest, zip,
+regex, uuid, chrono, anyhow, windows, webview2-com a jejich závislosti) jsou
+i s přesnými verzemi v `src-tauri/Cargo.lock`. Nejsou tu vypsané jedna po
+druhé, protože strom má stovky položek a soupis přepsaný ručně zastará dřív,
+než ho někdo přečte.
+
+The Rust crates (tauri, rusqlite with SQLite bundled, serde, reqwest, zip,
+regex, uuid, chrono, anyhow, windows, webview2-com and their dependencies) are
+listed with exact versions in `src-tauri/Cargo.lock`. They are not enumerated
+here one by one: the tree runs to hundreds of entries, and a hand-written list
+goes stale before anybody reads it.
+
+
+================================================================================
+4. SIL OPEN FONT LICENSE 1.1
+================================================================================
+
+Platí pro všech pět písem přiložených k programu. Řádky s autorstvím jsou
+převzaty ze souborů LICENSE v jednotlivých balíčcích; text licence je v nich
+ve všech pěti shodný, takže je tu jednou.
+
+Applies to all five fonts bundled with the program. The copyright lines are
+taken from the LICENSE files of the individual packages; the licence text
+itself is identical in all five, so it appears here once.
+
+  Copyright 2024 The Geist Project Authors
+    (https://github.com/vercel/geist-font)
+  Copyright 2016 The Inter Project Authors
+    (https://github.com/rsms/inter)
+  Copyright 2023 The Schibsted-Grotesk Project Authors
+    (https://github.com/schibsted/schibsted-grotesk)
+  Copyright 2017 The Literata Project Authors
+    (https://github.com/googlefonts/literata)
+  Google Inc.  (Source Serif 4 — přesně tak, jak to stojí v LICENSE balíčku
+    @fontsource-variable/source-serif-4; nepřepisujeme to za autora)
+
+This Font Software is licensed under the SIL Open Font License, Version 1.1.
+This license is copied below, and is also available with a FAQ at:
+http://scripts.sil.org/OFL
+
+
+-----------------------------------------------------------
+SIL OPEN FONT LICENSE Version 1.1 - 26 February 2007
+-----------------------------------------------------------
+
+PREAMBLE
+The goals of the Open Font License (OFL) are to stimulate worldwide
+development of collaborative font projects, to support the font creation
+efforts of academic and linguistic communities, and to provide a free and
+open framework in which fonts may be shared and improved in partnership
+with others.
+
+The OFL allows the licensed fonts to be used, studied, modified and
+redistributed freely as long as they are not sold by themselves. The
+fonts, including any derivative works, can be bundled, embedded,
+redistributed and/or sold with any software provided that any reserved
+names are not used by derivative works. The fonts and derivatives,
+however, cannot be released under any other type of license. The
+requirement for fonts to remain under this license does not apply
+to any document created using the fonts or their derivatives.
+
+DEFINITIONS
+"Font Software" refers to the set of files released by the Copyright
+Holder(s) under this license and clearly marked as such. This may
+include source files, build scripts and documentation.
+
+"Reserved Font Name" refers to any names specified as such after the
+copyright statement(s).
+
+"Original Version" refers to the collection of Font Software components as
+distributed by the Copyright Holder(s).
+
+"Modified Version" refers to any derivative made by adding to, deleting,
+or substituting -- in part or in whole -- any of the components of the
+Original Version, by changing formats or by porting the Font Software to a
+new environment.
+
+"Author" refers to any designer, engineer, programmer, technical
+writer or other person who contributed to the Font Software.
+
+PERMISSION & CONDITIONS
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of the Font Software, to use, study, copy, merge, embed, modify,
+redistribute, and sell modified and unmodified copies of the Font
+Software, subject to the following conditions:
+
+1) Neither the Font Software nor any of its individual components,
+in Original or Modified Versions, may be sold by itself.
+
+2) Original or Modified Versions of the Font Software may be bundled,
+redistributed and/or sold with any software, provided that each copy
+contains the above copyright notice and this license. These can be
+included either as stand-alone text files, human-readable headers or
+in the appropriate machine-readable metadata fields within text or
+binary files as long as those fields can be easily viewed by the user.
+
+3) No Modified Version of the Font Software may use the Reserved Font
+Name(s) unless explicit written permission is granted by the corresponding
+Copyright Holder. This restriction only applies to the primary font name as
+presented to the users.
+
+4) The name(s) of the Copyright Holder(s) or the Author(s) of the Font
+Software shall not be used to promote, endorse or advertise any
+Modified Version, except to acknowledge the contribution(s) of the
+Copyright Holder(s) and the Author(s) or with their explicit written
+permission.
+
+5) The Font Software, modified or unmodified, in part or in whole,
+must be distributed entirely under this license, and must not be
+distributed under any other license. The requirement for fonts to
+remain under this license does not apply to any document created
+using the Font Software.
+
+TERMINATION
+This license becomes null and void if any of the above conditions are
+not met.
+
+DISCLAIMER
+THE FONT SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO ANY WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT
+OF COPYRIGHT, PATENT, TRADEMARK, OR OTHER RIGHT. IN NO EVENT SHALL THE
+COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+INCLUDING ANY GENERAL, SPECIAL, INDIRECT, INCIDENTAL, OR CONSEQUENTIAL
+DAMAGES, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM
+OTHER DEALINGS IN THE FONT SOFTWARE.

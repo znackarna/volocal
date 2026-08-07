@@ -1,11 +1,11 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Vychozi opravneni pro hlavni okno",
+  "description": "Vychozi opravneni pro hlavni okno. Z pluginu opener jen odhaleni souboru ve spravci souboru; nic v aplikaci neotevira adresy.",
   "windows": ["main"],
   "permissions": [
     "core:default",
     "dialog:default",
-    "opener:default"
+    "opener:allow-reveal-item-in-dir"
   ]
 }

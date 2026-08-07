@@ -303,7 +303,7 @@ where
                 .map(|s| s.to_string())
                 .or_else(|| panic.downcast_ref::<String>().cloned())
                 .unwrap_or_else(|| "panic".to_string());
-            eprintln!("worker thread panicked: {text}");
+            crate::note!("worker thread panicked: {text}");
             Err(UserMessage::new("unknown").detail(text))
         }
     }
@@ -375,7 +375,7 @@ pub fn start_in_thread(
                 if !matches!(stored, Some(Ok(_))) {
                     if let Ok(second) = db::open(&db_path) {
                         if let Err(error) = db::set_status(&second, &recording_id, "hotova", None) {
-                            eprintln!("finished but not marked as such: {error}");
+                            crate::note!("finished but not marked as such: {error}");
                         }
                     }
                 }
@@ -468,7 +468,7 @@ pub fn start_diarization_in_thread(
                 if !matches!(stored, Some(Ok(_))) {
                     if let Ok(second) = db::open(&db_path) {
                         if let Err(error) = db::set_status(&second, &recording_id, "hotova", None) {
-                            eprintln!("finished but not marked as such: {error}");
+                            crate::note!("finished but not marked as such: {error}");
                         }
                     }
                 }
@@ -670,7 +670,7 @@ fn run(
             Path::new(&recording.path),
             &runner,
         ) {
-            eprintln!("playback preparation failed for {recording_id}: {error:#}");
+            crate::note!("playback preparation failed for {recording_id}: {error:#}");
         }
     }
     // This is the longest of the preparation steps on a long MP3, and its own

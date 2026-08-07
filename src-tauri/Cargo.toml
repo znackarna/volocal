@@ -12,6 +12,16 @@ publish = false
 # these COM bindings in one binary would be two unrelated types with one name.
 [target.'cfg(windows)'.dependencies]
 webview2-com = "0.38.2"
+# The same rule, same reason: 0.61.3 is the version already in the tree, so
+# this adds four feature flags and no second copy of the Win32 bindings.
+# Only what the job object needs — CreateJobObjectW is behind Win32_Security,
+# and JOBOBJECT_EXTENDED_LIMIT_INFORMATION behind Win32_System_Threading.
+windows = { version = "0.61.3", features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_System_JobObjects",
+    "Win32_System_Threading",
+] }
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

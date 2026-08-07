@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useI18n } from "./i18n";
+import { useDialog } from "./useDialog";
 
 /** How many people speak, asked once before a transcription that will separate
  *  them.
@@ -28,12 +29,14 @@ export default function SpeakerCountDialog({
 }) {
   const { t, tPlural } = useI18n();
   const [choice, setChoice] = useState<number>(suggested > 0 ? suggested : 2);
+  const dialog = useDialog<HTMLDivElement>(onCancel);
 
   const quick = [1, 2, 3, 4];
 
   return (
     <div className="prekryv-dialogu" onMouseDown={onCancel}>
       <div
+        ref={dialog}
         className="dialog speaker-count-dialog"
         role="dialog"
         aria-modal="true"

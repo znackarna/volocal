@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useState, type KeyboardEvent, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react";
 import { getVersion } from "@tauri-apps/api/app";
 import { open } from "@tauri-apps/plugin-dialog";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
@@ -340,6 +347,10 @@ export default function SettingsScreen({ onComplete, onError, onToModule }: Prop
   const [copiedFile, setCopiedFile] = useState("");
   const [copyComplete, setCopyComplete] = useState<number | null>(null);
   const [dictionary, setDictionary] = useState<DictionaryEntry[]>([]);
+  /** What the archive holds, as opposed to what is in the fields. A row is
+   *  edited in place, so `dictionary` follows every keystroke; this follows
+   *  only what was saved, and is what a row with an emptied side goes back to. */
+  const dictionaryRef = useRef<DictionaryEntry[]>([]);
   const [entryFind, setEntryFind] = useState("");
   const [entryReplace, setEntryReplace] = useState("");
   const [activeTab, setActiveTab] = useState<SettingsTab>(() => {
@@ -367,6 +378,7 @@ export default function SettingsScreen({ onComplete, onError, onToModule }: Prop
     if (!find || !replace) return;
     try {
       const entry = await api.addDictionaryEntry(find, replace);
+      dictionaryRef.current = [...dictionaryRef.current, entry];
       setDictionary((current) => [...current, entry]);
       setEntryFind("");
       setEntryReplace("");
@@ -375,26 +387,40 @@ export default function SettingsScreen({ onComplete, onError, onToModule }: Prop
     }
   }, [entryFind, entryReplace, onError, userMessage]);
 
-  const saveEntry = useCallback(async (entry: DictionaryEntry) => {
-    const find = entry.find.trim();
-    const replace = entry.replace.trim();
-    if (!find || !replace) return;
-    try {
-      await api.updateDictionaryEntry(entry.id, find, replace);
-    } catch (e) {
-      onError(userMessage(e));
-    }
-  }, [onError, userMessage]);
-
   const editEntry = useCallback((id: string, change: Partial<DictionaryEntry>) => {
     setDictionary((current) =>
       current.map((entry) => (entry.id === id ? { ...entry, ...change } : entry))
     );
   }, []);
 
+  /** Leaving a row saves it. An entry with an empty side is not an entry —
+   *  it would replace everything, or replace it with nothing — so instead of
+   *  saving it the field goes back to what is stored. Doing nothing at all was
+   *  worse than either: the screen showed one thing, the archive held another,
+   *  and nobody was told. Deleting an entry has its own control. */
+  const saveEntry = useCallback(async (entry: DictionaryEntry) => {
+    const find = entry.find.trim();
+    const replace = entry.replace.trim();
+    if (!find || !replace) {
+      const stored = dictionaryRef.current.find((saved) => saved.id === entry.id);
+      if (stored) editEntry(entry.id, { find: stored.find, replace: stored.replace });
+      return;
+    }
+    try {
+      await api.updateDictionaryEntry(entry.id, find, replace);
+      dictionaryRef.current = dictionaryRef.current.map((saved) =>
+        saved.id === entry.id ? { ...saved, find, replace } : saved
+      );
+      editEntry(entry.id, { find, replace });
+    } catch (e) {
+      onError(userMessage(e));
+    }
+  }, [editEntry, onError, userMessage]);
+
   const removeEntry = useCallback(async (id: string) => {
     try {
       await api.deleteDictionaryEntry(id);
+      dictionaryRef.current = dictionaryRef.current.filter((entry) => entry.id !== id);
       setDictionary((current) => current.filter((entry) => entry.id !== id));
     } catch (e) {
       onError(userMessage(e));
@@ -427,7 +453,9 @@ export default function SettingsScreen({ onComplete, onError, onToModule }: Prop
       setCheck(await api.checkTools());
       setModules(await api.catalog());
       setMachine(await api.machineName());
-      setDictionary(await api.dictionary());
+      const saved = await api.dictionary();
+      dictionaryRef.current = saved;
+      setDictionary(saved);
     } catch (e) {
       onError(userMessage(e));
     }

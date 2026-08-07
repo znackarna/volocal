@@ -3,6 +3,7 @@
 
 mod ai_edit;
 mod db;
+mod diagnostics;
 mod download;
 mod export;
 mod online_import;
@@ -46,6 +47,42 @@ static WAVEFORM_JOBS: std::sync::OnceLock<Mutex<std::collections::HashSet<String
 
 fn waveform_jobs() -> &'static Mutex<std::collections::HashSet<String>> {
     WAVEFORM_JOBS.get_or_init(|| Mutex::new(std::collections::HashSet::new()))
+}
+
+/// Holds one recording's place in that list and gives it back on `Drop`.
+///
+/// The removal used to be the last line of the worker closure. A panic inside
+/// ffmpeg handling therefore skipped it, and the id stayed in the list for the
+/// lifetime of the process — after which opening that recording's detail
+/// reported a waveform that was for ever "being computed" and never started
+/// another attempt. Same shape as `INSTALLING` in `download.rs`: the flag comes
+/// down through a guard, not through a line at the end.
+struct WaveformJob(String);
+
+impl WaveformJob {
+    /// `None` when somebody else already holds this recording.
+    fn claim(id: &str) -> Option<Self> {
+        let mut running = waveform_jobs().lock().unwrap();
+        if !running.insert(id.to_string()) {
+            return None;
+        }
+        Some(Self(id.to_string()))
+    }
+}
+
+impl Drop for WaveformJob {
+    fn drop(&mut self) {
+        // `lock()` on a mutex poisoned by an earlier panic still hands the data
+        // back, and leaving the id behind is the very thing being fixed.
+        match waveform_jobs().lock() {
+            Ok(mut running) => {
+                running.remove(&self.0);
+            }
+            Err(poisoned) => {
+                poisoned.into_inner().remove(&self.0);
+            }
+        }
+    }
 }
 
 /// Result of a command whose failure is shown in the window.
@@ -137,6 +174,22 @@ fn watch_file_fingerprint(path: &std::path::Path) -> Result<String> {
 /// Revalidates a candidate returned to the window. The frontend is not a
 /// trusted filesystem boundary: only unchanged direct children of the active
 /// watched directory may be imported or ignored.
+///
+/// Why this one and not the paths in `add_recording`, `export_audio` or
+/// `create_portable_copy`, which take whatever they are handed: those three are
+/// answers to a system file dialog. The picker is the person, so validating its
+/// result against a rule invented here could only ever refuse a folder they
+/// deliberately chose. There is no attacker on the other side either — the
+/// webview loads the bundled interface and nothing else, so a page that could
+/// forge a command does not exist; and if one did, it would call
+/// `delete_recording` long before it bothered writing an MP3 somewhere.
+///
+/// A watched candidate is different in kind. It is not a choice a person just
+/// made, it is a list this program produced earlier and handed out, and acting
+/// on it starts a transcription and marks the file as answered for. The
+/// settings say which directory that list may come from, so there is a rule to
+/// check it against — which is what makes checking meaningful here and theatre
+/// there.
 fn validate_watch_candidate(
     settings: &Settings,
     candidate: &WatchFolderCandidate,
@@ -160,15 +213,22 @@ fn validate_watch_candidate(
     Ok(file)
 }
 
-fn create_recording(db: &Connection, settings: &Settings, file: PathBuf) -> Reported<Recording> {
+/// Asks ffprobe how long the file is. Deliberately separate from writing the
+/// row: this runs another program over a file that may be on a slow disk, and
+/// it used to happen with the archive's lock held — so adding one recording
+/// stopped every other command until the probe returned.
+fn probe_duration(settings: &Settings, file: &std::path::Path) -> f64 {
+    tools::check(settings)
+        .ffprobe
+        .and_then(|probe| tools::audio_duration(std::path::Path::new(&probe), file).ok())
+        .unwrap_or(0.0)
+}
+
+fn create_recording(db: &Connection, file: PathBuf, duration: f64) -> Reported<Recording> {
     if !file.is_file() {
         return Err(UserMessage::new("file.not_found").with("path", file.to_string_lossy()));
     }
 
-    let duration = tools::check(settings)
-        .ffprobe
-        .and_then(|probe| tools::audio_duration(std::path::Path::new(&probe), &file).ok())
-        .unwrap_or(0.0);
     let title = file
         .file_stem()
         .map(|stem| stem.to_string_lossy().to_string())
@@ -193,11 +253,19 @@ fn create_recording(db: &Connection, settings: &Settings, file: PathBuf) -> Repo
     Ok(recording)
 }
 
-#[tauri::command]
+/// `async`, so ffprobe runs off the window's thread — a file on a network share
+/// or a sleeping external disk can take seconds to answer, and until it did,
+/// nothing else in the interface responded.
+#[tauri::command(async)]
 fn add_recording(app: State<'_, AppState>, path: String) -> Reported<Recording> {
+    let settings = {
+        let db = app.db.lock().unwrap();
+        reported(db::load_settings(&db))?
+    };
+    let file = PathBuf::from(path);
+    let duration = probe_duration(&settings, &file);
     let db = app.db.lock().unwrap();
-    let settings = reported(db::load_settings(&db))?;
-    create_recording(&db, &settings, PathBuf::from(path))
+    create_recording(&db, file, duration)
 }
 
 /// Checks the configured directory once. Polling lives in the window so this
@@ -288,7 +356,8 @@ async fn import_watch_folder_files(
                 db::mark_watch_file_imported(&db, &candidate.path, &candidate.fingerprint)?;
                 continue;
             }
-            let recording = create_recording(&db, &settings, file)?;
+            let duration = probe_duration(&settings, &file);
+            let recording = create_recording(&db, file, duration)?;
             db::mark_watch_file_imported(&db, &candidate.path, &candidate.fingerprint)?;
             recordings.push(recording);
         }
@@ -387,8 +456,10 @@ fn save_microphone_recording(
         Err(error) => return Err(UserMessage::new("microphone.convert_failed").detail(error)),
     }
 
+    // Probe before the lock, for the reason `probe_duration` carries.
+    let duration = probe_duration(&settings, &output);
     let db = app.db.lock().unwrap();
-    create_recording(&db, &settings, output)
+    create_recording(&db, output, duration)
 }
 
 #[tauri::command]
@@ -478,25 +549,29 @@ fn move_to_folder(
 #[tauri::command]
 fn delete_folder(app: State<'_, AppState>, id: String, contents: bool) -> Reported<()> {
     let ids = {
-        let db = app.db.lock().unwrap();
-        if contents {
-            reported(db::folder_recording_ids(&db, &id))?
-        } else {
-            Vec::new()
-        }
-    };
-    {
+        // One lock over both steps, and the contents are read inside the
+        // transaction that deletes them. Taking the lock twice left a window in
+        // which a recording could be moved into the folder after the list was
+        // read: it would then survive into the archive's root rather than being
+        // deleted with the folder, which is the milder half of the wrong two
+        // outcomes but still not what the person asked for.
         let db = app.db.lock().unwrap();
         // One transaction over the whole errand. Giving up in the middle of
         // the loop used to leave some recordings deleted, the rest in a folder
         // that was about to go, and nothing said about either.
         let tx = reported(db.unchecked_transaction().map_err(anyhow::Error::from))?;
+        let ids = if contents {
+            reported(db::folder_recording_ids(&tx, &id))?
+        } else {
+            Vec::new()
+        };
         for recording in &ids {
             reported(db::delete_recording(&tx, recording))?;
         }
         reported(db::delete_folder(&tx, &id))?;
         reported(tx.commit().map_err(anyhow::Error::from))?;
-    }
+        ids
+    };
     // Outside the lock: each removal has its own playback proxies to clear.
     for recording in &ids {
         tools::remove_playback_proxies(&app.db_path, recording);
@@ -518,7 +593,11 @@ const AUDIO_ONLY_FORMATS: [&str; 8] = ["mp3", "m4a", "wav", "flac", "ogg", "opus
 /// re-encoding lossy audio into the same shape only shaves quality off it for
 /// nothing, and a copy needs no ffmpeg at all. Otherwise ffmpeg writes the
 /// requested format with `-vn`, so a video source yields audio.
-#[tauri::command]
+///
+/// `async`, because converting an hour of audio takes seconds and the window
+/// must not stop for it. `destination` is taken as it arrives, deliberately —
+/// see the note above `validate_watch_candidate`.
+#[tauri::command(async)]
 fn export_audio(app: State<'_, AppState>, id: String, destination: String) -> Reported<()> {
     let (source, settings) = {
         let db = app.db.lock().unwrap();
@@ -586,6 +665,18 @@ fn delete_recording(app: State<'_, AppState>, id: String) -> Reported<()> {
     Ok(())
 }
 
+/// Whether another worker already holds this recording.
+///
+/// Two sources, and neither alone is enough. The registry knows from the
+/// instant a run is started, including one still waiting in the queue — and a
+/// queued run has not touched the row yet, which is how a transcription could
+/// be started beside a speaker recognition standing in line. The row in turn
+/// outlives the process, so it is what catches a run interrupted by a crash
+/// before `recover_interrupted` has had its say.
+fn recording_is_busy(running: bool, status: &str) -> bool {
+    running || status == "prepisuje"
+}
+
 #[tauri::command]
 fn start_transcription(
     window: tauri::AppHandle,
@@ -594,12 +685,12 @@ fn start_transcription(
     speaker_count: Option<i64>,
 ) -> Reported<()> {
     // Starting the same transcription twice would write the segments twice.
-    // The status lives in the database, so a lock and a look are enough.
     {
+        let running = app.bezici.is_running(&id);
         let db = app.db.lock().unwrap();
         let n = reported(db::recording(&db, &id))?;
-        if n.status == "prepisuje" {
-            return Ok(());
+        if recording_is_busy(running, &n.status) {
+            return Err(UserMessage::new("transcription.still_running"));
         }
         reported(db::set_status(&db, &id, "prepisuje", None))?;
     }
@@ -623,10 +714,11 @@ fn transcribe_in_language(
     speaker_count: Option<i64>,
 ) -> Reported<()> {
     {
+        let running = app.bezici.is_running(&id);
         let db = app.db.lock().unwrap();
         let n = reported(db::recording(&db, &id))?;
-        if n.status == "prepisuje" {
-            return Ok(());
+        if recording_is_busy(running, &n.status) {
+            return Err(UserMessage::new("transcription.still_running"));
         }
         reported(db::set_language_choice(&db, &id, &language))?;
         reported(db::set_status(&db, &id, "prepisuje", None))?;
@@ -688,17 +780,11 @@ fn diarize_speakers(
     id: String,
     speaker_count: Option<i64>,
 ) -> Reported<()> {
-    // The registry knows the instant a worker starts; the row only once that
-    // worker has said so, and a queued run has not said anything yet. Asking
-    // the row alone let a second recognition start beside the first — the
-    // guard an earlier entry claimed was already here, and was not.
-    if app.bezici.is_running(&id) {
-        return Err(UserMessage::new("transcription.still_running"));
-    }
     {
+        let running = app.bezici.is_running(&id);
         let db = app.db.lock().unwrap();
         let n = reported(db::recording(&db, &id))?;
-        if n.status == "prepisuje" {
+        if recording_is_busy(running, &n.status) {
             return Err(UserMessage::new("transcription.still_running"));
         }
     }
@@ -965,16 +1051,11 @@ fn recording_waveform(app: State<'_, AppState>, id: String) -> Reported<Waveform
     };
 
     // Opening the same recording twice must not start another ffmpeg.
-    {
-        let mut running = waveform_jobs().lock().unwrap();
-        if running.contains(&id) {
-            return Ok(Waveform::from_data(cached, true));
-        }
-        running.insert(id.clone());
-    }
+    let Some(job) = WaveformJob::claim(&id) else {
+        return Ok(Waveform::from_data(cached, true));
+    };
 
     let Some(ffmpeg) = tools::check(&settings).ffmpeg else {
-        waveform_jobs().lock().unwrap().remove(&id);
         return Ok(Waveform::from_data(cached, false));
     };
 
@@ -982,6 +1063,8 @@ fn recording_waveform(app: State<'_, AppState>, id: String) -> Reported<Waveform
     let db_path = app.db_path.clone();
     let response = Waveform::from_data(cached.clone(), true);
     std::thread::spawn(move || {
+        // Moved in, so the place is given back whichever way this thread ends.
+        let _job = job;
         let mut data = cached;
         if data.points.is_empty() {
             data.points = tools::waveform_amplitude(
@@ -1011,7 +1094,6 @@ fn recording_waveform(app: State<'_, AppState>, id: String) -> Reported<Waveform
                 let _ = db::save_waveform(&connection, &recording.id, &data);
             }
         }
-        waveform_jobs().lock().unwrap().remove(&recording.id);
     });
 
     Ok(response)
@@ -1420,7 +1502,13 @@ fn cancel_download(app: State<'_, AppState>) {
     app.download_cancellation.store(true, Ordering::Relaxed);
 }
 
-#[tauri::command]
+/// `async`, and of the four this is the one that could not be anything else:
+/// it copies the programs and the models, up to about ten gigabytes, and it
+/// reports its own progress to the window as it goes. On the window's thread
+/// that progress could not be drawn — the interface was frozen for the whole
+/// copy, so the one command with a progress bar was the one that could not
+/// show it moving.
+#[tauri::command(async)]
 fn create_portable_copy(
     window: tauri::AppHandle,
     app: State<'_, AppState>,
@@ -1449,7 +1537,11 @@ struct BenchmarkResult {
 /// The flash drive travels between machines. On each new one it pays to
 /// briefly measure what is actually faster — guessing from the card's name
 /// is misleading.
-#[tauri::command]
+///
+/// `async`: it runs whisper once per installed backend over a twenty-second
+/// sample, which on a slow processor is a minute or more of a window that does
+/// not repaint.
+#[tauri::command(async)]
 fn benchmark_compute(
     app: State<'_, AppState>,
     recording_id: Option<String>,
@@ -1596,7 +1688,7 @@ fn allow_microphone(window: &tauri::WebviewWindow) {
         let core = match unsafe { webview.controller().CoreWebView2() } {
             Ok(core) => core,
             Err(error) => {
-                eprintln!("microphone: WebView2 unreachable, prompt stays: {error}");
+                crate::note!("microphone: WebView2 unreachable, prompt stays: {error}");
                 return;
             }
         };
@@ -1613,15 +1705,81 @@ fn allow_microphone(window: &tauri::WebviewWindow) {
         // long as the window does.
         let mut token = 0i64;
         if let Err(error) = unsafe { core.add_PermissionRequested(&handler, &mut token) } {
-            eprintln!("microphone: handler not registered, prompt stays: {error}");
+            crate::note!("microphone: handler not registered, prompt stays: {error}");
         }
     });
     if let Err(error) = registered {
-        eprintln!("microphone: no webview to attach to, prompt stays: {error}");
+        crate::note!("microphone: no webview to attach to, prompt stays: {error}");
+    }
+}
+
+/// Everything this application starts dies with it.
+///
+/// `TranscriptionTask::kill_all` reaches the children a run registered, and
+/// that is the ordinary path. It cannot reach the ones no run owns — the two
+/// ffmpeg passes that draw the waveform, the one that prepares seekable
+/// playback, the duration probe — it cannot reach a grandchild at all, and it
+/// does not run if the process is killed rather than closed. What was left
+/// behind is not small: ffmpeg over a whole recording, or `llama-server` with
+/// seven gigabytes of model in memory.
+///
+/// A job object closes the class rather than the cases. A process assigned to
+/// one puts its children in it too, and `KILL_ON_JOB_CLOSE` fires when the
+/// last handle to the job is gone — which happens when this process ends,
+/// however it ends.
+///
+/// The handle is deliberately never closed. `HANDLE` is a plain `Copy` value
+/// with no destructor, so letting it go out of scope leaks nothing and closes
+/// nothing; calling `CloseHandle` here would fire the limit at once and kill
+/// the application it is protecting. Windows reclaims it when the process
+/// ends, which is exactly the moment it is meant to fire.
+///
+/// Nested jobs have been allowed since Windows 8, so already being inside
+/// somebody else's job — a debugger, a test runner — is not a reason to fail.
+/// Every step is silent on failure: a machine where the job cannot be created
+/// must still start the application, and `kill_all` is still there.
+#[cfg(windows)]
+fn die_with_this_process() {
+    use windows::core::PCWSTR;
+    use windows::Win32::System::JobObjects::{
+        AssignProcessToJobObject, CreateJobObjectW, JobObjectExtendedLimitInformation,
+        SetInformationJobObject, JOBOBJECT_EXTENDED_LIMIT_INFORMATION,
+        JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
+    };
+    use windows::Win32::System::Threading::GetCurrentProcess;
+
+    unsafe {
+        // Unnamed on purpose: a name would be shared with any other copy of
+        // the application, and two windows would then be in one job.
+        let Ok(job) = CreateJobObjectW(None, PCWSTR::null()) else {
+            crate::note!("job object: not created, children may outlive the window");
+            return;
+        };
+        let mut limits = JOBOBJECT_EXTENDED_LIMIT_INFORMATION::default();
+        limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+        let sized = std::mem::size_of::<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>() as u32;
+        if let Err(error) = SetInformationJobObject(
+            job,
+            JobObjectExtendedLimitInformation,
+            &limits as *const _ as *const core::ffi::c_void,
+            sized,
+        ) {
+            // Without the limit the job would hold the children and kill
+            // nothing, so joining it would buy nothing either.
+            crate::note!("job object: limit not set, children may outlive the window: {error}");
+            return;
+        }
+        if let Err(error) = AssignProcessToJobObject(job, GetCurrentProcess()) {
+            crate::note!("job object: not joined, children may outlive the window: {error}");
+        }
     }
 }
 
 fn main() {
+    // Before anything is started, so that everything started after it is
+    // covered — including whatever a failure below might spawn.
+    #[cfg(windows)]
+    die_with_this_process();
     // Must happen before Tauri creates the window.
     tools::set_webview2();
 
@@ -1629,8 +1787,19 @@ fn main() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
-            // anyhow::Error nejde primo do Box<dyn Error>, proto prevod na text
-            connect_database(app).map_err(|e| e.to_string())?;
+            // The failure is reported and the process ended from inside
+            // `report_unusable_archive`, not returned from here: an error out of
+            // `setup` reaches `.expect()` below, which in a released build
+            // panics into a console that does not exist.
+            let archive = archive_path(app);
+            let opened = match archive.as_ref() {
+                Ok(path) => connect_database(app, path.clone()),
+                Err(error) => Err(anyhow::anyhow!("{error:#}")),
+            };
+            if let Err(error) = opened {
+                report_unusable_archive(app, archive.as_deref().ok(), &error);
+                return Ok(());
+            }
             // The title is a constant now that the version is out of it, so it
             // lives in tauri.conf.json and nothing sets it at runtime.
             #[cfg(windows)]
@@ -1724,11 +1893,16 @@ fn main() {
                 event,
                 tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit
             ) {
-                let state = app.state::<AppState>();
+                // `try_state`, because a start that never got as far as opening
+                // the archive manages no state — and a panic here would replace
+                // the message that start is trying to show.
+                let Some(state) = app.try_state::<AppState>() else {
+                    return;
+                };
                 let killed = state.bezici.kill_all();
                 let server = state.ai_edit.kill_server();
                 if killed > 0 || server {
-                    eprintln!(
+                    crate::note!(
                         "closing: stopped {killed} transcription program(s){}",
                         if server {
                             " and the language server"
@@ -1756,7 +1930,7 @@ fn archive_to_open(chosen: &std::path::Path, other: &std::path::Path) -> std::pa
     }
     let alternative = other.join("whisp.db");
     if alternative.is_file() {
-        eprintln!(
+        crate::note!(
             "opening the existing archive at {} instead of starting an empty one at {}",
             alternative.display(),
             preferred.display()
@@ -1766,7 +1940,13 @@ fn archive_to_open(chosen: &std::path::Path, other: &std::path::Path) -> std::pa
     preferred
 }
 
-fn connect_database(app: &tauri::App) -> Result<()> {
+/// Where the archive is, worked out before anything is opened.
+///
+/// Separate from `connect_database` so that a failure to open it can still name
+/// the file in the message it shows. A person told only that the archive is
+/// broken cannot act on it; one told which file it is, and where the copies of
+/// it are, can.
+fn archive_path(app: &tauri::App) -> Result<PathBuf> {
     // Prenosny rezim: databaze lezi vedle programu, nic se nezapisuje
     // do profilu uzivatele na cizim pocitaci.
     let profile = app.path().app_data_dir()?;
@@ -1776,10 +1956,78 @@ fn connect_database(app: &tauri::App) -> Result<()> {
     } else {
         profile
     };
-    let db_path = archive_to_open(&directory, &other);
+    Ok(archive_to_open(&directory, &other))
+}
+
+/// Shows what went wrong and ends the process, rather than disappearing.
+///
+/// A broken archive used to take the application down without a word: the
+/// failure travelled out of `setup`, `build()` returned it, `.expect()` panicked
+/// — and with no console in a released build the panic was written nowhere. The
+/// window flashed and was gone, and the backups sitting one folder away might
+/// as well not have existed.
+///
+/// This is the one place where text a person reads is written in Rust. The
+/// dictionary lives in the window, which does not exist yet, and the language
+/// they chose lives in the archive, which is the thing that cannot be read. So
+/// it is Czech, the source language of the interface.
+fn report_unusable_archive(
+    app: &tauri::App,
+    archive: Option<&std::path::Path>,
+    error: &anyhow::Error,
+) {
+    use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
+
+    crate::note!("the archive could not be opened: {error:#}");
+
+    let unknown = "nepodařilo se zjistit".to_string();
+    let archive_text = archive
+        .map(|path| path.display().to_string())
+        .unwrap_or_else(|| unknown.clone());
+    let backups_text = archive
+        .map(|path| db::backup_directory(path).display().to_string())
+        .unwrap_or(unknown);
+
+    // Nothing behind the dialog is usable — no state was managed, so every
+    // command would fail — and a window that looks like the application is
+    // running is worse than none.
+    if let Some(window) = tauri::Manager::get_webview_window(app, "main") {
+        let _ = window.hide();
+    }
+
+    let message = format!(
+        "Slobot nemůže otevřít svůj archiv, a proto se nespustí.\n\n\
+         Archiv:\n{archive_text}\n\n\
+         Zálohy:\n{backups_text}\n\n\
+         Poškozený soubor archivu si uložte stranou a na jeho místo zkopírujte \
+         nejnovější zálohu z uvedené složky. Zkopírovaný soubor přejmenujte tak, \
+         aby se jmenoval stejně jako archiv. Potom Slobot spusťte znovu.\n\n\
+         Podrobnost: {error:#}"
+    );
+
+    let handle = app.handle().clone();
+    // `blocking_show` waits for a closure that the event loop has yet to run,
+    // so on the main thread it would wait for ever — and `setup` is the main
+    // thread. Hence a thread of its own, and hence this function returning
+    // normally: the loop has to start for the dialog to appear at all.
+    std::thread::spawn(move || {
+        handle
+            .dialog()
+            .message(message)
+            .kind(MessageDialogKind::Error)
+            .title("Slobot")
+            .blocking_show();
+        std::process::exit(1);
+    });
+}
+
+fn connect_database(app: &tauri::App, db_path: PathBuf) -> Result<()> {
     if let Some(parent) = db_path.parent() {
         std::fs::create_dir_all(parent)?;
     }
+    // As early as the location is known: most of the lines below are the only
+    // record that anything happened to somebody's archive.
+    diagnostics::set_file(&db_path);
     let mut connection = db::open(&db_path)?;
 
     // Anything still marked as running belongs to a session that never
@@ -1787,17 +2035,17 @@ fn connect_database(app: &tauri::App) -> Result<()> {
     // progress bar that goes nowhere, with no way to start over.
     match db::recover_interrupted(&connection) {
         Ok(0) => {}
-        Ok(n) => eprintln!("recovered {n} interrupted transcription(s)"),
-        Err(e) => eprintln!("could not recover interrupted transcriptions: {e:#}"),
+        Ok(n) => crate::note!("recovered {n} interrupted transcription(s)"),
+        Err(e) => crate::note!("could not recover interrupted transcriptions: {e:#}"),
     }
 
     // Measured, not guessed — see the change log. Changing the default alone
     // would only reach new installations, and an existing one would keep
     // finding sixteen speakers in a conversation between two people.
     match db::raise_cluster_threshold_once(&connection) {
-        Ok(true) => eprintln!("raised speaker clustering threshold to the new default"),
+        Ok(true) => crate::note!("raised speaker clustering threshold to the new default"),
         Ok(false) => {}
-        Err(e) => eprintln!("could not raise the clustering threshold: {e:#}"),
+        Err(e) => crate::note!("could not raise the clustering threshold: {e:#}"),
     }
 
     // Sentence blocks are derived from preserved word timestamps, so layout
@@ -1811,22 +2059,24 @@ fn connect_database(app: &tauri::App) -> Result<()> {
         let backup_ready = !has_existing_transcripts
             || match db::back_up_and_rotate(&connection, &db_path) {
                 Ok(path) => {
-                    eprintln!(
+                    crate::note!(
                         "backed up archive before sentence layout upgrade: {}",
                         path.display()
                     );
                     true
                 }
                 Err(error) => {
-                    eprintln!("sentence layout upgrade skipped because backup failed: {error:#}");
+                    crate::note!(
+                        "sentence layout upgrade skipped because backup failed: {error:#}"
+                    );
                     false
                 }
             };
         if backup_ready {
             match transcription::upgrade_sentence_layout(&mut connection) {
                 Ok(0) => {}
-                Ok(count) => eprintln!("upgraded sentence layout in {count} recording(s)"),
-                Err(error) => eprintln!("sentence layout upgrade failed: {error:#}"),
+                Ok(count) => crate::note!("upgraded sentence layout in {count} recording(s)"),
+                Err(error) => crate::note!("sentence layout upgrade failed: {error:#}"),
             }
         }
     }
@@ -1836,7 +2086,7 @@ fn connect_database(app: &tauri::App) -> Result<()> {
     // at this point, so clearing them is safe.
     let reclaimed = tools::clear_leftover_temporary();
     if reclaimed > 0 {
-        eprintln!(
+        crate::note!(
             "reclaimed {} MB of leftover temporary files",
             reclaimed / 1_000_000
         );
@@ -1872,10 +2122,10 @@ fn connect_database(app: &tauri::App) -> Result<()> {
     std::thread::spawn(move || match db::open(&path) {
         Ok(own) => {
             if let Err(e) = db::back_up_and_rotate(&own, &path) {
-                eprintln!("backup failed: {e:#}");
+                crate::note!("backup failed: {e:#}");
             }
         }
-        Err(e) => eprintln!("backup could not open the database: {e:#}"),
+        Err(e) => crate::note!("backup could not open the database: {e:#}"),
     });
 
     app.manage(AppState {
@@ -1932,5 +2182,77 @@ mod archive_location_tests {
         let chosen = scratch("first-run");
         let other = scratch("also-empty");
         assert_eq!(archive_to_open(&chosen, &other), chosen.join("whisp.db"));
+    }
+}
+
+#[cfg(test)]
+mod waveform_job_tests {
+    use super::*;
+
+    fn is_running(id: &str) -> bool {
+        waveform_jobs().lock().unwrap().contains(id)
+    }
+
+    #[test]
+    fn one_recording_is_claimed_once_and_given_back_when_the_job_ends() {
+        let id = "waveform-claim";
+        let job = WaveformJob::claim(id).expect("nobody else holds it");
+        assert!(is_running(id));
+        assert!(
+            WaveformJob::claim(id).is_none(),
+            "a second ffmpeg must not be started over the same file"
+        );
+        drop(job);
+        assert!(!is_running(id));
+    }
+
+    /// The defect this exists for: the removal was the last line of the worker
+    /// closure, so a panic on the way there left the id in the list for the
+    /// lifetime of the process — after which that recording's waveform was for
+    /// ever "being computed" and no further attempt was ever made.
+    #[test]
+    fn a_panicking_job_still_gives_its_place_back() {
+        let id = "waveform-panic";
+        let worker = std::thread::spawn(move || {
+            let _job = WaveformJob::claim(id).expect("nobody else holds it");
+            panic!("ffmpeg handling fell over");
+        });
+        assert!(worker.join().is_err(), "the worker was supposed to panic");
+        assert!(
+            !is_running(id),
+            "the id outlived the job that was holding it"
+        );
+        assert!(
+            WaveformJob::claim(id).is_some(),
+            "the recording can never be measured again"
+        );
+    }
+}
+
+#[cfg(test)]
+mod busy_recording_tests {
+    use super::*;
+
+    /// The defect this exists for: speaker recognition waiting in the queue
+    /// has not touched the row yet, so a transcription started beside it and
+    /// two workers held one recording.
+    #[test]
+    fn a_queued_run_counts_as_busy_although_its_row_does_not_say_so() {
+        assert!(recording_is_busy(true, "hotova"));
+        assert!(recording_is_busy(true, "nova"));
+    }
+
+    /// And the row still earns its place: a run interrupted by a crash is in
+    /// no registry, because the registry died with it.
+    #[test]
+    fn a_row_left_on_prepisuje_counts_as_busy_without_a_worker() {
+        assert!(recording_is_busy(false, "prepisuje"));
+    }
+
+    #[test]
+    fn a_recording_nobody_is_working_on_is_free() {
+        for status in ["nova", "hotova", "chyba"] {
+            assert!(!recording_is_busy(false, status), "{status}");
+        }
     }
 }

@@ -351,10 +351,50 @@ fn emit_progress(app: &AppHandle, p: DownloadProgress) {
 
 // ---------------------------------------------------------------- stahovani
 
+/// What is bounded here, and what deliberately is not.
+///
+/// **No overall `timeout`.** The largest model is three gigabytes, which on a
+/// slow line legitimately takes an hour, and reqwest's blocking client applies
+/// `timeout` as one deadline over the request *and* the reading of its body —
+/// so any value large enough not to abandon a download that is going perfectly
+/// well is too large to be a limit at all.
+///
+/// **A connect timeout**, because a name that does not resolve or a host that
+/// does not answer used to hold the thread with nothing at all having started.
+/// 15 seconds is generous for a lookup and a TLS handshake even on a phone
+/// tethered over a poor signal, and it is the whole wait before `Zrušit` is
+/// answered.
+///
+/// **Keepalive instead of a read timeout**, and this is the compromise worth
+/// knowing about: the blocking client exposes no per-read limit — `read_timeout`
+/// exists only on the asynchronous one. Without something, a peer that vanishes
+/// without closing the connection (a laptop suspended, a router dropping the
+/// flow, a VPN going down) leaves the reader blocked in `read` for as long as
+/// the operating system's own default allows, which on Windows is two hours.
+/// Cancelling cannot reach it: the flag is read between chunks, and no further
+/// chunk is coming. Probing after 30 seconds of silence, every 10, giving up
+/// after 6 tries, turns those two hours into about a minute and a half — after
+/// which the read fails, the loop ends, and the cancellation is honoured.
+///
+/// The limit it does not impose: a peer that is alive and answers probes while
+/// sending nothing still stalls. That needs a per-read deadline, and getting one
+/// means the asynchronous client and a rewrite of the download loop. Recorded
+/// rather than pretended away.
+const CONNECT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(15);
+const KEEPALIVE_IDLE: std::time::Duration = std::time::Duration::from_secs(30);
+const KEEPALIVE_INTERVAL: std::time::Duration = std::time::Duration::from_secs(10);
+const KEEPALIVE_RETRIES: u32 = 6;
+/// Applies to the release listings only — see the call site.
+const METADATA_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
+
 fn client() -> Result<reqwest::blocking::Client> {
     Ok(reqwest::blocking::Client::builder()
         .user_agent("Slobot")
         .timeout(None)
+        .connect_timeout(CONNECT_TIMEOUT)
+        .tcp_keepalive(KEEPALIVE_IDLE)
+        .tcp_keepalive_interval(KEEPALIVE_INTERVAL)
+        .tcp_keepalive_retries(KEEPALIVE_RETRIES)
         .build()?)
 }
 
@@ -372,7 +412,18 @@ fn resolve_url(source: &Source) -> Reported<String> {
             // reqwest has default features off (for size), so we parse the
             // response ourselves instead of the convenient .json()
             let download = |url: String| -> Reported<serde_json::Value> {
-                let body = client()?.get(&url).send()?.error_for_status()?.text()?;
+                // A whole-request deadline is safe here and only here: this is
+                // a page of JSON, not a model, so there is no legitimate reason
+                // for it to take half a minute. It is what keeps a stalled
+                // GitHub connection from hanging the very first step of a
+                // download, where the file-body keepalive has nothing to say
+                // yet.
+                let body = client()?
+                    .get(&url)
+                    .timeout(METADATA_TIMEOUT)
+                    .send()?
+                    .error_for_status()?
+                    .text()?;
                 serde_json::from_str(&body)
                     .map_err(|error| UserMessage::new("download.github_unreadable").detail(error))
             };
@@ -789,19 +840,30 @@ pub fn install_bundle(
         }
         let _done = Done;
 
-        for id in ids {
+        // What did not land. `download:complete` carries it, because the
+        // window cannot work it out for itself: the batch stops on a
+        // cancellation, and a component that was never attempted has no
+        // phase at all — indistinguishable from one that is still going.
+        let mut unfinished: Vec<String> = Vec::new();
+        let mut queue = ids.into_iter();
+        while let Some(id) = queue.next() {
             if cancellation.load(Ordering::Relaxed) {
-                emit_progress(
-                    &app,
-                    DownloadProgress {
-                        id: id.clone(),
-                        phase: "cancelled".into(),
-                        downloaded_mb: 0.0,
-                        total_mb: 0.0,
-                        percent: 0,
-                        message: Some(UserMessage::new("download.cancelled")),
-                    },
-                );
+                // Cancelling stops the whole batch, so everything still in it
+                // is unfinished — not only the component that was interrupted.
+                for pending in std::iter::once(id).chain(queue.by_ref()) {
+                    emit_progress(
+                        &app,
+                        DownloadProgress {
+                            id: pending.clone(),
+                            phase: "cancelled".into(),
+                            downloaded_mb: 0.0,
+                            total_mb: 0.0,
+                            percent: 0,
+                            message: Some(UserMessage::new("download.cancelled")),
+                        },
+                    );
+                    unfinished.push(pending);
+                }
                 break;
             }
             if let Err(e) = install_component(&app, &settings, &id, cancellation.clone()) {
@@ -821,9 +883,10 @@ pub fn install_bundle(
                         message: Some(e),
                     },
                 );
+                unfinished.push(id);
             }
         }
-        let _ = app.emit("download:complete", ());
+        let _ = app.emit("download:complete", unfinished);
     });
     true
 }

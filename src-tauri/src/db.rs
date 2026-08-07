@@ -698,7 +698,7 @@ pub fn load_settings(db: &Connection) -> Result<Settings> {
                 // over this key, so without a copy the loss is permanent and
                 // silent. Whoever ends up here can read their own paths and
                 // choices out of `nastaveni-poskozeno`.
-                eprintln!("settings: unreadable, keeping a copy: {error}");
+                crate::note!("settings: unreadable, keeping a copy: {error}");
                 let _ = db.execute(
                     "INSERT INTO klice (klic, hodnota) VALUES ('nastaveni-poskozeno', ?1)
                      ON CONFLICT(klic) DO UPDATE SET hodnota = excluded.hodnota",

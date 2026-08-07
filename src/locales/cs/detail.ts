@@ -82,6 +82,7 @@ export const csDetail = {
   "detail.speakers.diarizing": "Rozpoznávám…",
   "detail.speakers.playSample": "Přehrát ukázku hlasu",
   "detail.speakers.nameHint": "Stejné jméno mluvčí sloučí.",
+  "detail.speakers.nameLabel": "Jméno mluvčího",
 
   "detail.notes.heading": "Poznámky",
   "detail.notes.add": "Přidat",
@@ -282,6 +283,8 @@ export const csDetailContext: Partial<Record<keyof typeof csDetail, string>> = {
   "detail.ai.startSpeakersAgain": "Potvrzovací tlačítko, když mluvčí už rozpoznaní byli.",
   "detail.speakers.playSample":
     "Popisek tlačítka, které přehraje kousek řeči daného mluvčího, aby šlo poznat, kdo to je.",
+  "detail.speakers.nameLabel":
+    "Přístupný název pole se jménem mluvčího. Pole nemá vedle sebe viditelný popisek, takže tohle je jediné, co se přečte nahlas.",
   "detail.speakers.nameHint":
     "Vysvětlení pod seznamem mluvčích: dva mluvčí se stejným jménem se spojí v jednoho.",
 

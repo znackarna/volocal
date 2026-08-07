@@ -68,6 +68,7 @@ export const enDetail: Partial<Record<keyof typeof csDetail, string>> = {
   "detail.speakers.diarizing": "Identifying…",
   "detail.speakers.playSample": "Play a sample of this voice",
   "detail.speakers.nameHint": "The same name merges two speakers.",
+  "detail.speakers.nameLabel": "Speaker name",
   "detail.notes.heading": "Notes",
   "detail.notes.add": "Add",
   "detail.notes.timeLabel": "Note time",

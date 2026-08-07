@@ -236,9 +236,9 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
     );
 
     add(
-      listen("download:complete", async () => {
+      listen<string[]>("download:complete", async (u) => {
         setRunning(false);
-        await dokonci();
+        await dokonci(u.payload ?? []);
         load();
         setStep(5);
       })
@@ -251,27 +251,44 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editingQuality, manual, manualSelect, quality, wantsSpeakers]);
 
-  /** Without this the app would look for a model the user never chose. */
-  const dokonci = useCallback(async () => {
-    try {
-      const n = await api.loadSettings();
-      const changesApplied = { ...n };
-      if (!manual) {
-        changesApplied.model = MODELS[quality].settings;
-        changesApplied.diarization = wantsSpeakers;
-        changesApplied.editor_model =
-          editingQuality === "off" ? "" : EDITOR_MODELS[editingQuality].settings;
-      } else {
-        const selectedEditor = Object.values(EDITOR_MODELS).find((choice) =>
-          manualSelect.has(choice.component)
-        );
-        if (selectedEditor) changesApplied.editor_model = selectedEditor.settings;
+  /** Without this the app would look for a model the user never chose.
+   *
+   *  `unfinished` is what the batch did not install — cancelled, failed, or
+   *  never reached. A choice whose component is in it must not be written:
+   *  the setting would name a model that is not on the disk, which is how
+   *  pressing Stop during the first download left the application configured
+   *  for something it had never downloaded. Every choice is judged on its own
+   *  component, so a failed language model does not throw away a transcription
+   *  model that landed. */
+  const dokonci = useCallback(
+    async (unfinished: string[]) => {
+      const landed = (component: string) => !unfinished.includes(component);
+      try {
+        const n = await api.loadSettings();
+        const changesApplied = { ...n };
+        if (!manual) {
+          if (landed(MODELS[quality].component)) {
+            changesApplied.model = MODELS[quality].settings;
+          }
+          changesApplied.diarization =
+            wantsSpeakers && DIARIZATION_COMPONENTS.every(landed);
+          if (editingQuality === "off") changesApplied.editor_model = "";
+          else if (landed(EDITOR_MODELS[editingQuality].component)) {
+            changesApplied.editor_model = EDITOR_MODELS[editingQuality].settings;
+          }
+        } else {
+          const selectedEditor = Object.values(EDITOR_MODELS).find(
+            (choice) => manualSelect.has(choice.component) && landed(choice.component)
+          );
+          if (selectedEditor) changesApplied.editor_model = selectedEditor.settings;
+        }
+        await api.saveSettings(changesApplied);
+      } catch {
+        /* settings can still be adjusted by hand */
       }
-      await api.saveSettings(changesApplied);
-    } catch {
-      /* settings can still be adjusted by hand */
-    }
-  }, [quality, wantsSpeakers, editingQuality, manual, manualSelect]);
+    },
+    [quality, wantsSpeakers, editingQuality, manual, manualSelect]
+  );
 
   const start = useCallback(async () => {
     setError(null);
@@ -297,7 +314,11 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
      the component that was interrupted and for every one after it, and then
      emits `download:complete` regardless — so counting only `error` made the
      wizard congratulate a user who pressed Stop during the first model on a
-     fresh installation: "Everything is ready", with nothing installed. */
+     fresh installation: "Everything is ready", with nothing installed.
+
+     This is the screen's own reading, from the phases it saw. `dokonci` uses
+     the list the backend sends with `download:complete` instead: what a
+     setting is written from must not depend on whether an event arrived. */
   const failedIds = useMemo(
     () =>
       selected.filter((id) => {
@@ -735,7 +756,9 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
                   <button
                     className="tlacitko hlavni"
                     onClick={async () => {
-                      await dokonci();
+                      // Nothing was selected because everything is already on
+                      // the disk, so nothing is unfinished.
+                      await dokonci([]);
                       onComplete();
                     }}
                   >

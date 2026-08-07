@@ -18,8 +18,13 @@ i18n/
 _to_delete/
 
 # Audit and analysis notes written during a session. Internal, not documentation.
-*-analyza-*.md
-*-hodnoceni.md
+# Both shapes those names actually take: `slobot-analyza-0.9.0.md` and
+# `slozky-analyza.md`. The earlier `*-analyza-*.md` required a hyphen on both
+# sides of the word and so matched only the first — the second was versioned.
+# Without the hyphens the two are one rule, and `*hodnoceni*.md` follows for
+# the same reason rather than waiting to be caught out by the next name.
+*analyza*.md
+*hodnoceni*.md
 
 # What a portable copy or a dev run writes beside itself. The archive normally
 # lives in %APPDATA%, but a portable copy keeps it here — and an archive is the
