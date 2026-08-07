@@ -13,7 +13,14 @@ import NameDialog from "./NameDialog";
 import Select from "./Select";
 import { LineIcon, type LineIconName } from "./icons";
 import mark from "./mark.svg?raw";
-import { EMPTY_WAVEFORM, MiniPlayer, loadWaveform, preparePlaybackSource, usePlayer } from "./player";
+import {
+  EMPTY_WAVEFORM,
+  MiniPlayer,
+  loadWaveform,
+  preparePlaybackSource,
+  usePlayer,
+  usePlayerTime,
+} from "./player";
 import { MiniRecorder } from "./recorder";
 import type { Waveform } from "./player";
 import { useI18n } from "./i18n";
@@ -751,6 +758,9 @@ export default function Detail({
   // screen. Opening another transcript does not touch it — until you press
   // play, whatever was playing keeps playing.
   const player = usePlayer();
+  // Asked for separately from the player: this is the one screen that follows
+  // the clock, and it is what makes the tick worth paying for here.
+  const playerTime = usePlayerTime();
 
   /* The player pill compacts by measurement, not by a window-width guess
      (which shrank it with visible room to spare): it gives up its words the
@@ -796,7 +806,7 @@ export default function Detail({
   const isCurrentRecording = player.recordingId === id;
   // Cursor in a transcript that does not own the audio yet.
   const [localTime, setLocalTime] = useState(0);
-  const time = isCurrentRecording ? player.time : localTime;
+  const time = isCurrentRecording ? playerTime : localTime;
   const isPlaying = isCurrentRecording && player.isPlaying;
   // The duration in the database comes from ffprobe at import time and may be
   // unknown. Once audio plays, the player knows it exactly — and without it
@@ -1088,10 +1098,16 @@ export default function Detail({
   }, [seekTime, updateCursor]);
 
   // When playback moves elsewhere, the cursor stays where it left off.
+  //
+  // Through a ref, and that is the whole point: the effect must not re-run
+  // eight times a second, so a cleanup reading the clock directly would close
+  // over whatever it said when this recording *took* the audio over — the
+  // moment it started, not the moment it stopped.
+  const lastPlayedTime = useRef(0);
+  if (isCurrentRecording) lastPlayedTime.current = playerTime;
   useEffect(() => {
     if (!isCurrentRecording) return;
-    return () => setLocalTime(player.time);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => setLocalTime(lastPlayedTime.current);
   }, [isCurrentRecording]);
 
   // ---------------------------------------------------------------- klavesnice

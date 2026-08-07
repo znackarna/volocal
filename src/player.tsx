@@ -159,7 +159,6 @@ interface Status {
   title: string;
   path: string;
   duration: number;
-  time: number;
   isPlaying: boolean;
   /** ffmpeg is creating the seek-accurate playback copy for a VBR MP3. */
   isPreparing: boolean;
@@ -194,10 +193,28 @@ interface Status {
 
 const PlayerContext = createContext<Status | null>(null);
 
+/**
+ * The clock, on its own.
+ *
+ * It moves eight times a second and almost nothing needs it: the archive, the
+ * recorder and the transport bar all take the player for its identity and its
+ * controls, and would have repainted with every tick purely for sitting in the
+ * same context as a number they never read. Held apart, `Status` keeps one
+ * identity for as long as the recording does, and only the three consumers
+ * that draw a position follow the clock.
+ */
+const PlayerTimeContext = createContext(0);
+
 export function usePlayer(): Status {
   const k = useContext(PlayerContext);
   if (!k) throw new Error("usePlayer must be used inside PlayerProvider");
   return k;
+}
+
+/** Playback position in seconds. Re-renders the caller on every tick, which is
+ *  why it is asked for separately from {@link usePlayer}. */
+export function usePlayerTime(): number {
+  return useContext(PlayerTimeContext);
 }
 
 export function PlayerProvider({ children }: { children: ReactNode }) {
@@ -427,7 +444,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       title,
       path,
       duration,
-      time,
       isPlaying,
       isPreparing,
       rate,
@@ -447,7 +463,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       title,
       path,
       duration,
-      time,
       isPlaying,
       isPreparing,
       rate,
@@ -464,7 +479,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     ]
   );
 
-  return <PlayerContext.Provider value={value}>{children}</PlayerContext.Provider>;
+  return (
+    <PlayerContext.Provider value={value}>
+      <PlayerTimeContext.Provider value={time}>{children}</PlayerTimeContext.Provider>
+    </PlayerContext.Provider>
+  );
 }
 
 /**
@@ -940,7 +959,6 @@ export function MiniPlayer({
   const { t } = useI18n();
   const {
     title,
-    time,
     duration,
     isPlaying,
     isPreparing,
@@ -948,6 +966,7 @@ export function MiniPlayer({
     togglePlayback,
     close,
   } = usePlayer();
+  const time = usePlayerTime();
 
   const R = 12.5;
   const circumference = 2 * Math.PI * R;
@@ -1029,7 +1048,8 @@ const MINI_FLOOR = 0.04;
 const MINI_PEAK = 0.55;
 
 function AudioBars({ compact = false }: { compact?: boolean }) {
-  const { waveform, time, isPlaying, sourceMissing } = usePlayer();
+  const { waveform, isPlaying, sourceMissing } = usePlayer();
+  const time = usePlayerTime();
 
   /* Three bands in the compact pill. The 44 the full pill uses would be a
      smear in an 18 px window; three are readable and still move with the

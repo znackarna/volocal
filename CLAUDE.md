@@ -8805,3 +8805,50 @@ versioned, so it is corrected only here.
 - Not touched: `csp: null` and the player's tick re-rendering the archive, both
   still open in the audit. The first needs a running application and the second
   is a refactor, not a loose end.
+
+### 2026-08-07 — The clock is its own context
+
+- What it was: `time` sat in the player's `Status`, so the `useMemo` that builds
+  the context value listed it among its dependencies and produced a new object
+  eight times a second. Every consumer of `usePlayer()` therefore re-rendered
+  with the clock — and `App` is one of them, which took the whole archive with
+  it. Measured rather than argued: a consumer that reads nothing but
+  `recordingId` rendered **17 times over 16 ticks**, i.e. once per tick, and
+  `App.tsx` does not mention `time` anywhere.
+- Changed: `PlayerTimeContext` holds the number and nothing else, nested inside
+  the existing provider. `usePlayer()` returns `Status` without `time`;
+  `usePlayerTime()` returns the clock and says in its own doc comment that it
+  re-renders the caller on every tick, which is why it has to be asked for
+  separately.
+- Who follows the clock now: `MiniPlayer` (its ring), `AudioBars`, and `Detail`
+  (word highlighting). Who stopped: `App`, `RecorderProvider`, and
+  `PlaybackControls` — the last one never took `time` from the context at all,
+  it receives it as a prop, so it was paying for a value it did not read.
+- Why this works at all, and it is worth knowing before someone moves the
+  provider: `<App />` is written as a child element in `main.tsx`, so
+  `PlayerProvider` re-rendering does not re-render it. Only a changed context
+  value does. Were `App` ever rendered *by* the provider instead of passed to
+  it, the split would buy nothing.
+- Fixed on the way, because the line had to change anyway: `Detail`'s cursor
+  handover read `player.time` inside an effect cleanup whose dependencies are
+  `[isCurrentRecording]`. `player` was a new object every tick, so the closure
+  held the one from the render where this recording *took* the audio over — the
+  cleanup restored the position playback started at, not the one it left off
+  at, which is the opposite of what the comment above it promises. It reads a
+  ref that follows the live clock instead, and the `eslint-disable` that hid
+  the incomplete dependency list is gone with it.
+- Files: `src/player.tsx`, `src/Detail.tsx`.
+- Verified: `npx tsc --noEmit`; `node scripts/i18n.mjs check`; `npx vite build`.
+  The counts above come from the **real `PlayerProvider`**, bundled with esbuild
+  and mounted under jsdom with two probe children — one reading `usePlayer()`,
+  one reading the clock — driven by sixteen `timeupdate` events on a faked audio
+  element, since jsdom has no playback. After the change: status consumer 1
+  render in total, clock consumer 17. The measurement was validated by making it
+  report the defect: run against `HEAD:src/player.tsx` with the probe reading
+  `usePlayer().time`, the status consumer reports 17, one per tick. The clock
+  consumer reports 17 in both, so the tick itself is untouched.
+- Honest limit: this counts renders, not milliseconds. It proves the archive no
+  longer re-renders with the clock; it does not prove anybody could feel the
+  difference. The audit's reason for wanting it — twenty inline closures make
+  `memo(Library)` unreachable at the call site — is unchanged and is still the
+  thing to fix if the archive ever feels slow for its own reasons.
