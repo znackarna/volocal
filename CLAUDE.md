@@ -9556,3 +9556,33 @@ conversation between two, that is the whole argument for the change.
   characters, and a check for the thing `cargo fmt` actually breaks on — call
   argument lists over ~60 characters, not long lines — found three and they were
   fixed before committing.
+
+### 2026-08-07 — The Rust job on Ubuntu is retired
+
+- Jakub's question, and it answers itself once asked: why does a Windows-only
+  application check that it compiles on Linux?
+- The job was the cheap fast pass — a minute against Windows' three, and Windows
+  minutes are billed double on a private repository. It stopped earning that.
+  Slobot ships on Windows and nowhere else (`whisper-cli.exe`, DirectML, NSIS,
+  `%LOCALAPPDATA%\Whisp`), so Ubuntu could not find anything Windows would miss.
+  It could only fail for reasons nobody here will ever hit — a different ONNX
+  Runtime build, a different set of system libraries it first had to `apt-get`.
+  And with `ort` in the tree it was not fast either, because it downloads ONNX
+  Runtime like everybody else.
+- `cargo fmt --all --check` moved to the Windows job rather than being dropped.
+  Formatting is platform-independent, but it has to run somewhere, and that is
+  now the only place with a Rust toolchain. It runs first, because it takes
+  three seconds and — on the evidence of today — it is what fails.
+- The frontend job stays on Ubuntu: TypeScript and the dictionaries genuinely
+  do not care what they run on, and that job is twenty seconds.
+- Cost of the decision, stated so nobody is surprised later: nothing now checks
+  that the non-Windows branches of `#[cfg]` still compile. There are only two
+  places with any (`main.rs`, `tools.rs`) and both exist to be Windows-only, so
+  the dead branch is a few lines of `eprintln!`. If Slobot is ever built for
+  another platform, this job comes back.
+- Files: `.github/workflows/check.yml`.
+- Verified: the workflow still parses as YAML, the three job names resolve, and
+  the installer's `needs: [frontend, backend, windows]` was corrected to drop
+  the job that no longer exists — an unknown name there would have made the
+  whole file invalid, which is the one way this change could have broken more
+  than it fixed.
