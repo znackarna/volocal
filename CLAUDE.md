@@ -9705,3 +9705,28 @@ first change to the pipeline that produces the speakers in a real transcript.
   the job that no longer exists — an unknown name there would have made the
   whole file invalid, which is the one way this change could have broken more
   than it fixed.
+
+### 2026-08-07 — Correcting entry: a failure that would not say why
+
+- What Jakub saw on the first real run: the bar stopped at 10 %, jumped to 34 %
+  and reported `Rozpoznání mluvčích se nepodařilo spustit`. Those two numbers
+  are the diagnosis by themselves — 10 % is where the stage opens and 34 % is
+  `say(0.3)`, so the features were computed and the model is what failed.
+- **And the reason was lost.** `diarization.launch_failed` carried the real
+  error in its `detail`, and the Czech and English strings did not mention
+  `{detail}`, so nothing rendered it. The recording stays `hotova` after a
+  failed standalone recognition, so it is not in `nahravky.chyba` either, and
+  nothing wrote to `slobot-log.txt`. A message that says a thing could not be
+  started without saying why is not a report.
+- Changed: both strings end in `: {detail}`, and both failure paths also call
+  `note!`, so the reason survives in the log after the notice has gone. The
+  model's path is in the logged line, because the path is the first thing that
+  is ever wrong.
+- Not diagnosed yet, deliberately. The probe opened the same model with the same
+  provider and ran it, so guessing between the session, the batch and the DLLs
+  would be exactly the "diagnosis that matches a warning already in the file"
+  this project has been caught by twice. The next run will say.
+- Files: `src-tauri/src/transcription.rs`, `src/locales/{cs,en}/errors.ts`,
+  `src/locales/sources.json`.
+- Verified: `npx tsc --noEmit`; `node scripts/i18n.mjs check` (888/888, the new
+  English approved so its fingerprint matches the Czech it was written from).

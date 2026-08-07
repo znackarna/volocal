@@ -2451,11 +2451,20 @@ fn diarize(
 
     say(0.3);
     stop_if_cancelled(task, recording_id)?;
-    let mut voices = crate::voiceprint::Voices::open(Path::new(model))
-        .map_err(|error| UserMessage::new("diarization.launch_failed").detail(error))?;
-    let prints = voices
-        .embed(&heard)
-        .map_err(|error| UserMessage::new("diarization.launch_failed").detail(error))?;
+    // The reason goes three places on purpose. It is in the message the reader
+    // sees, because "could not be started" without a why is not a report; it is
+    // in `slobot-log.txt`, because a notice that has already gone cannot be
+    // asked about; and `{model}` is in there because the path is the first
+    // thing that is ever wrong.
+    let mut voices = crate::voiceprint::Voices::open(Path::new(model)).map_err(|error| {
+        crate::note!("speaker model {model} did not open: {error:#}");
+        UserMessage::new("diarization.launch_failed").detail(format!("{error:#}"))
+    })?;
+    let prints = voices.embed(&heard).map_err(|error| {
+        let count = heard.len();
+        crate::note!("speaker model {model} failed on {count} windows: {error:#}");
+        UserMessage::new("diarization.launch_failed").detail(format!("{error:#}"))
+    })?;
 
     say(0.9);
     stop_if_cancelled(task, recording_id)?;

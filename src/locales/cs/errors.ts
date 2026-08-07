@@ -43,7 +43,8 @@ export const csErrors = {
 
   // Telling speakers apart.
   "errors.diarization.not_transcribed": "Nahrávka ještě není přepsaná.",
-  "errors.diarization.launch_failed": "Nepodařilo se spustit rozpoznání mluvčích",
+  "errors.diarization.launch_failed":
+    "Rozpoznání mluvčích se nepodařilo spustit: {detail}",
   "errors.diarization.audio_unreadable":
     "Připravený zvuk se nepodařilo přečíst. Zkuste rozpoznání spustit znovu.",
 

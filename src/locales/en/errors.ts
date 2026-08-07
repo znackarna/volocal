@@ -23,7 +23,8 @@ export const enErrors: Partial<Record<keyof typeof csErrors, string>> = {
   "errors.transcription.interrupted": "The transcription was interrupted — the application closed before it finished.",
   "errors.unknown": "{detail}",
   "errors.diarization.not_transcribed": "The recording has not been transcribed yet.",
-  "errors.diarization.launch_failed": "Could not start speaker identification",
+  "errors.diarization.launch_failed":
+    "Speaker identification could not be started: {detail}",
   "errors.diarization.audio_unreadable":
     "The prepared audio could not be read. Try identifying the speakers again.",
   "errors.file.not_found": "The file does not exist: {path}",
