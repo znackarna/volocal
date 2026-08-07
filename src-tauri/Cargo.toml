@@ -14,8 +14,11 @@ publish = false
 webview2-com = "0.38.2"
 # The same rule, same reason: 0.61.3 is the version already in the tree, so
 # this adds four feature flags and no second copy of the Win32 bindings.
-# Only what the job object needs — CreateJobObjectW is behind Win32_Security,
-# and JOBOBJECT_EXTENDED_LIMIT_INFORMATION behind Win32_System_Threading.
+# Only what the job object needs, and each flag is here for its own reason:
+# Win32_System_JobObjects carries all three calls and the limit struct;
+# Win32_Security carries the SECURITY_ATTRIBUTES in CreateJobObjectW's
+# signature, which is passed as None; Win32_System_Threading carries
+# GetCurrentProcess; Win32_Foundation carries the HANDLE they trade in.
 windows = { version = "0.61.3", features = [
     "Win32_Foundation",
     "Win32_Security",

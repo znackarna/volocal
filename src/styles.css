@@ -312,8 +312,16 @@ button, input, select, textarea { font: inherit; color: inherit; }
   pointer-events: none;
   animation: notice-leave 0.28s ease-in-out both;
 }
+/* The chip darkens its backdrop rather than lightening it. A white veil is the
+   obvious way to lift a control off a coloured bar, and it is the one thing
+   that cannot be done here: it lightens the very surface the white label has to
+   stand on. White on white/0.2 measured 3.48 : 1 over the accent bar and
+   4.04 / 4.08 over the red one — all three short of 4.5, and the first short of
+   the 4.76 the bare bar already gives, so the chip was the worst place on the
+   bar to read. Black/0.18 takes the same three composites to 6.51, 7.04 and
+   7.39. The bar's own colour is untouched; only the veil changed sign. */
 .hlaska button {
-  background: rgb(255 255 255 / 0.2); border: 0; border-radius: var(--r-pilulka);
+  background: rgb(0 0 0 / 0.18); border: 0; border-radius: var(--r-pilulka);
   padding: 5px 13px; cursor: pointer; color: #fff; font-weight: 600; font-size: 13px;
 }
 @keyframes notice-enter {
@@ -1018,7 +1026,6 @@ mark { background: var(--zvyrazneni); color: inherit; padding: 0 2px; border-rad
 }
 .ai-edit-button.ready { color: var(--akcent); border-color: var(--akcent-linka); }
 .ai-edit-button svg { flex: 0 0 auto; }
-.export { display: flex; gap: 2px; align-items: center; }
 
 .detail-progress-bubble {
   position: fixed; right: 22px;

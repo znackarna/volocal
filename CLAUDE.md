@@ -8738,3 +8738,70 @@ not repaint with the clock.
   decision. Worth knowing when it is taken — there is no GPL code in this
   repository at all, FFmpeg and Gemma are both fetched at runtime, so copyleft
   touches the portable copy and not the source tree.
+
+### 2026-08-07 — Three loose ends, and a comment that explained the wrong thing
+
+Four small things the audit left listed rather than done. None of them needed a
+decision, and all four are verifiable without Windows — which is why they were
+the ones taken while the `cfg(windows)` build waits on CI.
+
+**The close chip was the worst-contrasting spot on the notice bar.** `.hlaska
+button` painted `rgb(255 255 255 / 0.2)` under a white label. A white veil is
+the obvious way to lift a control off a coloured bar, and it is the one thing
+that cannot be done here: it lightens the very surface the label has to stand
+on. So the chip read *worse* than the bare bar beside it — 3.48 : 1 against the
+bar's own 4.76. The veil changed sign: `rgb(0 0 0 / 0.18)` takes the same
+composite to 6.51 : 1 on the accent bar and 7.04 / 7.39 on the red one. The bar
+colours are untouched, so nothing that merely borrows `--akcent-plny` or
+`--vystraha-plna` moved with it, and no new token was needed.
+
+- Correcting the report it came from: the finding said 3.48 : 1 *in both
+  palettes*, which is true of the accent bar — `--akcent-plny` is deliberately
+  one value for both. The red bar was a second failing case at 4.04 / 4.08,
+  below 4.5 as well and not mentioned. Three failing composites, not one.
+
+**`--postup` was written on every frame and read by nothing.** Both writes are
+gone — `applyPosition` in `PlaybackControls.tsx` and the initial `style` on the
+slider — and with them the `ratio` that existed only to feed the first and the
+`CSSProperties` import that existed only to type the second. The played part of
+the timeline has been painted by the waveform canvas since `playedRatio`; a rule
+reading this property today would paint it a second time. Grepped rather than
+assumed: `--postup` appears nowhere in `styles.css`, and `.prehrat-postup` and
+`.mini-postup` are unrelated class names that merely share the word.
+
+**`.export`** was the tenth dead block in `styles.css`, left behind when the
+last sweep worked from a list it was not on. No `className` in `src/` names it.
+
+**And the comment in `Cargo.toml` explained the wrong thing.** It said
+`CreateJobObjectW` is behind `Win32_Security` and
+`JOBOBJECT_EXTENDED_LIMIT_INFORMATION` behind `Win32_System_Threading`. Both are
+behind `Win32_System_JobObjects`. The feature list itself is correct and always
+was — it names `Win32_System_JobObjects` — so nothing was broken; the *reasons*
+were attached to the wrong flags, which is the kind of comment that survives
+precisely because it is never tested. Each of the four flags now says what it
+carries: job objects the three calls and the struct, `Win32_Security` the
+`SECURITY_ATTRIBUTES` in the signature that is passed as `None`,
+`Win32_System_Threading` `GetCurrentProcess`, `Win32_Foundation` the `HANDLE`
+they trade in. `PREDANI-LOKAL.md` repeats the same wrong claim and is not
+versioned, so it is corrected only here.
+
+- Files: `src/styles.css`, `src/PlaybackControls.tsx`, `src-tauri/Cargo.toml`.
+- Verified: `npx tsc --noEmit`; `node scripts/i18n.mjs check` (891/891, no
+  problems). Every contrast figure above was computed by a script that reads the
+  token values and the chip's own `background` **out of `styles.css`** rather
+  than from a transcription of them, composites the veil over the bar and
+  reports the ratio. It was validated before it was believed: against the
+  previous `rgb(255 255 255 / 0.2)` it returns 3.48 : 1 on the accent bar —
+  exactly the figure the audit reported — and 4.76 / 5.17 / 5.48 for the three
+  bare bars, matching the entry that introduced those tokens.
+- Honest limit, and it is a step below the entry that set those tokens: those
+  numbers came off **rendered pixels**, read from a real browser against the
+  real stylesheet. These are computed from the stylesheet's declared values.
+  The arithmetic is the same sRGB and WCAG formula and it reproduces the known
+  figure, but a browser was not available in this session, so nothing here has
+  been looked at. Worth one glance on the real machine that the darker chip
+  still reads as a chip — the ratio guarantees it is legible, not that it is
+  the right weight beside `--akcent-plny`.
+- Not touched: `csp: null` and the player's tick re-rendering the archive, both
+  still open in the audit. The first needs a running application and the second
+  is a refactor, not a loose end.

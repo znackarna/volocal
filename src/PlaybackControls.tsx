@@ -4,7 +4,7 @@
 //! Keeping distinct names also avoids case-insensitive filename collisions on Windows.
 
 import { useEffect, useRef, useState } from "react";
-import type { CSSProperties, MutableRefObject, ReactNode } from "react";
+import type { MutableRefObject, ReactNode } from "react";
 import {
   drawBars,
   equalizerAtTime,
@@ -235,11 +235,7 @@ function PlayButton({
 /** Writes a position into the slider. Both React and the frame loop go
  *  through here so the two can never disagree on how it is done. */
 function applyPosition(input: HTMLInputElement, time: number, duration: number) {
-  const ratio = duration > 0 ? Math.min(1, Math.max(0, time / duration)) : 0;
   input.value = String(Math.min(time, duration || 0));
-  // Played portion of the track. The system `accent-color` is not enough
-  // here because we paint the track ourselves.
-  input.style.setProperty("--postup", `${ratio * 100}%`);
 }
 
 /**
@@ -301,7 +297,6 @@ function Timeline({
         step={0.01}
         defaultValue={0}
         onChange={(e) => onSeek(Number(e.target.value))}
-        style={{ "--postup": "0%" } as CSSProperties}
       />
       {preview && duration > 0 && (
         <span className="posuvnik-nahled" style={{ left: `${preview.x}px` }}>
