@@ -9453,3 +9453,35 @@ conversation between two, that is the whole argument for the change.
   is from one English interview. CAM++ is trained on Chinese and English and
   speaker identity is largely language-independent, but that is an argument,
   not a measurement.
+
+### 2026-08-07 — First half of speaker recognition without sherpa: the features
+
+- Added `src-tauri/src/voiceprint.rs`: mono 16 kHz samples in, log-mel energies
+  out, in the shape CAM++ declares (`x` is `[batch, frames, 80]`). It is the
+  first piece of replacing the spawned `sherpa-onnx.exe` with inference inside
+  the application.
+- Deliberately dependency-free. A mel filterbank and a 512-point transform are
+  about a hundred lines; `knf-rs`, the faithful Kaldi extractor, would drag
+  CMake and Clang into the Windows build and CI for the same result. That trade
+  is worth revisiting only if the measured quality turns out to need it — and
+  the numbers say it does not: nine variants of this extractor were tried
+  against the real model and none beat it.
+- Every constant is measured, not chosen, and the two that matter are commented
+  at the top of the file: **cepstral mean normalisation is not optional** (its
+  absence collapses the gap between the same speaker and a different one from
+  0.306 to 0.105 while making both numbers look better), and **the window wants
+  about two seconds**.
+- Written against golden values rather than blind. The reference implementation
+  — the Python one that scored 100 % on five named examples against the real
+  CAM++ — was run on a deterministic signal with no generator and no seed, and
+  its output is asserted here: the frame count, three rows of band values, the
+  positions and values of the loudest and quietest bands, and the sums of the
+  window and the filterbank. One wrong constant anywhere moves at least one of
+  those.
+- `#![allow(dead_code)]` with a note: nothing calls this yet, because the model
+  that consumes it is the next step. The exception goes when the embedder lands.
+- Files: `src-tauri/src/voiceprint.rs`, `src-tauri/src/main.rs`.
+- Verified: golden values generated in this session from the measured reference;
+  braces balanced; the inner attribute sits after the module docs and before the
+  first item. **Not compiled** — no cargo here. CI is the first reader, as with
+  everything else in Rust today.

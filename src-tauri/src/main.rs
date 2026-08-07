@@ -10,6 +10,7 @@ mod online_import;
 mod tools;
 mod transcription;
 mod user_message;
+mod voiceprint;
 
 use anyhow::Result;
 use db::{DictionaryEntry, Recording, RecordingNote, SearchResult, Segment, Settings, Speaker};
