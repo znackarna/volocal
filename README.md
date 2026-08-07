@@ -115,6 +115,18 @@ npm run i18n:check      # texty ve slovníku, množné tvary, vykání, stáří
 cargo fmt --all ; cargo check ; cargo test
 ```
 
+### Kdyby okno zůstalo bílé
+
+Okno kreslí obsah pod pravidly `security.csp` v `src-tauri/tauri.conf.json`.
+Zablokovaný skript nebo styl se neohlásí chybou — okno prostě zůstane prázdné.
+Otevřete vývojářskou konzoli (`npm run tauri dev`, pak F12) a na kartě Console
+uvidíte, co bylo odmítnuto a kterým pravidlem.
+
+Rychlá zkouška, jestli za to může právě CSP: nastavte `"csp": null` a spusťte
+znovu. Když se okno vrátí, chybí v pravidlech jedna položka — přidejte ji
+a `null` zase odeberte. Nenechávejte `null` natrvalo; je to jediné místo,
+které vynucuje, že aplikace nesmí nic načíst zvenčí.
+
 ### Vydání
 
 ```powershell

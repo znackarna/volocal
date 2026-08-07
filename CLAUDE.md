@@ -8852,3 +8852,47 @@ versioned, so it is corrected only here.
   difference. The audit's reason for wanting it — twenty inline closures make
   `memo(Library)` unreachable at the call site — is unchanged and is still the
   thing to fix if the archive ever feels slow for its own reasons.
+
+### 2026-08-07 — The window has a content policy
+
+- What it was: `csp: null`, and the promise on the About card — that nothing is
+  sent out — was enforced by nothing but the absence of code that would break
+  it. The audit left it open for one reason: a wrong policy is a white window,
+  and nobody had run the application. That is no longer true.
+- The policy is written from what the built bundle actually loads, not from a
+  template. Read out of `dist/` rather than assumed: no `eval(` and no
+  `new Function` anywhere in the bundle, so `script-src 'self'` costs nothing;
+  every font is a same-origin `/assets/*.woff2`, so `font-src 'self'`; no `url()`
+  in the CSS reaches outside; `index.html` links one script and one stylesheet,
+  both same-origin.
+- What had to be allowed, and why each one: `'unsafe-inline'` for styles,
+  because React's `style={{…}}` is a style attribute and CSP governs those;
+  `blob:` in `media-src`, because a finished microphone take is played from
+  `URL.createObjectURL`; `asset:` and `http://asset.localhost`, because
+  `convertFileSrc` is how a recording on any drive reaches the audio element;
+  and `ipc:` with `http://ipc.localhost` in `connect-src`, which is how Tauri's
+  own IPC travels on Windows — the one entry that is about the framework rather
+  than about this application, and the likeliest single cause if the window
+  ever does come up blank.
+- `object-src 'none'`, `base-uri 'self'` and `frame-ancestors 'none'` are there
+  because nothing in this application uses them, so they cost nothing and close
+  three doors. `form-action` is deliberately *not* set: one dialog nests its
+  heading in a `<form>`, and a directive that can block a submit is not worth
+  the risk for a form that never navigates.
+- Added to README: what to do if the window is blank — the console names the
+  directive that refused, and `"csp": null` is the one-line test for whether the
+  policy is even the cause. It says not to leave it there.
+- **Left as it is, deliberately: `assetProtocol.scope: ["**"]`.** Narrowing it
+  is not a config change. A recording may sit on any drive, so the only correct
+  form is the runtime one — start with an empty scope and `allow_file` each
+  recording as it is opened. That touches every path that plays audio, and it
+  is Rust, which this session cannot compile. Recorded as the next step rather
+  than half-done.
+- Files: `src-tauri/tauri.conf.json`, `README.md`.
+- Verified: the config still parses as JSON, and every directive was checked
+  against what `npx vite build` actually emitted. `npx tsc --noEmit` and
+  `node scripts/i18n.mjs check` still pass, though neither reads this file.
+- **Not verified, and it is the whole risk:** no browser and no Windows in this
+  session, so the policy has never been applied to a running window. It is one
+  line in one file and reverting it is `"csp": null`. Try it once before
+  anything else in this batch.
