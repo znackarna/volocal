@@ -9626,6 +9626,12 @@ conversation between two, that is the whole argument for the change.
   name since it was built. A merge cannot be repaired at all, because no part of
   the interface can split a group. So the threshold prefers the recoverable
   error, and the comment on the constant says so.
+- Added with it: `turns()`, which joins neighbouring windows that agree back
+  into one stretch. Windows overlap by design, so agreement between neighbours
+  is the same turn said twice. A gap closes a turn even for one voice — two
+  windows either side of a silence are two turns, and the transcript's own
+  blocks are what put the silence there. Without that rule one person's whole
+  recording would come back as a single turn covering everybody else's pauses.
 - Worth noting for the step after this: `diarize()` returns `Vec<SpeakerTurn>`
   and `assign_speakers` turns that into per-word speakers, carrying every
   measured smoothing rule — 1.4 seconds and three words for a real handover, the

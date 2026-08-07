@@ -398,6 +398,39 @@ fn build(model: &std::path::Path) -> Result<ort::session::Session, ort::Error> {
         .commit_from_file(model)
 }
 
+/// A stretch of time credited to one voice.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Turn {
+    pub start: f64,
+    pub end: f64,
+    pub voice: usize,
+}
+
+/// Windows overlap by design, so neighbours that agree are the same turn said
+/// twice. This joins them back into one.
+///
+/// A gap closes a turn even when the voice is the same: two windows either side
+/// of a silence are two turns, and the transcript's own blocks are what put the
+/// silence there. Without that, one person's whole recording would come back as
+/// a single turn covering the other speakers' pauses as well.
+pub fn turns(windows: &[Window], labels: &[usize]) -> Vec<Turn> {
+    let mut out: Vec<Turn> = Vec::new();
+    for (window, voice) in windows.iter().zip(labels) {
+        match out.last_mut() {
+            // Touching or overlapping, and the same voice: one turn.
+            Some(open) if open.voice == *voice && window.start <= open.end + 1e-6 => {
+                open.end = open.end.max(window.end);
+            }
+            _ => out.push(Turn {
+                start: window.start,
+                end: window.end,
+                voice: *voice,
+            }),
+        }
+    }
+    out
+}
+
 /// Above this, two windows are taken for the same person.
 ///
 /// Measured on 381 pairs of one speaker and 400 pairs of two, drawn from a real
@@ -936,6 +969,60 @@ mod tests {
         // rather than an empty answer or a panic.
         let one = vec![unit(&[1.0, 0.0])];
         assert_eq!(group(&one, Some(5)), vec![0]);
+    }
+
+    // --------------------------------------------------------------- turns
+
+    fn win(start: f64, end: f64) -> Window {
+        Window {
+            start,
+            end,
+            segment: 0,
+        }
+    }
+
+    /// The ordinary case: one person talking, heard through five overlapping
+    /// windows, is one turn — not five.
+    #[test]
+    fn overlapping_windows_of_one_voice_become_one_turn() {
+        let w: Vec<Window> = (0..5).map(|i| win(i as f64, i as f64 + 2.0)).collect();
+        let t = turns(&w, &[0, 0, 0, 0, 0]);
+        assert_eq!(t.len(), 1);
+        assert_eq!(
+            t[0],
+            Turn {
+                start: 0.0,
+                end: 6.0,
+                voice: 0
+            }
+        );
+    }
+
+    #[test]
+    fn a_change_of_voice_closes_the_turn() {
+        let w = vec![win(0.0, 2.0), win(1.0, 3.0), win(2.0, 4.0)];
+        let t = turns(&w, &[0, 1, 1]);
+        assert_eq!(t.len(), 2);
+        assert_eq!(t[0].voice, 0);
+        assert_eq!(t[1].voice, 1);
+        assert_eq!(t[1].start, 1.0);
+    }
+
+    /// Silence between two blocks closes a turn even for one voice. Otherwise
+    /// somebody's first and last word would claim the whole recording between
+    /// them, including everybody else's turns.
+    #[test]
+    fn a_gap_closes_the_turn_even_for_one_voice() {
+        let w = vec![win(0.0, 2.0), win(40.0, 42.0)];
+        let t = turns(&w, &[0, 0]);
+        assert_eq!(t.len(), 2, "a silence is not part of anybody's turn");
+        assert_eq!(t[0].end, 2.0);
+        assert_eq!(t[1].start, 40.0);
+    }
+
+    #[test]
+    fn nothing_heard_is_no_turns() {
+        assert!(turns(&[], &[]).is_empty());
     }
 
     #[test]
