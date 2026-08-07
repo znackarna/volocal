@@ -304,12 +304,20 @@ const BATCH: usize = 256;
 pub struct Voices {
     session: ort::session::Session,
     input: String,
+    /// Kept so the model can be opened a second time on the processor if the
+    /// graphics card turns out not to be able to run it.
+    model: std::path::PathBuf,
+    on_card: bool,
 }
 
 impl Voices {
     /// Opens the model that the installer already downloads.
     pub fn open(model: &std::path::Path) -> anyhow::Result<Self> {
-        let session = match build(model) {
+        Self::open_on(model, cfg!(windows))
+    }
+
+    fn open_on(model: &std::path::Path, on_card: bool) -> anyhow::Result<Self> {
+        let session = match build(model, on_card) {
             Ok(session) => session,
             // Only the text crosses over. See `build` below for why the error
             // itself cannot.
@@ -325,7 +333,12 @@ impl Voices {
             .name()
             .to_owned();
 
-        Ok(Voices { session, input })
+        Ok(Voices {
+            session,
+            input,
+            model: model.to_path_buf(),
+            on_card,
+        })
     }
 
     /// A unit-length voiceprint per window, in the order the windows came in.
@@ -334,7 +347,31 @@ impl Voices {
     /// dimension is the frame count and a batch has one of it — so they are
     /// grouped by length first. In practice almost every window is the full two
     /// seconds, so the groups are large and the batching is worth having.
+    ///
+    /// If the graphics card refuses — and it does refuse some shapes, see the
+    /// note on [`run`] — the model is opened again on the processor and the
+    /// whole thing is done a second time. Slower is better than nothing, and
+    /// the reader never learns that anything happened.
     pub fn embed(&mut self, windows: &[Features]) -> anyhow::Result<Vec<Vec<f32>>> {
+        match self.run(windows) {
+            Ok(prints) => Ok(prints),
+            Err(error) if self.on_card => {
+                crate::note!("speaker model fell back to the processor: {error:#}");
+                *self = Self::open_on(&self.model.clone(), false)?;
+                self.run(windows)
+            }
+            Err(error) => Err(error),
+        }
+    }
+
+    /// One pass over every window with whatever provider this session holds.
+    ///
+    /// **DirectML will not run every shape.** On the first real recording it
+    /// refused `cam_layer/AveragePool` with `E_INVALIDARG` — a pooling window
+    /// wider than the input it was given, which happens when the audio handed
+    /// over is short. The caller keeps every window the same length for that
+    /// reason; this is the net under it.
+    fn run(&mut self, windows: &[Features]) -> anyhow::Result<Vec<Vec<f32>>> {
         let mut out = vec![Vec::new(); windows.len()];
         for (frames, group) in by_length(windows) {
             for chunk in group.chunks(BATCH) {
@@ -375,27 +412,71 @@ impl Voices {
 /// dozen complaints about `NonNull` and `dyn Any` that have nothing to do with
 /// this code. Inside a function returning ort's own error the conversion is to
 /// `Error<()>`, which carries no builder and is therefore ordinary.
-fn build(model: &std::path::Path) -> Result<ort::session::Session, ort::Error> {
+fn build(model: &std::path::Path, on_card: bool) -> Result<ort::session::Session, ort::Error> {
     use ort::session::{builder::GraphOptimizationLevel, Session};
 
     let mut providers = Vec::new();
     #[cfg(windows)]
-    providers.push(ort::ep::DirectML::default().build());
+    if on_card {
+        providers.push(ort::ep::DirectML::default().build());
+    }
     // Last in line, and reached silently: when a provider cannot be registered
     // ONNX Runtime falls through to the next one and logs at a level nobody
     // subscribes to. So nothing here reports which one ran — only the clock
     // can, which is what the probe in `probe/ort-dml` is for.
     providers.push(ort::ep::CPU::default().build());
 
-    let builder = Session::builder()?.with_optimization_level(GraphOptimizationLevel::Level3)?;
+    let mut builder = Session::builder()?.with_optimization_level(GraphOptimizationLevel::Level3)?;
     // Not tuning but a condition: DirectML refuses to create a session while
     // memory-pattern optimisation is on, and it is on by default.
-    #[cfg(windows)]
-    let builder = builder.with_memory_pattern(false)?;
+    if on_card {
+        builder = builder.with_memory_pattern(false)?;
+    }
 
     builder
         .with_execution_providers(providers)?
         .commit_from_file(model)
+}
+
+/// Which samples to hand the model for a window, in `start..end`.
+///
+/// The window says where to *look*; this says how much to actually cut, and the
+/// two are not the same thing. A block can be shorter than the window — the
+/// transcript is full of one-second remarks — and the model does not take
+/// kindly to a short input: on the first real recording DirectML refused
+/// `cam_layer/AveragePool` with "invalid parameter", which is a pooling window
+/// wider than what it was given. The processor tolerates it, the graphics card
+/// does not.
+///
+/// So a short window is grown to the full length by reaching into the audio
+/// around it, centred on what was asked for and clamped to the recording. That
+/// removes the failure, and it has a second benefit worth having: every window
+/// ends up the same length, so they all travel in one batch, and DirectML is
+/// measurably happier when the shape does not keep changing.
+pub fn enough_audio(start: f64, end: f64, rate: f64, total: usize) -> (usize, usize) {
+    let need = (WINDOW * rate) as usize;
+    let mut from = (start * rate).max(0.0) as usize;
+    let mut to = ((end * rate) as usize).min(total);
+    if total <= need {
+        // The whole recording is shorter than one window; there is nothing to
+        // reach into, so hand over what there is.
+        return (0, total);
+    }
+    while to - from < need {
+        // Backwards first: a block's own beginning is more likely to be the
+        // speaker than whatever follows it.
+        if from > 0 {
+            from -= 1;
+        } else if to < total {
+            to += 1;
+        } else {
+            break;
+        }
+        if to - from < need && to < total {
+            to += 1;
+        }
+    }
+    (from, to.min(total))
 }
 
 /// A stretch of time credited to one voice.
@@ -969,6 +1050,51 @@ mod tests {
         // rather than an empty answer or a panic.
         let one = vec![unit(&[1.0, 0.0])];
         assert_eq!(group(&one, Some(5)), vec![0]);
+    }
+
+    // ---------------------------------------------------------- enough audio
+
+    const RATE: f64 = SAMPLE_RATE as f64;
+    /// What a full window is worth in samples: two seconds at 16 kHz.
+    const FULL: usize = 32_000;
+
+    #[test]
+    fn a_window_of_the_right_length_is_taken_as_it_is() {
+        let (from, to) = enough_audio(10.0, 12.0, RATE, 16_000 * 60);
+        assert_eq!((from, to), (160_000, 192_000));
+        assert_eq!(to - from, FULL);
+    }
+
+    /// The case that broke it: a one-second block. The graphics card refuses a
+    /// short input, so the cut reaches into the audio around it.
+    #[test]
+    fn a_short_block_borrows_from_around_it() {
+        let (from, to) = enough_audio(10.0, 11.0, RATE, 16_000 * 60);
+        assert_eq!(to - from, FULL, "must be a full window, got {}", to - from);
+        assert!(from <= 160_000 && to >= 176_000, "still covers the block");
+    }
+
+    #[test]
+    fn a_block_at_the_very_start_grows_forwards() {
+        let (from, to) = enough_audio(0.0, 0.9, RATE, 16_000 * 60);
+        assert_eq!(from, 0);
+        assert_eq!(to - from, FULL);
+    }
+
+    #[test]
+    fn a_block_at_the_very_end_grows_backwards() {
+        let total = 16_000 * 60;
+        let (from, to) = enough_audio(59.1, 60.0, RATE, total);
+        assert_eq!(to, total);
+        assert_eq!(to - from, FULL);
+    }
+
+    /// A recording shorter than one window has nothing to reach into, and must
+    /// not loop forever looking for it.
+    #[test]
+    fn a_recording_shorter_than_a_window_hands_over_what_there_is() {
+        let total = 16_000;
+        assert_eq!(enough_audio(0.0, 1.0, RATE, total), (0, total));
     }
 
     // --------------------------------------------------------------- turns

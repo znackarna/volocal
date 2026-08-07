@@ -9730,3 +9730,41 @@ first change to the pipeline that produces the speakers in a real transcript.
   `src/locales/sources.json`.
 - Verified: `npx tsc --noEmit`; `node scripts/i18n.mjs check` (888/888, the new
   English approved so its fingerprint matches the Czech it was written from).
+
+### 2026-08-07 — DirectML will not run a short input, and now it does not get one
+
+- The message, once it could be read: `Non-zero status code returned while
+  running AveragePool node. Name:'/xvector/block1/tdnnd1/cam_layer/AveragePool'
+  … DmlExecutionProvider … 80070057 Parametr není správný`.
+- `80070057` is `E_INVALIDARG`, and on a pooling node that almost always means
+  the window is wider than the input. The probe never saw it because it fed a
+  fixed 200 frames every time; the application feeds whatever a block is worth,
+  and a block between 0.8 and 2 seconds is 78 to 198 frames. The processor
+  tolerates that, the graphics card does not.
+- **Fixed at the cause.** `enough_audio` decides how much to cut, separately
+  from where to look: a window shorter than two seconds is grown by reaching
+  into the audio around it, centred on the block and clamped to the recording.
+  Backwards first, because a block's own beginning is likelier to be the
+  speaker than whatever follows.
+- It has a second benefit that was not the point but is worth having: **every
+  window is now the same length**, so they all travel in one batch instead of
+  one batch per distinct frame count — and DirectML's own documentation says it
+  performs best when the shape stops changing.
+- **And a net under it, because a cause fixed once is not a class fixed.** If a
+  run still fails on the card, the model is opened again on the processor and
+  the whole pass is repeated. `ort` falls back between providers at
+  *registration*, never at *run*, so nothing else would have caught this. The
+  fallback writes one line to `slobot-log.txt` and says nothing to the reader:
+  slower is better than a feature that does not work.
+- Files: `src-tauri/src/voiceprint.rs`, `src-tauri/src/transcription.rs`.
+- Verified: five new tests over `enough_audio` — a full-length window is taken
+  as it is, a one-second block borrows from around itself and still covers the
+  block, a block at either end of the recording grows the only way it can, and
+  a recording shorter than one window hands over what there is rather than
+  looping forever looking for more. All six cases including the loop guard were
+  run against the same logic in Python first. `node scripts/i18n.mjs check`
+  passes; braces balanced; no line over 100 characters.
+- **Still an inference, and said plainly:** that short input is what DirectML
+  objected to is read off the node name and the error code, not proved. If the
+  next run fails somewhere else, the fallback will carry it and the log will
+  name the node.

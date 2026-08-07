@@ -2431,8 +2431,12 @@ fn diarize(
         if index % 200 == 0 {
             stop_if_cancelled(task, recording_id)?;
         }
-        let from = (window.start * f64::from(rate)) as usize;
-        let to = ((window.end * f64::from(rate)) as usize).min(samples.len());
+        let (from, to) = crate::voiceprint::enough_audio(
+            window.start,
+            window.end,
+            f64::from(rate),
+            samples.len(),
+        );
         if to <= from {
             continue;
         }
