@@ -9581,6 +9581,30 @@ conversation between two, that is the whole argument for the change.
   the dead branch is a few lines of `eprintln!`. If Slobot is ever built for
   another platform, this job comes back.
 - Files: `.github/workflows/check.yml`.
+### 2026-08-07 — Correcting entry: ort's builder cannot travel inside anyhow
+
+- The first real compile error of the day, and it is worth recording because
+  the message hides what it means. `Session::builder()` and everything chained
+  onto it report failure as `ort::Error<SessionBuilder>` — the error hands the
+  **builder itself** back so a caller can recover and try something else. That
+  builder is neither `Send` nor `Sync`, `anyhow::Error` demands both, so `?`
+  into an `anyhow::Result` does not compile. What comes out is twenty-seven
+  errors about `NonNull<OrtSessionOptions>`, `dyn Any` and `OperatorDomain` —
+  every field inside the builder, listed one at a time, none of them anything
+  to do with the code that was written.
+- Fixed by moving the three builder calls into `build()`, which returns ort's
+  own `Result`. Inside a function with that return type the conversion is to
+  `Error<()>`, which carries no builder. `open()` then takes only the text
+  across, with a `match` rather than `map_err` — a `match` is one shape
+  `cargo fmt` cannot have an opinion about, and today has been a lesson in not
+  giving it any.
+- The rest of `embed()` was untouched and did not need to be: the errors were
+  at exactly three lines, all of them builder calls. `TensorRef::from_array_view`
+  and `Session::run` return `Error<()>` already.
+- Files: `src-tauri/src/voiceprint.rs`.
+
+### 2026-08-07 — The Rust job on Ubuntu is retired (continued)
+
 - Verified: the workflow still parses as YAML, the three job names resolve, and
   the installer's `needs: [frontend, backend, windows]` was corrected to drop
   the job that no longer exists — an unknown name there would have made the

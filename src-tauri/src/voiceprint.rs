@@ -309,27 +309,12 @@ pub struct Voices {
 impl Voices {
     /// Opens the model that the installer already downloads.
     pub fn open(model: &std::path::Path) -> anyhow::Result<Self> {
-        use ort::session::{builder::GraphOptimizationLevel, Session};
-
-        let mut providers = Vec::new();
-        #[cfg(windows)]
-        providers.push(ort::ep::DirectML::default().build());
-        // Last in line, and reached silently: when a provider cannot be
-        // registered ONNX Runtime falls through to the next one and logs at a
-        // level nobody subscribes to. So nothing here reports which one ran —
-        // only the clock can, which is what the probe in `probe/ort-dml` is for.
-        providers.push(ort::ep::CPU::default().build());
-
-        let builder =
-            Session::builder()?.with_optimization_level(GraphOptimizationLevel::Level3)?;
-        // Not tuning but a condition: DirectML refuses to create a session
-        // while memory-pattern optimisation is on, and it is on by default.
-        #[cfg(windows)]
-        let builder = builder.with_memory_pattern(false)?;
-
-        let session = builder
-            .with_execution_providers(providers)?
-            .commit_from_file(model)?;
+        let session = match build(model) {
+            Ok(session) => session,
+            // Only the text crosses over. See `build` below for why the error
+            // itself cannot.
+            Err(error) => anyhow::bail!("speaker model: {error}"),
+        };
 
         // Read the name rather than writing `x` here: it is the model's to
         // choose, and it is one less thing to be quietly wrong.
@@ -378,6 +363,39 @@ impl Voices {
         }
         Ok(out)
     }
+}
+
+/// Building the session, kept apart from [`Voices::open`] for one reason worth
+/// knowing before anybody inlines it back.
+///
+/// `SessionBuilder` reports failure as `ort::Error<SessionBuilder>` — the error
+/// hands the builder back so a caller can recover and try something else. That
+/// builder is neither `Send` nor `Sync`, and `anyhow::Error` demands both, so
+/// `?` straight into an `anyhow::Result` does not compile: it produces two
+/// dozen complaints about `NonNull` and `dyn Any` that have nothing to do with
+/// this code. Inside a function returning ort's own error the conversion is to
+/// `Error<()>`, which carries no builder and is therefore ordinary.
+fn build(model: &std::path::Path) -> Result<ort::session::Session, ort::Error> {
+    use ort::session::{builder::GraphOptimizationLevel, Session};
+
+    let mut providers = Vec::new();
+    #[cfg(windows)]
+    providers.push(ort::ep::DirectML::default().build());
+    // Last in line, and reached silently: when a provider cannot be registered
+    // ONNX Runtime falls through to the next one and logs at a level nobody
+    // subscribes to. So nothing here reports which one ran — only the clock
+    // can, which is what the probe in `probe/ort-dml` is for.
+    providers.push(ort::ep::CPU::default().build());
+
+    let builder = Session::builder()?.with_optimization_level(GraphOptimizationLevel::Level3)?;
+    // Not tuning but a condition: DirectML refuses to create a session while
+    // memory-pattern optimisation is on, and it is on by default.
+    #[cfg(windows)]
+    let builder = builder.with_memory_pattern(false)?;
+
+    builder
+        .with_execution_providers(providers)?
+        .commit_from_file(model)
 }
 
 /// Indices grouped by frame count, so each group can go in one batch.
