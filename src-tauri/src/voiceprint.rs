@@ -320,7 +320,8 @@ impl Voices {
         // only the clock can, which is what the probe in `probe/ort-dml` is for.
         providers.push(ort::ep::CPU::default().build());
 
-        let builder = Session::builder()?.with_optimization_level(GraphOptimizationLevel::Level3)?;
+        let builder =
+            Session::builder()?.with_optimization_level(GraphOptimizationLevel::Level3)?;
         // Not tuning but a condition: DirectML refuses to create a session
         // while memory-pattern optimisation is on, and it is on by default.
         #[cfg(windows)]
@@ -358,7 +359,9 @@ impl Voices {
                 }
                 let shape = vec![chunk.len() as i64, frames as i64, BANDS as i64];
                 let tensor = ort::value::TensorRef::from_array_view((shape, data.as_slice()))?;
-                let result = self.session.run(ort::inputs![self.input.as_str() => tensor])?;
+                let result = self
+                    .session
+                    .run(ort::inputs![self.input.as_str() => tensor])?;
                 let (_, values) = result[0].try_extract_tensor::<f32>()?;
                 if values.len() != chunk.len() * EMBEDDING {
                     anyhow::bail!(
