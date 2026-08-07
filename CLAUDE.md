@@ -9603,6 +9603,42 @@ conversation between two, that is the whole argument for the change.
   and `Session::run` return `Error<()>` already.
 - Files: `src-tauri/src/voiceprint.rs`.
 
+### 2026-08-07 — Grouping the voiceprints, and the threshold that decides it
+
+- Added `group()` to `voiceprint.rs`: voiceprints in, one group number per
+  print out. With a known speaker count it runs Lloyd's algorithm on the cosine;
+  without one it walks the windows in time order and opens a group whenever
+  nothing so far is alike enough, then joins groups that turned out alike after
+  all.
+- **Deterministic on purpose, not incidentally.** Seeds are chosen by distance —
+  the print least like the average, then the one least like everything already
+  chosen — and never at random. The same recording must group the same way
+  twice, or a reader who runs it again gets a different set of people and no
+  explanation.
+- **`SAME_VOICE = 0.25`, and it is measured.** On 381 pairs of one speaker and
+  400 pairs of two, drawn from the real interview: the same person averages
+  0.393, two people 0.076. Accuracy peaks at 0.22 with 84.9 % and the curve is
+  flat from 0.20 to 0.25, so nothing balances on the exact number.
+- It sits at the *top* of that plateau because **the two mistakes do not cost
+  the same.** At 0.25 one person is split in two about a quarter of the time and
+  two people are merged 6.5 % of the time; at 0.22 it is 21 % and 10 %. A split
+  is repaired by the reader typing one name twice — the sidebar has merged by
+  name since it was built. A merge cannot be repaired at all, because no part of
+  the interface can split a group. So the threshold prefers the recoverable
+  error, and the comment on the constant says so.
+- Worth noting for the step after this: `diarize()` returns `Vec<SpeakerTurn>`
+  and `assign_speakers` turns that into per-word speakers, carrying every
+  measured smoothing rule — 1.4 seconds and three words for a real handover, the
+  snap to a clause boundary. Keeping that shape means the replacement inherits
+  all of it untouched.
+- Files: `src-tauri/src/voiceprint.rs`.
+- Verified: six new tests, and the same logic written a second time in Python
+  and run against them first — three voices become three groups, one voice stays
+  one, a known count of three is honoured, two runs agree, an empty input is not
+  a crash, and asking for more people than there are windows gives one group
+  rather than a panic. Line lengths and call-argument widths checked against
+  what `cargo fmt` actually breaks on.
+
 ### 2026-08-07 — The Rust job on Ubuntu is retired (continued)
 
 - Verified: the workflow still parses as YAML, the three job names resolve, and

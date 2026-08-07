@@ -398,6 +398,163 @@ fn build(model: &std::path::Path) -> Result<ort::session::Session, ort::Error> {
         .commit_from_file(model)
 }
 
+/// Above this, two windows are taken for the same person.
+///
+/// Measured on 381 pairs of one speaker and 400 pairs of two, drawn from a real
+/// interview: the same person averages 0.393, two people 0.076. Accuracy peaks
+/// at 0.22 with 84.9 % and the curve is flat from 0.20 to 0.25, so the rule
+/// does not balance on this number.
+///
+/// It sits at the top of that plateau on purpose, because **the two mistakes do
+/// not cost the same**. At 0.25 one person is split in two about a quarter of
+/// the time and two people are merged 6.5 % of the time; at 0.22 it is 21 % and
+/// 10 %. A split is repaired by the reader typing one name twice — the panel
+/// has merged by name since it was built. A merge cannot be repaired at all.
+const SAME_VOICE: f32 = 0.25;
+
+/// Groups voiceprints by who is speaking. Returns a group number per print.
+///
+/// `wanted` is how many people there are, when somebody has said so. It is
+/// worth asking for: told the count, this is measurably reliable; left to guess
+/// it is the weakest part of the whole feature.
+///
+/// Deterministic, and that is deliberate rather than incidental — the same
+/// recording must group the same way twice, so the seeds are chosen by distance
+/// and never at random.
+pub fn group(prints: &[Vec<f32>], wanted: Option<usize>) -> Vec<usize> {
+    if prints.is_empty() {
+        return Vec::new();
+    }
+    match wanted {
+        Some(k) if k >= 1 && k < prints.len() => into_k(prints, k),
+        Some(_) => vec![0; prints.len()],
+        None => by_threshold(prints),
+    }
+}
+
+/// Lloyd's algorithm on the cosine, seeded by taking the point least like
+/// everything chosen so far. No randomness: two runs over one recording must
+/// not disagree.
+fn into_k(prints: &[Vec<f32>], k: usize) -> Vec<usize> {
+    let mut centres: Vec<Vec<f32>> = Vec::with_capacity(k);
+    // The first seed is the print least like the average of them all, which is
+    // the far end of the widest spread there is.
+    let middle = average(prints, &(0..prints.len()).collect::<Vec<_>>());
+    let first = (0..prints.len())
+        .min_by(|a, b| {
+            let x = alike(&prints[*a], &middle);
+            let y = alike(&prints[*b], &middle);
+            x.partial_cmp(&y).unwrap_or(std::cmp::Ordering::Equal)
+        })
+        .unwrap_or(0);
+    centres.push(prints[first].clone());
+    while centres.len() < k {
+        let next = (0..prints.len())
+            .max_by(|a, b| {
+                let x = nearest(&prints[*a], &centres).1;
+                let y = nearest(&prints[*b], &centres).1;
+                y.partial_cmp(&x).unwrap_or(std::cmp::Ordering::Equal)
+            })
+            .unwrap_or(0);
+        centres.push(prints[next].clone());
+    }
+
+    let mut labels = vec![0usize; prints.len()];
+    for _ in 0..30 {
+        let mut moved = false;
+        for (i, print) in prints.iter().enumerate() {
+            let best = nearest(print, &centres).0;
+            if labels[i] != best {
+                labels[i] = best;
+                moved = true;
+            }
+        }
+        for c in 0..centres.len() {
+            let members: Vec<usize> = (0..prints.len()).filter(|i| labels[*i] == c).collect();
+            if !members.is_empty() {
+                centres[c] = average(prints, &members);
+            }
+        }
+        if !moved {
+            break;
+        }
+    }
+    labels
+}
+
+/// Nobody said how many people there are, so the threshold decides. Windows are
+/// visited in the order they occur, which keeps the result reproducible and
+/// tends to open a group at the moment a new voice first speaks.
+fn by_threshold(prints: &[Vec<f32>]) -> Vec<usize> {
+    let mut centres: Vec<Vec<f32>> = Vec::new();
+    let mut labels = vec![0usize; prints.len()];
+    for (i, print) in prints.iter().enumerate() {
+        let (best, score) = nearest(print, &centres);
+        if !centres.is_empty() && score >= SAME_VOICE {
+            labels[i] = best;
+        } else {
+            labels[i] = centres.len();
+            centres.push(print.clone());
+        }
+        let members: Vec<usize> = (0..=i).filter(|j| labels[*j] == labels[i]).collect();
+        let c = labels[i];
+        centres[c] = average(prints, &members);
+    }
+
+    // One voice can open two groups when it is heard differently early on, so
+    // groups that ended up alike are joined. Repeated, because joining two can
+    // bring a third within reach.
+    loop {
+        let mut join: Option<(usize, usize)> = None;
+        'search: for a in 0..centres.len() {
+            for b in (a + 1)..centres.len() {
+                if alike(&centres[a], &centres[b]) >= SAME_VOICE {
+                    join = Some((a, b));
+                    break 'search;
+                }
+            }
+        }
+        let Some((a, b)) = join else { break };
+        for label in labels.iter_mut() {
+            if *label == b {
+                *label = a;
+            } else if *label > b {
+                *label -= 1;
+            }
+        }
+        centres.remove(b);
+        let members: Vec<usize> = (0..labels.len()).filter(|j| labels[*j] == a).collect();
+        centres[a] = average(prints, &members);
+    }
+    labels
+}
+
+/// Which centre a print belongs to, and how much. `(0, -1.0)` when there are
+/// none yet.
+fn nearest(print: &[f32], centres: &[Vec<f32>]) -> (usize, f32) {
+    let mut best = (0usize, -1.0f32);
+    for (i, centre) in centres.iter().enumerate() {
+        let score = alike(print, centre);
+        if score > best.1 {
+            best = (i, score);
+        }
+    }
+    best
+}
+
+/// The middle of a group, scaled back to length one so it can be compared like
+/// any other voiceprint.
+fn average(prints: &[Vec<f32>], members: &[usize]) -> Vec<f32> {
+    let width = prints.first().map(|p| p.len()).unwrap_or(0);
+    let mut sum = vec![0.0f32; width];
+    for &i in members {
+        for (slot, value) in sum.iter_mut().zip(&prints[i]) {
+            *slot += value;
+        }
+    }
+    unit(&sum)
+}
+
 /// Indices grouped by frame count, so each group can go in one batch.
 fn by_length(windows: &[Features]) -> Vec<(usize, Vec<usize>)> {
     let mut groups: Vec<(usize, Vec<usize>)> = Vec::new();
@@ -710,6 +867,75 @@ mod tests {
         let v = unit(&[0.0; EMBEDDING]);
         assert_eq!(v.len(), EMBEDDING);
         assert!(v.iter().all(|x| x.is_finite()));
+    }
+
+    // ------------------------------------------------------------ grouping
+
+    /// Three directions far enough apart to be three people, plus a little
+    /// wobble so they are not identical copies of themselves.
+    fn three_voices() -> Vec<Vec<f32>> {
+        let mut out = Vec::new();
+        for (a, b, c) in [(1.0, 0.05, 0.0), (0.0, 1.0, 0.05), (0.05, 0.0, 1.0)] {
+            for wobble in [0.0, 0.02, -0.02] {
+                out.push(unit(&[a + wobble, b, c]));
+            }
+        }
+        out
+    }
+
+    fn how_many(labels: &[usize]) -> usize {
+        let mut seen = labels.to_vec();
+        seen.sort_unstable();
+        seen.dedup();
+        seen.len()
+    }
+
+    #[test]
+    fn three_voices_become_three_groups() {
+        let labels = group(&three_voices(), None);
+        assert_eq!(how_many(&labels), 3, "got {labels:?}");
+        // Each run of three came from one voice, so each must share a group.
+        for start in [0, 3, 6] {
+            assert_eq!(labels[start], labels[start + 1]);
+            assert_eq!(labels[start], labels[start + 2]);
+        }
+    }
+
+    #[test]
+    fn one_voice_stays_one_group() {
+        let same: Vec<Vec<f32>> = (0..8).map(|i| unit(&[1.0, 0.01 * i as f32, 0.0])).collect();
+        assert_eq!(how_many(&group(&same, None)), 1);
+    }
+
+    /// Told the count, it must produce exactly that many — this is the path
+    /// the speaker-count question feeds, and the one that measures well.
+    #[test]
+    fn a_known_count_is_honoured() {
+        let labels = group(&three_voices(), Some(3));
+        assert_eq!(how_many(&labels), 3);
+        for start in [0, 3, 6] {
+            assert_eq!(labels[start], labels[start + 1]);
+            assert_eq!(labels[start], labels[start + 2]);
+        }
+    }
+
+    /// The same recording must not group differently on a second run, so
+    /// nothing in here may be seeded at random.
+    #[test]
+    fn grouping_is_the_same_every_time() {
+        let voices = three_voices();
+        assert_eq!(group(&voices, None), group(&voices, None));
+        assert_eq!(group(&voices, Some(2)), group(&voices, Some(2)));
+    }
+
+    #[test]
+    fn nothing_to_group_is_not_a_crash() {
+        assert!(group(&[], None).is_empty());
+        assert!(group(&[], Some(3)).is_empty());
+        // More people asked for than windows heard: everything is one group
+        // rather than an empty answer or a panic.
+        let one = vec![unit(&[1.0, 0.0])];
+        assert_eq!(group(&one, Some(5)), vec![0]);
     }
 
     #[test]
