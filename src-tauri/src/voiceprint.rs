@@ -434,7 +434,14 @@ mod tests {
     fn a_block_about_the_right_length_is_asked_about_once() {
         let w = windows(&[(1.0, 2.8)]);
         assert_eq!(w.len(), 1);
-        assert_eq!(w[0], Window { start: 1.0, end: 2.8, segment: 0 });
+        assert_eq!(
+            w[0],
+            Window {
+                start: 1.0,
+                end: 2.8,
+                segment: 0
+            }
+        );
     }
 
     /// Too little voice to describe. The measurement gives one second 80 %
@@ -450,7 +457,11 @@ mod tests {
     #[test]
     fn a_long_block_is_cut_into_overlapping_windows() {
         let w = windows(&[(0.0, 6.0)]);
-        assert!(w.len() >= 4, "six seconds should give several windows, got {}", w.len());
+        assert!(
+            w.len() >= 4,
+            "six seconds should give several windows, got {}",
+            w.len()
+        );
         for pair in w.windows(2) {
             assert!(
                 pair[1].start > pair[0].start,
