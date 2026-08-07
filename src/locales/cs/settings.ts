@@ -28,7 +28,7 @@ export const csSettings = {
     "Zkopíruje aplikaci i modely na zvolený disk. Na jiném počítači pak stačí spustit soubor {file}.",
   "settings.portable.copyDestination": "Kam vytvořit přenosnou kopii",
   "settings.portable.copyHint":
-    "Z flash disku se model načítá pomaleji, často asi o minutu.",
+    "Z flash disku se modely načítají pomaleji.",
   "settings.portable.copyingFile": "Kopíruji: {file}",
   "settings.portable.copying": "Kopíruji…",
   "settings.portable.copyAction": "Vytvořit kopii",

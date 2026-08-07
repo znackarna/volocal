@@ -47,7 +47,7 @@ export const enSettings: Partial<Record<keyof typeof csSettings, string>> = {
   "settings.portable.copyTitle": "Copy to a removable drive",
   "settings.portable.copyDescription": "Copies the app and the models to the chosen drive. On another computer you just run {file}.",
   "settings.portable.copyDestination": "Where to create the portable copy",
-  "settings.portable.copyHint": "A model loads more slowly from a flash drive, often by about a minute.",
+  "settings.portable.copyHint": "Models load more slowly from a flash drive.",
   "settings.portable.copyingFile": "Copying: {file}",
   "settings.portable.copying": "Copying…",
   "settings.portable.copyAction": "Create copy",

@@ -9013,3 +9013,19 @@ versioned, so it is corrected only here.
 - Verified: `node scripts/i18n.mjs check` reports 891/891 and no problems; the
   new English was approved with `i18n:approve` so the fingerprint matches the
   Czech it was written from.
+
+### 2026-08-07 — The portable-copy hint drops the minute
+
+- Changed: `settings.portable.copyHint` is `Z flash disku se modely načítají
+  pomaleji.` instead of `Z flash disku se model načítá pomaleji, často asi o
+  minutu.` English follows with `Models load more slowly from a flash drive.`
+- Two things went, and both deserved to. The plural is the truth — a portable
+  copy carries every model it was given, not one. And `často asi o minutu` was
+  a number the application cannot stand behind: it depends on the drive, the
+  port and which model, and a figure that specific invites somebody to time it
+  and find it wrong. The sentence still says the thing that matters, which is
+  that this trade exists at all.
+- Files: `src/locales/cs/settings.ts`, `src/locales/en/settings.ts`,
+  `src/locales/sources.json`.
+- Verified: `node scripts/i18n.mjs check` reports 891/891 and no problems; the
+  English was approved with `i18n:approve`.
