@@ -9768,3 +9768,23 @@ first change to the pipeline that produces the speakers in a real transcript.
   objected to is read off the node name and the error code, not proved. If the
   next run fails somewhere else, the fallback will carry it and the log will
   name the node.
+
+### 2026-08-07 — First real recording: two speakers, no mistakes
+
+- Jakub ran the finished pipeline on a two-person recording and reported it
+  correct throughout. That is the first end-to-end confirmation: audio → blocks
+  from the transcript → features → CAM++ through `ort` → grouping → turns →
+  `assign_speakers`, with no `sherpa-onnx.exe` and no pyannote anywhere.
+- It matches what the measurements predicted rather than exceeding them. The
+  entry from earlier today put two speakers with a known count at 99.8 / 0.2 on
+  the embeddings alone; this says the rest of the chain does not lose it.
+- **Two speakers is the easy case and this is not evidence for the hard one.**
+  The same day's twenty-five-minute five-person interview produced two known
+  defects: 34 blocks under 0.8 s got no speaker at all (they are below the
+  window threshold, so no window is ever asked about them), and at least one
+  person — Robert Pattinson, never named — was merged into Matt Damon's group.
+  The merge is the failure this file has twice called unrecoverable, and it is
+  what the naming work exists to fix.
+- What that says about where the feature stands: **reliable for an interview,
+  not yet for a panel.** The honest thing to put in front of a reader is the
+  speaker count or the names, and then the samples to confirm.
