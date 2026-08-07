@@ -9047,3 +9047,31 @@ versioned, so it is corrected only here.
 - Files: `src/locales/cs/settings.ts`, `src/locales/sources.json`.
 - Verified: the check was watched failing before the approval and passing after
   it; 891/891 and no problems.
+
+### 2026-08-07 — A narrow sidebar no longer puts the heading under its own action
+
+- What Jakub saw: narrowing the window narrows the sidebar, and `Rozpoznat
+  mluvčí` came to lie across the word `Mluvčí`.
+- Cause: the header is `heading … action`, and the heading is a flex item that
+  shrinks. The toggle *inside* it is not a flex item — it is an ordinary button
+  with content width — so when the heading shrank, the button kept its size,
+  spilled out of it and overlapped the action beside it.
+- Fixed: `max-width: 100%` on the toggle. It is one line, and the interesting
+  part is what it switches on: `.sidebar-section-toggle` already had
+  `min-width: 0` and `.sidebar-section-title` already had the ellipsis rules.
+  Both were written for this exact case and neither could ever take effect,
+  because nothing bounded the button. The behaviour was designed; only the
+  ceiling was missing.
+- The negative `margin-left: -5px` does not undo it: margin sits outside the
+  content box `max-width` limits, so the button ends five pixels short of the
+  heading's right edge rather than past it.
+- Preserve the content width. The comment above the rule explains why the
+  toggle is not full width — a heading that claimed the space between itself
+  and the action would ellipsize its own label while the row still looked half
+  empty. A ceiling is not the same as claiming the space.
+- Files: `src/styles.css`.
+- Verified: by reading, and that is the honest limit — there is no browser in
+  this session, so the narrow state has not been rendered. Worth one glance at
+  a narrowed window; if the heading now truncates too eagerly, the next step is
+  to let the action's label give way first, since every section heading here is
+  a single short word.

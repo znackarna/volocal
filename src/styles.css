@@ -2060,6 +2060,12 @@ button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
      and a heading that claimed the space between them would push its own
      label into an ellipsis while the row still looked half empty. */
   display: flex; align-items: center; gap: 8px;
+  /* And a ceiling, or the content width above becomes an overflow. The heading
+     is a flex item and shrinks; this button is not one, so at a narrow panel it
+     kept its content width, spilled out of the heading and lay over the
+     section's action. `min-width: 0` and the ellipsis below were written for
+     exactly that and could never fire without this line. */
+  max-width: 100%;
   min-width: 0; margin-left: -5px; padding: 4px 6px 4px 5px;
   border: 0; border-radius: var(--r-velky); background: transparent;
   color: inherit; font: inherit; text-align: left; cursor: pointer;
