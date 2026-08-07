@@ -86,6 +86,8 @@ export const enDetail: Partial<Record<keyof typeof csDetail, string>> = {
   "detail.menu.copied": "Copied to the clipboard.",
   "detail.menu.edit": "Fix text",
   "detail.menu.note": "Note at {time}",
+  "detail.menu.toPrevious": "Credit to {name} above",
+  "detail.menu.toNext": "Credit to {name} below",
   "detail.ai.missingTitle": "Language editing isn’t ready",
   "detail.ai.missingText": "Download a local model and the program for language editing. Then it runs without internet and the text never leaves your computer.",
   "detail.ai.chooseModel": "Choose model",

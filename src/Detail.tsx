@@ -335,6 +335,9 @@ const MENU_ICONS = {
   copy: "M9 8h10a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z M5 16V5a1 1 0 0 1 1-1h11",
   edit: "M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17v3Z M13.5 6.5l4 4",
   note: "M4 5a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v9l-6 6H5a1 1 0 0 1-1-1V5Z M20 14h-5a1 1 0 0 0-1 1v5",
+  // An arrow leaving a line: this block belongs up there, or down there.
+  toPrevious: "M12 20V6 M6.5 11.5 12 6l5.5 5.5 M4 4h16",
+  toNext: "M12 4v14 M17.5 12.5 12 18l-5.5-5.5 M4 20h16",
 } as const;
 
 /** Clipboard API first, with a WebView-safe fallback for restricted contexts. */
@@ -1547,6 +1550,45 @@ export default function Detail({
     return m;
   }, [speakers]);
 
+  // ------------------------------------------------------- oprava mluvciho
+  //
+  // The machine gets a block wrong now and then, and until this existed there
+  // was nothing to do about it: naming can join two groups that are one person,
+  // but nothing could move a single block. On a five-person recording that is
+  // the difference between a transcript you fix in a minute and one you cannot
+  // fix at all.
+
+  /** The nearest block above or below that somebody else is speaking. */
+  const neighbourVoice = useCallback(
+    (segment: Segment, step: -1 | 1) => {
+      const at = segments.findIndex((s) => s.id === segment.id);
+      if (at < 0) return null;
+      for (let i = at + step; i >= 0 && i < segments.length; i += step) {
+        const key = segments[i].speakers;
+        if (key && key !== segment.speakers) {
+          return { key, name: speakerByKey.get(key)?.name ?? key };
+        }
+      }
+      return null;
+    },
+    [segments, speakerByKey]
+  );
+
+  const giveToVoice = useCallback(
+    async (segment: Segment, key: string) => {
+      setSegments((p) =>
+        p.map((x) => (x.id === segment.id ? { ...x, speakers: key } : x))
+      );
+      try {
+        await api.setSegmentSpeaker(segment.id, key);
+      } catch (e) {
+        onError(userMessage(e));
+      }
+    },
+    [onError, userMessage]
+  );
+
+
   /** What is in the field. Typing is not a decision, so it goes no further
    *  than the screen. */
   const renameLocally = useCallback((key: string, name: string) => {
@@ -2577,6 +2619,23 @@ export default function Detail({
               icon: MENU_ICONS.note,
               action: () => beginNoteAt(transcriptMenu.time),
             },
+            // Only offered when there is somebody to give the block to. A block
+            // in a transcript nobody has separated has no neighbours to speak
+            // of, and the menu stays as it was.
+            ...([-1, 1] as const).flatMap((step) => {
+              const voice = neighbourVoice(transcriptMenu.segment, step);
+              if (!voice) return [];
+              return [
+                {
+                  label: t(
+                    step === -1 ? "detail.menu.toPrevious" : "detail.menu.toNext",
+                    { name: voice.name }
+                  ),
+                  icon: step === -1 ? MENU_ICONS.toPrevious : MENU_ICONS.toNext,
+                  action: () => void giveToVoice(transcriptMenu.segment, voice.key),
+                },
+              ];
+            }),
           ]}
         />
       )}

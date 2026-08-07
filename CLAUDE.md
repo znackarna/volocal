@@ -9788,3 +9788,34 @@ first change to the pipeline that produces the speakers in a real transcript.
 - What that says about where the feature stands: **reliable for an interview,
   not yet for a panel.** The honest thing to put in front of a reader is the
   speaker count or the names, and then the samples to confirm.
+
+### 2026-08-07 — A block the machine got wrong can be handed to the voice next to it
+
+- Jakub's ask, and it is the answer to the failure this file has twice called
+  unrecoverable: naming can join two groups that are one person, but until now
+  nothing could move a single block. On his five-person interview that is the
+  difference between a transcript fixed in a minute and one that cannot be
+  fixed at all — Robert Pattinson's speech landed under Matt Damon and stayed
+  there.
+- Added: two items in the transcript's own context menu — `Připsat výše` and
+  `Připsat níže`, each naming the person it would credit. They point at the
+  nearest block above or below that **somebody else** is speaking, so the
+  offer is always a real change rather than a no-op.
+- Offered only when there is somebody to hand the block to. In a transcript
+  nobody has separated, or at the very first block, the menu stays as it was.
+- No new backend: `set_segment_speaker` has existed since the speakers panel
+  was built and `api.setSegmentSpeaker` was already wired. This is a second
+  caller for a path that was already there, which is why it is small.
+- The screen updates before the write, and reports if the write fails. A
+  misattributed block is not data anybody would mourn, and waiting a round trip
+  to see a name change would make correcting five of them feel like work.
+- Files: `src/Detail.tsx`, `src/locales/{cs,en}/detail.ts`,
+  `src/locales/sources.json`.
+- Verified: `npx tsc --noEmit`; `node scripts/i18n.mjs check` (no problems, the
+  two new English strings approved); `npx vite build`. The callbacks had to move
+  below `speakerByKey` — TypeScript caught the use-before-declaration, which is
+  the kind of thing that would otherwise have been a blank name in a menu.
+- Not built yet, and it is the other half of what was asked: moving **part** of
+  a block — everything from one word onwards — to the neighbouring speaker.
+  That needs the block split in two first, which is a change to stored
+  segments rather than to one column, so it is its own step.
