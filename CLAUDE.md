@@ -9075,3 +9075,56 @@ versioned, so it is corrected only here.
   a narrowed window; if the heading now truncates too eagerly, the next step is
   to let the action's label give way first, since every section heading here is
   a single short word.
+
+### 2026-08-07 — Measured and shelved: speakers without a neural model
+
+Nothing changed in the application. This is here so the experiment is not run
+a second time, and because the numbers say something about the feature as it
+stands.
+
+- The question, Jakub's: could speakers be told apart by a series of cheap
+  tricks instead of a model, so that it stops costing minutes on a machine
+  whose GPU the model cannot use?
+- What was tried, on his own material — a 25-minute press interview with the
+  cast of *The Odyssey*, five speakers in one room. Per two-second window:
+  median fundamental frequency by autocorrelation, twelve mel-cepstral means,
+  and median loudness. Pure DSP, no model, faster than real time by orders of
+  magnitude. Jakub labelled ten windows by ear, which is what made a real
+  score possible.
+- **The result, and it is a clear no.** Two windows of the *same* person sat
+  7.69 apart on average; two windows of *different* people, 8.29. Those
+  distributions all but coincide — Tom Holland's two samples are further apart
+  than his are from Anne Hathaway's. Assigning each labelled window from the
+  others scored **4 of 8**, against five classes.
+- **The control is what makes that trustworthy.** The same code, given Jakub's
+  own voice against a voice from the interview — different person, different
+  language, different recording — split them **97.5 %** correctly. So the
+  pipeline works; this material defeats it. Which is explicable: five people,
+  one room, the same microphones, and a produced video whose compression and
+  levelling flatten exactly the three cues the method leans on. Four of the
+  five are men.
+- A methodological correction worth keeping: silhouette was the wrong metre.
+  The trivially separable control scored 0.236 and the interview 0.17, so the
+  number that looked like "no structure at all" was in fact close to what
+  "easy and correct" looks like with these features. It cannot decide this
+  question; only labels can. An early conclusion drawn from it was withdrawn.
+- Also learned, from choosing the ten samples by maximum mutual distance: the
+  ten most distinct-sounding windows turned out to be five people, three of
+  them repeatedly. One person's voice varies about as much as people differ —
+  which is the same finding as the numbers above, arrived at by accident.
+- **What survives.** Jakub's own proposal — the reader names a few voices and
+  the rest is assigned by similarity — is right, and is unaffected: it needs
+  the model's embeddings rather than cheap features, and it replaces the part
+  that actually fails, which is guessing how many people there are. Recorded
+  because today naming a speaker teaches the application nothing: it renames a
+  cluster and merges two that share a name, so it can join what was wrongly
+  split but never split what was wrongly joined. That is the defect Jakub
+  reported, and it is by design.
+- **Where the feature honestly stands**, from this and the earlier
+  measurements: good on two speakers when told the count (99.8 / 0.2 on his own
+  recording), poor on a panel, and structurally CPU-bound — ONNX Runtime has no
+  Vulkan provider, so the AMD card cannot be used; DirectML would work but
+  means owning a build of ONNX Runtime and sherpa-onnx; and no speaker
+  embedding model exists in ggml, which is where Vulkan would come from free.
+- Left as it is by decision, in the hope of a better idea. Nothing here argues
+  for removing it.
