@@ -9389,3 +9389,67 @@ behaviour an interface wants: a place to say "not sure" instead of guessing.
   in-process `ort` with the CAM++ already downloaded, windows from the
   transcript's own word timings, and the user naming a few voices instead of
   the application guessing how many there are.
+
+### 2026-08-07 — The numbers that settle the design
+
+Everything below was measured against the real CAM++ and Jakub's own interview,
+so the Rust that follows has parameters rather than guesses.
+
+**The feature extractor was already right.** Nine variants were tried against
+the hand-written fbank — no CMN, no pre-emphasis, no DC removal, input scale
+1.0, Hann and Hamming windows, 7600 Hz ceiling, Slaney's mel formula, a 400-point
+FFT. **Not one beat the baseline** (same speaker 0.386, different 0.080, gap
+0.306). So the earlier "my fbank is approximate" worry was misplaced, and the
+0.7 similarity expected for the same speaker was simply the wrong expectation
+for a two-second window.
+
+- **Cepstral mean normalisation is the one thing that matters.** Without it the
+  same speaker scores 0.506 — higher — but different speakers score 0.401, and
+  the gap collapses from 0.306 to 0.105. It is what removes the microphone and
+  the room. Do not drop it as an optimisation.
+- Input scale is irrelevant *because* of CMN: multiplying the waveform shifts
+  every log-mel by a constant, which the mean subtraction then removes. 32768
+  and 1.0 differ by 0.002.
+
+**Window length: 1.5 to 3 seconds.** Accuracy of a single same/different
+decision at the best threshold:
+
+| window | same | different | gap | accuracy |
+|---|---|---|---|---|
+| 1.0 s | 0.272 | 0.050 | 0.222 | 80 % |
+| 1.5 s | 0.363 | 0.039 | 0.324 | 86 % |
+| 2.0 s | 0.359 | 0.060 | 0.299 | 86 % |
+| 3.0 s | 0.483 | 0.122 | 0.361 | 86 % |
+| 8.0 s | 0.559 | 0.143 | 0.417 | 83 % |
+| 12.0 s | 0.526 | 0.213 | 0.313 | 79 % |
+
+Longer windows raise both similarities and stop helping; past eight seconds
+they start hurting, presumably because a long window collects more than one
+speaker. Two seconds is the default to write down, and it happens to be the
+size of a transcript block.
+
+**And the feature itself, measured — naming a few voices and assigning the
+rest:**
+
+| examples named per person | assigned correctly |
+|---|---|
+| 1 | 88 % |
+| 2 | **95 %** |
+| 3 | 93 % |
+| **5** | **100 %** |
+| 8 | 98 % |
+
+Five examples per person and it is perfect on this recording; two are enough
+for 95 %. Against a blind clustering that found seven speakers in a
+conversation between two, that is the whole argument for the change.
+
+- **The caveat, stated because it is real:** the same/different pairs were
+  drawn from the four clusters Jakub confirmed, so a wrong window inside one of
+  them would flatter these numbers. Independent support comes from the
+  split-half control (+0.408 against +0.129, no labels involved) and from the
+  blind naming test, where he identified the medoids without knowing the
+  groupings. It is not circular, but it is not a held-out set either.
+- Not measured, and worth knowing before this ships: Czech. Every number here
+  is from one English interview. CAM++ is trained on Chinese and English and
+  speaker identity is largely language-independent, but that is an argument,
+  not a measurement.
