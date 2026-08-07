@@ -8992,3 +8992,24 @@ versioned, so it is corrected only here.
 - Files: `src-tauri/src/transcription.rs`.
 - Verified: by CI, which is the only thing in this session that can compile
   Rust at all.
+
+### 2026-08-07 — The watched folder's switch is called Automatický přepis
+
+- Changed: `settings.files.watchAuto` reads `Automatický přepis` instead of
+  `Přepisovat rovnou`. English follows with `Automatic transcription` instead
+  of `Transcribe right away`.
+- Why it is the better name, beyond being Jakub's: the Archive's drop zone has
+  had a switch called `Automatický přepis` since it was moved there, and it
+  decides the same thing — whether a recording that has just arrived starts
+  transcribing on its own. One decision under two names made them look like two
+  features. The two switches are still separate settings, deliberately: one is
+  about files you add by hand, the other about files that appear in the watched
+  folder while nobody is looking.
+- `i18n:check` now reports one more text under several keys, 77 rather than 76.
+  That is the point of the change and not a defect, exactly as it was when the
+  three quality tiers were unified.
+- Files: `src/locales/cs/settings.ts`, `src/locales/en/settings.ts`,
+  `src/locales/sources.json`.
+- Verified: `node scripts/i18n.mjs check` reports 891/891 and no problems; the
+  new English was approved with `i18n:approve` so the fingerprint matches the
+  Czech it was written from.

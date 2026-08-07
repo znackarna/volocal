@@ -113,7 +113,7 @@ export const csSettings = {
   "settings.files.watchToggle": "Sledovat složku",
   "settings.files.watchToggleNote":
     "Nabídne nové soubory pro přepis. Neprohledává vnořené složky.",
-  "settings.files.watchAuto": "Přepisovat rovnou",
+  "settings.files.watchAuto": "Automatický přepis",
   "settings.files.watchAutoNote":
     "Přidá nové soubory do archivu a zahájí automatický přepis.",
 

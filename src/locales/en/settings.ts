@@ -113,7 +113,7 @@ export const enSettings: Partial<Record<keyof typeof csSettings, string>> = {
   "settings.files.watchPlaceholder": "No folder selected",
   "settings.files.watchRemove": "Remove",
   "settings.files.watchToggle": "Watch folder",
-  "settings.files.watchAuto": "Transcribe right away",
+  "settings.files.watchAuto": "Automatic transcription",
   "settings.files.watchAutoNote":
     "Adds new files to the archive and starts transcription automatically.",
   "settings.files.watchToggleNote": "Offers new files for transcription. Doesn’t look in subfolders.",
