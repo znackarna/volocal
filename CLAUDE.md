@@ -9327,3 +9327,65 @@ further, because the conclusion does not change: this model stays on the CPU.
 - Lesson, and it is the third time today in a different costume: a measurement
   is only as good as its sample. Choosing the most extreme examples felt like
   choosing the most informative ones, and it was the opposite.
+
+### 2026-08-07 — Speakers without pyannote: measured, and it works
+
+Jakub's question, and it is the one that unlocked this: if CAM++ is the fast
+model, do we need the slow one at all — is its output not enough to mark where
+the same people speak? It is.
+
+**Why pyannote is redundant here.** Its job is to find where speech is and
+where speakers change. This application already knows where speech is, twice
+over: Whisper returns a timestamp for every word, and Silero VAD is already
+downloaded and run as part of transcription. So the expensive model is being
+paid to compute something already on hand. And the 95 seconds stop mattering:
+whatever sherpa spends them on, deleting the stage deletes the spending.
+
+**The pipeline that replaces it**, all of it either free or measured today:
+speech regions from the transcript → fbank → CAM++ in batches on DirectML
+(0.607 ms per segment) → group by cosine similarity.
+
+**Measured on the 25-minute five-speaker press interview**, cut into 2-second
+windows at a 1-second hop inside continuous speech regions — 723 windows, 14.7
+minutes of speech, no pyannote anywhere:
+
+| check | result | |
+|---|---|---|
+| the two halves of one window against each other | **+0.408** | against +0.129 for a stranger's half |
+| similarity to own cluster centre | **+0.613** | |
+| adjacent windows changing speaker | **18 %** | chance would be ~80 % |
+
+The last is the strongest: 82 % of the time consecutive windows stay with the
+same person, so the assignment produces continuous turns rather than the
+alternation this file once described as "like socks".
+
+**Then a blind test, and this is the result that decides it.** Two medoids —
+the most *typical* windows, not the most extreme — were taken from each of five
+clusters, shuffled so the order gave nothing away, and Jakub named them by ear
+without knowing which belonged together:
+
+| cluster | samples | named | |
+|---|---|---|---|
+| 4 | 1, 10 | Matt Damon, Matt Damon | correct |
+| 0 | 3, 5 | Anne Hathaway, Anne Hathaway | correct |
+| 1 | 4, 9 | Tom Holland, Tom Holland | correct |
+| 2 | 6, 8 | Nolan, Nolan | correct |
+| 3 | 2, 7 | "music then Nolan" / "Damon then Zendaya" | — |
+
+**Four clusters of five are exactly one person each, and no two clusters are
+the same person.** The fifth is the interesting one: both of its medoids are
+windows Jakub described as containing *two* things — music followed by a voice,
+and one speaker followed by another. The clustering put the contaminated
+windows together rather than scattering them among the people. That is the
+behaviour an interface wants: a place to say "not sure" instead of guessing.
+- Worth noting against the earlier failure: `k` was forced to five, and the
+  recording clearly holds more than five voices — Jakub named Zendaya and Nolan
+  here, neither of whom appeared in his first labelling. Even under-counted, no
+  clean cluster mixed two people.
+- The fbank used is the hand-written approximation, still not Kaldi-faithful.
+  These numbers are therefore a floor, not a ceiling; `knf-rs` should raise
+  same-speaker similarity from ~0.4 towards the ~0.7 a correct one gives.
+- Not built. What this justifies building is recorded here rather than started:
+  in-process `ort` with the CAM++ already downloaded, windows from the
+  transcript's own word timings, and the user naming a few voices instead of
+  the application guessing how many there are.
