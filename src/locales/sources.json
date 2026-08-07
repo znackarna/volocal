@@ -415,6 +415,7 @@
     "errors.benchmark.launch_failed": "caf3c2c2d54b",
     "errors.benchmark.no_recording": "ee4dd039d90b",
     "errors.benchmark.unknown_failure": "daccfbc203ae",
+    "errors.diarization.audio_unreadable": "6140b5753775",
     "errors.diarization.launch_failed": "77620f056ed5",
     "errors.diarization.no_turns": "633636215e7f",
     "errors.diarization.not_transcribed": "1b7f16232ff1",

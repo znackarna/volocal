@@ -13,10 +13,6 @@ export const csErrors = {
   "errors.tools.whisper_model_missing": "Chybí model ggml-{model}.bin ve složce modelů.",
   "errors.tools.vad_model_missing":
     "Chybí Silero VAD model. Bez něj Whisper na tichu halucinuje.",
-  "errors.tools.diarization_program_missing_in":
-    "Ve složce nástrojů ({directory}) není sherpa-onnx-offline-speaker-diarization.exe. " +
-    "Doplňte ho v Modelech, nebo v nastavení přepněte složku nástrojů tam, kde už je.",
-  "errors.tools.segmentation_model_missing": "Chybí model pro rozpoznání střídání mluvčích.",
   "errors.tools.embedding_model_missing": "Chybí model pro rozpoznání hlasů.",
   "errors.tools.editor_program_missing": "Chybí program pro místní jazykovou úpravu.",
   "errors.tools.editor_server_missing": "Chybí lokální server pro jazykovou úpravu.",
@@ -48,10 +44,8 @@ export const csErrors = {
   // Telling speakers apart.
   "errors.diarization.not_transcribed": "Nahrávka ještě není přepsaná.",
   "errors.diarization.launch_failed": "Nepodařilo se spustit rozpoznání mluvčích",
-  "errors.diarization.options_rejected":
-    "Rozpoznání mluvčích odmítlo předané volby a vypsalo nápovědu. " +
-    "Nejspíš má jiná jména přepínačů než ta, se kterými počítáme.",
-  "errors.diarization.no_turns": "sherpa-onnx nevrátil žádné úseky. Výstup: {output}",
+  "errors.diarization.audio_unreadable":
+    "Připravený zvuk se nepodařilo přečíst. Zkuste rozpoznání spustit znovu.",
 
   // Files and recordings.
   "errors.file.not_found": "Soubor neexistuje: {path}",
@@ -195,8 +189,6 @@ export const csErrorsContext: Partial<Record<keyof typeof csErrors, string>> = {
     "{model} je název přepisovacího modelu, například large-v3. Soubor se jmenuje ggml-<model>.bin, název souboru nepřekládej.",
   "errors.tools.vad_model_missing":
     "VAD = detekce řeči. Bez ní Whisper na tichých místech vymýšlí text, který nikdo neřekl.",
-  "errors.tools.diarization_program_missing_in":
-    "„Moduly“ je sekce v Nastavení, kde se stahují programy a modely. Název .exe nepřekládej.",
   "errors.tools.ffmpeg_missing":
     "Krátká zpráva u zkoušky výkonu, ne celá věta. Zobrazuje se v červeném pruhu.",
   "errors.tools.model_missing":
@@ -209,10 +201,6 @@ export const csErrorsContext: Partial<Record<keyof typeof csErrors, string>> = {
     "{contents} je seznam názvů souborů oddělených čárkou. Názvy se nepřekládají.",
   "errors.transcription.interrupted":
     "Zapisuje se do archivu, když se aplikace zavřela během přepisu. Uživatel to uvidí u nahrávky ve stavu chyba.",
-  "errors.diarization.options_rejected":
-    "„Rozpoznání mluvčích“ je program sherpa-onnx. Vypsal nápovědu místo výsledku, což znamená, že nerozuměl přepínačům.",
-  "errors.diarization.no_turns":
-    "{output} je začátek výstupu programu, anglicky. Nepřekládá se.",
   "errors.file.write_failed":
     "{detail} je systémová chyba zápisu, anglicky. Zpráva se ukáže při ukládání exportu.",
   "errors.watch_folder.file_gone":

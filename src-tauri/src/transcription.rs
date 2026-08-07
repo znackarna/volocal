@@ -536,8 +536,14 @@ fn run_diarization(
         &JobRunner { task, recording_id },
     )?;
 
-    // No fixed percentage here: sherpa reports its own and `diarize` passes
-    // it straight through. Ten per cent is where the audio conversion ended.
+    // The blocks are read before the work rather than after it: they are what
+    // says where speech is, so they are the input now, not just the thing the
+    // answer is written onto.
+    let segments = db::segments(&connection, recording_id)?;
+    if segments.is_empty() {
+        return Err(UserMessage::new("diarization.not_transcribed"));
+    }
+
     status(
         app,
         recording_id,
@@ -549,16 +555,13 @@ fn run_diarization(
         &settings,
         &check,
         &wav,
+        &segments,
         task,
         recording_id,
         Some((app, recording_id, 10.0, 90.0)),
     )?;
     stop_if_cancelled(task, recording_id)?;
 
-    let segments = db::segments(&connection, recording_id)?;
-    if segments.is_empty() {
-        return Err(UserMessage::new("diarization.not_transcribed"));
-    }
     let segments = assign_speakers(segments, &turns);
 
     status(app, recording_id, "saving", 90, step("saving"));
@@ -781,6 +784,7 @@ fn run(
                 &settings,
                 &check,
                 &wav,
+                &segments,
                 task,
                 recording_id,
                 // Diarization owns 90..95; saving takes it from there.
@@ -2369,195 +2373,110 @@ struct SpeakerTurn {
     key: String,
 }
 
-/// Runs speaker diarization over a converted WAV.
+/// Who speaks when, computed here rather than by a downloaded program.
+///
+/// Until today this spawned `sherpa-onnx-offline-speaker-diarization.exe`,
+/// which ran two models: pyannote to find where speech is, and CAM++ to say
+/// whose it is. The first was redundant — Whisper has already timestamped every
+/// word, so the blocks *are* the speech — and it is where most of the 95
+/// seconds a ten-minute recording used to cost actually went.
+///
+/// What is left is the second model, in this process and in batches, measured
+/// 8.9x faster on the graphics card than on the processor. And it hands back
+/// the voiceprints themselves, which the executable never could: its stdout was
+/// cluster labels and nothing else. That is what the sidebar needs to let
+/// somebody name two voices and have the rest assigned by similarity.
 ///
 /// `report` is the app handle, the recording id, and the percentage band this
-/// run occupies in whatever pipeline it belongs to. Sherpa's own 0–100 is
-/// mapped into that band, so the same function serves a standalone run and one
-/// inside a full transcription without either inventing numbers.
+/// stage occupies.
 fn diarize(
     settings: &Settings,
     check: &tools::ToolCheck,
     wav: &Path,
+    segments: &[Segment],
     task: &TranscriptionTask,
     recording_id: &str,
     report: Option<(&AppHandle, &str, f64, f64)>,
 ) -> Reported<Vec<SpeakerTurn>> {
-    let program = Path::new(check.sherpa_diarization.as_ref().unwrap());
+    let model = check
+        .embedding_model
+        .as_ref()
+        .ok_or_else(|| UserMessage::new("tools.embedding_model_missing"))?;
 
-    // Sherpa is built on the Kaldi option parser: an unknown flag is not an
-    // error, the program simply prints its help and exits with zero. So ask it
-    // up front what it supports and pass only that.
-    let available = program_help(program);
-    let supports = |argument: &str| available.is_empty() || available.contains(argument);
-
-    let mut cmd = command(program);
-    cmd.arg(format!(
-        "--segmentation.pyannote-model={}",
-        check.segmentation_model.as_ref().unwrap()
-    ))
-    .arg(format!(
-        "--embedding.model={}",
-        check.embedding_model.as_ref().unwrap()
-    ));
-
-    if settings.speaker_count > 0 {
-        cmd.arg(format!(
-            "--clustering.num-clusters={}",
-            settings.speaker_count
-        ));
-    } else if supports("--clustering.cluster-threshold") {
-        cmd.arg(format!(
-            "--clustering.cluster-threshold={}",
-            settings.cluster_threshold
-        ));
-    } else if supports("--clustering.threshold") {
-        cmd.arg(format!(
-            "--clustering.threshold={}",
-            settings.cluster_threshold
-        ));
+    let blocks: Vec<(f64, f64)> = segments.iter().map(|s| (s.start, s.end)).collect();
+    let windows = crate::voiceprint::windows(&blocks);
+    if windows.is_empty() {
+        return Ok(Vec::new());
     }
 
-    // How densely the segmentation windows follow one another. Sherpa
-    // defaults to a tenth, i.e. ninety per cent overlap — the slowest setting
-    // there is. The user chooses in settings; here we only keep the value
-    // inside the range the program accepts, since outside (0, 1] it errors.
-    if supports("--segmentation.pyannote-window-shift-ratio") {
-        let shift = settings.segmentation_window_shift.clamp(0.05, 1.0);
-        cmd.arg(format!(
-            "--segmentation.pyannote-window-shift-ratio={shift}"
-        ));
-    }
-
-    // `--min-duration-on` and `--min-duration-off` are deliberately absent.
-    //
-    // Raising them is tempting as a cure for fragmentation: a segment shorter
-    // than `on` is dropped, a gap shorter than `off` is glued. But what counts
-    // as noise in a sermon is content in an interview or a phone recording —
-    // a one-word "mhm" or "jasně" belongs to the other person, and dropping it
-    // credits their speech to the first speaker. The app serves both, so
-    // sherpa's defaults (0.3 and 0.5) stay as the compromise between genres.
-    // Fragmentation is handled on our side instead, by smoothing short runs
-    // of words.
-
-    // Thread counts are set per model; this program has no shared
-    // --num-threads flag.
-    //
-    // Automatic used to mean a flat four, on any machine. That is not a
-    // neutral guess — measured on this binary with a ten-minute recording on
-    // a two-core machine, four threads took 210 s against 88 s for two and
-    // 120 s for one. Asking for more parallelism than the machine has does not
-    // merely stop helping, it costs more than doing the work single-threaded.
-    //
-    // So automatic now means what the machine actually has. Going *beyond* the
-    // core count is the part that was measured and is avoided; whether some
-    // lower cap would be better on a very wide machine was not measured and is
-    // therefore not invented here.
-    let threads = if settings.threads > 0 {
-        settings.threads
-    } else {
-        std::thread::available_parallelism()
-            .map(|cores| cores.get() as i64)
-            .unwrap_or(2)
+    let Some((samples, rate)) = read_pcm16(wav) else {
+        return Err(UserMessage::new("diarization.audio_unreadable"));
     };
-    if supports("--segmentation.num-threads") {
-        cmd.arg(format!("--segmentation.num-threads={threads}"));
-    }
-    if supports("--embedding.num-threads") {
-        cmd.arg(format!("--embedding.num-threads={threads}"));
-    }
-    cmd.arg(wav);
 
-    // Read the output as it appears rather than waiting for the end.
-    //
-    // sherpa reports how far along it is on stderr ("progress 42.00%"), and
-    // that is the only honest source of progress there is: the run takes
-    // minutes on a long recording and nothing else says anything meanwhile.
-    // With `output()` all of it arrived at once, after the fact, and the bar
-    // stood still at whatever value we last guessed.
-    //
-    // stderr is consumed on a thread of its own. Both pipes have to be drained
-    // in parallel — read only one and the other's buffer fills up, at which
-    // point sherpa blocks on a write and neither side ever moves again.
-    let mut child = cmd
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
+    let say = |done: f64| {
+        if let Some((app, id, from, to)) = report {
+            let overall = (from + (to - from) * done).round() as u32;
+            status(app, id, "diarization", overall, step("diarization.running"));
+        }
+    };
+
+    // Features first, and they are the cheap half: arithmetic over audio that
+    // is already on disk, in the shape whisper was handed.
+    say(0.0);
+    let mut heard = Vec::with_capacity(windows.len());
+    let mut kept = Vec::with_capacity(windows.len());
+    for (index, window) in windows.iter().enumerate() {
+        // Cancellation cannot land mid-window, so it is checked between them
+        // rather than on every one of a thousand.
+        if index % 200 == 0 {
+            stop_if_cancelled(task, recording_id)?;
+        }
+        let from = (window.start * f64::from(rate)) as usize;
+        let to = ((window.end * f64::from(rate)) as usize).min(samples.len());
+        if to <= from {
+            continue;
+        }
+        let piece: Vec<f32> = samples[from..to]
+            .iter()
+            .map(|value| f32::from(*value) / 32768.0)
+            .collect();
+        if let Some(features) = crate::voiceprint::features(&piece) {
+            heard.push(features);
+            kept.push(*window);
+        }
+    }
+    if heard.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    say(0.3);
+    stop_if_cancelled(task, recording_id)?;
+    let mut voices = crate::voiceprint::Voices::open(Path::new(model))
+        .map_err(|error| UserMessage::new("diarization.launch_failed").detail(error))?;
+    let prints = voices
+        .embed(&heard)
         .map_err(|error| UserMessage::new("diarization.launch_failed").detail(error))?;
 
-    let stdout = child.stdout.take().unwrap();
-    let stderr = child.stderr.take().unwrap();
-    // Hand the child over so cancelling can actually kill it. Measured on this
-    // binary, 45 minutes of audio is around 447 s of work; until now nothing
-    // could stop it once it had started.
-    task.record_process(recording_id, child);
+    say(0.9);
+    stop_if_cancelled(task, recording_id)?;
+    // A count somebody actually said is worth more than any threshold: told it,
+    // this is measurably reliable; left to guess, it is the weakest part of the
+    // whole feature.
+    let wanted = if settings.speaker_count > 0 {
+        Some(settings.speaker_count as usize)
+    } else {
+        None
+    };
+    let labels = crate::voiceprint::group(&prints, wanted);
 
-    // This thread runs whether or not anyone wants progress, and that is the
-    // whole point.
-    //
-    // Sherpa writes `progress 42.00%` to stderr for the length of the run. If
-    // nothing drains that pipe, the operating system's buffer fills, sherpa
-    // blocks on the write, and neither side ever moves again — the deadlock the
-    // comment above the spawn warns about. Reporting is optional; draining is
-    // not. A 45-minute recording produced enough output to hit exactly that,
-    // while a 10-minute one still fit in the buffer and finished.
-    let progress = report.map(|(app, id, from, to)| (app.clone(), id.to_string(), from, to));
-    let reporter = std::thread::spawn(move || {
-        let re = Regex::new(r"progress\s+([0-9]+(?:\.[0-9]+)?)\s*%").unwrap();
-        let mut collected = String::new();
-        let mut last = u32::MAX;
-        for row in BufReader::new(stderr).lines().map_while(Result::ok) {
-            if let Some((app, id, from, to)) = progress.as_ref() {
-                if let Some(c) = re.captures(&row) {
-                    let done = (c[1].parse::<f64>().unwrap_or(0.0) / 100.0).clamp(0.0, 1.0);
-                    let overall = (from + (to - from) * done).round() as u32;
-                    if overall != last {
-                        last = overall;
-                        status(app, id, "diarization", overall, step("diarization.running"));
-                    }
-                }
-            }
-            collected.push_str(&row);
-            collected.push('\n');
-        }
-        collected
-    });
-
-    let mut text = String::new();
-    for row in BufReader::new(stdout).lines().map_while(Result::ok) {
-        text.push_str(&row);
-        text.push('\n');
-    }
-    if let Ok(errors) = reporter.join() {
-        text.push_str(&errors);
-    }
-    // Nothing to wait for when cancellation has already killed and removed it.
-    if let Some(mut child) = task.take_process(recording_id) {
-        child.wait()?;
-    }
-
-    let re = Regex::new(r"([0-9]+\.[0-9]+)\s*--\s*([0-9]+\.[0-9]+)\s*(speaker_?\d+)").unwrap();
-    let turns: Vec<SpeakerTurn> = re
-        .captures_iter(&text)
-        .filter_map(|c| {
-            Some(SpeakerTurn {
-                start: c[1].parse().ok()?,
-                end: c[2].parse().ok()?,
-                key: c[3].to_string(),
-            })
+    Ok(crate::voiceprint::turns(&kept, &labels)
+        .into_iter()
+        .map(|turn| SpeakerTurn {
+            start: turn.start,
+            end: turn.end,
+            key: format!("speaker_{}", turn.voice),
         })
-        .collect();
-
-    if turns.is_empty() {
-        // If the program printed its help instead of a result, it rejected
-        // one of the flags. Say so plainly rather than leaving it to the dump.
-        if text.contains("PrintUsage") || text.contains("Usage example") {
-            return Err(UserMessage::new("diarization.options_rejected"));
-        }
-        return Err(UserMessage::new("diarization.no_turns")
-            .with("output", text.chars().take(300).collect::<String>()));
-    }
-    Ok(turns)
+        .collect())
 }
 
 /// Kolik reci musi uvnitr jedne vety pripadnout na druheho mluvciho, aby se

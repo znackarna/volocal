@@ -9645,6 +9645,59 @@ conversation between two, that is the whole argument for the change.
   rather than a panic. Line lengths and call-argument widths checked against
   what `cargo fmt` actually breaks on.
 
+### 2026-08-07 — Speaker recognition stops spawning a program
+
+The swap itself. Everything before it was new code beside the old; this is the
+first change to the pipeline that produces the speakers in a real transcript.
+
+- **What went.** `sherpa-onnx-offline-speaker-diarization.exe` is no longer
+  spawned, and with it 184 lines of process handling: the Kaldi option probe,
+  the stderr-draining thread that existed to avoid a pipe deadlock, the regular
+  expression over its stdout, and the two failure modes that were about its
+  command line rather than about speech.
+- **What replaced it**, in about a hundred lines: blocks from the transcript →
+  overlapping two-second windows → log-mel features → CAM++ through `ort` in
+  batches of 256 → grouping by cosine → turns. Every constant in that chain was
+  measured on Jakub's own recordings, and the entries above carry the numbers.
+- **pyannote is gone as a requirement.** Its job was to find where speech is,
+  and Whisper had already timestamped every word — the application was paying a
+  neural model to compute something it already knew. `issues_diarization` now
+  asks for the embedding model and nothing else: no program, no segmentation
+  model. Anybody who has them on disk keeps them, and diagnostics still reports
+  both paths; nothing waits for them.
+- **The shape was kept on purpose.** `diarize` still returns `Vec<SpeakerTurn>`
+  and `assign_speakers` still turns that into per-word speakers. That function
+  carries every smoothing rule this file has measured — 1.4 seconds and three
+  words before a change of speaker inside a sentence is believed, the snap to a
+  clause boundary, the rule that a one-word reply keeps the speaker it overlaps.
+  Matching the old interface means all of it was inherited untouched rather than
+  rewritten from memory.
+- `diarize` takes the segments now, so `run_diarization` reads them before the
+  work instead of after it. They stopped being only the thing an answer is
+  written onto and became the input that says where to look.
+- Cancellation is checked every two hundred windows rather than on each one:
+  it cannot land mid-window anyway, and a thousand checks would be a thousand
+  lock acquisitions for nothing.
+- Dictionary: `diarization.options_rejected` and `diarization.no_turns` are
+  gone — both described sherpa's command line. `tools.diarization_program_missing_in`
+  and `tools.segmentation_model_missing` are gone with the requirements they
+  announced. One key arrived, `diarization.audio_unreadable`, for the one new
+  way this can fail: the WAV that ffmpeg wrote a moment earlier cannot be read.
+- Files: `src-tauri/src/transcription.rs`, `src-tauri/src/tools.rs`,
+  `src/locales/{cs,en}/errors.ts`, `src/locales/sources.json`.
+- Verified: `npx tsc --noEmit`; `node scripts/i18n.mjs check` reports 888/888
+  and no problems — including its own check that every code Rust can send has an
+  entry, which caught the two retired `tools.*` codes while they were still
+  referenced. Braces balanced in both Rust files, and the one new line long
+  enough to worry about is the same width as neighbours that already pass.
+- **Not verified, and it is the whole risk of this commit:** nothing has run
+  this. The old path was measured at roughly 95 seconds per ten minutes of
+  audio; the new one should be seconds, and should also be *better* when the
+  speaker count is given. Both claims come from measurements on the pieces, not
+  from the assembled pipeline. The first real transcription with speakers turned
+  on is what settles it, and a recording whose transcript you do not mind losing
+  is the one to try it on.
+
 ### 2026-08-07 — The Rust job on Ubuntu is retired (continued)
 
 - Verified: the workflow still parses as YAML, the three job names resolve, and

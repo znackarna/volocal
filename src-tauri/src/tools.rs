@@ -425,15 +425,12 @@ pub fn check(n: &crate::db::Settings) -> ToolCheck {
         k.issues.push(UserMessage::new("tools.vad_model_missing"));
     }
 
-    if k.sherpa_diarization.is_none() {
-        k.issues_diarization.push(
-            UserMessage::new("tools.diarization_program_missing_in").with("directory", &position),
-        );
-    }
-    if k.segmentation_model.is_none() {
-        k.issues_diarization
-            .push(UserMessage::new("tools.segmentation_model_missing"));
-    }
+    // Speaker recognition needs one model and no program. Until 2026-08-07 it
+    // also required `sherpa-onnx-offline-speaker-diarization.exe` and the
+    // pyannote segmentation model; both are gone, because finding where speech
+    // is was work the transcript had already done. The two paths are still
+    // reported in diagnostics — the files may well be on disk from before — but
+    // nothing waits for them any more.
     if k.embedding_model.is_none() {
         k.issues_diarization
             .push(UserMessage::new("tools.embedding_model_missing"));
