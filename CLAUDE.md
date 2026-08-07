@@ -8896,3 +8896,68 @@ versioned, so it is corrected only here.
   session, so the policy has never been applied to a running window. It is one
   line in one file and reverting it is `"csp": null`. Try it once before
   anything else in this batch.
+
+### 2026-08-07 — A word does not light up while nothing can be heard
+
+- What Jakub saw: the last recording coloured its words before he said them,
+  and he suspected the whistle he made at the start. He was right, and the
+  archive says so — this was measured on his own take rather than reasoned
+  about. Seven and a half seconds, `Včera jsem snědl milion tun kolibříků.`
+  The file is **silent until 0.75 s**, the stored time of `Včera` is **0.52**,
+  and from 1.0 to 1.9 s there is a narrow tone rising 785 → 2130 Hz at −4.7 dB,
+  fifteen decibels louder than his voice. `jsem`, stored at 1.42, lands in the
+  middle of it. By the end of the recording the error is down to 0.08 s.
+- Two causes, and only one of them is ours. Speech detection took the whistle
+  for speech and whisper spread the opening words across it — that is the
+  second of lead at the start, and it needs alignment this application does not
+  have. But **every** speech region also carries `--vad-speech-pad-ms 250`,
+  a quarter second of padding so that VAD does not bite off a first syllable —
+  and whisper places the region's first word at the beginning of the *padded*
+  region. That quarter second is in every block of every recording.
+- Changed: after the blocks are final, a block's start and the time of its
+  first word move forward to the moment sound actually begins. Only the leading
+  edge: the words inside were aligned by whisper's DTW against real audio and
+  are not ours to second-guess; what is demonstrably wrong is the silence in
+  front of the first one. A block whose first word already sits on speech does
+  not move, and the first word can never pass the second — whisper sometimes
+  gives two adjacent words one timestamp, and reordering them would be worse
+  than the fault being fixed.
+- Nothing new is downloaded or installed for it. The 16 kHz copy made for
+  whisper is still on disk at that point, and where sound begins is a question
+  energy can answer: an RMS envelope at 20 ms, and the first frame that rises
+  above a fraction of the block's own peak. Relative and not absolute, so a
+  quietly recorded interview is judged by its own speech rather than by a fixed
+  number of decibels — there is a test for exactly that.
+- The threshold was chosen by measurement, not taste: on the reference take
+  every value between −26 and −40 dB below the block's peak returns the same
+  answer (0.24 to 0.26 s), so the rule does not balance on the number. −32 dB
+  sits in the middle of that plateau.
+- Worth recording as an independent check on the diagnosis: the correction the
+  rule finds for the first block is **0.24 s**, and it knows nothing about the
+  250 ms of VAD padding that causes it.
+- **Considered and rejected: importing a solution.** Jakub asked whether
+  somebody has already done this well. They have — forced alignment against a
+  phoneme model, which is what WhisperX (wav2vec2), stable-ts and the Montreal
+  Forced Aligner do, and a whistle has no phonemes for words to slide onto. All
+  three are Python and PyTorch, which this application has deliberately never
+  needed. sherpa-onnx, which is already downloaded here for diarization, does
+  **not** have forced alignment: it is an open feature request (#3536, April
+  2026, no assignee, no branch) that closed two earlier requests for the same
+  thing. CrispASR fits the shape exactly — MIT, one C++ binary, no Python,
+  Windows and Vulkan — but Czech is not named anywhere in its documentation,
+  there is no documented way to feed it an existing transcript, there are no
+  prebuilt binaries, and it publishes no alignment accuracy figures at all. If
+  this is ever revisited, that is the shortlist and those are the questions.
+- Files: `src-tauri/src/transcription.rs`.
+- Verified: the algorithm was written in Python first and run against **the
+  real recording and its real stored word times**, which is what produced the
+  0.24 and 0.07 above; the Rust is a transliteration of that. Five unit tests
+  built from the same numbers: silence is skipped, the reported case moves to
+  0.76 and carries its first word, a block starting on speech is untouched, the
+  first word never passes the second, and a recording a hundred times quieter
+  is measured against itself.
+- **Honest limit, and it is the same one as the two entries above:** no `cargo`
+  in this session, so none of this Rust has been compiled, the tests have never
+  been run, and none of them has been seen to fail against the old behaviour.
+  CI compiles and runs them on both platforms. Treat the first green run as the
+  first reading of this code.

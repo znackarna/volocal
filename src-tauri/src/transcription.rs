@@ -751,6 +751,11 @@ fn run(
     // ------------------------------------------------------------ vety
     segments = rebuild_sentences(segments);
 
+    // ------------------------------------------------ zacatek proti zvuku
+    // After the blocks are final, because it is the first word of a block
+    // that lights up. The 16 kHz copy whisper was given is still on disk.
+    snap_starts_to_sound(&mut segments, &wav);
+
     // ------------------------------------------------------------ slovnik
     apply_dictionary(&mut segments, &dictionary);
 
@@ -1192,6 +1197,180 @@ fn load_segments_from_json(file: &Path, recording_id: &str) -> Result<Vec<Segmen
         result.push(segment);
     }
     Ok(result)
+}
+
+// ------------------------------------------------------- zacatek proti zvuku
+
+/// A word must not light up while nothing can be heard.
+///
+/// Speech detection pads every region it finds by `--vad-speech-pad-ms` — 250
+/// of them — so that it does not bite off a first syllable. Whisper then places
+/// the block's first word at the beginning of that padded region, and a quarter
+/// second of silence is attributed to a word nobody has said yet. It is not a
+/// rare case: it is every block of every recording.
+///
+/// A loud noise before the speech makes it much worse. Measured on the user's
+/// own seven-second take, which opens with a whistle: the stored time of the
+/// first word was 0.52 s while the file is silent until 0.75, and the words
+/// were spread across the whistle — about a second early at the start, shrinking
+/// to a tenth by the end. The whistle itself this cannot repair, because it is
+/// louder than the speech; the silence in front of it, it can.
+///
+/// Nothing new is needed for it. The 16 kHz copy made for whisper is still on
+/// disk, and where sound begins is a question energy can answer.
+mod onset {
+    /// Envelope step. Fine enough that the correction is not itself visible,
+    /// coarse enough that one loud sample cannot pass for an onset.
+    pub const FRAME_SECONDS: f64 = 0.02;
+    /// How far below the block's own peak still counts as silence. Chosen by
+    /// measurement rather than taste: between -26 and -40 dB the answer on the
+    /// reference take does not move (0.24 to 0.26 s), so the rule does not
+    /// balance on this number. -32 dB sits in the middle of that plateau.
+    const QUIET_RATIO: f32 = 0.025_118_864; // 10^(-32/20)
+    /// Below this the correction is not worth making — and a block that begins
+    /// mid-speech legitimately has no silence to skip.
+    pub const MIN_SHIFT: f64 = 0.05;
+
+    /// Root-mean-square per frame. Loudness, not waveform: what is wanted is
+    /// whether a stretch carries energy, not what shape it has.
+    pub fn envelope(samples: &[i16], sample_rate: u32) -> Vec<f32> {
+        let hop = (sample_rate as f64 * FRAME_SECONDS) as usize;
+        if hop == 0 {
+            return Vec::new();
+        }
+        samples
+            .chunks(hop)
+            .map(|frame| {
+                let sum: f64 = frame
+                    .iter()
+                    .map(|s| {
+                        let v = f64::from(*s) / 32768.0;
+                        v * v
+                    })
+                    .sum();
+                (sum / frame.len() as f64).sqrt() as f32
+            })
+            .collect()
+    }
+
+    /// First moment in `from..to` that is not silence, measured against the
+    /// loudest thing in that same stretch. Relative rather than absolute,
+    /// because a quiet recording and a loud one must be judged by their own
+    /// speech, not by a fixed number of decibels.
+    pub fn first_audible(env: &[f32], from: f64, to: f64) -> Option<f64> {
+        let start = (from.max(0.0) / FRAME_SECONDS).floor() as usize;
+        let end = ((to.max(0.0) / FRAME_SECONDS).ceil() as usize).min(env.len());
+        if start >= end {
+            return None;
+        }
+        let peak = env[start..end].iter().copied().fold(0.0_f32, f32::max);
+        if peak <= 0.0 {
+            return None;
+        }
+        let threshold = peak * QUIET_RATIO;
+        (start..end)
+            .find(|i| env[*i] >= threshold)
+            .map(|i| i as f64 * FRAME_SECONDS)
+    }
+}
+
+/// Reads the 16-bit PCM that ffmpeg wrote. Deliberately not a crate: this is
+/// our own file, made by our own command, and the chunk walk is shorter than
+/// the dependency would be.
+fn read_pcm16(file: &Path) -> Option<(Vec<i16>, u32)> {
+    let bytes = std::fs::read(file).ok()?;
+    if bytes.len() < 12 || &bytes[0..4] != b"RIFF" || &bytes[8..12] != b"WAVE" {
+        return None;
+    }
+    let mut sample_rate = 0_u32;
+    let mut samples: Vec<i16> = Vec::new();
+    let mut cursor = 12_usize;
+    while cursor + 8 <= bytes.len() {
+        let id = &bytes[cursor..cursor + 4];
+        let size = u32::from_le_bytes([
+            bytes[cursor + 4],
+            bytes[cursor + 5],
+            bytes[cursor + 6],
+            bytes[cursor + 7],
+        ]) as usize;
+        let body = cursor + 8;
+        let end = body.saturating_add(size).min(bytes.len());
+        if id == b"fmt " && size >= 16 && end >= body + 8 {
+            sample_rate = u32::from_le_bytes([
+                bytes[body + 4],
+                bytes[body + 5],
+                bytes[body + 6],
+                bytes[body + 7],
+            ]);
+        } else if id == b"data" {
+            samples = bytes[body..end]
+                .chunks_exact(2)
+                .map(|c| i16::from_le_bytes([c[0], c[1]]))
+                .collect();
+        }
+        // chunks are word-aligned, so an odd size carries a pad byte
+        cursor = body + size + (size & 1);
+    }
+    if sample_rate == 0 || samples.is_empty() {
+        return None;
+    }
+    Some((samples, sample_rate))
+}
+
+/// Moves a block's start, and the time of its first word, forward to the moment
+/// sound actually begins. Returns how many blocks were moved.
+///
+/// Only the leading edge. The words inside a block were aligned by whisper's
+/// DTW against real audio and are not ours to second-guess; what is demonstrably
+/// wrong is the silence in front of the first one.
+fn snap_starts_to_sound(segments: &mut [Segment], wav: &Path) -> usize {
+    let Some((samples, sample_rate)) = read_pcm16(wav) else {
+        // Losing the correction is not worth failing a finished transcript over.
+        crate::note!(
+            "onset: {} unreadable, word times left as they are",
+            wav.display()
+        );
+        return 0;
+    };
+    snap_to_sound(segments, &onset::envelope(&samples, sample_rate))
+}
+
+/// The decision itself, kept apart from reading the file so it can be tested
+/// against an envelope built in memory.
+fn snap_to_sound(segments: &mut [Segment], env: &[f32]) -> usize {
+    let mut moved = 0;
+    for segment in segments.iter_mut() {
+        let Some(sound) = onset::first_audible(env, segment.start, segment.end) else {
+            continue;
+        };
+        let words: Option<Vec<serde_json::Value>> = segment
+            .words
+            .as_ref()
+            .and_then(|w| serde_json::from_str(w).ok());
+        // Never past the word that follows: a block whose first two words share
+        // one timestamp must not end up with them out of order.
+        let mut limit = segment.end;
+        if let Some(list) = &words {
+            if let Some(next) = list.get(1).and_then(|w| w["t"].as_f64()) {
+                limit = limit.min(next - onset::FRAME_SECONDS);
+            }
+        }
+        let target = sound.min(limit);
+        if target - segment.start < onset::MIN_SHIFT {
+            continue;
+        }
+        segment.start = target;
+        if let Some(mut list) = words {
+            if let Some(first) = list.get_mut(0) {
+                first["t"] = serde_json::json!(target);
+            }
+            if let Ok(text) = serde_json::to_string(&list) {
+                segment.words = Some(text);
+            }
+        }
+        moved += 1;
+    }
+    moved
 }
 
 // ---------------------------------------------------------------- slovnik
@@ -2844,6 +3023,158 @@ mod dictionary_tests {
         let words: Vec<serde_json::Value> =
             serde_json::from_str(segments[0].words.as_deref().unwrap()).unwrap();
         assert_eq!(words[1]["s"].as_str(), Some("$500"));
+    }
+}
+
+/// Built from the recording that reported this: a seven-second take opening
+/// with a whistle, whose first word was stored at 0.52 s while the file is
+/// silent until 0.75.
+#[cfg(test)]
+mod onset_tests {
+    use super::*;
+
+    const RATE: u32 = 16_000;
+
+    /// `seconds` of silence, then a loud tone until the end.
+    fn silence_then_sound(silent: f64, total: f64) -> Vec<i16> {
+        let count = (total * RATE as f64) as usize;
+        let quiet = (silent * RATE as f64) as usize;
+        (0..count)
+            .map(|i| {
+                if i < quiet {
+                    0
+                } else {
+                    // a tone at a third of full scale
+                    let phase = i as f64 / RATE as f64 * 440.0 * std::f64::consts::TAU;
+                    (phase.sin() * 10_000.0) as i16
+                }
+            })
+            .collect()
+    }
+
+    fn block(start: f64, end: f64, words: &[(&str, f64)]) -> Segment {
+        let list: Vec<serde_json::Value> = words
+            .iter()
+            .map(|(s, t)| serde_json::json!({ "t": t, "s": s }))
+            .collect();
+        Segment {
+            id: "s".into(),
+            recording_id: "r".into(),
+            order: 0,
+            start,
+            end,
+            text: words
+                .iter()
+                .map(|(s, _)| *s)
+                .collect::<Vec<_>>()
+                .join(" "),
+            speakers: None,
+            confidence: None,
+            edited: false,
+            verified: false,
+            original: None,
+            words: Some(serde_json::to_string(&list).unwrap()),
+        }
+    }
+
+    fn first_word_time(segment: &Segment) -> f64 {
+        let list: Vec<serde_json::Value> =
+            serde_json::from_str(segment.words.as_ref().unwrap()).unwrap();
+        list[0]["t"].as_f64().unwrap()
+    }
+
+    #[test]
+    fn silence_is_skipped_and_the_onset_is_found() {
+        let env = onset::envelope(&silence_then_sound(0.75, 2.0), RATE);
+        let found = onset::first_audible(&env, 0.52, 2.0).expect("there is sound in this stretch");
+        assert!(
+            (found - 0.76).abs() <= 0.02,
+            "expected the onset at about 0.76 s, got {found}"
+        );
+    }
+
+    /// The reported case. Whisper says the word starts at 0.52; nothing is
+    /// audible until 0.75, so the word must not light up before then.
+    #[test]
+    fn a_word_does_not_light_up_while_nothing_can_be_heard() {
+        let mut segments = vec![block(
+            0.52,
+            5.57,
+            &[("Včera", 0.52), ("jsem", 1.42), ("snědl", 2.24)],
+        )];
+        let env = onset::envelope(&silence_then_sound(0.75, 5.57), RATE);
+
+        let moved = snap_to_sound(&mut segments, &env);
+
+        assert_eq!(moved, 1);
+        assert!(
+            (segments[0].start - 0.76).abs() <= 0.02,
+            "the block should begin where the sound does, got {}",
+            segments[0].start
+        );
+        assert!(
+            (first_word_time(&segments[0]) - segments[0].start).abs() < 1e-9,
+            "the first word must move with its block"
+        );
+        assert!(
+            (first_word_time(&segments[0]) - 1.42).abs() > 0.5,
+            "the words after it are whisper's own alignment and stay put"
+        );
+    }
+
+    /// The ordinary case, and the one that must not be touched: a block that
+    /// begins on speech has no silence to skip.
+    #[test]
+    fn a_block_that_begins_on_speech_is_left_alone() {
+        let mut segments = vec![block(0.0, 2.0, &[("Ano", 0.0), ("jistě", 0.6)])];
+        let env = onset::envelope(&silence_then_sound(0.0, 2.0), RATE);
+
+        assert_eq!(snap_to_sound(&mut segments, &env), 0);
+        assert_eq!(segments[0].start, 0.0);
+        assert_eq!(first_word_time(&segments[0]), 0.0);
+    }
+
+    /// Whisper sometimes gives two adjacent words one timestamp. Moving the
+    /// first past the second would put them out of order.
+    #[test]
+    fn the_first_word_never_moves_past_the_second() {
+        let mut segments = vec![block(0.10, 3.0, &[("Tak", 0.10), ("jo", 0.30)])];
+        // silent for a whole second, far beyond where the second word sits
+        let env = onset::envelope(&silence_then_sound(1.0, 3.0), RATE);
+
+        snap_to_sound(&mut segments, &env);
+
+        assert!(
+            first_word_time(&segments[0]) < 0.30,
+            "got {}, which is not before the word that follows",
+            first_word_time(&segments[0])
+        );
+    }
+
+    /// A quiet recording must be judged by its own speech, not by a fixed
+    /// number of decibels — otherwise the whole of it reads as silence.
+    #[test]
+    fn a_quiet_recording_is_measured_against_itself() {
+        let count = (2.0 * RATE as f64) as usize;
+        let quiet = (0.75 * RATE as f64) as usize;
+        let samples: Vec<i16> = (0..count)
+            .map(|i| {
+                if i < quiet {
+                    0
+                } else {
+                    let phase = i as f64 / RATE as f64 * 440.0 * std::f64::consts::TAU;
+                    // a hundredth of the level the test above uses
+                    (phase.sin() * 100.0) as i16
+                }
+            })
+            .collect();
+        let env = onset::envelope(&samples, RATE);
+
+        let found = onset::first_audible(&env, 0.0, 2.0).expect("quiet is still sound");
+        assert!(
+            (found - 0.76).abs() <= 0.02,
+            "expected the onset at about 0.76 s, got {found}"
+        );
     }
 }
 
