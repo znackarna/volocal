@@ -9150,3 +9150,63 @@ stands.
   `windows-x64-vulkan.zip` that deliberately relies on the driver's own
   `vulkan-1.dll` instead of carrying an SDK. That is proof the packaging this
   application would need works, for the day a ggml speaker model exists.
+
+### 2026-08-07 — Correcting entry: the GPU is reachable after all, and not through Vulkan
+
+Jakub kept sending candidates and asking whether nobody had solved this. The
+sweep that followed found one fact that overturns the paragraph above, and it
+is not about any of the projects.
+
+- **`ort`, the Rust binding for ONNX Runtime, downloads a DirectML build on
+  Windows by default.** There is no plain `x86_64-pc-windows-msvc` distribution
+  in `ort-sys`' own `dist.tsv` — the default Windows dist *is* the DirectML
+  one, `download-binaries` is a default feature, and the archive is hash
+  verified. So GPU inference on an AMD Radeon needs no C++ toolchain, no
+  `ORT_LIB_LOCATION`, and no build of ONNX Runtime. It needs a Rust dependency.
+- What stands from the earlier entries: ONNX Runtime still has **no Vulkan**
+  execution provider, and that was checked again. The mistake was concluding
+  from "no Vulkan" that the card was unreachable. DirectML is the route, and it
+  is vendor-neutral by design.
+- Corrected too: the claim that no ggml speaker model exists.
+  `localai-org/voice-detect.cpp` is one — GGUF, flat C ABI, Vulkan through
+  ggml's own flags, and it returns L2-normalised embeddings. It is also **one
+  commit, no releases, prebuilt binaries a TODO**, and it does recognition
+  only: no segmentation, no clustering. Not adoptable; the sentence it corrects
+  was still wrong.
+
+**What the candidates actually offer**, each solving one half:
+
+- `parakeet-rs` (302★, MIT/Apache, active) is the only project swept that
+  *registers* a GPU provider rather than merely offering a feature flag —
+  verified in `src/execution.rs`, `ort::ep::DirectML` with CPU fallback. Its
+  diarizer is NVIDIA Sortformer, end to end. The cost is exact: **no
+  embeddings at all**, four speakers maximum, English training corpora. It
+  buys speed and forecloses the naming feature.
+- `speakrs` (Apache-2.0, 7.1 % DER, exposes embeddings, PLDA + VBx clustering)
+  is the accuracy answer and would fix the dominant-speaker collapse this file
+  measured on `paul_radomil`. Its only providers are CUDA, CoreML and
+  MIGraphX — and MIGraphX is a ROCm artefact that does not exist for Windows.
+  So on this machine it is CPU.
+- `diaric` is clustering alone, no inference: AHC then VBx, consuming
+  embeddings from wherever. Surgical, and it replaces exactly the stage that
+  fails.
+- Rejected on inspection: `polyvoice` (serious work, but forwards only
+  CoreML/NNAPI/XNNPACK, so CPU here), `rust-whisper-diarization` (3 commits,
+  no licence file, wraps sherpa-onnx — the baseline itself), `audio.cpp` (right
+  shape, no releases), `adk-audio` (diarization in someone else's cloud).
+  `whisper.cpp` has gained nothing: `--tdrz` is still turn detection, `small.en`.
+
+**The shape that satisfies both constraints is assembly, not a dependency.**
+Because `ort` on Windows *is* the DirectML build, running the CAM++ model this
+project already downloaded — through `ort`, in Slobot's own process, instead of
+spawning `sherpa-onnx.exe` — would give GPU embeddings **and** the raw vectors
+per segment, with `diaric` or polyvoice's `vbx` doing the clustering. That is
+the only route that gets the speed and keeps the "name two voices, assign the
+rest" feature, and it also removes a downloaded executable and a stdout parser.
+Nobody packages it because it is three existing pieces in a new order.
+
+- Not started. Recorded so the next attempt begins from the fact in the first
+  bullet rather than from the Vulkan dead end.
+- **The one measurement to make first**, before any of it: whether `ort` with
+  DirectML actually gets that Radeon under load. If it does not, none of this
+  changes the 95 seconds.
