@@ -1215,7 +1215,15 @@ mark { background: var(--zvyrazneni); color: inherit; padding: 0 2px; border-rad
 .zkratka-duraz { color: var(--text); }
 .zkratka-duraz kbd { border-color: var(--akcent-linka); color: var(--akcent); }
 
-.detail-telo { flex: 1; display: grid; grid-template-columns: 1fr 300px; min-height: 0; }
+/* 320 px, and it does not shrink with the window.
+   It was 300, dropping to 250 on a narrower one — and 250 is where the panel
+   stopped working: after padding it leaves 214 px, while a section heading and
+   its action want about 270 together. Everything in there then fought for room
+   and the headings lost, which is how `Mlu… Kontr… Opra…` happened. Narrowing
+   the one column whose contents have a fixed minimum was the wrong economy.
+   The transcript can give it up: at the window's own 1000 px minimum that still
+   leaves 680, and the text is capped at 760 anyway. */
+.detail-telo { flex: 1; display: grid; grid-template-columns: 1fr 320px; min-height: 0; }
 .detail-telo.bez-panelu { grid-template-columns: 1fr; }
 
 .prepis { overflow-y: auto; padding: 26px 32px 120px; }
@@ -2325,12 +2333,14 @@ button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
 .prekryv-ikona { font-size: 34px; color: var(--akcent); line-height: 1; margin-bottom: 8px; }
 .prekryv-obsah p { margin: 0; font-size: 17px; font-weight: 600; }
 
-/* The panel always stays a right-hand column. It used to move below the
-   text in a narrow window, which meant speakers and dictionary suddenly
-   vanished somewhere below. When space is tight it narrows instead — and if
-   even that is not enough, the user closes it. */
+/* The panel always stays a right-hand column, at one width. It used to move
+   below the text in a narrow window, which meant speakers and notes suddenly
+   vanished somewhere below; then it narrowed instead, which is what broke it —
+   see the note on `.detail-telo`. It keeps its 320 px now, and if that is too
+   much on a small screen the user closes it, which is one click and has been
+   there all along.
+   Only the padding still gives way, and only a little. */
 @media (max-width: 1180px) {
-  .detail-telo { grid-template-columns: 1fr 250px; }
   .postranni { padding: 18px 14px 60px; }
 }
 
