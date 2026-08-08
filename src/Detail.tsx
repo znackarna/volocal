@@ -338,6 +338,8 @@ const MENU_ICONS = {
   // An arrow leaving a line: this block belongs up there, or down there.
   toPrevious: "M12 20V6 M6.5 11.5 12 6l5.5 5.5 M4 4h16",
   toNext: "M12 4v14 M17.5 12.5 12 18l-5.5-5.5 M4 20h16",
+  // A person with a plus: somebody the machine never found.
+  newVoice: "M10 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z M3.5 20a6.5 6.5 0 0 1 11 -4.7 M17 15v6 M14 18h6",
 } as const;
 
 /** Clipboard API first, with a WebView-safe fallback for restricted contexts. */
@@ -1588,6 +1590,28 @@ export default function Detail({
     [onError, userMessage]
   );
 
+  /// A passage that belongs to somebody the machine never found. The panel has
+  /// always been able to join two groups that are one person; this is the
+  /// direction it was missing.
+  const giveToNewVoice = useCallback(
+    async (segment: Segment) => {
+      try {
+        const voice = await api.addSpeaker(id);
+        setSpeakers((p) => [...p, voice]);
+        setSegments((p) =>
+          p.map((x) => (x.id === segment.id ? { ...x, speakers: voice.key } : x))
+        );
+        await api.setSegmentSpeaker(segment.id, voice.key);
+        // Open the panel on it: the name it was given is a placeholder, and
+        // renaming it is the next thing anybody will want to do.
+        setOpenSections((s) => ({ ...s, speakers: true }));
+      } catch (e) {
+        onError(userMessage(e));
+      }
+    },
+    [id, onError, userMessage]
+  );
+
 
   /** What is in the field. Typing is not a decision, so it goes no further
    *  than the screen. */
@@ -2636,6 +2660,13 @@ export default function Detail({
                 },
               ];
             }),
+            // Last, because it is the rarer answer — but it is the only one
+            // when the right person has no group at all.
+            {
+              label: t("detail.menu.toNewVoice"),
+              icon: MENU_ICONS.newVoice,
+              action: () => void giveToNewVoice(transcriptMenu.segment),
+            },
           ]}
         />
       )}

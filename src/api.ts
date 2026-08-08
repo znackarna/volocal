@@ -87,6 +87,8 @@ export const api = {
     invoke<void>("set_segment_speaker", { id, speakers }),
   renameSpeaker: (recordingId: string, key: string, name: string) =>
     invoke<void>("rename_speaker", { recordingId, key, name }),
+  addSpeaker: (recordingId: string) =>
+    invoke<Speaker>("add_speaker", { recordingId }),
   mergeSpeakers: (recordingId: string, fromKey: string, toKey: string) =>
     invoke<void>("merge_speakers", { recordingId, fromKey, toKey }),
 

@@ -104,6 +104,7 @@ export const csDetail = {
   "detail.menu.note": "Poznámka k {time}",
   "detail.menu.toPrevious": "Připsat výše — {name}",
   "detail.menu.toNext": "Připsat níže — {name}",
+  "detail.menu.toNewVoice": "Připsat novému mluvčímu",
 
   "detail.ai.missingTitle": "Jazyková úprava není připravená",
   "detail.ai.missingText":
@@ -316,6 +317,8 @@ export const csDetailContext: Partial<Record<keyof typeof csDetail, string>> = {
     "Položka nabídky: přiřadí tenhle blok mluvčímu, který mluví nad ním. {name} je jeho jméno.",
   "detail.menu.toNext":
     "Položka nabídky: přiřadí tenhle blok mluvčímu, který mluví pod ním. {name} je jeho jméno.",
+  "detail.menu.toNewVoice":
+    "Položka nabídky: založí dalšího mluvčího a přiřadí mu tenhle blok. Pro člověka, kterého rozpoznání vůbec nenašlo.",
   "detail.ai.missingTitle":
     "Nadpis dialogu. „Jazyková úprava“ je úprava textu jazykovým modelem, ne změna jazyka.",
   "detail.ai.configureTitle": "Nadpis dialogu, který nastavuje úpravu přepisu jazykovým modelem.",

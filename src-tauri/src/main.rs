@@ -1134,6 +1134,41 @@ fn rename_speaker(
     reported(db::rename_speaker(&db, &recording_id, &key, &name))
 }
 
+/// A voice the machine never found.
+///
+/// Naming two groups the same thing joins them, which is the only correction
+/// the panel has ever had. This is the other direction: a passage credited to
+/// the wrong person, where the right person has no group at all because the
+/// clustering folded them into somebody else. Without it there is nothing to
+/// hand such a block to.
+///
+/// The name is written here rather than passed in, exactly as the one after
+/// diarization is: it is stored data that the reader immediately renames, not
+/// interface text.
+#[tauri::command]
+fn add_speaker(app: State<'_, AppState>, recording_id: String) -> Reported<db::Speaker> {
+    let db = app.db.lock().unwrap();
+    let existing = reported(db::speakers(&db, &recording_id))?;
+    // Past the end, then past anything already taken — a merge can leave a
+    // gap in the numbering, and reusing a key would silently join two people.
+    let mut number = existing.len();
+    let key = loop {
+        let candidate = format!("speaker_{number}");
+        if !existing.iter().any(|s| s.key == candidate) {
+            break candidate;
+        }
+        number += 1;
+    };
+    let speaker = db::Speaker {
+        key,
+        recording_id,
+        name: format!("Mluvčí {}", existing.len() + 1),
+        color: db::COLORS[existing.len() % db::COLORS.len()].to_string(),
+    };
+    reported(db::insert_speaker(&db, &speaker))?;
+    Ok(speaker)
+}
+
 #[tauri::command]
 fn merge_speakers(
     app: State<'_, AppState>,
@@ -1847,6 +1882,7 @@ fn main() {
             mark_verified,
             set_segment_speaker,
             rename_speaker,
+            add_speaker,
             merge_speakers,
             dictionary,
             add_dictionary_entry,

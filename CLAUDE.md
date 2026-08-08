@@ -9872,3 +9872,29 @@ first change to the pipeline that produces the speakers in a real transcript.
   alone, a run filled together, both edges of the recording left alone, a long
   gap not bridged, and a transcript with nobody in it. All six were run against
   the same logic in Python before the Rust was committed.
+
+### 2026-08-07 — A passage can be given to a voice the machine never found
+
+- The failure this closes: on the five-person interview a whole person — Robert
+  Pattinson — was folded into Matt Damon's group. Naming has always been able to
+  *join* two groups that are one person, and nothing could do the opposite. With
+  no group of his own there was nobody to hand those blocks to, so the context
+  menu had nothing useful to offer.
+- Added: `Připsat novému mluvčímu` in the transcript's context menu, and
+  `add_speaker` behind it. It creates the next free `speaker_N`, gives the block
+  to it, and opens the speakers panel — the generated name is a placeholder and
+  renaming it is the next thing anybody will do.
+- The key is chosen past the end *and* past anything already taken. A merge can
+  leave a gap in the numbering, and reusing a key would silently join the new
+  person to an old one — the exact defect this exists to undo.
+- Naming does the rest: type a name another row already has and the two become
+  one, so fixing the second and third Pattinson block is a matter of typing the
+  same name again.
+- The generated name is written in Rust, like the one after diarization: it is
+  stored data that the reader immediately renames, not interface text. That is
+  why `i18n:check` is right not to complain about it.
+- Files: `src-tauri/src/main.rs`, `src/api.ts`, `src/Detail.tsx`,
+  `src/locales/{cs,en}/detail.ts`, `src/locales/sources.json`.
+- Verified: `npx tsc --noEmit`; `node scripts/i18n.mjs check` (no problems, the
+  new English approved); `npx vite build`; braces balanced and no long line in
+  `main.rs`. The Rust itself is uncompiled here, as ever — CI reads it first.
