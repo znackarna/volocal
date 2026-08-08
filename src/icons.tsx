@@ -24,6 +24,12 @@ export const LINE_ICONS = {
    *  inner circle uses, so the two sit at one optical weight. */
   review:
     "M2.6 12s3.6-6 9.4-6 9.4 6 9.4 6-3.6 6-9.4 6-9.4-6-9.4-6Z M12 14.6a2.6 2.6 0 1 0 0-5.2 2.6 2.6 0 0 0 0 5.2Z",
+  /** A voice nobody has named yet. The question mark sits in the same circle
+   *  the model icon's outer ring uses, so it weighs what its neighbours weigh.
+   *  Distinct from `review`, which is an eye: that section asks for a reading
+   *  pass, this one asks a question only the reader can answer. */
+  unnamed:
+    "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z M9.1 9.5a3 3 0 0 1 5.8 1c0 2-2.9 2.9-2.9 2.9 M12 17.3h.01",
   /** A pencil, for the places a human rewrote. Drawn nib-down so it reads as
    *  writing rather than as a generic tool. */
   edits:

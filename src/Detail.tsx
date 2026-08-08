@@ -2359,7 +2359,7 @@ export default function Detail({
               reader has never heard of is worse than no section at all. */}
           {unassignedSegments.length > 0 && (
             <SidebarSection
-              icon="uncertain"
+              icon="unnamed"
               title={t("detail.unassigned.heading")}
               count={unassignedSegments.length}
               open={openSections.unassigned}
