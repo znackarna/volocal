@@ -56,6 +56,7 @@ export const csErrors = {
   "errors.note.invalid_time": "Čas poznámky není platný.",
 
   // Watched folder.
+  "errors.import.copy_failed": "Nahrávku se nepodařilo zkopírovat do složky: {detail}",
   "errors.watch_folder.disabled": "Sledovaná složka není zapnutá.",
   "errors.watch_folder.not_available": "Sledovaná složka není dostupná: {path}",
   "errors.watch_folder.file_gone": "Soubor už není dostupný: {name}",

@@ -32,6 +32,7 @@ export const enErrors: Partial<Record<keyof typeof csErrors, string>> = {
   "errors.recording.path_not_found": "No such file exists.",
   "errors.note.empty": "A note cannot be empty.",
   "errors.note.invalid_time": "The note time is not valid.",
+  "errors.import.copy_failed": "The recording could not be copied into the folder: {detail}",
   "errors.watch_folder.disabled": "The watched folder is not turned on.",
   "errors.watch_folder.not_available": "The watched folder is not available: {path}",
   "errors.watch_folder.file_gone": "The file is no longer available: {name}",

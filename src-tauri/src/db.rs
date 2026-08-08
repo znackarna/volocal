@@ -167,6 +167,20 @@ pub struct Settings {
     /// nobody asked for.
     #[serde(default)]
     pub watch_folder_auto: bool,
+    /// Where the application keeps audio it owns: microphone takes, the sound
+    /// pulled out of an online video, and — when `copy_imports` asks for it —
+    /// a copy of every file added by hand.
+    ///
+    /// Configurable because the default is inside `%APPDATA%`, which nobody
+    /// browses to. A take from the microphone exists nowhere else, so it must
+    /// be somewhere its owner can find it. Empty means the default place.
+    #[serde(default)]
+    pub recording_folder: String,
+    /// Copy a file that is added by hand into that folder, instead of leaving
+    /// it where it is and remembering the path. Off by default: it doubles the
+    /// disk a recording costs, and that is the owner's decision, not ours.
+    #[serde(default)]
+    pub copy_imports: bool,
     pub model: String,
     /// Optional local language-editing model. Empty means that the feature was
     /// skipped and no background model is downloaded or loaded.
@@ -292,6 +306,8 @@ impl Default for Settings {
             watch_folder: String::new(),
             watch_folder_enabled: false,
             watch_folder_auto: false,
+            recording_folder: String::new(),
+            copy_imports: false,
             model: "large-v3".into(),
             editor_model: String::new(),
             language: "auto".into(),

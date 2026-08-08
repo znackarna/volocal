@@ -77,6 +77,9 @@ export interface Settings {
   watch_folder: string;
   watch_folder_enabled: boolean;
   watch_folder_auto: boolean;
+  /** Where the app keeps audio it owns. Empty means the default place. */
+  recording_folder: string;
+  copy_imports: boolean;
   model: string;
   /** Optional local model used to turn a transcript into a readable document. */
   editor_model: string;

@@ -116,6 +116,18 @@ export const enSettings: Partial<Record<keyof typeof csSettings, string>> = {
   "settings.files.watchAuto": "Automatic transcription",
   "settings.files.watchAutoNote":
     "Adds new files to the archive and starts transcription automatically.",
+
+  "settings.recordings.title": "Recordings folder",
+  "settings.recordings.description":
+    "Microphone takes and audio from online videos are saved in this folder.",
+  "settings.recordings.directory": "Location",
+  "settings.recordings.defaultPlace": "Beside the archive",
+  "settings.recordings.reset": "Default",
+  "settings.recordings.movedNote":
+    "The change applies to new recordings. Existing ones stay where they are.",
+  "settings.recordings.copyImports": "Copy files that are added",
+  "settings.recordings.copyImportsNote":
+    "The archive keeps copies of the files that are added. It costs the disk space twice.",
   "settings.files.watchToggleNote": "Offers new files for transcription. Doesn’t look in subfolders.",
   "settings.appearance.description":
     "Language, colour theme, and the type the transcript is read in.",

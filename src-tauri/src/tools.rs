@@ -596,6 +596,28 @@ fn playback_proxy_path(db_path: &Path, recording_id: &str, source: &Path) -> Res
     )))
 }
 
+/// The cached playback copy of a recording whose source has gone, if one is
+/// still sitting there.
+///
+/// Found by prefix rather than by fingerprint: the fingerprint is computed
+/// from the source's own metadata and there is no source left to ask. At most
+/// one proxy per recording survives — `remove_playback_proxies` runs whenever
+/// the path changes — so the first match is the only match.
+pub fn existing_playback_proxy(db_path: &Path, recording_id: &str) -> Option<PathBuf> {
+    let prefix = format!("{}-", safe_cache_key(recording_id));
+    std::fs::read_dir(playback_cache_directory(db_path))
+        .ok()?
+        .flatten()
+        .map(|entry| entry.path())
+        .find(|path| {
+            let named = path
+                .file_name()
+                .map(|name| name.to_string_lossy().starts_with(&prefix))
+                .unwrap_or(false);
+            named && path.metadata().is_ok_and(|metadata| metadata.len() > 0)
+        })
+}
+
 /// Removes every cached playback copy belonging to one recording.
 pub fn remove_playback_proxies(db_path: &Path, recording_id: &str) {
     let directory = playback_cache_directory(db_path);

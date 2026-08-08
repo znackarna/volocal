@@ -521,7 +521,9 @@ export default function SettingsScreen({ onComplete, onError, onToModule }: Prop
   }, [onError, t, userMessage]);
 
   const selectDirectory = useCallback(
-    async (key: "bin_directory" | "models_directory" | "watch_folder") => {
+    async (
+      key: "bin_directory" | "models_directory" | "watch_folder" | "recording_folder"
+    ) => {
       if (!n) return;
       const selected = await open({ directory: true });
       if (typeof selected === "string") save({ ...n, [key]: selected });
@@ -1270,6 +1272,53 @@ export default function SettingsScreen({ onComplete, onError, onToModule }: Prop
             description={t("settings.files.watchAutoNote")}
           />
         )}
+      </section>}
+
+      {/* A take from the microphone exists nowhere else, and until now it lived
+          in %APPDATA% where nobody looks. The point of this card is that the
+          audio the application makes for itself is somewhere its owner can
+          find — which is also what lets a factory reset leave it alone. */}
+      {activeTab === "files" && <section className="settings-card-recordings">
+        <h2>{t("settings.recordings.title")}</h2>
+        <p className="settings-section-description">
+          {t("settings.recordings.description")}
+        </p>
+
+        <div className="pole">
+          <label>{t("settings.recordings.directory")}</label>
+          <div className="radka">
+            <input
+              value={n.recording_folder}
+              readOnly
+              placeholder={t("settings.recordings.defaultPlace")}
+              aria-label={t("settings.recordings.directory")}
+            />
+            <button className="tlacitko" onClick={() => selectDirectory("recording_folder")}>
+              {t("settings.files.choose")}
+            </button>
+            {n.recording_folder && (
+              <button
+                className="tlacitko tichy"
+                onClick={() => save({ ...n, recording_folder: "" })}
+              >
+                {t("settings.recordings.reset")}
+              </button>
+            )}
+          </div>
+          {/* Inside the field it belongs to, which is what gives it the
+              system's 8 px — and puts the toggle back next to the `.pole`, so
+              it gets its own 24 px and the divider. Between them it was an
+              orphan with no spacing rule at all. */}
+          <InfoNote>{t("settings.recordings.movedNote")}</InfoNote>
+        </div>
+
+        <SettingsToggle
+          title={t("settings.recordings.copyImports")}
+          label={t("settings.recordings.copyImports")}
+          checked={n.copy_imports}
+          onChange={(checked) => save({ ...n, copy_imports: checked })}
+          description={t("settings.recordings.copyImportsNote")}
+        />
       </section>}
 
       {activeTab === "transcription" && <section className="settings-card-speakers">

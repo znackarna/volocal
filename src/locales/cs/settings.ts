@@ -25,7 +25,7 @@ export const csSettings = {
     "Počítač: {machine} · zobrazovací jádro není přiložené; na počítači bez WebView2 se okno neotevře",
   "settings.portable.copyTitle": "Kopie na přenosný disk",
   "settings.portable.copyDescription":
-    "Zkopíruje aplikaci i modely na zvolený disk. Na jiném počítači pak stačí spustit soubor {file}.",
+    "Zkopíruje aplikaci a modely na zvolený disk. Na jiném počítači pak stačí spustit soubor {file}.",
   "settings.portable.copyDestination": "Kam vytvořit přenosnou kopii",
   "settings.portable.copyHint":
     "Z flash disku se modely načítají pomaleji.",
@@ -116,6 +116,18 @@ export const csSettings = {
   "settings.files.watchAuto": "Automatický přepis",
   "settings.files.watchAutoNote":
     "Přidá nové soubory do archivu a zahájí automatický přepis.",
+
+  "settings.recordings.title": "Složka pro nahrávky",
+  "settings.recordings.description":
+    "Do této složky se ukládají záznamy z mikrofonu a online videí.",
+  "settings.recordings.directory": "Umístění",
+  "settings.recordings.defaultPlace": "Ve složce s archivem",
+  "settings.recordings.reset": "Výchozí",
+  "settings.recordings.movedNote":
+    "Změna platí pro nové nahrávky. Stávající zůstanou na místě.",
+  "settings.recordings.copyImports": "Kopírovat přidané soubory",
+  "settings.recordings.copyImportsNote":
+    "Archiv vytváří kopie přidaných souborů. Zabere to místo navíc.",
 
   // Fonts and the sample paragraph that shows them off.
   "settings.appearance.description":
@@ -216,7 +228,7 @@ export const csSettings = {
   // Copies of the archive database.
   "settings.backups.title": "Záloha archivu",
   "settings.backups.description":
-    "Archiv tvoří jediný soubor. Při každém spuštění vznikne jeho kopie: zůstávají tři poslední a k tomu jedna z každého z posledních sedmi dnů.",
+    "Archiv tvoří jediný soubor. Při každém spuštění vznikne kopie: zůstávají tři poslední a jedna pro každý z posledních sedmi dnů.",
   "settings.backups.latest": "Poslední záloha",
   "settings.backups.none": "zatím žádná",
   "settings.backups.count": "Uloženo kopií",

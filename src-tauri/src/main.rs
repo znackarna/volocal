@@ -259,11 +259,44 @@ fn create_recording(db: &Connection, file: PathBuf, duration: f64) -> Reported<R
 /// nothing else in the interface responded.
 #[tauri::command(async)]
 fn add_recording(app: State<'_, AppState>, path: String) -> Reported<Recording> {
-    let settings = {
+    let (settings, db_path) = {
         let db = app.db.lock().unwrap();
-        reported(db::load_settings(&db))?
+        (reported(db::load_settings(&db))?, app.db_path.clone())
     };
-    let file = PathBuf::from(path);
+    let mut file = PathBuf::from(path);
+
+    /* Asked for a self-contained archive: the file is copied in and the row
+    points at our copy, so deleting the original loses nothing. Deliberately
+    a copy and not a move — the file is the owner's and this application does
+    not get to take it. A copy that fails is reported and stops the import
+    rather than quietly filing the original: the answer to "is my audio
+    safe here" must not be sometimes. */
+    if settings.copy_imports {
+        let root = recordings_dir(&settings, &db_path);
+        std::fs::create_dir_all(&root)
+            .map_err(|error| UserMessage::new("import.copy_failed").detail(error))?;
+        let stem = file
+            .file_stem()
+            .map(|stem| stem.to_string_lossy().to_string())
+            .unwrap_or_else(|| "recording".into());
+        let extension = file
+            .extension()
+            .map(|extension| extension.to_string_lossy().to_string())
+            .unwrap_or_else(|| "bin".into());
+        let destination = free_path(&root, &stem, &extension);
+        // Already ours — adding a file straight out of this folder must not
+        // make a second copy of it beside the first.
+        let inside = file.canonicalize().ok().zip(root.canonicalize().ok());
+        let already_ours = inside
+            .map(|(file, root)| file.starts_with(&root))
+            .unwrap_or(false);
+        if !already_ours {
+            std::fs::copy(&file, &destination)
+                .map_err(|error| UserMessage::new("import.copy_failed").detail(error))?;
+            file = destination;
+        }
+    }
+
     let duration = probe_duration(&settings, &file);
     let db = app.db.lock().unwrap();
     create_recording(&db, file, duration)
@@ -389,6 +422,40 @@ async fn ignore_watch_folder_files(
     .map_err(|error| UserMessage::new("watch_folder.ignore_interrupted").detail(error))?
 }
 
+/// The folder the application keeps its own audio in.
+///
+/// One place for all of it — microphone takes, the sound out of an online
+/// video, and copies of files added by hand — because the point of the setting
+/// is that somebody can find them. Two folders would defeat it.
+///
+/// The default is `recordings` beside the archive rather than the historical
+/// `microphone`: existing files stay exactly where they are and keep playing,
+/// since every row holds an absolute path. Nothing is moved by an upgrade.
+fn recordings_dir(settings: &db::Settings, db_path: &std::path::Path) -> PathBuf {
+    let configured = settings.recording_folder.trim();
+    if !configured.is_empty() {
+        return PathBuf::from(configured);
+    }
+    db_path
+        .parent()
+        .unwrap_or_else(|| std::path::Path::new("."))
+        .join("recordings")
+}
+
+/// A name inside `directory` that is not taken, counting up if it is.
+///
+/// The names this produces are read by a person in a file manager, so they
+/// keep the original stem rather than becoming a UUID.
+fn free_path(directory: &std::path::Path, stem: &str, extension: &str) -> PathBuf {
+    let mut candidate = directory.join(format!("{stem}.{extension}"));
+    let mut counter = 2;
+    while candidate.exists() {
+        candidate = directory.join(format!("{stem} ({counter}).{extension}"));
+        counter += 1;
+    }
+    candidate
+}
+
 /// A take from the interface's microphone recorder.
 ///
 /// The audio arrives as the raw invoke body — a longer take is tens of
@@ -418,10 +485,7 @@ fn save_microphone_recording(
     let ffmpeg = check
         .ffmpeg
         .ok_or_else(|| UserMessage::new("microphone.ffmpeg_missing"))?;
-    let root = db_path
-        .parent()
-        .unwrap_or_else(|| std::path::Path::new("."))
-        .join("microphone");
+    let root = recordings_dir(&settings, &db_path);
     std::fs::create_dir_all(&root)
         .map_err(|error| UserMessage::new("microphone.save_failed").detail(error))?;
 
@@ -437,12 +501,7 @@ fn save_microphone_recording(
     // title, so it is written for reading, not for parsing. A second take in
     // the same minute counts up.
     let stamp = chrono::Local::now().format("%Y-%m-%d %H-%M").to_string();
-    let mut output = root.join(format!("Záznam {stamp}.m4a"));
-    let mut counter = 2;
-    while output.exists() {
-        output = root.join(format!("Záznam {stamp} ({counter}).m4a"));
-        counter += 1;
-    }
+    let output = free_path(&root, &format!("Záznam {stamp}"), "m4a");
 
     let converted = tools::command(std::path::Path::new(&ffmpeg))
         .args(["-hide_banner", "-loglevel", "error", "-y", "-i"])
@@ -908,6 +967,24 @@ async fn playback_source(app: State<'_, AppState>, id: String) -> Reported<Strin
     };
 
     let source = std::path::PathBuf::from(&recording.path);
+
+    /* The source is gone, but its playback proxy may still be sitting in the
+    cache. Play that rather than reporting nothing.
+    This is a rescue, not a promise, and the difference matters: the proxy
+    exists only for MP3 sources and is a second-generation lossy encode, so
+    it can never be the guarantee that audio survives. `copy_imports` is
+    that guarantee. Do not let this become the reason not to build it. */
+    if !source.exists() {
+        if let Some(proxy) = tools::existing_playback_proxy(&db_path, &recording.id) {
+            crate::note!(
+                "playback: source missing, using cached proxy for {}",
+                recording.id
+            );
+            return Ok(proxy.to_string_lossy().to_string());
+        }
+        return Ok(recording.path);
+    }
+
     let is_mp3 = source
         .extension()
         .and_then(|extension| extension.to_str())
