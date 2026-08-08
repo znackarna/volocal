@@ -29,6 +29,12 @@ export const csDialogs = {
   "dialogs.speakers.note": "Odpověď platí jen pro tento přepis, v nastavení se nic nemění.",
   "dialogs.speakers.unknown": "Nevím",
   "dialogs.speakers.confirm": "Přepsat",
+  "dialogs.speakers.namesTitle": "Jak se jmenují?",
+  "dialogs.speakers.namesIntro":
+    "Jména se po přepisu nabídnou u každého hlasu. Vyberete je jedním klepnutím, až si poslechnete ukázku.",
+  "dialogs.speakers.nameLabel": "Jméno {number}. mluvčího",
+  "dialogs.speakers.namePlaceholder": "{number}. mluvčí",
+  "dialogs.speakers.namesNote": "Jména můžete doplnit i později.",
   // Add recording dialog — source picker.
   "dialogs.addRecording.title": "Nový přepis",
   "dialogs.addRecording.prompt": "Vyberte, odkud chcete zvuk přidat.",
@@ -56,7 +62,7 @@ export const csDialogs = {
   "dialogs.addRecording.microphone": "Nový záznam",
   "dialogs.addRecording.microphoneNote": "Nahraje zvuk z mikrofonu.",
   "dialogs.addRecording.micIntro":
-    "Záznam se uloží do archivu jako každá jiná nahrávka. Ani slovo neopustí váš počítač.",
+    "Záznam se uloží jako nahrávka. Ani slovo neopustí počítač.",
   "dialogs.addRecording.micPreparing": "Připravuji mikrofon…",
   "dialogs.addRecording.micDenied":
     "Mikrofon se nepodařilo otevřít. Zkontrolujte oprávnění v nastavení systému.",
@@ -83,7 +89,7 @@ export const csDialogs = {
   "dialogs.recordingMenu.outOfFolder": "Vyjmout ze složky",
   "dialogs.recordingMenu.exportAudio": "Uložit zvuk…",
   "dialogs.rename.title": "Přejmenovat přepis",
-  "dialogs.rename.text": "Změní se název v archivu. Zvukový soubor na disku zůstane, jak se jmenuje.",
+  "dialogs.rename.text": "Přejmenuje položku v archivu, ne soubor na disku.",
   "dialogs.rename.label": "Název přepisu",
   "dialogs.rename.placeholder": "Porada týmu",
   "dialogs.folder.createTitle": "Nová složka",
@@ -125,6 +131,16 @@ export const csDialogsContext: Partial<Record<keyof typeof csDialogs, string>> =
   "dialogs.speakers.confirm": "Hlavní tlačítko dialogu: spustí přepis se zvoleným počtem.",
   "dialogs.speakers.morePlaceholder":
     "Zástupný text v poli pro počet vyšší než čtyři. Musí být velmi krátký, pole je úzké.",
+  "dialogs.speakers.namesTitle":
+    "Nadpis druhého kroku dialogu. Ptá se na jména lidí, jejichž počet uživatel právě zadal.",
+  "dialogs.speakers.namesIntro":
+    "Věta pod nadpisem. Vysvětluje, k čemu jména budou — nepojmenují mluvčí sama, jen se pak nabídnou k výběru.",
+  "dialogs.speakers.nameLabel":
+    "Popisek pole pro odečítač obrazovky. {number} je pořadí, tedy 1, 2, 3.",
+  "dialogs.speakers.namePlaceholder":
+    "Zástupný text v poli. {number} je pořadí. Krátké, pole je v úzkém dialogu.",
+  "dialogs.speakers.namesNote":
+    "Poznámka s modrou ikonou pod poli. Ubírá kroku naléhavost — vyplnit teď není povinné.",
   "dialogs.addRecording.title":
     "Nadpis dialogu pro přidání nahrávky. Uživatel v něm vybírá zdroj zvuku, přepis začne až potom.",
   "dialogs.addRecording.localFile":

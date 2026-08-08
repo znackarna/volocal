@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useI18n } from "./i18n";
 import { useDialog } from "./useDialog";
+import InfoNote from "./InfoNote";
 
 /** How many people speak, asked once before a transcription that will separate
  *  them.
@@ -14,6 +15,12 @@ import { useDialog } from "./useDialog";
  *  The answer belongs to this recording. It is not written to settings, so the
  *  next recording is asked again instead of inheriting an answer that was true
  *  once.
+ *
+ *  A second step then asks for their names. Those cannot tell the clustering
+ *  which group is whom — it produces anonymous groups and nothing in them
+ *  points at Roman — so they are not a constraint but a shortlist: after the
+ *  run, the speakers panel offers them under whichever voice is being named,
+ *  one click after hearing its sample. Skipping the step costs nothing.
  */
 export default function SpeakerCountDialog({
   recordingCount,
@@ -24,14 +31,67 @@ export default function SpeakerCountDialog({
   recordingCount: number;
   /** The stored default, offered as the starting point when it is a real count. */
   suggested: number;
-  onConfirm: (speakerCount: number | null) => void;
+  onConfirm: (speakerCount: number | null, names: string[]) => void;
   onCancel: () => void;
 }) {
   const { t, tPlural } = useI18n();
   const [choice, setChoice] = useState<number>(suggested > 0 ? suggested : 2);
+  const [naming, setNaming] = useState(false);
+  const [names, setNames] = useState<string[]>([]);
   const dialog = useDialog<HTMLDivElement>(onCancel);
 
   const quick = [1, 2, 3, 4];
+
+  /* Empty is a perfectly good answer for any one of them: somebody may know
+     two of the four names. Only what was written is carried on. */
+  const written = names.map((n) => n.trim()).filter(Boolean);
+
+  if (naming) {
+    return (
+      <div className="prekryv-dialogu" onMouseDown={onCancel}>
+        <div
+          ref={dialog}
+          className="dialog"
+          role="dialog"
+          aria-modal="true"
+          aria-label={t("dialogs.speakers.namesTitle")}
+          onMouseDown={(event) => event.stopPropagation()}
+        >
+          <h2>{t("dialogs.speakers.namesTitle")}</h2>
+          <p>{t("dialogs.speakers.namesIntro")}</p>
+
+          <div className="pole speaker-names">
+            {Array.from({ length: choice }, (_, i) => (
+              <input
+                key={i}
+                type="text"
+                autoFocus={i === 0}
+                value={names[i] ?? ""}
+                aria-label={t("dialogs.speakers.nameLabel", { number: i + 1 })}
+                placeholder={t("dialogs.speakers.namePlaceholder", { number: i + 1 })}
+                onChange={(event) => {
+                  const next = [...names];
+                  next[i] = event.target.value;
+                  setNames(next);
+                }}
+              />
+            ))}
+          </div>
+
+          <InfoNote>{t("dialogs.speakers.namesNote")}</InfoNote>
+
+          <div className="dialog-patka">
+            <button className="tlacitko tichy" onClick={() => setNaming(false)}>
+              {t("common.back")}
+            </button>
+            <button className="tlacitko hlavni" onClick={() => onConfirm(choice, written)}>
+              {t("dialogs.speakers.confirm")}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="prekryv-dialogu" onMouseDown={onCancel}>
@@ -85,11 +145,13 @@ export default function SpeakerCountDialog({
           </button>
           {/* Not knowing is a real answer, and the honest one for a recording
               whose participants the user has not heard yet. */}
-          <button className="tlacitko tichy" onClick={() => onConfirm(null)}>
+          <button className="tlacitko tichy" onClick={() => onConfirm(null, [])}>
             {t("dialogs.speakers.unknown")}
           </button>
-          <button className="tlacitko hlavni" onClick={() => onConfirm(choice)}>
-            {t("dialogs.speakers.confirm")}
+          {/* Not knowing how many there are means not knowing how many name
+              fields to draw, so that answer skips the second step entirely. */}
+          <button className="tlacitko hlavni" onClick={() => setNaming(true)}>
+            {t("common.continue")}
           </button>
         </div>
       </div>

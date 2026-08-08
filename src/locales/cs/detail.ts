@@ -81,7 +81,7 @@ export const csDetail = {
   "detail.speakers.diarizeAgain": "Rozpoznat znovu",
   "detail.speakers.diarizing": "Rozpoznávám…",
   "detail.speakers.playSample": "Přehrát ukázku hlasu",
-  "detail.speakers.nameHint": "Stejné jméno mluvčí sloučí.",
+  "detail.speakers.nameHint": "Stejné jméno sloučí mluvčí.",
   "detail.speakers.nameLabel": "Jméno mluvčího",
 
   "detail.notes.heading": "Poznámky",
@@ -107,7 +107,7 @@ export const csDetail = {
   "detail.menu.toNewVoice": "Připsat novému mluvčímu",
   "detail.unassigned.heading": "Bez jména",
   "detail.unassigned.hint":
-    "Krátké vsuvky, na které rozpoznání nestačilo. Klepnutím si je poslechnete, jménem přiřadíte.",
+    "Vsuvky, na které rozpoznání nestačí. Klepnutím si je poslechnete, jménem přiřadíte.",
   "detail.unassigned.hearTitle": "Přehrát od tohoto místa",
 
   "detail.ai.missingTitle": "Jazyková úprava není připravená",
@@ -121,7 +121,7 @@ export const csDetail = {
   "detail.ai.modeSpeakers": "Rozpoznání mluvčích",
   "detail.ai.modeSpeakersDescription": "Rozdělí přepis mezi jednotlivé mluvčí podle hlasu.",
   "detail.ai.modeSpeakersMissing": "Součásti pro rozpoznání mluvčích zatím nejsou stažené.",
-  "detail.ai.modeSpeakersDone": "Mluvčí už rozpoznaní jsou. Spustí rozpoznání znovu od začátku.",
+  "detail.ai.modeSpeakersDone": "Spustí rozpoznání znovu od začátku.",
   "detail.ai.speakersDoneBadge": "hotovo",
   "detail.ai.startSpeakersAgain": "Rozpoznat znovu",
   "detail.ai.startSpeakers": "Rozpoznat mluvčí",
@@ -143,9 +143,7 @@ export const csDetail = {
   "detail.preview.versionLabel": "Verze přepisu",
   "detail.preview.versionImproved": "Vylepšený",
   "detail.preview.versionOriginal": "Původní",
-  "detail.preview.lengthLabel": "Délka",
   "detail.preview.lengthGroupLabel": "Délka shrnutí",
-  "detail.preview.translateTo": "Přeložit do",
   "detail.preview.translationLanguageLabel": "Jazyk překladu",
   "detail.preview.discard": "Zahodit",
   "detail.preview.regenerateImproved": "Vylepšit znovu",
@@ -346,9 +344,6 @@ export const csDetailContext: Partial<Record<keyof typeof csDetail, string>> = {
     "Přepínač verze textu: upravená verze. Rod se řídí slovem „přepis“.",
   "detail.preview.versionOriginal":
     "Přepínač verze textu: verze přímo z rozpoznávání řeči. Rod se řídí slovem „přepis“.",
-  "detail.preview.lengthLabel": "Popisek přepínače délky shrnutí.",
-  "detail.preview.translateTo":
-    "Popisek u výběru jazyka. Za popiskem stojí seznam jazyků, věta nepokračuje.",
   "detail.preview.discard": "Tlačítko zahodí upravenou verzi přepisu. Původní přepis zůstane.",
   "detail.preview.regenerateSummary": "Tlačítko nechá shrnutí vytvořit znovu.",
 

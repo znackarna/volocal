@@ -163,11 +163,15 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 .aplikace { display: flex; flex-direction: column; height: 100%; }
 
-/* The sidebar now holds three sections on one page, and each one heads a list
-   the reader works in. Upper case at 11 px labelled them; at that size three
-   of them down one column read as fine print rather than as structure. */
+/* The sidebar holds five cards on one page, and each one heads a list the
+   reader works in. Upper case at 11 px labelled them; at that size five of
+   them down one column read as fine print rather than as structure.
+   This is the only rule that types this heading — the margin it once also
+   carried further down the file is gone, because the card owns its spacing. */
 .postranni h2 {
-  font-size: 14px; font-weight: 650; text-transform: none;
+  /* 680, the weight the archive's folder heading uses for the same job — a
+     14 px label at the top of a list — and one the documented set allows. */
+  font-size: 14px; font-weight: 680; text-transform: none;
   letter-spacing: -0.005em; color: var(--text);
 }
 /* A group label above a list in the wizard — deliberately below the 19 px of
@@ -1312,10 +1316,19 @@ mark { background: var(--zvyrazneni); color: inherit; padding: 0 2px; border-rad
   border-left: 1px solid var(--linka); background: var(--panel);
   overflow-y: auto; padding: 20px 18px 60px;
 }
-.postranni h2 { margin: 0 0 10px; }
 
 .mluvci-seznam { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-.mluvci-seznam li { display: flex; align-items: center; gap: 8px; }
+.mluvci-seznam li { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+/* A column of the shared 38 px fields — the group has one question above it,
+   so the fields carry only a placeholder each and no label of their own. */
+.speaker-names { display: flex; flex-direction: column; gap: 8px; }
+/* The shortlist drops onto its own line under the row it belongs to, so the
+   sample button, the field and the share keep the geometry they always had. */
+.mluvci-jmena {
+  flex: 0 0 100%; display: flex; flex-wrap: wrap; gap: 6px;
+  /* Under the field, not under the play button that precedes it. */
+  padding: 2px 0 4px 26px;
+}
 .tecka { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; }
 .mluvci-seznam input {
   flex: 1; min-width: 0; border: 1px solid transparent; background: transparent;
@@ -1388,20 +1401,39 @@ mark { background: var(--zvyrazneni); color: inherit; padding: 0 2px; border-rad
   display: flex; align-items: center; gap: 4px;
   margin-bottom: 18px; padding: 2px 0;
 }
-.settings-tabs button {
+/* Navigation between views: no border at all, the chosen one raised as a white
+   pill on the grey ground. One of the application's three button jobs, and the
+   only one that applies to a row of views — a bordered pill is a standalone
+   action, a dark pill is a value that has been set. The document preview's
+   tabs are the same job and share this rule; do not give either a border. */
+.settings-tabs button,
+.ai-document-tabs button,
+.ai-output-options button {
   position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 7px;
   height: 36px; padding: 0 14px;
   border: 0; border-radius: var(--r-pilulka); background: transparent;
   color: var(--text-tichy); cursor: pointer;
-  font-size: 13.5px; font-weight: 650; white-space: nowrap;
+  font: inherit; font-size: 13.5px; font-weight: 650; white-space: nowrap;
   transition: background var(--hover-duration) var(--hover-ease),
     color var(--hover-duration) var(--hover-ease),
     box-shadow var(--hover-duration) var(--hover-ease);
 }
-.settings-tabs button:hover { background: var(--tlumene); color: var(--text); }
-.settings-tabs button.active {
+/* The rule is not "a white pill" but "the chosen one is filled, one step off
+   its own ground" — white cannot be that step on white.
+   On grey: raised in white. Settings' page, and the strip that sits on the
+   document inside the preview dialog. */
+.settings-tabs button:hover,
+.ai-output-options button:hover { background: var(--tlumene); color: var(--text); }
+.settings-tabs button.active,
+.ai-output-options button.active {
   background: var(--panel); color: var(--text); box-shadow: var(--stin);
 }
+/* On white: filled dark, which is the same rule taken to its end — the chosen
+   one is the ground's opposite. It is also what the playback speeds do, on
+   white, for the same job: one of a row, chosen. `--tlumene` was tried and is
+   an 8 % step off white, too little to mark anything. */
+.ai-document-tabs button:hover { background: var(--tlumene); color: var(--text); }
+.ai-document-tabs button.active { background: var(--text); color: var(--pozadi); }
 .settings-tab-alert {
   width: 7px; height: 7px; flex: 0 0 auto; border-radius: 50%;
   background: var(--vystraha);
@@ -2045,70 +2077,94 @@ button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
   display: inline-grid; place-items: center;
   min-width: 19px; height: 19px; padding: 0 5px;
   border-radius: var(--r-pilulka); background: hsl(var(--ds-foreground) / 0.08);
-  color: var(--text-tichy); font-size: 10.5px; font-weight: 700;
+  /* 11 px, the badge size `.odznak` already uses and the documented
+     micro-label. 10.5 belonged to the archive calendar's weekday, not here. */
+  color: var(--text-tichy); font-size: 11px; font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
-.postranni .sidebar-section { margin: 0; }
-.postranni .sidebar-section + .sidebar-section {
-  margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--linka);
+/* Each section is a card that opens, not a row on a shared sheet. The card is
+   what makes the whole width clickable without inventing anything: it has an
+   edge, so there is no question where the target ends. */
+.postranni .sidebar-section {
+  /* `--r-velky`, like every other bordered card on `--panel` in this
+     application. `--r-karta` is the inner radius here: menu items, list rows,
+     the inset data panel. No `overflow: hidden` — the focus ring is an outer
+     shadow and the toggle is flush with three of these edges, so hiding the
+     overflow would clip it. The toggle rounds its own corners instead. */
+  margin: 0; border: 1px solid var(--linka); border-radius: var(--r-velky);
+  background: var(--panel);
+  transition: border-color var(--hover-duration) var(--hover-ease),
+    box-shadow var(--hover-duration) var(--hover-ease);
 }
-/* The action wraps to its own line rather than squeezing the heading.
-   Every heading here is one short word — Mluvčí, Kontrola, Opravy, Poznámky —
-   so an ellipsis on it destroys the only thing the row has to say, while the
-   action beside it can perfectly well move down a line. Before this, a narrow
-   panel read `Mlu… Kontr… Opra… Poznám…`, which is no use to anybody. */
-.sidebar-section-header {
-  display: flex; align-items: center; flex-wrap: wrap;
-  gap: 6px; min-height: 38px; margin-bottom: 8px;
+.postranni .sidebar-section + .sidebar-section { margin-top: 8px; }
+/* Pickable, exactly as a choice card and an archive row say it — the shared
+   low `--stin` and `--linka-pole`. Open is not exempt: `.volba.zvolena` and
+   `.radek.bezi` both keep their lift, and a state that suppressed it would
+   make this the only surface in the application that does. */
+.postranni .sidebar-section:hover,
+.postranni .sidebar-section:focus-within {
+  border-color: var(--linka-pole); box-shadow: var(--stin);
 }
-/* A closed section is only its header, so it owes the next one no gap. */
-.sidebar-section:not(.open) .sidebar-section-header { margin-bottom: 0; }
-.postranni .sidebar-section-header h2 {
-  /* Does not give way. The action does.
-     The ceiling belongs here and not on the button inside, which is what the
-     first attempt did: the heading sizes itself to that button, so a percentage
-     width on the button resolves against a width that depends on the button —
-     and collapses. Here the containing block is the header, which has a width
-     of its own. */
-  flex: 0 0 auto; max-width: 100%; min-width: 0; margin: 0; line-height: 1.3;
-}
-/* Keeps the far right on the shared line, and the far left once it has wrapped
-   onto its own — which is where a second line wants its content anyway. */
-.sidebar-section-header > .sidebar-text-action { margin-left: auto; }
-.sidebar-section-header > .sidebar-text-action:only-child { margin-left: 0; }
-/* The whole heading row opens and closes the section. The section's own action
-   sits outside it, because a button cannot contain another one. */
+.postranni .sidebar-section h2 { margin: 0; line-height: 1.3; }
+/* The whole card width, because the action moved inside the body and nothing
+   competes with it on this row any more. Every arrangement before this one was
+   a way around a button that could not contain another button. */
 .sidebar-section-toggle {
-  /* Content width, not full width: the section's action keeps the far right,
-     and a heading that claimed the space between them would push its own
-     label into an ellipsis while the row still looked half empty. */
-  display: flex; align-items: center; gap: 8px;
-  /* No ceiling here — see the heading above. The overflow this once guarded
-     against is now handled by the header wrapping instead, which is the better
-     answer anyway: the action moves down a line rather than squeezing a word
-     that has nowhere to go. */
-  min-width: 0; margin-left: -5px; padding: 4px 6px 4px 5px;
-  border: 0; border-radius: var(--r-velky); background: transparent;
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  /* `8px 12px`, the compact archive row's own pair. 12 px of side inset rather
+     than the card family's 14–16 because this card is 283 px wide and its body
+     is a list of rows that need the width — and every card in this application
+     keeps its horizontal inset at least as large as its vertical one, which
+     `14px 12px` was alone in inverting. With the circle back, 8 lands the
+     header on its 46 px. */
+  padding: 8px 12px;
+  /* One less than the card's 16, for the 1 px border it sits inside. Squared
+     off at the bottom once the body is showing. */
+  border: 0; border-radius: 15px; background: transparent;
   color: inherit; font: inherit; text-align: left; cursor: pointer;
   transition: background var(--hover-duration) var(--hover-ease);
 }
-.sidebar-section-toggle:hover { background: hsl(var(--ds-foreground) / 0.05); }
-/* A circle, like the module tiles and the acceleration cards. The icon is
-   17 px in a 30 px circle, the same ratio those use at 22 in 38. */
+.sidebar-section.open .sidebar-section-toggle { border-radius: 15px 15px 0 0; }
+/* `--pozadi`, the transcript's own ground, like the rows inside the card.
+   Deliberately not `--tlumene`, which the icon's circle already uses: on that
+   ground the circle would dissolve into its own background. */
+.sidebar-section-toggle:hover { background: var(--pozadi); }
+/* The mark leads the words under the pointer, having been quieter at rest. */
+.sidebar-section-toggle:hover .sidebar-section-icon { color: var(--text); }
+/* A circle, like every other leading icon in this application — module tiles,
+   choice cards, the folder card, the About rows. There is no bare one. It was
+   tried and it was wrong twice over: the header kept its height while losing
+   its object, so five identical text lines behind hairlines read as one grey
+   slab; and `Library.tsx` reuses this rule for the archive's folder heading,
+   so a second screen changed with it.
+   30/17 rather than the 38/22 of the larger surfaces — the reduced variant the
+   About rows already use for exactly this reason. */
 .sidebar-section-icon {
   display: grid; place-items: center; flex: 0 0 auto;
   width: 30px; height: 30px; border-radius: 50%;
   background: var(--tlumene); color: var(--text-tichy);
+  transition: color var(--hover-duration) var(--hover-ease);
 }
-.sidebar-section-title {
-  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
+/* Takes the free width, so the arrow is pushed to the end of the row and the
+   count sits just before it. Never gives way to an ellipsis: every heading
+   here is one short word and it is the only thing the row has to say. */
+.sidebar-section-title { flex: 1 1 auto; }
 .sidebar-section-chevron {
   flex: 0 0 auto; color: var(--text-tichy);
   transition: transform var(--hover-duration) var(--hover-ease);
 }
 .sidebar-section.open .sidebar-section-chevron { transform: rotate(180deg); }
-.sidebar-section-body { min-width: 0; animation: sidebar-section-open 180ms var(--hover-ease); }
+/* The card owns the gap under its heading, so every kind of body starts on the
+   same line. Left to themselves the five sections began at 2, 2, 4 and 12 px —
+   four rhythms under five identical headers, because each list carried a top
+   margin of its own. Those are zeroed; this is the one number. */
+.sidebar-section-body {
+  min-width: 0; padding: 10px 12px 12px;
+  animation: sidebar-section-open 180ms var(--hover-ease);
+}
+.sidebar-section-body > :first-child { margin-top: 0; }
+/* Bottom right of the card, under what it acts on. */
+.sidebar-section-action { display: flex; justify-content: flex-end; margin-top: 10px; }
 @keyframes sidebar-section-open {
   from { opacity: 0; transform: translateY(-3px); }
   to { opacity: 1; transform: none; }
@@ -2130,7 +2186,7 @@ button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
 .sidebar-text-action:disabled { color: var(--text-tichy); cursor: default; opacity: 0.65; }
 .sidebar-text-action:disabled:hover { background: transparent; }
 .sidebar-empty {
-  margin: 5px 0 0; color: var(--text-tichy); font-size: 13px; line-height: 1.45;
+  margin: 0; color: var(--text-tichy); font-size: 13px; line-height: 1.45;
 }
 
 /* Notes are cards, not table rows. The four-column grid they used to sit in
@@ -2255,36 +2311,37 @@ button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
 .speaker-count-input:focus {
   outline: 0; border-color: var(--akcent); box-shadow: var(--prstenec-pole);
 }
+/* Which of the three documents to read. Stays on the dialog's white with the
+   heading it belongs to, on the 26 px inset every dialog shares. */
 .ai-document-tabs {
-  align-self: flex-start; max-width: calc(100% - 44px);
-  margin: 0 26px 14px; overflow-x: auto; flex: 0 0 auto;
+  display: flex; gap: 4px; flex: 0 0 auto;
+  padding: 0 26px 14px; overflow-x: auto;
 }
-/* Shorthand, not padding-inline: the longhand only won by standing later
-   in the file than .segmented-control button. */
-.ai-document-tabs button { padding: 0 13px; }
+.ai-output-options { display: flex; gap: 4px; flex: 0 0 auto; }
 .ai-document-tabs button svg {
   width: 15px; height: 15px; flex: 0 0 auto;
   fill: none; stroke: currentColor; stroke-width: 1.5;
   stroke-linecap: round; stroke-linejoin: round;
 }
 .ai-document-tabs button:first-child svg { fill: currentColor; stroke: none; }
+/* This row belongs to the document, not to the dialog: it chooses a version,
+   a length, a language — of the thing being read, not which thing to read.
+   So it lives on the grey with the document and carries the edge between the
+   two. The tabs above it choose the view and stay with the heading. */
 .ai-output-toolbar {
   display: flex; align-items: center; gap: 10px;
-  min-height: 58px; padding: 10px 22px;
-  border-block: 1px solid var(--linka); background: var(--jemne);
-}
-.ai-output-label {
-  color: var(--text-tichy); font-size: 12px; font-weight: 650;
-  white-space: nowrap;
-}
-.ai-output-options {
-  flex: 0 0 auto;
+  padding: 14px 26px 0; background: var(--pozadi);
+  border-top: 1px solid var(--linka);
 }
 .ai-output-toolbar .vyber { width: 190px; }
+/* 36, the height of the tabs beside it — this strip held three different
+   heights until every control in it became the same one. */
 .ai-output-toolbar .vyber-spoust { height: 36px; background: var(--panel); font-size: 13px; }
 .ai-preview-text {
   flex: 1 1 auto; min-height: 0; overflow: auto;
-  padding: 24px 28px; background: var(--pozadi);
+  /* No border of its own: the row above it is already on this grey and carries
+     the edge. 26 on the sides, the dialog's own line. */
+  padding: 16px 26px 24px; background: var(--pozadi);
   font-family: var(--pismo-text); font-size: var(--velikost-textu);
   line-height: var(--radkovani); white-space: pre-wrap;
 }
@@ -2351,7 +2408,11 @@ button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
 .nejista-mista,
 .opravy,
 .neprirazene {
-  list-style: none; margin: 10px 0 0; padding: 0;
+  /* Out to the card's edges. These rows are menu items and a menu item's
+     highlight spans its whole menu; inset by the body's 12 px it read as a
+     floating filled cell with the row's own 12 px of padding inside it, which
+     is two insets doing one job. */
+  list-style: none; margin: 0 -12px; padding: 0;
   display: flex; flex-direction: column; gap: 2px;
   /* A longer recording can have dozens. The panel must not grow forever. */
   max-height: 280px; overflow-y: auto;
@@ -2359,7 +2420,10 @@ button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
 .nejista-mista button,
 .opravy button,
 .neprirazene .vsuvka {
-  display: grid; grid-template-columns: auto 1fr; align-items: baseline; gap: 9px;
+  /* Play mark, time, text. The mark says the row sounds rather than merely
+     travels — which it now does, in all three lists. */
+  display: grid; grid-template-columns: auto auto 1fr; align-items: baseline;
+  gap: 8px;
   width: 100%; text-align: left; cursor: pointer;
   border: 0; background: none;
   /* These rows are menu items, not pills: a list you run down picking one, the
@@ -2382,6 +2446,14 @@ button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
   font-size: 12px; font-weight: 600; color: var(--text-tichy);
   font-variant-numeric: tabular-nums;
 }
+/* Quiet at rest, accent once the row is pointed at or sounding — the mark is
+   there to say the row plays, not to compete with the words. */
+.radek-prehrat {
+  display: grid; place-items: center; color: var(--text-tichy);
+  transition: color var(--hover-duration) var(--hover-ease);
+}
+li:hover > button > .radek-prehrat,
+button.aktivni > .radek-prehrat { color: var(--akcent); }
 .nejisty-text {
   font-size: 13px; color: var(--text); line-height: 1.45;
   /* two lines are enough to recognise the spot; the rest is in the editor */
@@ -2584,10 +2656,17 @@ button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
   transition: background var(--hover-duration) var(--hover-ease);
 }
 .nejista-mista li { padding-right: 4px; }
+/* `--pozadi` — the transcript's own ground, the same faintly blue grey. On a
+   white card it is one step, not the two `--tlumene` takes: that token is a
+   hover on `--pozadi` itself, so used here it lands darker than everything
+   around it and reads as a filled cell rather than a row being pointed at.
+   What is sounding keeps the heavier `--tlumene`. */
 .nejista-mista li:hover,
 .opravy li:hover,
+.neprirazene li:hover { background: var(--pozadi); }
 .nejista-mista li:has(> button.aktivni),
-.opravy li:has(> button.aktivni) { background: var(--tlumene); }
+.opravy li:has(> button.aktivni),
+.neprirazene li:has(.vsuvka.aktivni) { background: var(--tlumene); }
 .nejista-mista li > button:first-child,
 .opravy li > button:first-child { flex: 1 1 auto; min-width: 0; }
 .nejista-mista .odklepnout {
@@ -2977,8 +3056,10 @@ button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
   font-variant-numeric: tabular-nums;
   color: var(--text-tichy);
 }
+/* 14, not 8: the system's 8 px is for a note about the one field above it, and
+   this one is about the whole list of speakers. */
 .mluvci-napoveda {
-  margin: 8px 0 0;
+  margin: 14px 0 0;
 }
 
 /* ------------------------------------------------------------- dictionary */
@@ -3117,15 +3198,15 @@ button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
 .neprirazene { gap: 6px; }
 .neprirazene li {
   display: flex; flex-direction: column; gap: 2px;
-  padding-bottom: 4px; border-radius: var(--r-karta);
+  /* Matches the 6 px the row button puts above the text, so the highlight sits
+     evenly around the pair rather than hugging the chips. */
+  padding-bottom: 6px; border-radius: var(--r-karta);
   transition: background var(--hover-duration) var(--hover-ease);
 }
-.neprirazene li:hover,
-.neprirazene li:has(.vsuvka.aktivni) { background: var(--tlumene); }
-/* The names line up with the text above them, not with the time: the question
-   the row asks is about those words. 12 px of the row plus the time's own
-   column and gap. */
-.neprirazene-hlasy { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 12px 0 51px; }
+/* Flush with the time, not indented under the text. Lining them up with the
+   words they are about read better and cost 39 px of a 283 px card — half a
+   chip, on a row that has two of them and a name of unknown length. */
+.neprirazene-hlasy { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 12px; }
 .hlas-volba {
   border: 1px solid; border-radius: var(--r-pilulka); background: transparent;
   padding: 2px 9px; font: inherit; font-size: 12px; font-weight: 600;

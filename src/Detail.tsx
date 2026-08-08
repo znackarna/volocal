@@ -29,6 +29,7 @@ import type { TranslationKey } from "./i18n";
 import { useLabels } from "./labels";
 import { useDialog } from "./useDialog";
 import { CONFIDENCE_THRESHOLD, formatTime, fileName } from "./types";
+import { forgetSpeakerName, speakerNamesFor } from "./speakerNames";
 import ProgressBubble from "./ProgressBubble";
 import type {
   AiDocument,
@@ -159,6 +160,35 @@ function readOpenSections(): SidebarOpenSections {
  *  count, and a chevron. The whole row opens and closes the section; the
  *  section's own action sits outside that button, because a button cannot
  *  contain another one. */
+/** Before the time on a row that plays from it.
+ *
+ *  The same triangle the speaker's sample button draws, so the one gesture that
+ *  starts audio looks the same wherever it is offered. It is not a button: the
+ *  whole row is, and a target inside a target would only be two ways to do one
+ *  thing.
+ */
+function PlayMark() {
+  return (
+    <span className="radek-prehrat" aria-hidden>
+      <svg width="9" height="9" viewBox="0 0 10 10">
+        <path d="M2.5 1.5 L8.5 5 L2.5 8.5 Z" fill="currentColor" />
+      </svg>
+    </span>
+  );
+}
+
+/** A section with nothing in it yet.
+ *
+ *  No icon, and that is a decision rather than an omission. The only mark that
+ *  would belong here is the section's own — and it is already two rows above,
+ *  in the heading, and often a third time in the action below. One drawing
+ *  three times in a 300 px card is not structure, it is noise. The heading
+ *  keeps the mark; this keeps the sentence.
+ */
+function SidebarEmpty({ children }: { children: ReactNode }) {
+  return <p className="sidebar-empty">{children}</p>;
+}
+
 function SidebarSection({
   icon,
   title,
@@ -178,33 +208,42 @@ function SidebarSection({
 }) {
   return (
     <section className={`sidebar-section ${open ? "open" : ""}`}>
-      <div className="sidebar-section-header">
-        <h2>
-          <button
-            type="button"
-            className="sidebar-section-toggle"
-            aria-expanded={open}
-            onClick={onToggle}
-          >
-            <span className="sidebar-section-icon" aria-hidden>
-              <LineIcon name={icon} size={17} />
-            </span>
-            <span className="sidebar-section-title">{title}</span>
-            {/* The count is what a closed section still says about itself.
-                Open, the list below is the answer, so the badge goes. */}
-            {!open && count !== undefined && count > 0 && (
-              <span className="sidebar-count">{count}</span>
-            )}
-            <svg className="sidebar-section-chevron" width="14" height="14"
-                 viewBox="0 0 14 14" aria-hidden>
-              <path d="M4 5.5 7 8.5 10 5.5" fill="none" stroke="currentColor"
-                    strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </button>
-        </h2>
-        {open && action}
-      </div>
-      {open && <div className="sidebar-section-body">{children}</div>}
+      {/* One control, the whole width of the card. The section's own action
+          lives inside the body rather than beside the heading, which is what
+          makes that possible — a button cannot contain another one, and every
+          previous arrangement here was a way around that. */}
+      <h2>
+        <button
+          type="button"
+          className="sidebar-section-toggle"
+          aria-expanded={open}
+          onClick={onToggle}
+        >
+          <span className="sidebar-section-icon" aria-hidden>
+            <LineIcon name={icon} size={17} />
+          </span>
+          <span className="sidebar-section-title">{title}</span>
+          {/* The count is what a closed section still says about itself.
+              Open, the list below is the answer, so the badge goes. */}
+          {!open && count !== undefined && count > 0 && (
+            <span className="sidebar-count">{count}</span>
+          )}
+          <svg className="sidebar-section-chevron" width="14" height="14"
+               viewBox="0 0 14 14" aria-hidden>
+            <path d="M4 5.5 7 8.5 10 5.5" fill="none" stroke="currentColor"
+                  strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+      </h2>
+      {open && (
+        <div className="sidebar-section-body">
+          {children}
+          {/* After the list, bottom right: the action follows from what is
+              above it — add another note, look for the speakers again — and
+              reading comes before acting. */}
+          {action && <div className="sidebar-section-action">{action}</div>}
+        </div>
+      )}
     </section>
   );
 }
@@ -1672,6 +1711,27 @@ export default function Detail({
     [id, onError, userMessage]
   );
 
+  /* The names typed before the run, still waiting for a voice. They appear
+     under whichever row is being named, never under all of them at once: with
+     five voices and five names that would be twenty-five buttons, and only one
+     of them is ever the answer to the question in front of you. */
+  const [namePool, setNamePool] = useState<string[]>(() => speakerNamesFor(id));
+  const [naming, setNaming] = useState<string | null>(null);
+  useEffect(() => {
+    setNamePool(speakerNamesFor(id));
+  }, [id]);
+
+  const takeName = useCallback(
+    async (key: string, name: string) => {
+      renameLocally(key, name);
+      await commitName(key, name);
+      forgetSpeakerName(id, name);
+      setNamePool((pool) => pool.filter((n) => n !== name));
+      setNaming(null);
+    },
+    [commitName, id, renameLocally]
+  );
+
   const merge = useCallback(
     async (z: string, toKey: string) => {
       try {
@@ -2343,9 +2403,11 @@ export default function Detail({
                         onChange={(event) => renameLocally(speaker.key, event.target.value)}
                         onFocus={(event) => {
                           nameAtFocus.current = event.target.value;
+                          setNaming(speaker.key);
                         }}
                         onBlur={async (event) => {
                           const typed = event.target.value;
+                          setNaming((k) => (k === speaker.key ? null : k));
                           await commitName(speaker.key, typed);
                           mergeByName(speaker.key, typed);
                         }}
@@ -2357,15 +2419,34 @@ export default function Detail({
                       <span className="mluvci-podil">
                         {Math.round((speakerShare.get(speaker.key) ?? 0) * 100)} %
                       </span>
+                      {naming === speaker.key && namePool.length > 0 && (
+                        <div className="mluvci-jmena">
+                          {namePool.map((name) => (
+                            <button
+                              key={name}
+                              className="hlas-volba"
+                              style={{ color: speaker.color, borderColor: speaker.color }}
+                              /* Keeps the field focused, so the chips are still
+                                 mounted when the click lands. */
+                              onMouseDown={(event) => event.preventDefault()}
+                              onClick={() => void takeName(speaker.key, name)}
+                            >
+                              {name}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </li>
                   ))}
                 </ul>
                 {speakers.length > 1 && (
-                  <p className="drobne mluvci-napoveda">{t("detail.speakers.nameHint")}</p>
+                  <div className="mluvci-napoveda">
+                    <InfoNote>{t("detail.speakers.nameHint")}</InfoNote>
+                  </div>
                 )}
               </>
             ) : (
-              <p className="sidebar-empty">{t("detail.speakers.empty")}</p>
+              <SidebarEmpty>{t("detail.speakers.empty")}</SidebarEmpty>
             )}
           </SidebarSection>
 
@@ -2401,6 +2482,7 @@ export default function Detail({
                         onClick={() => hear(s)}
                         title={t("detail.unassigned.hearTitle")}
                       >
+                        <PlayMark />
                         <span className="nejiste-cas">{formatTime(s.start)}</span>
                         <span className="nejisty-text">{s.text}</span>
                       </button>
@@ -2450,10 +2532,11 @@ export default function Detail({
                       />
                     ) : (
                       <>
-                        <button onClick={() => goTo(uncertain)}
+                        <button onClick={() => hear(uncertain)}
                                 onDoubleClick={() => setEditingUncertain(uncertain.id)}
                                 title={t("detail.review.editHint")}
                                 className={uncertain.start <= time && time < uncertain.end ? "aktivni" : ""}>
+                          <PlayMark />
                           <span className="nejiste-cas">{formatTime(uncertain.start)}</span>
                           <span className="nejisty-text">{uncertain.text}</span>
                         </button>
@@ -2471,7 +2554,7 @@ export default function Detail({
                 ))}
               </ul>
             ) : (
-              <p className="sidebar-empty">{t("detail.review.empty")}</p>
+              <SidebarEmpty>{t("detail.review.empty")}</SidebarEmpty>
             )}
           </SidebarSection>
 
@@ -2490,12 +2573,13 @@ export default function Detail({
                   return (
                     <li key={segment.id}>
                       <button
-                        onClick={() => goTo(segment)}
+                        onClick={() => hear(segment)}
                         title={t("detail.edits.seekTitle")}
                         className={
                           segment.start <= time && time < segment.end ? "aktivni" : ""
                         }
                       >
+                        <PlayMark />
                         <span className="oprava-cas">{formatTime(segment.start)}</span>
                         <span className="oprava-zmena">
                           <span className="oprava-pred">{change.before}</span>
@@ -2518,7 +2602,7 @@ export default function Detail({
                 })}
               </ul>
             ) : (
-              <p className="sidebar-empty">{t("detail.edits.empty")}</p>
+              <SidebarEmpty>{t("detail.edits.empty")}</SidebarEmpty>
             )}
           </SidebarSection>
 
@@ -2697,7 +2781,7 @@ export default function Detail({
             )}
 
             {!addingNote && notes.length === 0 && (
-              <p className="sidebar-empty">{t("detail.notes.empty")}</p>
+              <SidebarEmpty>{t("detail.notes.empty")}</SidebarEmpty>
             )}
           </SidebarSection>
         </aside>
@@ -2892,7 +2976,12 @@ export default function Detail({
             {aiDocument.stale && (
               <div className="ai-preview-warning">{t("detail.preview.staleWarning")}</div>
             )}
-            <nav className="ai-document-tabs segmented-control" role="tablist"
+            {/* The header's own buttons, and the playback speeds' own selected
+                state: a row of pills where the chosen one is filled. A
+                segmented control is right in the archive, where it switches how
+                a list is drawn; hanging under a header made of pills it read as
+                a borrowed part. */}
+            <nav className="ai-document-tabs" role="tablist"
                  aria-label={t("detail.preview.tabsLabel")}>
               <button className={previewTab === "improved" || previewTab === "original" ? "active" : ""}
                       onClick={() => setPreviewTab("improved")} role="tab"
@@ -2916,7 +3005,7 @@ export default function Detail({
 
             {(previewTab === "improved" || previewTab === "original") && (
               <div className="ai-output-toolbar">
-                <div className="ai-output-options segmented-control" role="radiogroup"
+                <div className="ai-output-options" role="radiogroup"
                      aria-label={t("detail.preview.versionLabel")}>
                   <button className={previewTab === "improved" ? "active" : ""}
                           onClick={() => setPreviewTab("improved")} role="radio"
@@ -2933,8 +3022,9 @@ export default function Detail({
             )}
             {previewTab === "summary" && (
               <div className="ai-output-toolbar">
-                <span className="ai-output-label">{t("detail.preview.lengthLabel")}</span>
-                <div className="ai-output-options segmented-control" role="radiogroup"
+                {/* The three names say what they are. The group keeps its
+                    accessible label for anyone who cannot see them. */}
+                <div className="ai-output-options" role="radiogroup"
                      aria-label={t("detail.preview.lengthGroupLabel")}>
                   {SUMMARY_LENGTHS.map((option) => (
                     <button key={option}
@@ -2950,9 +3040,9 @@ export default function Detail({
             )}
             {previewTab === "translation" && (
               <div className="ai-output-toolbar">
-                <label className="ai-output-label" htmlFor="translation-language">
-                  {t("detail.preview.translateTo")}
-                </label>
+                {/* No visible label: the tab above says Překlad and the value
+                    in the control is a language. `Select` carries its own
+                    accessible name through `description`. */}
                 <Select
                   value={translationLanguage}
                   items={translationLanguageItems}

@@ -24,6 +24,7 @@ import type { RecordingMetadataKind } from "./RecordingMetadataIcon";
 import mark from "./mark.svg?raw";
 import type { ConfirmationRequest } from "./ConfirmationDialog";
 import { formatTime, applyFonts, applyTheme, fileName } from "./types";
+import { rememberSpeakerNames } from "./speakerNames";
 import { useI18n } from "./i18n";
 import type { TranslationKey } from "./i18n";
 import { useProgressMessage, useUserMessage } from "./messages";
@@ -1520,9 +1521,10 @@ export default function App() {
           recordingCount={pendingTranscription.ids.length}
           suggested={speakerSetup.count}
           onCancel={() => setPendingTranscription(null)}
-          onConfirm={(speakerCount) => {
+          onConfirm={(speakerCount, names) => {
             const pending = pendingTranscription;
             setPendingTranscription(null);
+            rememberSpeakerNames(pending.ids, names);
             void runTranscription(
               pending.ids,
               pending.language,

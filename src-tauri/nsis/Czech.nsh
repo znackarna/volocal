@@ -1,4 +1,4 @@
-﻿; Czech text for the strings Tauri's own installer script defines.
+; Czech text for the strings Tauri's own installer script defines.
 ; Without this file every one of them is empty when the installer runs in
 ; Czech: Tauri emits only English.nsh and defines each LangString for
 ; ${LANG_ENGLISH} alone, while installer.nsi loads Czech first. The visible

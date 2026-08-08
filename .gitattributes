@@ -13,6 +13,16 @@
 # how a Unicode makensis knows not to read it in the system code page — the
 # bytes are content, so git leaves them alone either way.
 src-tauri/LICENSE.txt text eol=crlf
+
+# The NSIS language file is UTF-8 with NO byte-order mark, and that is not a
+# preference — it is what the bundler requires, established by reading the
+# bytes rather than by reasoning about them.
+# Tauri does not copy this file, it reads it and writes it out with a UTF-8 BOM
+# of its own. A source that carries one ends up with two (makensis: `Invalid
+# command: "<BOM>;"`); a UTF-16 source ends up with a UTF-8 BOM in front of a
+# UTF-16 one (`Bad text encoding`). Tauri's own generated English.nsh begins
+# EF BB BF for exactly this reason — the mark is added at copy time and is not
+# in its source either.
 *.nsh text eol=crlf
 
 # Binary: never touch.

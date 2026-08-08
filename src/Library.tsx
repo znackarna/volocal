@@ -497,6 +497,18 @@ export default function Library({
   /* The position the previous scroll event reported, which is what tells a
      genuine return to the top from a layout that merely settled at zero. */
   const lastPositionRef = useRef(0);
+  /* Resizing the header moves the scroll position by itself, and that movement
+     must not be read as an instruction.
+     Collapsing takes about 267 px out of the page. In a low window with a
+     short list the content then fits, the browser has to clamp `scrollTop`
+     down to zero — and zero after a positive position is exactly how a genuine
+     return to the top looks. So the header collapsed, reopened itself, became
+     tall enough to scroll again, and flickered. For a moment after our own
+     change, scroll events only record where they are. */
+  const settleUntilRef = useRef(0);
+  const holdStateWhileSettling = () => {
+    settleUntilRef.current = performance.now() + 250;
+  };
   const scrollContentRef = useRef<HTMLDivElement>(null);
 
   // Hledani se spousti samo, ale az kdyz uzivatel na chvili prestane psat.
@@ -596,15 +608,16 @@ export default function Library({
         }
         const previous = lastPositionRef.current;
         lastPositionRef.current = position;
+        // Our own resize is still settling: note the position, decide nothing.
+        if (performance.now() < settleUntilRef.current) return;
         if (!dropZoneCompactRef.current && position > 64) {
+          holdStateWhileSettling();
           dropZoneCompactRef.current = true;
           setDropZoneCompact(true);
         } else if (dropZoneCompactRef.current && position === 0 && previous > 0) {
           // A real return to the beginning, whichever way it was made — the
-          // wheel, the scrollbar, Home. The two conditions cannot chase each
-          // other: collapsing needs 64 px and expanding needs exactly zero
-          // *after* a positive position, so a layout that settles at zero on
-          // its own does not reopen the header.
+          // wheel, the scrollbar, Home.
+          holdStateWhileSettling();
           dropZoneCompactRef.current = false;
           setDropZoneCompact(false);
         }
@@ -627,6 +640,8 @@ export default function Library({
         if (event.deltaY > 4 && !dropZoneCompactRef.current) {
           event.preventDefault();
           scroller.scrollTop = 0;
+          lastPositionRef.current = 0;
+          holdStateWhileSettling();
           dropZoneCompactRef.current = true;
           setDropZoneCompact(true);
         } else if (
@@ -636,6 +651,8 @@ export default function Library({
         ) {
           event.preventDefault();
           scroller.scrollTop = 0;
+          lastPositionRef.current = 0;
+          holdStateWhileSettling();
           dropZoneCompactRef.current = false;
           setDropZoneCompact(false);
         }
