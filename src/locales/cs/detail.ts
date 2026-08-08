@@ -105,6 +105,10 @@ export const csDetail = {
   "detail.menu.toPrevious": "Připsat výše — {name}",
   "detail.menu.toNext": "Připsat níže — {name}",
   "detail.menu.toNewVoice": "Připsat novému mluvčímu",
+  "detail.unassigned.heading": "Bez jména",
+  "detail.unassigned.hint":
+    "Krátké vsuvky, u kterých si rozpoznání nebylo jisté. Klepnutím na jméno je přiřadíte.",
+  "detail.unassigned.seekTitle": "Přejít na místo v přepisu",
 
   "detail.ai.missingTitle": "Jazyková úprava není připravená",
   "detail.ai.missingText":
@@ -319,6 +323,10 @@ export const csDetailContext: Partial<Record<keyof typeof csDetail, string>> = {
     "Položka nabídky: přiřadí tenhle blok mluvčímu, který mluví pod ním. {name} je jeho jméno.",
   "detail.menu.toNewVoice":
     "Položka nabídky: založí dalšího mluvčího a přiřadí mu tenhle blok. Pro člověka, kterého rozpoznání vůbec nenašlo.",
+  "detail.unassigned.heading":
+    "Nadpis sekce v postranním panelu. Krátký, vedle Mluvčí, Kontrola, Opravy a Poznámky.",
+  "detail.unassigned.hint":
+    "Věta nad seznamem. Vysvětluje, co v něm je a co s tím.",
   "detail.ai.missingTitle":
     "Nadpis dialogu. „Jazyková úprava“ je úprava textu jazykovým modelem, ne změna jazyka.",
   "detail.ai.configureTitle": "Nadpis dialogu, který nastavuje úpravu přepisu jazykovým modelem.",

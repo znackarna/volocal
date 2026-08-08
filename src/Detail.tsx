@@ -128,9 +128,9 @@ const TRANSLATION_LANGUAGES = ["cs", "en", "de", "sk", "pl", "fr", "es", "it", "
 type TranslationLanguage = (typeof TRANSLATION_LANGUAGES)[number];
 type PreviewTab = "improved" | "summary" | "translation" | "original";
 
-/** The three lists in the sidebar. They are one page now, not two tabs, so
- *  each one opens and closes on its own and remembers that. */
-const SIDEBAR_SECTIONS = ["speakers", "review", "edits", "notes"] as const;
+/** The lists in the sidebar. They are one page, not tabs, so each one opens
+ *  and closes on its own and remembers that. */
+const SIDEBAR_SECTIONS = ["speakers", "unassigned", "review", "edits", "notes"] as const;
 type SidebarSectionName = (typeof SIDEBAR_SECTIONS)[number];
 type SidebarOpenSections = Record<SidebarSectionName, boolean>;
 
@@ -1119,6 +1119,20 @@ export default function Detail({
   const uncertainSegments = useMemo(
     () => segments.filter((s) => (s.confidence ?? 1) < CONFIDENCE_THRESHOLD && !s.verified),
     [segments]
+  );
+
+  /* Blocks nobody could put a name to — the short interjections, "Yeah.",
+     "Okay.", a third of a second each. The model is never asked about them
+     because there is too little voice to describe, and the ones that sit
+     between two blocks of one person are filled in on the way out of
+     recognition. What is left is the genuinely ambiguous handful, and this
+     list is where they stop being scattered through the transcript.
+
+     Only when somebody has been recognised at all: before that every block is
+     unassigned and a list of all of them says nothing. */
+  const unassignedSegments = useMemo(
+    () => (speakers.length > 0 ? segments.filter((s) => !s.speakers) : []),
+    [segments, speakers]
   );
 
   /* What this recording was corrected on, in transcript order.
@@ -2340,6 +2354,48 @@ export default function Detail({
               <p className="sidebar-empty">{t("detail.speakers.empty")}</p>
             )}
           </SidebarSection>
+
+          {/* Only where there is something to do. An empty list of a thing the
+              reader has never heard of is worse than no section at all. */}
+          {unassignedSegments.length > 0 && (
+            <SidebarSection
+              icon="uncertain"
+              title={t("detail.unassigned.heading")}
+              count={unassignedSegments.length}
+              open={openSections.unassigned}
+              onToggle={() => toggleSection("unassigned")}
+            >
+              <p className="sidebar-empty">{t("detail.unassigned.hint")}</p>
+              <ul className="neprirazene">
+                {unassignedSegments.map((s) => (
+                  <li key={s.id}>
+                    <button
+                      className={s.start <= time && time < s.end ? "aktivni" : ""}
+                      onClick={() => goTo(s)}
+                      title={t("detail.unassigned.seekTitle")}
+                    >
+                      <span className="nejiste-cas">{formatTime(s.start)}</span>
+                      <span className="nejisty-text">{s.text}</span>
+                    </button>
+                    {/* One click per answer. A menu would be three, and there
+                        are only ever a handful of voices to choose from. */}
+                    <div className="neprirazene-hlasy">
+                      {speakers.map((voice) => (
+                        <button
+                          key={voice.key}
+                          className="hlas-volba"
+                          style={{ color: voice.color, borderColor: voice.color }}
+                          onClick={() => void giveToVoice(s, voice.key)}
+                        >
+                          {voice.name}
+                        </button>
+                      ))}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </SidebarSection>
+          )}
 
           <SidebarSection
             icon="review"

@@ -3102,3 +3102,19 @@ button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
 .kontextova-nabidka .nabidka-akci-seznam {
   position: static; min-width: 208px;
 }
+
+/* ------------------------------------------------ blocks with no speaker */
+/* The same row as the two lists above it, with the answers underneath. One
+   click per answer: a menu would be three, and there are only ever a handful
+   of voices to choose from. */
+.neprirazene { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.neprirazene li { display: flex; flex-direction: column; gap: 4px; }
+.neprirazene-hlasy { display: flex; flex-wrap: wrap; gap: 6px; padding-left: 10px; }
+.hlas-volba {
+  border: 1px solid; border-radius: var(--r-pilulka); background: transparent;
+  padding: 2px 9px; font: inherit; font-size: 12px; font-weight: 650;
+  cursor: pointer; opacity: 0.85;
+  transition: background var(--hover-duration) var(--hover-ease),
+    opacity var(--hover-duration) var(--hover-ease);
+}
+.hlas-volba:hover { background: var(--tlumene); opacity: 1; }
