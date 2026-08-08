@@ -9898,3 +9898,20 @@ first change to the pipeline that produces the speakers in a real transcript.
 - Verified: `npx tsc --noEmit`; `node scripts/i18n.mjs check` (no problems, the
   new English approved); `npx vite build`; braces balanced and no long line in
   `main.rs`. The Rust itself is uncompiled here, as ever — CI reads it first.
+
+### 2026-08-07 — Correcting entry: the ceiling was on the wrong element
+
+- The headings were still `Mlu… Kontr… Opra… Poznám…` after the wrap fix, and
+  the reason is a circularity I introduced myself. `max-width: 100%` sat on the
+  toggle *inside* the heading — but the heading sizes itself to that toggle, so
+  the percentage resolved against a width that depended on the thing it was
+  constraining, and collapsed.
+- Fixed: the ceiling moved to the `h2`, whose containing block is the header and
+  therefore has a width of its own. The toggle has no ceiling at all now,
+  because the overflow it once guarded against is handled by the header
+  wrapping — which is the better answer anyway: the action moves down a line
+  rather than squeezing a word that has nowhere to go.
+- Lesson worth keeping: a percentage against a parent that shrink-wraps the
+  same child is not a constraint, it is a loop. Put the limit on the element
+  whose containing block is fixed by something else.
+- Files: `src/styles.css`.

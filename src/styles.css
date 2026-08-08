@@ -2056,8 +2056,13 @@ button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
 /* A closed section is only its header, so it owes the next one no gap. */
 .sidebar-section:not(.open) .sidebar-section-header { margin-bottom: 0; }
 .postranni .sidebar-section-header h2 {
-  /* Does not give way. The action does. */
-  flex: 0 0 auto; min-width: 0; margin: 0; line-height: 1.3;
+  /* Does not give way. The action does.
+     The ceiling belongs here and not on the button inside, which is what the
+     first attempt did: the heading sizes itself to that button, so a percentage
+     width on the button resolves against a width that depends on the button —
+     and collapses. Here the containing block is the header, which has a width
+     of its own. */
+  flex: 0 0 auto; max-width: 100%; min-width: 0; margin: 0; line-height: 1.3;
 }
 /* Keeps the far right on the shared line, and the far left once it has wrapped
    onto its own — which is where a second line wants its content anyway. */
@@ -2070,12 +2075,10 @@ button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
      and a heading that claimed the space between them would push its own
      label into an ellipsis while the row still looked half empty. */
   display: flex; align-items: center; gap: 8px;
-  /* And a ceiling, or the content width above becomes an overflow. The heading
-     is a flex item and shrinks; this button is not one, so at a narrow panel it
-     kept its content width, spilled out of the heading and lay over the
-     section's action. `min-width: 0` and the ellipsis below were written for
-     exactly that and could never fire without this line. */
-  max-width: 100%;
+  /* No ceiling here — see the heading above. The overflow this once guarded
+     against is now handled by the header wrapping instead, which is the better
+     answer anyway: the action moves down a line rather than squeezing a word
+     that has nowhere to go. */
   min-width: 0; margin-left: -5px; padding: 4px 6px 4px 5px;
   border: 0; border-radius: var(--r-velky); background: transparent;
   color: inherit; font: inherit; text-align: left; cursor: pointer;
