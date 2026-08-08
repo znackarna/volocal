@@ -91,8 +91,8 @@ export const enDetail: Partial<Record<keyof typeof csDetail, string>> = {
   "detail.menu.toNewVoice": "Credit to a new speaker",
   "detail.unassigned.heading": "Unnamed",
   "detail.unassigned.hint":
-    "Short interjections the recognition was unsure about. Tap a name to credit them.",
-  "detail.unassigned.seekTitle": "Go to this spot in the transcript",
+    "Short interjections the recognition could not place. Tap one to hear it, tap a name to credit it.",
+  "detail.unassigned.hearTitle": "Play from here",
   "detail.ai.missingTitle": "Language editing isn’t ready",
   "detail.ai.missingText": "Download a local model and the program for language editing. Then it runs without internet and the text never leaves your computer.",
   "detail.ai.chooseModel": "Choose model",

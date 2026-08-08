@@ -2609,9 +2609,7 @@ fn bridge_unknown(segments: &mut [Segment]) -> usize {
         }
         // Both sides must exist and agree. A run at either edge of the
         // recording has only one neighbour and stays as it is.
-        let before = at
-            .checked_sub(1)
-            .and_then(|i| segments[i].speakers.clone());
+        let before = at.checked_sub(1).and_then(|i| segments[i].speakers.clone());
         let after = segments.get(end).and_then(|s| s.speakers.clone());
         let bridged = match (before, after) {
             (Some(a), Some(b)) if a == b => Some(a),

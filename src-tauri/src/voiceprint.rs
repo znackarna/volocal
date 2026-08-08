@@ -426,7 +426,8 @@ fn build(model: &std::path::Path, on_card: bool) -> Result<ort::session::Session
     // can, which is what the probe in `probe/ort-dml` is for.
     providers.push(ort::ep::CPU::default().build());
 
-    let mut builder = Session::builder()?.with_optimization_level(GraphOptimizationLevel::Level3)?;
+    let mut builder =
+        Session::builder()?.with_optimization_level(GraphOptimizationLevel::Level3)?;
     // Not tuning but a condition: DirectML refuses to create a session while
     // memory-pattern optimisation is on, and it is on by default.
     if on_card {

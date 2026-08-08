@@ -1158,6 +1158,20 @@ export default function Detail({
     [updateCursor]
   );
 
+  /* An interjection is clicked in order to *hear* it — a third of a second of
+     text says nothing about whose voice it is. Same reasoning as a note's time
+     chip, and the opposite of `goTo`, which stays quiet because stepping
+     through uncertain spots is reading. */
+  const hear = useCallback(
+    (segment: Segment) => {
+      document
+        .getElementById(`segment-${segment.id}`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+      playFrom(segment.start);
+    },
+    [playFrom]
+  );
+
   const goToNextUncertain = useCallback(() => {
     if (uncertainSegments.length === 0) return;
     goTo(uncertainSegments.find((s) => s.start > time + 0.05) ?? uncertainSegments[0]);
@@ -2367,32 +2381,49 @@ export default function Detail({
             >
               <p className="sidebar-empty">{t("detail.unassigned.hint")}</p>
               <ul className="neprirazene">
-                {unassignedSegments.map((s) => (
-                  <li key={s.id}>
-                    <button
-                      className={s.start <= time && time < s.end ? "aktivni" : ""}
-                      onClick={() => goTo(s)}
-                      title={t("detail.unassigned.seekTitle")}
-                    >
-                      <span className="nejiste-cas">{formatTime(s.start)}</span>
-                      <span className="nejisty-text">{s.text}</span>
-                    </button>
-                    {/* One click per answer. A menu would be three, and there
-                        are only ever a handful of voices to choose from. */}
-                    <div className="neprirazene-hlasy">
-                      {speakers.map((voice) => (
-                        <button
-                          key={voice.key}
-                          className="hlas-volba"
-                          style={{ color: voice.color, borderColor: voice.color }}
-                          onClick={() => void giveToVoice(s, voice.key)}
-                        >
-                          {voice.name}
-                        </button>
-                      ))}
-                    </div>
-                  </li>
-                ))}
+                {unassignedSegments.map((s) => {
+                  /* Only the two neighbours, not every voice in the recording.
+                     A gap between two blocks of one person is already filled
+                     by the backend, so what is left lies between two different
+                     people — and the right answer is one of those two. Listing
+                     all five under all thirty rows would be 150 buttons, and
+                     none of the other 148 is a plausible answer. Somebody who
+                     needs a third voice has the transcript's own menu. */
+                  const above = neighbourVoice(s, -1);
+                  const below = neighbourVoice(s, 1);
+                  const choices = below && below.key !== above?.key
+                    ? [above, below]
+                    : [above];
+                  return (
+                    <li key={s.id}>
+                      <button
+                        className={`vsuvka ${s.start <= time && time < s.end ? "aktivni" : ""}`}
+                        onClick={() => hear(s)}
+                        title={t("detail.unassigned.hearTitle")}
+                      >
+                        <span className="nejiste-cas">{formatTime(s.start)}</span>
+                        <span className="nejisty-text">{s.text}</span>
+                      </button>
+                      <div className="neprirazene-hlasy">
+                        {choices.map((voice) =>
+                          voice ? (
+                            <button
+                              key={voice.key}
+                              className="hlas-volba"
+                              style={{
+                                color: speakerByKey.get(voice.key)?.color,
+                                borderColor: speakerByKey.get(voice.key)?.color,
+                              }}
+                              onClick={() => void giveToVoice(s, voice.key)}
+                            >
+                              {voice.name}
+                            </button>
+                          ) : null
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
             </SidebarSection>
           )}
