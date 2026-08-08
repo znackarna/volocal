@@ -105,6 +105,11 @@ export const csDetail = {
   "detail.menu.toPrevious": "Připsat výše — {name}",
   "detail.menu.toNext": "Připsat níže — {name}",
   "detail.menu.toNewVoice": "Připsat novému mluvčímu",
+  "detail.find.open": "Hledat v přepisu (Ctrl+F)",
+  "detail.find.placeholder": "Hledat v přepisu",
+  "detail.find.count": "{at} z {total}",
+  "detail.find.previous": "Předchozí nález",
+  "detail.find.next": "Další nález",
   "detail.unassigned.heading": "Bez jména",
   "detail.unassigned.hint":
     "Vsuvky, na které rozpoznání nestačí. Klepnutím si je poslechnete, jménem přiřadíte.",
@@ -321,6 +326,10 @@ export const csDetailContext: Partial<Record<keyof typeof csDetail, string>> = {
     "Položka nabídky: přiřadí tenhle blok mluvčímu, který mluví pod ním. {name} je jeho jméno.",
   "detail.menu.toNewVoice":
     "Položka nabídky: založí dalšího mluvčího a přiřadí mu tenhle blok. Pro člověka, kterého rozpoznání vůbec nenašlo.",
+  "detail.find.placeholder":
+    "Zástupný text v poli pro hledání uvnitř otevřeného přepisu. Krátké, pole je úzké.",
+  "detail.find.count":
+    "Kolikátý nález z kolika. {at} a {total} jsou čísla, například „3 z 17“.",
   "detail.unassigned.heading":
     "Nadpis sekce v postranním panelu. Krátký, vedle Mluvčí, Kontrola, Opravy a Poznámky.",
   "detail.unassigned.hint":

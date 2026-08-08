@@ -180,12 +180,16 @@ pub fn import(
         .parent()
         .ok_or_else(|| UserMessage::new("online_import.ffmpeg_path_invalid"))?;
 
+    /* The finished file lands in the recordings folder with everything else the
+    application owns — that folder exists so its owner can find this audio,
+    and audio hidden under a UUID in a second place defeats it.
+    The scratch directory stays: yt-dlp names the file from the video's own
+    title, so the only way to know what it wrote is to give it a directory
+    of its own and look. It is removed either way, on success and on every
+    failure path below. */
     let import_id = uuid::Uuid::new_v4().to_string();
-    let media_root = db_path
-        .parent()
-        .unwrap_or_else(|| Path::new("."))
-        .join("online-media");
-    let output_directory = media_root.join(&import_id);
+    let media_root = crate::recordings_dir(settings, db_path);
+    let output_directory = media_root.join(format!(".download-{import_id}"));
     std::fs::create_dir_all(&output_directory)
         .map_err(|error| UserMessage::new("online_import.directory_failed").detail(error))?;
     let output_template = output_directory.join("%(title).180B.%(ext)s");
@@ -344,6 +348,22 @@ pub fn import(
         .file_stem()
         .map(|name| name.to_string_lossy().to_string())
         .unwrap_or_else(|| "Online nahrávka".into());
+
+    /* Up out of the scratch directory, under the name the video gave it. A
+    rename first because it is instant on the same volume; a copy is the
+    fallback for the case where the recordings folder is on another disk. */
+    let extension = path
+        .extension()
+        .map(|value| value.to_string_lossy().to_string())
+        .unwrap_or_else(|| "m4a".into());
+    let final_path = crate::free_path(&media_root, &recording_title, &extension);
+    let moved = std::fs::rename(&path, &final_path).is_ok()
+        || (std::fs::copy(&path, &final_path).is_ok() && std::fs::remove_file(&path).is_ok());
+    let path = if moved { final_path } else { path };
+    if moved {
+        let _ = std::fs::remove_dir_all(&output_directory);
+    }
+
     let duration = check
         .ffprobe
         .as_ref()

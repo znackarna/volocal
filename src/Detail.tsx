@@ -160,6 +160,19 @@ function readOpenSections(): SidebarOpenSections {
  *  count, and a chevron. The whole row opens and closes the section; the
  *  section's own action sits outside that button, because a button cannot
  *  contain another one. */
+/** Lower case and without diacritics, so that `reknu` finds `řeknu`.
+ *
+ *  Not a nicety in Czech: the diacritics are exactly what somebody typing
+ *  quickly leaves out, and a search that misses because of a háček is a search
+ *  nobody trusts twice. NFD splits a letter from its marks, and the marks are
+ *  then thrown away. */
+function plain(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase();
+}
+
 /** Before the time on a row that plays from it.
  *
  *  The same triangle the speaker's sample button draws, so the one gesture that
@@ -1211,6 +1224,52 @@ export default function Detail({
     [playFrom]
   );
 
+  /* Finding a word in this transcript. Highlighted in place rather than
+     filtered: the archive's search picks a recording, this one is used while
+     reading and correcting, and a block without the ones around it is no use.
+     WebView2 answers Ctrl+F with a find bar of its own, drawn by Windows —
+     the key press is taken before it gets there. */
+  const [finding, setFinding] = useState(false);
+  const [findQuery, setFindQuery] = useState("");
+  const [findAt, setFindAt] = useState(0);
+  const findRef = useRef<HTMLInputElement>(null);
+
+  const findNeedle = plain(findQuery.trim());
+  const findHits = useMemo(
+    () =>
+      findNeedle.length < 2
+        ? []
+        : segments.filter((s) => plain(s.text).includes(findNeedle)).map((s) => s.id),
+    [segments, findNeedle]
+  );
+
+  const goToHit = useCallback(
+    (index: number) => {
+      if (findHits.length === 0) return;
+      const wrapped = (index + findHits.length) % findHits.length;
+      setFindAt(wrapped);
+      document
+        .getElementById(`segment-${findHits[wrapped]}`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    },
+    [findHits]
+  );
+
+  // A new query starts from the top, and the first hit is shown at once
+  // rather than waiting for the reader to press the arrow.
+  useEffect(() => {
+    if (findHits.length === 0) return;
+    setFindAt(0);
+    document
+      .getElementById(`segment-${findHits[0]}`)
+      ?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [findHits]);
+
+  const closeFind = useCallback(() => {
+    setFinding(false);
+    setFindQuery("");
+  }, []);
+
   const goToNextUncertain = useCallback(() => {
     if (uncertainSegments.length === 0) return;
     goTo(uncertainSegments.find((s) => s.start > time + 0.05) ?? uncertainSegments[0]);
@@ -1392,8 +1451,22 @@ export default function Detail({
          with a confirmation on screen, Space played audio behind it. */
       const dialogOpen = document.querySelector(".prekryv-dialogu") != null;
 
+      /* Ctrl+F first, and before the typing guard: it has to work from inside
+         the find field itself, and WebView2 answers it with a find bar drawn
+         by Windows unless the key is taken here. */
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "f" && !dialogOpen) {
+        e.preventDefault();
+        setFinding(true);
+        findRef.current?.select();
+        findRef.current?.focus();
+        return;
+      }
+
       if (isTyping || dialogOpen) {
-        if (e.key === "Escape" && !dialogOpen) setEditing(null);
+        if (e.key === "Escape" && !dialogOpen) {
+          if (finding) closeFind();
+          else setEditing(null);
+        }
         return;
       }
 
@@ -1408,14 +1481,18 @@ export default function Detail({
            dialogs. F3 is the conventional "find next" and collides with
            nothing here. */
         e.preventDefault();
-        goToNextUncertain();
+        // While the find bar is open F3 keeps its usual meaning of "next
+        // match"; closed, it goes on stepping through the uncertain spots.
+        if (finding && findHits.length > 0) goToHit(findAt + (e.shiftKey ? -1 : 1));
+        else goToNextUncertain();
       } else if (e.key === "Escape") {
-        setEditing(null);
+        if (finding) closeFind();
+        else setEditing(null);
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [togglePlayback, goToNextUncertain]);
+  }, [togglePlayback, goToNextUncertain, finding, findHits, findAt, goToHit, closeFind]);
 
   const locateSourceFile = useCallback(async () => {
     const selected = await open({
@@ -2239,6 +2316,29 @@ export default function Detail({
           /* Dragging the slider does not start audio, it only moves the cursor. */
           onSeek={updateCursor}
           trailingControl={(
+            <>
+            {/* Beside the panel toggle, because both are tools of the screen
+                rather than of playback — and without a target of its own the
+                find bar existed only for whoever knew Ctrl+F. */}
+            <button
+              className="ikona-tlacitko"
+              onClick={() => {
+                if (finding) closeFind();
+                else {
+                  setFinding(true);
+                  window.setTimeout(() => findRef.current?.focus(), 0);
+                }
+              }}
+              aria-pressed={finding}
+              aria-label={t("detail.find.open")}
+              title={t("detail.find.open")}
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
+                <circle cx="7" cy="7" r="4.6" stroke="currentColor" strokeWidth="1.5" />
+                <path d="M10.4 10.4 14 14" stroke="currentColor"
+                      strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            </button>
             <button
               className="ikona-tlacitko"
               onClick={togglePanel}
@@ -2257,6 +2357,7 @@ export default function Detail({
                 )}
               </svg>
             </button>
+            </>
           )}
         />
       )}
@@ -2290,7 +2391,66 @@ export default function Detail({
         </div>
       )}
 
+      {/* Over the reading column, not in the header — that bar already
+          overflows at 1180 px with both pills up — and not permanently, since
+          this is wanted now and then rather than always. */}
       <div className={`detail-telo ${panelOpen ? "" : "bez-panelu"}`}>
+      {finding && (
+        <div className="hledani-prepisu">
+          <input
+            ref={findRef}
+            value={findQuery}
+            autoFocus
+            spellCheck={false}
+            placeholder={t("detail.find.placeholder")}
+            aria-label={t("detail.find.placeholder")}
+            onChange={(event) => setFindQuery(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                goToHit(findAt + (event.shiftKey ? -1 : 1));
+              }
+            }}
+          />
+          <span className="hledani-pocet">
+            {findNeedle.length < 2
+              ? ""
+              : t("detail.find.count", {
+                  at: String(findHits.length === 0 ? 0 : findAt + 1),
+                  total: String(findHits.length),
+                })}
+          </span>
+          <button
+            disabled={findHits.length === 0}
+            onClick={() => goToHit(findAt - 1)}
+            aria-label={t("detail.find.previous")}
+            title={t("detail.find.previous")}
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden>
+              <path d="M3.5 8.5 7 5l3.5 3.5" fill="none" stroke="currentColor"
+                    strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+          <button
+            disabled={findHits.length === 0}
+            onClick={() => goToHit(findAt + 1)}
+            aria-label={t("detail.find.next")}
+            title={t("detail.find.next")}
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden>
+              <path d="M3.5 5.5 7 9l3.5-3.5" fill="none" stroke="currentColor"
+                    strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+          <button onClick={closeFind} aria-label={t("common.close")} title={t("common.close")}>
+            <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden>
+              <path d="M3 3l8 8M11 3l-8 8" stroke="currentColor"
+                    strokeWidth="1.7" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
+      )}
+
         <div className="prepis" ref={listRef}>
 
           {running && segments.length === 0 && (
@@ -2332,6 +2492,8 @@ export default function Detail({
                   onConfirm={confirm}
                   onSave={saveText}
                   onContextMenu={openTranscriptMenu}
+                  find={findHits.length > 0 ? findNeedle : undefined}
+                  foundHere={findHits[findAt] === s.id}
                 />
               </div>
             );
@@ -3386,12 +3548,18 @@ const SegmentRow = memo(function SegmentRow({
   onConfirm,
   onSave,
   onContextMenu,
+  find,
+  foundHere,
 }: {
   segment: Segment;
   active: boolean;
   time: number;
   editing: boolean;
   color?: string;
+  /** Already normalised: lower case and stripped of diacritics. */
+  find?: string;
+  /** This block is the match the reader is standing on. */
+  foundHere?: boolean;
   onSeek: (t: number) => void;
   // The segment passes itself to the handlers. That lets the parent keep them
   // stable, giving the `memo` comparison a chance to succeed at all.
@@ -3495,7 +3663,9 @@ const SegmentRow = memo(function SegmentRow({
 
   return (
     <div
-      className={`segment ${active ? "aktivni" : ""} ${uncertain ? "nejisty" : ""}`}
+      className={`segment ${active ? "aktivni" : ""} ${uncertain ? "nejisty" : ""} ${
+        foundHere ? "nalezeno" : ""
+      }`}
       id={`segment-${segment.id}`}
       style={color ? { borderLeftColor: color } : undefined}
       onDoubleClick={() => onStartUpravu(segment)}
@@ -3512,9 +3682,13 @@ const SegmentRow = memo(function SegmentRow({
           ) : (
             <span
               key={i}
+              /* A word is marked when it contains what is being looked for.
+                 A query with a space in it marks nothing — the words are
+                 separate elements and a phrase runs across them — but the
+                 block still counts as a match and can be travelled to. */
               className={`slovo ${active && time >= s.time ? "znelo" : ""} ${
                 corrected?.has(wordOrdinals[i]) ? "opraveno" : ""
-              }`}
+              } ${find && plain(s.text).includes(find) ? "nalez" : ""}`}
               onClick={() => onSeek(s.time)}
               /* The context menu reads the moment off the word that was
                  pointed at, so it can play, note or re-transcribe from
@@ -3567,6 +3741,8 @@ const SegmentRow = memo(function SegmentRow({
   a.onConfirm === b.onConfirm &&
   a.onSave === b.onSave &&
   a.onContextMenu === b.onContextMenu &&
+  a.find === b.find &&
+  a.foundHere === b.foundHere &&
   // Only the segment currently sounding cares about the time.
   (!b.active || a.time === b.time)
 );

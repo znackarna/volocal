@@ -431,7 +431,7 @@ async fn ignore_watch_folder_files(
 /// The default is `recordings` beside the archive rather than the historical
 /// `microphone`: existing files stay exactly where they are and keep playing,
 /// since every row holds an absolute path. Nothing is moved by an upgrade.
-fn recordings_dir(settings: &db::Settings, db_path: &std::path::Path) -> PathBuf {
+pub fn recordings_dir(settings: &db::Settings, db_path: &std::path::Path) -> PathBuf {
     let configured = settings.recording_folder.trim();
     if !configured.is_empty() {
         return PathBuf::from(configured);
@@ -446,7 +446,7 @@ fn recordings_dir(settings: &db::Settings, db_path: &std::path::Path) -> PathBuf
 ///
 /// The names this produces are read by a person in a file manager, so they
 /// keep the original stem rather than becoming a UUID.
-fn free_path(directory: &std::path::Path, stem: &str, extension: &str) -> PathBuf {
+pub fn free_path(directory: &std::path::Path, stem: &str, extension: &str) -> PathBuf {
     let mut candidate = directory.join(format!("{stem}.{extension}"));
     let mut counter = 2;
     while candidate.exists() {
@@ -1826,6 +1826,54 @@ fn allow_microphone(window: &tauri::WebviewWindow) {
     }
 }
 
+/// Turns off the browser WebView2 still is underneath.
+///
+/// Two things reach the reader otherwise, both drawn by Windows and neither
+/// belonging to this application: the find bar Ctrl+F opens, and the
+/// right-click menu with Reload, Print, View source and Inspect. The find bar
+/// is the visible one — a strip in the title area, in the system's own style,
+/// searching the DOM rather than the transcript.
+///
+/// `AreBrowserAcceleratorKeysEnabled` covers the keys that reach browser
+/// features: Ctrl+F, Ctrl+P, Ctrl+R, F5, F7, Alt+Left. Clipboard keys are a
+/// separate setting and keep working, and a key WebView2 no longer handles
+/// falls through to the page — which is what lets our own Ctrl+F and F3 work
+/// at last instead of racing it.
+///
+/// Cost, stated because it is real: with the default context menu gone there
+/// is no right-click paste in a text field. Ctrl+V still pastes.
+#[cfg(windows)]
+fn quiet_the_browser(window: &tauri::WebviewWindow) {
+    use webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2Settings3;
+    use windows::core::Interface;
+
+    let applied = window.with_webview(|webview| {
+        let settings = match unsafe { webview.controller().CoreWebView2() }
+            .and_then(|core| unsafe { core.Settings() })
+        {
+            Ok(settings) => settings,
+            Err(error) => {
+                crate::note!("webview: settings unreachable, defaults stay: {error}");
+                return;
+            }
+        };
+        if let Err(error) = unsafe { settings.SetAreDefaultContextMenusEnabled(false) } {
+            crate::note!("webview: default context menu stays: {error}");
+        }
+        match settings.cast::<ICoreWebView2Settings3>() {
+            Ok(keys) => {
+                if let Err(error) = unsafe { keys.SetAreBrowserAcceleratorKeysEnabled(false) } {
+                    crate::note!("webview: accelerator keys stay: {error}");
+                }
+            }
+            Err(error) => crate::note!("webview: runtime too old for key settings: {error}"),
+        }
+    });
+    if let Err(error) = applied {
+        crate::note!("webview: no webview to configure: {error}");
+    }
+}
+
 /// Everything this application starts dies with it.
 ///
 /// `TranscriptionTask::kill_all` reaches the children a run registered, and
@@ -1918,6 +1966,7 @@ fn main() {
             #[cfg(windows)]
             if let Some(window) = tauri::Manager::get_webview_window(app, "main") {
                 allow_microphone(&window);
+                quiet_the_browser(&window);
             }
             Ok(())
         })

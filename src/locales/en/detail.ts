@@ -89,6 +89,11 @@ export const enDetail: Partial<Record<keyof typeof csDetail, string>> = {
   "detail.menu.toPrevious": "Credit to {name} above",
   "detail.menu.toNext": "Credit to {name} below",
   "detail.menu.toNewVoice": "Credit to a new speaker",
+  "detail.find.open": "Find in transcript (Ctrl+F)",
+  "detail.find.placeholder": "Find in transcript",
+  "detail.find.count": "{at} of {total}",
+  "detail.find.previous": "Previous match",
+  "detail.find.next": "Next match",
   "detail.unassigned.heading": "Unnamed",
   "detail.unassigned.hint":
     "Interjections the recognition cannot place. Tap one to hear it, tap a name to credit it.",

@@ -1227,7 +1227,13 @@ mark { background: var(--zvyrazneni); color: inherit; padding: 0 2px; border-rad
    the one column whose contents have a fixed minimum was the wrong economy.
    The transcript can give it up: at the window's own 1000 px minimum that still
    leaves 680, and the text is capped at 760 anyway. */
-.detail-telo { flex: 1; display: grid; grid-template-columns: 1fr 320px; min-height: 0; }
+/* One number for the panel's width: the grid below sizes it and the find bar
+   keeps clear of it. Two literals would drift the first time it changes. */
+:root { --postranni-sirka: 320px; }
+.detail-telo {
+  flex: 1; display: grid; grid-template-columns: 1fr var(--postranni-sirka);
+  min-height: 0;
+}
 .detail-telo.bez-panelu { grid-template-columns: 1fr; }
 
 .prepis { overflow-y: auto; padding: 26px 32px 120px; }
@@ -1318,6 +1324,59 @@ mark { background: var(--zvyrazneni); color: inherit; padding: 0 2px; border-rad
 }
 
 .mluvci-seznam { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+/* ------------------------------------------------- find inside a transcript */
+/* A panel over the reading column, with the dialog surface and shadow: it is
+   temporary and floats above the text rather than pushing it down. */
+/* Over the transcript, never over the panel: the bar belongs to the text it
+   searches, and the panel beside it is a different thing that stays readable. */
+.hledani-prepisu {
+  /* 26 above and 26 from the side — the transcript's own top padding, so the
+     bar starts on the line the first block of text does. */
+  position: absolute; z-index: 6; top: 26px;
+  right: calc(var(--postranni-sirka) + 26px);
+  display: flex; align-items: center; gap: 4px;
+  /* A full pill, not a rounded rectangle: the row is one line of circular
+     buttons around a pill field, so anything else would be a fourth corner
+     radius on a strip that has none. */
+  padding: 6px; border: 1px solid var(--linka); border-radius: var(--r-pilulka);
+  background: var(--panel); box-shadow: var(--stin-vysoky);
+}
+.hledani-prepisu input {
+  width: 200px; height: 32px; padding: 0 12px;
+  border: 1px solid transparent; border-radius: var(--r-pilulka);
+  background: var(--pozadi); color: var(--text); font: inherit; font-size: 13.5px;
+}
+.hledani-prepisu input:focus {
+  border-color: var(--akcent); box-shadow: var(--prstenec-pole); outline: 0;
+}
+.hledani-pocet {
+  min-width: 52px; padding: 0 4px; text-align: center;
+  color: var(--text-tichy); font-size: 12.5px; font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+/* The 26 px circular icon button, as in `.segment-akce`: this row is one line
+   of type tall and the standard 32 would make it taller than its own field. */
+.hledani-prepisu button {
+  display: grid; place-items: center; flex: 0 0 auto;
+  width: 26px; height: 26px; padding: 0;
+  border: 0; border-radius: 50%; background: transparent;
+  color: var(--text-tichy); cursor: pointer;
+  transition: background var(--hover-duration) var(--hover-ease),
+    color var(--hover-duration) var(--hover-ease);
+}
+.hledani-prepisu button:hover:not(:disabled) {
+  background: var(--tlumene); color: var(--text);
+}
+.hledani-prepisu button:disabled { opacity: 0.35; cursor: default; }
+/* Every match is tinted; the one being stood on takes the accent. Deliberately
+   a background here and not the underline the corrections use — this is a
+   transient state the eye must find at a glance, not a permanent mark on the
+   text. */
+.slovo.nalez { background: var(--akcent-svetly); border-radius: var(--r-maly); }
+.segment.nalezeno .slovo.nalez { background: var(--akcent); color: var(--panel); }
+.detail-telo { position: relative; }
+.detail-telo.bez-panelu .hledani-prepisu { right: 26px; }
+
 .mluvci-seznam li { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 /* A column of the shared 38 px fields — the group has one question above it,
    so the fields carry only a placeholder each and no label of their own. */
