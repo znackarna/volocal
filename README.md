@@ -147,7 +147,7 @@ permissions your account gives it.
 | Tauri 2, React 18 | MIT / Apache 2.0 |
 | SQLite | public domain |
 | whisper.cpp, Whisper models, Silero VAD | MIT |
-| ONNX Runtime, 3D-Speaker CAM++, sherpa-onnx | MIT / Apache 2.0 |
+| ONNX Runtime, 3D-Speaker CAM++ | MIT / Apache 2.0 |
 | llama.cpp | MIT |
 | Gemma (Google) | Gemma Terms of Use |
 | FFmpeg | GPL v3 |
