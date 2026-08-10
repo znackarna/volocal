@@ -37,6 +37,7 @@ npm run tauri dev            # first run compiles Rust: 5 to 15 minutes
 
 ```powershell
 npm run build                # i18n:check, tsc --noEmit, Vite build
+npm run test                 # the interface and the transcript text
 cargo fmt --all --manifest-path src-tauri/Cargo.toml -- --check
 cargo test --manifest-path src-tauri/Cargo.toml
 cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
@@ -44,6 +45,12 @@ cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
 
 A pull request that does not say which of these were run, and with what result,
 is not ready. "Should be fine" is not a result.
+
+CI runs these same commands — the list is not a separate ritual. A tag runs two
+more, and only a tag: `node scripts/i18n.mjs check --strict`, which refuses a
+translation whose Czech source has never been fingerprinted, and a smoke test
+that installs the built package on a clean machine and waits for it to create
+its archive. Both are in `.github/workflows/check.yml`, with the reasoning.
 
 ## Rules that get pull requests rejected
 

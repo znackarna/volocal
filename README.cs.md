@@ -160,8 +160,15 @@ Tři kontroly, které za nikoho neudělá stroj:
   a jestli je instalátor podepsaný. Dokument u sebe nese datum posledního
   ověření; když se tvrzení a kód rozejdou, platí kód. Česká i anglická
   polovina se opravují zároveň, jinak si za měsíc odporují.
-* **Kontroly projdou:** `npm run build`, `cargo fmt --all --check`,
-  `cargo test`, `cargo clippy --all-targets -- -D warnings`.
+* **Kontroly projdou:** `npm run build`, `npm run test`,
+  `cargo fmt --all --check`, `cargo test`,
+  `cargo clippy --all-targets -- -D warnings`.
+* **Na vydání jsou přísnější pravidla, a hlídá je CI u značky (tagu).**
+  `node scripts/i18n.mjs check --strict` navíc odmítne překlad, jehož česká
+  předloha nikdy nedostala otisk — při rozdělané práci je to jen upozornění,
+  ale je to jediné, s čím se dá později porovnat, jestli se čeština nezměnila.
+  Potom se sestaví instalátor, nainstaluje se na čistý stroj, spustí se a musí
+  si stihnout založit archiv. Teprve pak je běh zelený.
 
 #### Podpis
 

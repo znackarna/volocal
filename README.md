@@ -92,6 +92,7 @@ Checks that must pass before handing work over:
 
 ```powershell
 npm run build     # i18n:check, then tsc --noEmit, then the Vite build
+npm run test      # the interface and the transcript text
 cargo fmt --all --manifest-path src-tauri/Cargo.toml -- --check
 cargo test --manifest-path src-tauri/Cargo.toml
 cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
@@ -101,6 +102,13 @@ cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
 component, an incomplete set of plural forms, a Czech sentence that addresses
 the reader informally, and a translation whose Czech source has been reworded
 since. Czech is the source language of the interface.
+
+A release is held to more. Tagging runs `node scripts/i18n.mjs check --strict`,
+which also refuses a translation whose Czech source has never been
+fingerprinted — mid-change that is a note to self, but it is the only thing the
+drift check can compare against later, so nothing is handed over without it.
+Then the installer is built, installed on a clean machine and started, and it
+has to create its archive before the run is called green.
 
 [ARCHITECTURE.md](ARCHITECTURE.md) has the module layout and the naming rules.
 [CONTRIBUTING.md](CONTRIBUTING.md) has what a pull request needs.
