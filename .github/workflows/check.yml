@@ -141,11 +141,21 @@ jobs:
       # `i18n:check && tsc --noEmit && vite build`. The bundler runs it itself;
       # it is not repeated here.
       #
-      # Unsigned. The signing certificate lives on a hardware token and cannot
-      # be handed to a runner, so the artifact from here is for testing — a
-      # release handed to anybody is still signed and built by hand on Windows.
-      # See „Vydání“ in README.cs.md.
-      - run: npm run tauri build
+      # Unsigned, twice over, and both are deliberate.
+      #
+      # The Authenticode certificate lives on a hardware token and cannot be
+      # handed to a runner. And `tauri.ci.conf.json` turns off the updater
+      # artifact, because with a public key in the config the bundler demands
+      # the matching private key — *A public key has been found, but no private
+      # key* — and that key must not be on a runner either. Handing either of
+      # them to CI would mean anybody who can push a workflow can sign a release
+      # this application accepts.
+      #
+      # So what comes out of here is a build proving the code bundles and the
+      # result runs. A release anybody installs is built and signed by hand;
+      # `scripts\release.ps1` is that path, and „Vydání" in README.cs.md
+      # describes it.
+      - run: npm run tauri build -- --config tauri.ci.conf.json
       # Install it and start it. Everything above says the code compiles and
       # bundles; none of it says the result runs. What this catches is exactly
       # the class of failure that only appears once the pieces are assembled —
