@@ -88,6 +88,10 @@ export const enErrors: Partial<Record<keyof typeof csErrors, string>> = {
   "errors.download.asset_not_found_with_excluded": "The latest {repository} releases contain no Windows file matching “{pattern}”. Similar files that were excluded: {excluded}",
   "errors.download.tar_launch_failed": "Could not start tar (it is part of Windows 10 and later)",
   "errors.download.extract_failed": "Extracting the archive failed",
+  "errors.download.hash_mismatch":
+    "The downloaded file {file} is not what was expected. Nothing was installed and the version you had is unchanged.",
+  "errors.download.unsafe_archive_path":
+    "The archive {archive} tried to write outside the folder it was given. It was not unpacked.",
   "errors.download.archive_without_programs": "The archive {archive} contains no program. What it contained: {contents}",
   "errors.download.archive_without_programs_empty": "The archive {archive} contains no program. What it contained: nothing",
   "errors.download.file_not_in_archive": "Downloaded, but {file} is not in the archive. The programs it contained: {programs}",

@@ -6,8 +6,9 @@
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::io::{Read, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter};
@@ -36,6 +37,9 @@ pub struct DownloadComponent {
     pub recommended: bool,
     /// Uz je stazena
     pub complete: bool,
+    /// There is a record that this machine checked where the file came from.
+    /// `complete` says a file is there; this says somebody vouched for it.
+    pub origin_verified: bool,
     /// File whose presence means this component is complete (relative to root)
     verification_path: String,
     source: Source,
@@ -64,6 +68,27 @@ enum Destination {
     AsFile(String),
 }
 
+/// SHA-256 of the exact file each component downloads, checked before anything
+/// is unpacked or moved into place.
+///
+/// Empty is not an oversight. A hash here is a promise about one exact
+/// artefact, so it may only be written down once somebody has read it from the
+/// project's own release — not computed from whatever this machine happened to
+/// receive, which would attest that the file matches itself. Until an entry
+/// exists, `install_record` marks the component `origin unverified` rather than
+/// pretending otherwise.
+///
+/// A component still fetched by matching a pattern against live releases can
+/// never have one: every machine may receive a different build.
+const EXPECTED_HASHES: &[(&str, &str)] = &[];
+
+fn expected_hash(id: &str) -> Option<&'static str> {
+    EXPECTED_HASHES
+        .iter()
+        .find(|(component, _)| *component == id)
+        .map(|(_, hash)| *hash)
+}
+
 /// Names and descriptions are not written here. The window shows them in the
 /// active language, so the catalogue only says which dictionary entry belongs
 /// to each item; the identifier is the key both sides agree on.
@@ -83,6 +108,7 @@ fn raw_catalog() -> Vec<DownloadComponent> {
         required,
         recommended: false,
         complete: false,
+        origin_verified: false,
         verification_path: verification_path.into(),
         source,
         destination,
@@ -287,6 +313,7 @@ pub fn catalog(settings: &crate::db::Settings) -> Vec<DownloadComponent> {
         .into_iter()
         .map(|mut k| {
             k.complete = tools::component_path(settings, &k.verification_path).exists();
+            k.origin_verified = origin_verified(settings, &k.id);
             k.recommended = match k.id.as_str() {
                 "ffmpeg" | "vad" => true,
                 // Model se vybira podle toho, jestli je cim pocitat
@@ -473,8 +500,9 @@ fn download_file(
     id: &str,
     url: &str,
     target: &Path,
+    expected: Option<&str>,
     cancellation: &Arc<AtomicBool>,
-) -> Reported<()> {
+) -> Reported<String> {
     let mut response = client()?
         .get(url)
         .send()
@@ -495,6 +523,7 @@ fn download_file(
     // stahujeme do .cast, at v cili nikdy nelezi nedodelany soubor
     let partial = target.with_extension("cast");
     let mut file = std::fs::File::create(&partial)?;
+    let mut digest = Sha256::new();
 
     let mut downloaded: u64 = 0;
     let mut last_update = std::time::Instant::now();
@@ -511,6 +540,7 @@ fn download_file(
             break;
         }
         file.write_all(&buffer[..bytes_read])?;
+        digest.update(&buffer[..bytes_read]);
         downloaded += bytes_read as u64;
 
         // hlasit kazdych 200 ms staci, jinak by se okno zahltilo
@@ -536,11 +566,35 @@ fn download_file(
 
     file.flush()?;
     drop(file);
+    place_verified(&partial, target, hex::encode(digest.finalize()), expected)
+}
+
+/// The last gate before a downloaded file becomes the installed one.
+///
+/// The digest was taken from the bytes as they were written, so it describes
+/// what actually arrived rather than what the file says about itself later. On
+/// a mismatch nothing is unpacked, nothing is moved, and — the part that
+/// matters — the previous working installation is still sitting at `target`
+/// untouched, because that file is only removed on the line before the rename.
+fn place_verified(
+    partial: &Path,
+    target: &Path,
+    actual: String,
+    expected: Option<&str>,
+) -> Reported<String> {
+    if let Some(expected) = expected {
+        if !expected.eq_ignore_ascii_case(&actual) {
+            let _ = std::fs::remove_file(partial);
+            return Err(UserMessage::new("download.hash_mismatch")
+                .with("file", target.file_name().unwrap_or_default().to_string_lossy())
+                .detail(format!("expected {expected}, got {actual}")));
+        }
+    }
     if target.exists() {
         let _ = std::fs::remove_file(target);
     }
-    std::fs::rename(&partial, target)?;
-    Ok(())
+    std::fs::rename(partial, target)?;
+    Ok(actual)
 }
 
 // ---------------------------------------------------------------- rozbaleni
@@ -550,8 +604,14 @@ fn extract_zip(archive: &Path, destination: &Path) -> Reported<()> {
     let mut zip = zip::ZipArchive::new(file)?;
     for i in 0..zip.len() {
         let mut item = zip.by_index(i)?;
+        // `enclosed_name` is None exactly when the entry would land outside the
+        // destination: `..`, an absolute path, a drive prefix. Skipping it in
+        // silence would unpack the rest of the archive and call it a success;
+        // an archive that tries this is not one to install any part of.
         let Some(relative_path) = item.enclosed_name() else {
-            continue;
+            return Err(UserMessage::new("download.unsafe_archive_path")
+                .with("archive", archive.file_name().unwrap_or_default().to_string_lossy())
+                .detail(item.name().to_string()));
         };
         let target = destination.join(relative_path);
         if item.is_dir() {
@@ -647,6 +707,62 @@ fn collect_programs(source: &Path, destination: &Path) -> Reported<usize> {
 
 // ---------------------------------------------------------------- hlavni beh
 
+/// What is known about one installed component.
+///
+/// `verified` is the honest half: true only when the catalogue named a hash
+/// and the download matched it. False means the file arrived over HTTPS from
+/// the address the catalogue gave and nothing further was checked — which is
+/// what every installation made before this existed is, and why they are not
+/// silently promoted.
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct InstallRecord {
+    pub url: String,
+    pub sha256: String,
+    pub verified: bool,
+    pub when: String,
+}
+
+fn record_path(settings: &crate::db::Settings) -> PathBuf {
+    tools::component_path(settings, "installed.json")
+}
+
+fn read_records(path: &Path) -> std::collections::BTreeMap<String, InstallRecord> {
+    std::fs::read_to_string(path)
+        .ok()
+        .and_then(|text| serde_json::from_str(&text).ok())
+        .unwrap_or_default()
+}
+
+/// Adds one entry and rewrites the file through a temporary name, so a crash
+/// mid-write cannot leave a truncated record that reads as "nothing is
+/// installed". A failure to write is deliberately not fatal: the component is
+/// installed either way, and refusing the whole download because a note could
+/// not be filed would be the worse outcome.
+fn record_installation(path: &Path, id: &str, record: InstallRecord) {
+    let mut records = read_records(path);
+    records.insert(id.to_string(), record);
+    let Ok(text) = serde_json::to_string_pretty(&records) else {
+        return;
+    };
+    if let Some(parent) = path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    let temporary = path.with_extension("json.psani");
+    if std::fs::write(&temporary, text).is_ok() {
+        let _ = std::fs::rename(&temporary, path);
+    }
+}
+
+/// Whether this machine has a record that the component's origin was checked.
+/// A file sitting in the right place is not that record, which is the mistake
+/// this exists to correct.
+pub fn origin_verified(settings: &crate::db::Settings, id: &str) -> bool {
+    read_records(&record_path(settings))
+        .get(id)
+        .map(|record| record.verified)
+        .unwrap_or(false)
+}
+
 pub fn install_component(
     app: &AppHandle,
     settings: &crate::db::Settings,
@@ -675,10 +791,15 @@ pub fn install_component(
     );
 
     let url = resolve_url(&component.source)?;
+    let expected = expected_hash(&component.id);
+    // The digest of what actually arrived, whether or not anything was
+    // expected. It goes into the record so that a later version, once the
+    // catalogue names a hash, can tell what this machine already has.
+    let installed: String;
 
     match &component.destination {
         Destination::AsFile(rel) => {
-            download_file(app, id, &url, &destination(rel), &cancellation)?;
+            installed = download_file(app, id, &url, &destination(rel), expected, &cancellation)?;
         }
         Destination::ProgramsInto(rel) => {
             let temporary_directory = std::env::temp_dir().join("whisp-downloads");
@@ -688,7 +809,7 @@ pub fn install_component(
             // it there is no telling whether the right build was picked.
             let name = url.rsplit('/').next().unwrap_or("archiv.zip");
             let archive = temporary_directory.join(name);
-            download_file(app, id, &url, &archive, &cancellation)?;
+            installed = download_file(app, id, &url, &archive, expected, &cancellation)?;
 
             emit_progress(
                 app,
@@ -756,6 +877,21 @@ pub fn install_component(
         };
         return Err(message.with("file", &component.verification_path));
     }
+
+    // Written only here, after the file is verified, unpacked and found where
+    // it belongs. A half-finished install therefore leaves no record, which is
+    // the whole point: the presence of a file says a file is present, and this
+    // says who vouched for it.
+    record_installation(
+        &record_path(settings),
+        &component.id,
+        InstallRecord {
+            url: url.clone(),
+            sha256: installed,
+            verified: expected.is_some(),
+            when: chrono::Local::now().to_rfc3339(),
+        },
+    );
 
     emit_progress(
         app,
@@ -923,7 +1059,7 @@ fn copy_tree(app: &AppHandle, source: &Path, destination: &Path) -> Result<u64> 
 }
 
 #[cfg(test)]
-mod install_guard_tests {
+mod tests {
     use super::*;
 
     /// The reported defect: starting a download, leaving Settings and coming
@@ -956,5 +1092,208 @@ mod install_guard_tests {
             "and the next download is allowed again"
         );
         INSTALLING.store(false, Ordering::SeqCst);
+    }
+
+    /// A scratch directory of this test's own, removed on the way in so a
+    /// previous run cannot decide the result.
+    fn scratch(name: &str) -> PathBuf {
+        let directory = std::env::temp_dir().join(format!("slobot-test-{name}"));
+        let _ = std::fs::remove_dir_all(&directory);
+        std::fs::create_dir_all(&directory).expect("scratch");
+        directory
+    }
+
+    fn sha256_of(bytes: &[u8]) -> String {
+        let mut digest = Sha256::new();
+        digest.update(bytes);
+        hex::encode(digest.finalize())
+    }
+
+    /// The published vector for the empty input. If this fails, the digest is
+    /// not SHA-256 and nothing else in this file means anything.
+    #[test]
+    fn the_digest_is_sha256() {
+        assert_eq!(
+            sha256_of(b""),
+            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        );
+        assert_eq!(
+            sha256_of(b"abc"),
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+        );
+    }
+
+    #[test]
+    fn a_matching_hash_lets_the_file_through() {
+        let directory = scratch("hash-ok");
+        let partial = directory.join("model.bin.cast");
+        let target = directory.join("model.bin");
+        std::fs::write(&partial, b"abc").unwrap();
+
+        let expected = sha256_of(b"abc");
+        let hash = place_verified(&partial, &target, sha256_of(b"abc"), Some(&expected))
+            .expect("a file that matches is installed");
+
+        assert_eq!(hash, sha256_of(b"abc"));
+        assert!(target.exists(), "it is in its place");
+        assert!(!partial.exists(), "and the temporary name is gone");
+    }
+
+    /// One byte. The whole point of the check.
+    #[test]
+    fn a_single_changed_byte_stops_the_installation() {
+        let directory = scratch("hash-bad");
+        let partial = directory.join("model.bin.cast");
+        let target = directory.join("model.bin");
+        std::fs::write(&partial, b"abd").unwrap();
+
+        let expected = sha256_of(b"abc");
+        let refusal = place_verified(&partial, &target, sha256_of(b"abd"), Some(&expected));
+
+        assert!(refusal.is_err(), "a file that does not match is refused");
+        assert!(!target.exists(), "and never reaches its place");
+        assert!(!partial.exists(), "the download is thrown away");
+    }
+
+    /// The failure that matters more than refusing the bad file: somebody with
+    /// a working installation must not be left without one.
+    #[test]
+    fn a_mismatch_keeps_the_previous_working_file() {
+        let directory = scratch("hash-keeps");
+        let partial = directory.join("model.bin.cast");
+        let target = directory.join("model.bin");
+        std::fs::write(&target, b"the model that works").unwrap();
+        std::fs::write(&partial, b"something else").unwrap();
+
+        let refusal = place_verified(
+            &partial,
+            &target,
+            sha256_of(b"something else"),
+            Some(&sha256_of(b"abc")),
+        );
+
+        assert!(refusal.is_err());
+        assert_eq!(
+            std::fs::read(&target).unwrap(),
+            b"the model that works",
+            "the installation that was working is still there"
+        );
+    }
+
+    /// Nothing expected means nothing checked — but the digest of what arrived
+    /// is still reported, so the record can say what this machine has.
+    #[test]
+    fn with_no_expected_hash_the_file_is_installed_and_still_measured() {
+        let directory = scratch("hash-none");
+        let partial = directory.join("model.bin.cast");
+        let target = directory.join("model.bin");
+        std::fs::write(&partial, b"abc").unwrap();
+
+        let hash = place_verified(&partial, &target, sha256_of(b"abc"), None).unwrap();
+
+        assert_eq!(hash, sha256_of(b"abc"));
+        assert!(target.exists());
+    }
+
+    /// `..` in an archive is how an unpacker is talked into writing outside the
+    /// folder it was pointed at.
+    #[test]
+    fn an_archive_that_reaches_outside_is_refused_whole() {
+        let directory = scratch("zip-escape");
+        let archive = directory.join("evil.zip");
+        let inside = directory.join("rozbaleno");
+
+        {
+            let file = std::fs::File::create(&archive).unwrap();
+            let mut writer = zip::ZipWriter::new(file);
+            let options = zip::write::SimpleFileOptions::default();
+            writer.start_file("harmless.txt", options).unwrap();
+            writer.write_all(b"fine").unwrap();
+            writer.start_file("../outside.exe", options).unwrap();
+            writer.write_all(b"not fine").unwrap();
+            writer.finish().unwrap();
+        }
+
+        let refusal = extract_zip(&archive, &inside);
+
+        assert!(refusal.is_err(), "the archive is refused");
+        assert!(
+            !directory.join("outside.exe").exists(),
+            "and nothing was written outside the destination"
+        );
+    }
+
+    /// A record is written after a success and read back by id. Its absence is
+    /// what tells a 0.9.0 installation apart from a verified one.
+    #[test]
+    fn an_installation_leaves_a_record_that_can_be_read_back() {
+        let directory = scratch("record");
+        let path = directory.join("installed.json");
+
+        assert!(read_records(&path).is_empty(), "nothing is recorded yet");
+
+        record_installation(
+            &path,
+            "vad",
+            InstallRecord {
+                url: "https://example.invalid/vad.onnx".into(),
+                sha256: sha256_of(b"abc"),
+                verified: true,
+                when: "2026-08-10T00:00:00+02:00".into(),
+            },
+        );
+        record_installation(
+            &path,
+            "ffmpeg",
+            InstallRecord {
+                url: "https://example.invalid/ffmpeg.zip".into(),
+                sha256: sha256_of(b"abd"),
+                verified: false,
+                when: "2026-08-10T00:00:01+02:00".into(),
+            },
+        );
+
+        let records = read_records(&path);
+        assert_eq!(records.len(), 2, "the second entry did not replace the first");
+        assert!(records["vad"].verified);
+        assert!(
+            !records["ffmpeg"].verified,
+            "arriving over HTTPS is not the same as being checked"
+        );
+        assert!(
+            !path.with_extension("json.psani").exists(),
+            "the temporary name does not survive the write"
+        );
+    }
+
+    /// The migration question, as a test: an installation made by 0.9.0 has the
+    /// file but no record, and must not be treated as checked.
+    #[test]
+    fn a_file_without_a_record_is_not_verified() {
+        let directory = scratch("record-missing");
+        let path = directory.join("installed.json");
+        std::fs::write(directory.join("ffmpeg.exe"), b"a program from before").unwrap();
+
+        let records = read_records(&path);
+
+        assert!(
+            records.get("ffmpeg").is_none(),
+            "the presence of a file says nothing about where it came from"
+        );
+    }
+
+    /// The catalogue may not carry a hash somebody guessed. Every entry must be
+    /// 64 hex characters, because that is the only shape a SHA-256 has.
+    #[test]
+    fn every_expected_hash_has_the_shape_of_one() {
+        for (id, hash) in EXPECTED_HASHES {
+            assert_eq!(hash.len(), 64, "{id}");
+            assert!(
+                hash.chars().all(|c| c.is_ascii_hexdigit()),
+                "{id} is not hexadecimal"
+            );
+            assert_eq!(expected_hash(id), Some(*hash));
+        }
+        assert_eq!(expected_hash("a component that does not exist"), None);
     }
 }

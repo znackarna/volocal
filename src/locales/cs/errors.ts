@@ -127,6 +127,10 @@ export const csErrors = {
   "errors.download.tar_launch_failed":
     "Nepodařilo se spustit tar (je součástí Windows 10 a novějších)",
   "errors.download.extract_failed": "Rozbalení archivu selhalo",
+  "errors.download.hash_mismatch":
+    "Stažený soubor {file} neodpovídá tomu, co se čekalo. Nic se neinstalovalo a dosavadní verze zůstala beze změny.",
+  "errors.download.unsafe_archive_path":
+    "Archiv {archive} se pokusil zapsat mimo určenou složku. Nerozbalil se.",
   "errors.download.archive_without_programs":
     "Archiv {archive} neobsahuje žádný program. Bylo v něm: {contents}",
   "errors.download.archive_without_programs_empty":

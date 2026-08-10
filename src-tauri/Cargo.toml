@@ -54,6 +54,11 @@ chrono = "0.4"
 # stahovani nastroju a modelu primo z aplikace
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "rustls-tls"] }
 zip = "2"
+# SHA-256 of every downloaded component, checked before anything is unpacked or
+# moved into place. Both versions are already resolved in Cargo.lock through
+# other dependencies, so naming them here adds no new code to the build.
+sha2 = "0.10"
+hex = "0.4"
 # Speaker embedding, in this process instead of a downloaded executable.
 # Pinned with `=` on purpose: `ort` is in release candidates and the API breaks
 # between them — between rc.9 and rc.13 nearly every call this uses was renamed.
