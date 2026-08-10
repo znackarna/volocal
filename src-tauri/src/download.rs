@@ -53,8 +53,8 @@ pub struct DownloadComponent {
 /// change. It is gone: what it downloaded depended on what the project had
 /// published that morning, every machine could receive a different build, and
 /// no digest could ever be written down for it. A version is now chosen
-/// deliberately, and moving to a newer one is an edit somebody makes and
-/// records — see the note above `EXPECTED_HASHES` for how.
+/// deliberately in `components.json`, and moving to a newer one is a pull
+/// request somebody reads — proposed weekly by `scripts/update-components.mjs`.
 #[derive(Serialize, Deserialize, Clone, Debug)]
 enum Source {
     Url(String),
@@ -68,120 +68,74 @@ enum Destination {
     AsFile(String),
 }
 
-/// SHA-256 of the exact file each component downloads, checked before anything
-/// is unpacked or moved into place.
+/// Where every component comes from and what it must hash to, read from
+/// `components.json` beside this crate.
 ///
-/// A hash here is a promise about one exact artefact, so it may only be written
-/// down once somebody has read it from the project's own release — not computed
-/// from whatever this machine happened to receive, which would attest that the
-/// file matches itself and nothing more. Every entry below was read from the
-/// publisher, on 2026-08-10:
+/// It is data rather than Rust because `scripts/update-components.mjs` rewrites
+/// it every week and opens a pull request. A script editing Rust source with a
+/// regular expression is the shape that has already silently replaced the wrong
+/// thing in this repository once.
 ///
-/// * Hugging Face serves the SHA-256 of an LFS file as its object id, through
-///   `https://huggingface.co/api/models/<repo>/tree/main`. Those seven URLs are
-///   pinned to a revision rather than to `main` in the catalogue below — a hash
-///   against a moving branch would start refusing the download the day the
-///   publisher pushed anything, and the pair only means something together.
-/// * GitHub serves `digest` on a release asset, through
-///   `repos/<owner>/<repo>/releases/tags/<tag>`. It is present for
-///   `whisper-vulkan` and null for `model-hlasy`, whose asset predates the
-///   field — so that one has no entry and cannot get one from GitHub.
-///
-/// * gyan.dev publishes `<archive>.sha256` beside each ffmpeg build, and
-///   `release-version` says which version the rolling link currently points at.
-///
-/// Fifteen of the sixteen components are here. The one that is not is
-/// `model-hlasy`: its asset predates GitHub's digest field and reads null, and
-/// no other publication of that file exists to read one from. It installs and
-/// is recorded `origin unverified`, which is the truth about it.
-///
-/// **Moving a component to a newer version is an edit, and both halves change
-/// together.** Read the new digest from the publisher — never from the file
-/// this machine received — and change the address in the catalogue in the same
-/// commit. A digest without its address, or an address without its digest, is
-/// worse than neither: the first refuses every download, the second quietly
-/// installs whatever arrives.
-const EXPECTED_HASHES: &[(&str, &str)] = &[
-    (
-        "whisper-vulkan",
-        "a5d408c72e460433b39875f74a0b6e27e60a3724301d478fe9873db7ff4098e0",
-    ),
-    (
-        "whisper-cpu",
-        "49dcc16de826f20bd53d44f947a1ae49dfa81f86cad67a64d80820cb192d674a",
-    ),
-    (
-        "whisper-cuda",
-        "443110ddaad70d4290ab2e77179e31cf712035bbc4fad56bb4519a90c917b39c",
-    ),
-    (
-        "ffmpeg",
-        "e6b54767a6065919048f1a098eb27211ca4e12b4348a05d88777a5855d0b6e71",
-    ),
-    (
-        "yt-dlp",
-        "52fe3c26dcf71fbdc85b528589020bb0b8e383155cfa81b64dd447bbe35e24b8",
-    ),
-    (
-        "deno",
-        "171efab55ac6b9881fd53ee4c20f8bf3bb1340ffc618483746909014db12216a",
-    ),
-    (
-        "editor-vulkan",
-        "0fa6110380decb70b8e964f89214f7596efbda80dd8e133acf72a7c1a2744796",
-    ),
-    (
-        "editor-cpu",
-        "0c1865233965dbaa7bec9bfdfa85b622bcb4c4ce877d2cbe502a71173fc8ee47",
-    ),
-    (
-        "vad",
-        "2aa269b785eeb53a82983a20501ddf7c1d9c48e33ab63a41391ac6c9f7fb6987",
-    ),
-    (
-        "model-turbo",
-        "394221709cd5ad1f40c46e6031ca61bce88931e6e088c188294c6d5a55ffa7e2",
-    ),
-    (
-        "model-large-q5",
-        "d75795ecff3f83b5faa89d1900604ad8c780abd5739fae406de19f23ecd98ad1",
-    ),
-    (
-        "model-large",
-        "64d182b440b98d5203c4f9bd541544d84c605196c4f7b845dfa11fb23594d1e2",
-    ),
-    (
-        "editor-model-light",
-        "fa401b55b07ee70a54c6dae3903c783a6e65064312529ea57175cb5f8dec6634",
-    ),
-    (
-        "editor-model-balanced",
-        "676c35070db6dbe52f93e9c864ee0fba4eddea94b9c875d9cb10daff453fbaee",
-    ),
-    (
-        "editor-model-best",
-        "93567e57a8fe10b23569b9d9ec38cd005deedf71e29477c421a4b83f418a538b",
-    ),
-];
+/// A digest is a promise about one exact artefact, so it may only be written
+/// down once somebody has read it from the publisher — never computed from
+/// whatever this machine received, which would attest that a file matches
+/// itself and nothing more. Hugging Face serves it as an LFS object id, GitHub
+/// as a release asset `digest`, gyan.dev as an `.sha256` beside the archive.
+/// Where a publisher offers none, the entry has none and the component records
+/// itself `origin unverified`.
+#[derive(serde::Deserialize)]
+struct Pin {
+    url: String,
+    sha256: Option<String>,
+}
+
+fn pins() -> &'static std::collections::BTreeMap<String, Pin> {
+    static PINS: std::sync::OnceLock<std::collections::BTreeMap<String, Pin>> =
+        std::sync::OnceLock::new();
+    PINS.get_or_init(|| {
+        // Embedded at compile time, so a missing or malformed file is a build
+        // problem rather than something a user meets. `every_component_is_pinned`
+        // is what turns that promise into a checked one.
+        let raw: std::collections::BTreeMap<String, serde_json::Value> =
+            serde_json::from_str(include_str!("../components.json"))
+                .expect("components.json is not valid JSON");
+        raw.into_iter()
+            // `$comment` documents the file for whoever opens it; it is prose,
+            // not a component.
+            .filter(|(key, _)| !key.starts_with('$'))
+            .map(|(key, value)| {
+                let pin = serde_json::from_value(value)
+                    .unwrap_or_else(|error| panic!("components.json: {key}: {error}"));
+                (key, pin)
+            })
+            .collect()
+    })
+}
+
+fn pin(id: &str) -> &'static Pin {
+    pins()
+        .get(id)
+        .unwrap_or_else(|| panic!("components.json has no entry for {id}"))
+}
 
 fn expected_hash(id: &str) -> Option<&'static str> {
-    EXPECTED_HASHES
-        .iter()
-        .find(|(component, _)| *component == id)
-        .map(|(_, hash)| *hash)
+    pins().get(id).and_then(|entry| entry.sha256.as_deref())
 }
 
 /// Names and descriptions are not written here. The window shows them in the
 /// active language, so the catalogue only says which dictionary entry belongs
 /// to each item; the identifier is the key both sides agree on.
 fn raw_catalog() -> Vec<DownloadComponent> {
+    // The address is not written here any more: it comes from
+    // `components.json`, keyed by this same id, so the robot that proposes a
+    // newer version edits one file and never this list.
     let k = |id: &str,
              mb: u64,
              group: &str,
              required: bool,
              verification_path: &str,
-             source: Source,
              destination: Destination| DownloadComponent {
+        source: Source::Url(pin(id).url.clone()),
         id: id.into(),
         name_code: format!("catalog.{id}.name"),
         description_code: format!("catalog.{id}.description"),
@@ -192,7 +146,6 @@ fn raw_catalog() -> Vec<DownloadComponent> {
         complete: false,
         origin_verified: false,
         verification_path: verification_path.into(),
-        source,
         destination,
     };
 
@@ -204,7 +157,6 @@ fn raw_catalog() -> Vec<DownloadComponent> {
             "program",
             false,
             "bin/vulkan/whisper-cli.exe",
-            Source::Url("https://github.com/jerryshell/whisper.cpp-windows-vulkan-bin/releases/download/v1.0.0/whisper.cpp-windows-vulkan.zip".into()),
             Destination::ProgramsInto("bin/vulkan".into()),
         ),
         k(
@@ -213,7 +165,6 @@ fn raw_catalog() -> Vec<DownloadComponent> {
             "program",
             false,
             "bin/cpu/whisper-cli.exe",
-            Source::Url("https://github.com/ggml-org/whisper.cpp/releases/download/v1.9.2/whisper-bin-x64.zip".into()),
             Destination::ProgramsInto("bin/cpu".into()),
         ),
         k(
@@ -222,7 +173,6 @@ fn raw_catalog() -> Vec<DownloadComponent> {
             "program",
             false,
             "bin/cuda/whisper-cli.exe",
-            Source::Url("https://github.com/ggml-org/whisper.cpp/releases/download/v1.9.2/whisper-cublas-12.4.0-bin-x64.zip".into()),
             Destination::ProgramsInto("bin/cuda".into()),
         ),
         k(
@@ -231,7 +181,6 @@ fn raw_catalog() -> Vec<DownloadComponent> {
             "program",
             true,
             "bin/ffmpeg.exe",
-            Source::Url("https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-9.0-essentials_build.zip".into()),
             Destination::ProgramsInto("bin".into()),
         ),
         k(
@@ -240,9 +189,6 @@ fn raw_catalog() -> Vec<DownloadComponent> {
             "program",
             false,
             "bin/yt-dlp.exe",
-            Source::Url(
-                "https://github.com/yt-dlp/yt-dlp/releases/download/2026.07.04/yt-dlp.exe".into(),
-            ),
             Destination::AsFile("bin/yt-dlp.exe".into()),
         ),
         k(
@@ -251,7 +197,6 @@ fn raw_catalog() -> Vec<DownloadComponent> {
             "program",
             false,
             "bin/deno.exe",
-            Source::Url("https://github.com/denoland/deno/releases/download/v2.9.5/deno-x86_64-pc-windows-msvc.zip".into()),
             Destination::ProgramsInto("bin".into()),
         ),
         // ---------------------------------------------------------- modely
@@ -261,7 +206,6 @@ fn raw_catalog() -> Vec<DownloadComponent> {
             "model",
             true,
             "models/ggml-silero-v6.2.0.bin",
-            Source::Url("https://huggingface.co/ggml-org/whisper-vad/resolve/9ffd54a1e1ee413ddf265af9913beaf518d1639b/ggml-silero-v6.2.0.bin".into()),
             Destination::AsFile("models/ggml-silero-v6.2.0.bin".into()),
         ),
         k(
@@ -270,7 +214,6 @@ fn raw_catalog() -> Vec<DownloadComponent> {
             "model",
             false,
             "models/ggml-large-v3-turbo-q5_0.bin",
-            Source::Url("https://huggingface.co/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-large-v3-turbo-q5_0.bin".into()),
             Destination::AsFile("models/ggml-large-v3-turbo-q5_0.bin".into()),
         ),
         k(
@@ -279,7 +222,6 @@ fn raw_catalog() -> Vec<DownloadComponent> {
             "model",
             false,
             "models/ggml-large-v3-q5_0.bin",
-            Source::Url("https://huggingface.co/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-large-v3-q5_0.bin".into()),
             Destination::AsFile("models/ggml-large-v3-q5_0.bin".into()),
         ),
         k(
@@ -288,7 +230,6 @@ fn raw_catalog() -> Vec<DownloadComponent> {
             "model",
             false,
             "models/ggml-large-v3.bin",
-            Source::Url("https://huggingface.co/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-large-v3.bin".into()),
             Destination::AsFile("models/ggml-large-v3.bin".into()),
         ),
         // ---------------------------------------------------- language editing
@@ -298,7 +239,6 @@ fn raw_catalog() -> Vec<DownloadComponent> {
             "editor",
             false,
             "bin/editor-vulkan/llama-cli.exe",
-            Source::Url("https://github.com/ggml-org/llama.cpp/releases/download/b10342/llama-b10342-bin-win-vulkan-x64.zip".into()),
             Destination::ProgramsInto("bin/editor-vulkan".into()),
         ),
         k(
@@ -307,7 +247,6 @@ fn raw_catalog() -> Vec<DownloadComponent> {
             "editor",
             false,
             "bin/editor-cpu/llama-cli.exe",
-            Source::Url("https://github.com/ggml-org/llama.cpp/releases/download/b10342/llama-b10342-bin-win-cpu-x64.zip".into()),
             Destination::ProgramsInto("bin/editor-cpu".into()),
         ),
         k(
@@ -316,7 +255,6 @@ fn raw_catalog() -> Vec<DownloadComponent> {
             "editor",
             false,
             "models/editor/gemma-4-e2b-q4.gguf",
-            Source::Url("https://huggingface.co/google/gemma-4-E2B-it-qat-q4_0-gguf/resolve/675cff42a74c774d6cb76f76d8eacb49b48c9b93/gemma-4-E2B_q4_0-it.gguf".into()),
             Destination::AsFile("models/editor/gemma-4-e2b-q4.gguf".into()),
         ),
         k(
@@ -325,7 +263,6 @@ fn raw_catalog() -> Vec<DownloadComponent> {
             "editor",
             false,
             "models/editor/gemma-4-e4b-q4.gguf",
-            Source::Url("https://huggingface.co/google/gemma-4-E4B-it-qat-q4_0-gguf/resolve/4b4a2c1d584be7264f87aac328a1bc739ce81b6c/gemma-4-E4B_q4_0-it.gguf".into()),
             Destination::AsFile("models/editor/gemma-4-e4b-q4.gguf".into()),
         ),
         k(
@@ -334,7 +271,6 @@ fn raw_catalog() -> Vec<DownloadComponent> {
             "editor",
             false,
             "models/editor/gemma-4-12b-q4.gguf",
-            Source::Url("https://huggingface.co/google/gemma-4-12B-it-qat-q4_0-gguf/resolve/29d097773436b69ff9feafd636ab4cf873786537/gemma-4-12b-it-qat-q4_0.gguf".into()),
             Destination::AsFile("models/editor/gemma-4-12b-q4.gguf".into()),
         ),
         // ---------------------------------------------------------- mluvci
@@ -358,7 +294,6 @@ fn raw_catalog() -> Vec<DownloadComponent> {
             "speakers",
             false,
             "models/3dspeaker_speech_campplus_sv_zh_en_16k-common_advanced.onnx",
-            Source::Url("https://github.com/k2-fsa/sherpa-onnx/releases/download/speaker-recongition-models/3dspeaker_speech_campplus_sv_zh_en_16k-common_advanced.onnx".into()),
             Destination::AsFile(
                 "models/3dspeaker_speech_campplus_sv_zh_en_16k-common_advanced.onnx".into(),
             ),
@@ -1262,31 +1197,42 @@ mod tests {
         );
     }
 
-    /// The catalogue may not carry a hash somebody guessed. Every entry must be
-    /// 64 hex characters, because that is the only shape a SHA-256 has.
+    /// `components.json` is embedded at compile time and read with `expect`, so
+    /// this is the test that makes that safe: it parses, and every entry has the
+    /// shape a SHA-256 has — 64 hexadecimal characters, never something somebody
+    /// guessed or truncated.
     #[test]
-    fn every_expected_hash_has_the_shape_of_one() {
-        for (id, hash) in EXPECTED_HASHES {
+    fn the_pins_parse_and_every_digest_has_the_shape_of_one() {
+        assert!(!pins().is_empty(), "components.json parsed to nothing");
+        for (id, entry) in pins() {
+            let Some(hash) = &entry.sha256 else { continue };
             assert_eq!(hash.len(), 64, "{id}");
             assert!(
                 hash.chars().all(|c| c.is_ascii_hexdigit()),
                 "{id} is not hexadecimal"
             );
-            assert_eq!(expected_hash(id), Some(*hash));
+            assert_eq!(expected_hash(id), Some(hash.as_str()));
         }
         assert_eq!(expected_hash("a component that does not exist"), None);
     }
 
-    /// A hash filed under a misspelt id is worse than no hash: nothing compares
-    /// it, nothing fails, and the catalogue reads as if that component were
-    /// verified.
+    /// The two files have to name the same set. A pin nothing installs is dead
+    /// weight; a component with no pin panics on the first call to `pin`, which
+    /// is a build somebody ships rather than a mistake somebody sees.
     #[test]
-    fn every_expected_hash_belongs_to_a_component_that_exists() {
+    fn the_catalogue_and_the_pins_name_the_same_components() {
         let catalogue = raw_catalog();
-        for (id, _) in EXPECTED_HASHES {
+        for component in &catalogue {
             assert!(
-                catalogue.iter().any(|component| component.id == *id),
-                "{id} has a hash but is not in the catalogue"
+                pins().contains_key(&component.id),
+                "{} is in the catalogue with no entry in components.json",
+                component.id
+            );
+        }
+        for id in pins().keys() {
+            assert!(
+                catalogue.iter().any(|component| &component.id == id),
+                "{id} is pinned but is not in the catalogue"
             );
         }
     }
