@@ -15,7 +15,7 @@
     "        and records itself origin unverified.",
     "track   how the robot finds a newer version. null means it leaves this entry",
     "        alone. The pattern lives here, on the update side, and never in the",
-    "        application: Slobot downloads a fixed address, and choosing a new one",
+    "        application: Volocal downloads a fixed address, and choosing a new one",
     "        is a pull request somebody reads."
   ],
 

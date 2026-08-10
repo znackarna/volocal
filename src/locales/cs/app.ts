@@ -45,13 +45,13 @@ export const csApp = {
 
   // --------------------------------------------------------- watch folder
   "app.watchFolder.transcribing.one":
-    "Nahrávka byla přidána do Archivu a Slobot zahájil přepis.",
+    "Nahrávka byla přidána do Archivu a Volocal zahájil přepis.",
   "app.watchFolder.transcribing.few":
-    "Do Archivu byly přidány nové nahrávky ({count}) a Slobot zahájil přepis.",
+    "Do Archivu byly přidány nové nahrávky ({count}) a Volocal zahájil přepis.",
   "app.watchFolder.transcribing.many":
-    "Do Archivu byly přidány nové nahrávky ({count}) a Slobot zahájil přepis.",
+    "Do Archivu byly přidány nové nahrávky ({count}) a Volocal zahájil přepis.",
   "app.watchFolder.transcribing.other":
-    "Do Archivu byly přidány nové nahrávky ({count}) a Slobot zahájil přepis.",
+    "Do Archivu byly přidány nové nahrávky ({count}) a Volocal zahájil přepis.",
 
   "app.watchFolder.added.one": "Nahrávka byla přidána do Archivu.",
   "app.watchFolder.added.few": "Do Archivu byly přidány nové nahrávky ({count}).",
@@ -122,7 +122,7 @@ export const csAppContext: Partial<Record<keyof typeof csApp, string>> = {
   "app.filePicker.audioAndVideo":
     "Název skupiny souborů v systémovém dialogu pro výběr souboru.",
   "app.watchFolder.transcribing.one":
-    "Hláška po přidání nahrávek s okamžitým přepisem — ze sledované složky i ručně vybraným či přetaženým souborem. „Slobot“ je název aplikace — nechte ho v každém jazyce tak, jak je.",
+    "Hláška po přidání nahrávek s okamžitým přepisem — ze sledované složky i ručně vybraným či přetaženým souborem. „Volocal“ je název aplikace — nechte ho v každém jazyce tak, jak je.",
   "app.watchFolder.added.one":
     "Hláška po přidání nahrávek bez spuštění přepisu — ze sledované složky i ručně vybraným či přetaženým souborem.",
   "app.confirm.removeText":

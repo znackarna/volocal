@@ -46,9 +46,9 @@ export const csLibrary = {
   "library.view.compact": "Kompaktní výpis",
 
   // Banner shown when transcription cannot start.
-  "library.issues.title": "Slobot zatím neumí přepisovat",
+  "library.issues.title": "Volocal zatím neumí přepisovat",
   "library.issues.finish": "Dokončit nastavení",
-  "library.dropZone.blocked": "Nahrávku můžete přidat, přepsat ji ale Slobot zatím neumí.",
+  "library.dropZone.blocked": "Nahrávku můžete přidat, přepsat ji ale Volocal zatím neumí.",
 
   // Watch folder banner.
   "library.watchFolder.title.one": "Ve sledované složce přibyl nový soubor",
@@ -125,13 +125,13 @@ export const csLibrary = {
 export const csLibraryContext: Partial<Record<keyof typeof csLibrary, string>> = {
   "library.issues.title":
     "Nadpis pruhu v Archivu, když chybí něco, bez čeho přepis nepojede. " +
-    "„Slobot“ je název aplikace — nechte ho v každém jazyce tak, jak je.",
+    "„Volocal“ je název aplikace — nechte ho v každém jazyce tak, jak je.",
   "library.issues.finish":
     "Tlačítko v tom pruhu. Otevře průvodce prvním nastavením, ne Nastavení aplikace.",
   "library.dropZone.blocked":
     "Věta pod nadpisem hlavního pruhu, dokud chybí něco nutného pro přepis. " +
     "Nahradí slib o automatickém přepisu, který by aplikace nesplnila. " +
-    "„Slobot“ je název aplikace — nechte ho v každém jazyce tak, jak je.",
+    "„Volocal“ je název aplikace — nechte ho v každém jazyce tak, jak je.",
   "library.dropZone.manual":
     "„tlačítkem přepsat“ odkazuje na tlačítko Přepsat na kartě nahrávky.",
   "library.dropZone.automatic.hint": "Popisek u přepínače Automatický přepis.",

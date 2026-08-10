@@ -1,10 +1,10 @@
 NOTICE
-Slobot 0.9.0 — značkárna s.r.o.
+Volocal 0.9.0 — značkárna s.r.o.
 
-Slobot stojí na cizí práci. Tenhle soubor říká na čí, pod jakou licencí, a co
+Volocal stojí na cizí práci. Tenhle soubor říká na čí, pod jakou licencí, a co
 z toho plyne, když program nebo jeho přenosnou kopii předáváte dál.
 
-Slobot is built on other people's work. This file says whose, under which
+Volocal is built on other people's work. This file says whose, under which
 licence, and what follows from that when you pass the program — or a portable
 copy of it — on to somebody else.
 
@@ -29,10 +29,10 @@ worth knowing about in advance.
 
 --- FFmpeg — GNU GPL v3 ---------------------------------------------------
 
-Slobot si při prvním spuštění stahuje sestavení `ffmpeg-release-essentials.zip`
+Volocal si při prvním spuštění stahuje sestavení `ffmpeg-release-essentials.zip`
 z gyan.dev. To sestavení je vydáváno pod GNU General Public License verze 3.
 
-  * Instalátor Slobotu FFmpeg NEOBSAHUJE. Stahuje se až při prvním spuštění,
+  * Instalátor Volocalu FFmpeg NEOBSAHUJE. Stahuje se až při prvním spuštění,
     přímo od autora sestavení, takže samotné předání instalátoru GPL v3
     nespouští.
   * Přenosná kopie (Nastavení → Soubory → Přenosná kopie) ho ale kopíruje s
@@ -41,7 +41,7 @@ z gyan.dev. To sestavení je vydáváno pod GNU General Public License verze 3.
     náleží právo na zdrojový kód FFmpegu: https://ffmpeg.org
   * Pro vlastní používání na vlastním počítači z toho neplyne nic navíc.
 
-Slobot downloads the `ffmpeg-release-essentials.zip` build from gyan.dev on
+Volocal downloads the `ffmpeg-release-essentials.zip` build from gyan.dev on
 first run. That build is distributed under the GNU General Public License
 version 3. The installer does NOT contain FFmpeg — it is fetched on first run
 directly from its author, so handing somebody the installer does not trigger
@@ -52,7 +52,7 @@ The recipient is entitled to FFmpeg's source, at https://ffmpeg.org.
 
 --- Gemma (Google) — Gemma Terms of Use -----------------------------------
 
-Modely Gemma, které Slobot volitelně používá pro vylepšení přepisu, NEJSOU
+Modely Gemma, které Volocal volitelně používá pro vylepšení přepisu, NEJSOU
 open source. Řídí se dokumenty:
 
   Gemma Terms of Use          https://ai.google.dev/gemma/terms
@@ -62,7 +62,7 @@ Podmínky se předávají spolu s vahami: pokud modely někomu dáte, musíte mu
 i tyto podmínky a příjemce je jimi vázán stejně jako vy. Stahují se přímo od
 Googlu z Hugging Face a v instalátoru nejsou.
 
-The Gemma models Slobot optionally uses to enhance a transcript are NOT open
+The Gemma models Volocal optionally uses to enhance a transcript are NOT open
 source. They follow Google's Gemma Terms of Use and its Prohibited Use Policy,
 and those terms travel with the weights: if you pass the models on, you must
 pass the terms on with them, and the recipient is bound exactly as you are.
@@ -93,9 +93,9 @@ The groups match the About card.
   ONNX Runtime .................... MIT
   3D-Speaker CAM++ ................ Apache 2.0
 
-  ONNX Runtime je od srpna 2026 zalinkovaný přímo ve `Slobot.exe`, ne stažený
+  ONNX Runtime je od srpna 2026 zalinkovaný přímo ve `Volocal.exe`, ne stažený
   vedle něj. Jeho licence MIT proto putuje s programem samotným.
-  Since August 2026 ONNX Runtime is linked into `Slobot.exe` rather than
+  Since August 2026 ONNX Runtime is linked into `Volocal.exe` rather than
   downloaded beside it, so its MIT licence travels with the program itself.
 
   Do té doby rozpoznávání mluvčích spouštělo `sherpa-onnx` (Apache 2.0)

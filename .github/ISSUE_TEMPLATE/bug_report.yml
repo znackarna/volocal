@@ -1,5 +1,5 @@
 name: Bug report
-description: Something in Slobot behaves wrongly
+description: Something in Volocal behaves wrongly
 labels: ["bug"]
 body:
   - type: markdown
@@ -7,7 +7,7 @@ body:
       value: |
         **Not for vulnerabilities.** If this is a security problem, close this
         form and write to jsme@znackarna.cz — see
-        [SECURITY.md](https://github.com/znackarna/slobot/blob/main/SECURITY.md).
+        [SECURITY.md](https://github.com/znackarna/volocal/blob/main/SECURITY.md).
 
         Please do not attach a real recording or a screenshot containing
         someone's name, a file path or transcript content.
@@ -34,7 +34,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: Slobot version
+      label: Volocal version
       description: Settings → About, or the installer filename.
       placeholder: "0.9.0"
     validations:
@@ -60,7 +60,7 @@ body:
     attributes:
       label: Log
       description: |
-        `slobot-log.txt` sits next to the archive — Settings → Files shows
+        `volocal-log.txt` sits next to the archive — Settings → Files shows
         where that is. Paste the lines around the failure. Read them first:
         the log contains file paths.
       render: text

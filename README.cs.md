@@ -1,6 +1,6 @@
 [English](README.md) · **Čeština**
 
-# Slobot
+# Volocal
 
 Převádí mluvené slovo na text. Nahrávky, přepisy i jazykové modely běží pouze
 na vašem počítači a nic se neodesílá ven.
@@ -19,8 +19,8 @@ a důvody jednotlivých rozhodnutí v [docs/history/](docs/history/README.md).
 
 ## Pro uživatele
 
-1. Spusťte instalátor `Slobot_0.9.0_x64-setup.exe`.
-2. Otevřete Slobot.
+1. Spusťte instalátor `Volocal_0.9.0_x64-setup.exe`.
+2. Otevřete Volocal.
 3. Při prvním spuštění se ukáže průvodce. Zmáčkněte **Stáhnout a nastavit**.
 4. Přetáhněte nahrávku do okna.
 
@@ -35,7 +35,7 @@ Nástroje a modely jdou do `%LOCALAPPDATA%\Whisp\`, přepisy do
 
 V Nastavení → Soubory je **Kopie na přenosný disk**. Zkopíruje program,
 nástroje i modely na zvolený disk a označí složku jako přenosnou. Na jiném
-počítači pak stačí spustit soubor `Slobot.exe` — bez instalace, bez zápisu do
+počítači pak stačí spustit soubor `Volocal.exe` — bez instalace, bez zápisu do
 systému, bez internetu. V přenosném režimu se archiv ukládá do `data\` vedle
 programu, ne do profilu uživatele.
 
@@ -139,8 +139,8 @@ které vynucuje, že aplikace nesmí nic načíst zvenčí.
 npm run tauri build
 ```
 
-Výsledek je `src-tauri\target\release\bundle\nsis\Slobot_0.9.0_x64-setup.exe`.
-Instalátor obsahuje **jen program** — nástroje a modely si Slobot stahuje sám
+Výsledek je `src-tauri\target\release\bundle\nsis\Volocal_0.9.0_x64-setup.exe`.
+Instalátor obsahuje **jen program** — nástroje a modely si Volocal stahuje sám
 při prvním spuštění, takže má řádově megabajty, ne gigabajty. Instaluje se pro
 přihlášeného uživatele (`installMode: currentUser`), takže nechce práva správce.
 
@@ -217,7 +217,7 @@ Externí nástroje jsou samostatné procesy, ne linkované knihovny. Kterýkoli 
 vyměnit bez zásahu do aplikace, a když jeden spadne, nespadne s ním okno.
 
 Výjimkou je rozpoznání mluvčích. Od srpna 2026 neběží jako samostatný program:
-model hlasů CAM++ počítá ONNX Runtime přímo uvnitř Slobotu, na Windows přes
+model hlasů CAM++ počítá ONNX Runtime přímo uvnitř Volocalu, na Windows přes
 DirectML se záložním během na procesoru. Kde je řeč, se přitom nehledá znovu —
 to už řekl přepis. Program `sherpa-onnx` ani segmentační model pyannote, které
 tuhle práci dělaly dřív, se proto od té doby nestahují.

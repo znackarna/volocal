@@ -24,7 +24,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const path = join(root, "src-tauri", "components.json");
 const write = process.argv.includes("--write");
 
-const headers = { "user-agent": "slobot-component-update" };
+const headers = { "user-agent": "volocal-component-update" };
 if (process.env.GITHUB_TOKEN) headers.authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
 
 async function json(url) {

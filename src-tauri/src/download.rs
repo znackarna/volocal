@@ -385,7 +385,7 @@ const KEEPALIVE_RETRIES: u32 = 6;
 
 fn client() -> Result<reqwest::blocking::Client> {
     Ok(reqwest::blocking::Client::builder()
-        .user_agent("Slobot")
+        .user_agent("Volocal")
         .timeout(None)
         .connect_timeout(CONNECT_TIMEOUT)
         .tcp_keepalive(KEEPALIVE_IDLE)
@@ -918,7 +918,7 @@ pub fn create_portable_copy(
 
     // The name follows productName, so a later rename of the application
     // cannot leave the portable copy running under the previous one — which
-    // is exactly what happened when Whisp became Slobot.
+    // is exactly what happened when Whisp became Volocal.
     let executable = format!("{}.exe", app.package_info().name);
     let program = std::env::current_exe()?;
     std::fs::copy(&program, destination.join(&executable))?;
@@ -1008,7 +1008,7 @@ mod tests {
     /// A scratch directory of this test's own, removed on the way in so a
     /// previous run cannot decide the result.
     fn scratch(name: &str) -> PathBuf {
-        let directory = std::env::temp_dir().join(format!("slobot-test-{name}"));
+        let directory = std::env::temp_dir().join(format!("volocal-test-{name}"));
         let _ = std::fs::remove_dir_all(&directory);
         std::fs::create_dir_all(&directory).expect("scratch");
         directory

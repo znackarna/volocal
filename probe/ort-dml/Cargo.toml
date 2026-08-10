@@ -1,6 +1,6 @@
 # Stojí stranou aplikace schválně.
 #
-# Tohle není součást Slobota a nikdy nemá být — je to jednorázové měřidlo,
+# Tohle není součást Volocalu a nikdy nemá být — je to jednorázové měřidlo,
 # které má odpovědět na jedinou otázku: rozhýbe DirectML tuhle grafickou kartu?
 # Kdyby `ort` viselo v závislostech aplikace, stahoval by se s ním při každém
 # překladu i celý ONNX Runtime, a to za odpověď na jednu otázku nestojí.

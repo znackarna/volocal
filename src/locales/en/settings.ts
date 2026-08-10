@@ -162,7 +162,7 @@ export const enSettings: Partial<Record<keyof typeof csSettings, string>> = {
   "settings.appearance.previewDiacritics": "Accents and ligatures: á é í ó ú â ê ô ä ö ü ç ñ æ œ",
   "settings.speech.title": "Language and speech detection",
   "settings.speech.description":
-    "What language is spoken in the recording, and what Slobot should count as speech.",
+    "What language is spoken in the recording, and what Volocal should count as speech.",
   "settings.transcription.description":
     "Choose the size of the language model and the quality of the conversion.",
   "settings.transcription.model": "Model",

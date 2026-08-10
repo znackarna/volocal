@@ -1,4 +1,4 @@
-﻿SLOBOT
+VOLOCAL
 Licenční ujednání / Licence terms
 značkárna s.r.o., 2026
 
@@ -8,7 +8,7 @@ značkárna s.r.o., 2026
 
 1. Program
 
-Slobot je majetkem značkárna s.r.o. Instalací a používáním získáváte právo
+Volocal je majetkem značkárna s.r.o. Instalací a používáním získáváte právo
 program užívat. Program nesmíte prodávat, pronajímat ani vydávat za svůj.
 
 Program pracuje výhradně na vašem počítači. Nahrávky, přepisy ani nastavení
@@ -18,7 +18,7 @@ nikam neodesílá.
 2. Součásti, které si program stáhne sám
 
 Instalátor obsahuje pouze samotný program. Nástroje a jazykové modely, které
-Slobot k práci potřebuje, se stahují až při prvním spuštění, přímo od jejich
+Volocal k práci potřebuje, se stahují až při prvním spuštění, přímo od jejich
 autorů. Nejsou tedy součástí této instalace a každý se řídí vlastní licencí.
 
 Úplný seznam i s licencemi najdete v aplikaci pod Nastavení → O aplikaci.
@@ -27,7 +27,7 @@ domain). Dvě položky mají podmínky, které je dobré znát předem:
 
   FFmpeg
   Stažené sestavení je pod licencí GNU GPL verze 3. Pro vlastní používání to
-  pro vás neznamená nic navíc. Jakmile ale předáte dál přenosnou kopii Slobotu
+  pro vás neznamená nic navíc. Jakmile ale předáte dál přenosnou kopii Volocalu
   (Nastavení → Soubory → Přenosná kopie), předáváte s ní i FFmpeg, a platí
   podmínky GPL v3 — příjemci mimo jiné náleží právo na zdrojový kód FFmpegu.
   Ten je dostupný na https://ffmpeg.org.
@@ -58,7 +58,7 @@ ENGLISH
 
 1. The program
 
-Slobot is the property of značkárna s.r.o. Installing it grants you the right
+Volocal is the property of značkárna s.r.o. Installing it grants you the right
 to use it. You may not sell it, rent it out, or present it as your own.
 
 The program works entirely on your computer. It sends no recordings,
@@ -68,7 +68,7 @@ transcripts or settings anywhere.
 2. Components the program downloads itself
 
 This installer contains the program alone. The tools and language models
-Slobot needs are downloaded on first run, directly from their authors. They
+Volocal needs are downloaded on first run, directly from their authors. They
 are therefore not part of this installation and each follows its own licence.
 
 The full list with licences is in the application under Settings → About.
@@ -78,7 +78,7 @@ domain). Two entries carry terms worth knowing in advance:
   FFmpeg
   The build that is downloaded is licensed under the GNU GPL version 3. For
   your own use this asks nothing extra of you. But once you pass on a portable
-  copy of Slobot (Settings → Files → Portable copy), you pass FFmpeg on with
+  copy of Volocal (Settings → Files → Portable copy), you pass FFmpeg on with
   it, and the GPL v3 applies — the recipient is entitled to FFmpeg's source
   code, among other things. It is available at https://ffmpeg.org.
 

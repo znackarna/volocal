@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Slobot",
+  "productName": "Volocal",
   "version": "0.9.0",
-  "identifier": "cz.znackarna.whisp",
+  "identifier": "cz.znackarna.volocal",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://127.0.0.1:5183",
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Slobot™",
+        "title": "Volocal™",
         "width": 1360,
         "height": 900,
         "minWidth": 1000,
@@ -32,7 +32,7 @@
   "plugins": {
     "updater": {
       "endpoints": [
-        "https://github.com/znackarna/slobot/releases/latest/download/latest.json"
+        "https://github.com/znackarna/volocal/releases/latest/download/latest.json"
       ],
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDhCM0IwMjM1Q0M1MzA3ODYKUldTR0IxUE1OUUk3aTd1aEUzQU5LdlREQlRCemZoQ1V4a05JU1FBRERUV3lLdGdGd2paQkMwNmoK",
       "windows": {
@@ -47,7 +47,7 @@
     "publisher": "značkárna s.r.o.",
     "copyright": "© 2026 značkárna s.r.o.",
     "shortDescription": "Převádí mluvené slovo na text",
-    "longDescription": "Slobot převádí mluvené slovo na text. Přepíše nahrávky i videa v češtině a dalších jazycích, rozpozná jednotlivé mluvčí, označí místa, kde si nebyl jistý, a přehrává přesně na slovo. Nahrávky, přepisy i jazykové modely běží na vašem počítači a nic se neodesílá ven.",
+    "longDescription": "Volocal převádí mluvené slovo na text. Přepíše nahrávky i videa v češtině a dalších jazycích, rozpozná jednotlivé mluvčí, označí místa, kde si nebyl jistý, a přehrává přesně na slovo. Nahrávky, přepisy i jazykové modely běží na vašem počítači a nic se neodesílá ven.",
     "licenseFile": "LICENSE.txt",
     "windows": {
       "nsis": {

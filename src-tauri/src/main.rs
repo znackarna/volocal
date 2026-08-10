@@ -440,10 +440,74 @@ fn archive_to_open(chosen: &std::path::Path, other: &std::path::Path) -> std::pa
 /// the file in the message it shows. A person told only that the archive is
 /// broken cannot act on it; one told which file it is, and where the copies of
 /// it are, can.
+/// What the profile folder was called before the application was renamed.
+///
+/// The folder is named after the Tauri identifier, so changing the name
+/// changed the folder — and everything an installed copy owns is inside it:
+/// the archive, its backups, the playback cache, the log.
+const PROFILE_FOLDER_BEFORE_THE_RENAME: &str = "cz.znackarna.whisp";
+
+/// Moves the profile folder over from the name the application used to have.
+///
+/// Returns the folder to actually use. Without this the first Volocal build
+/// would open an empty archive beside a full one and look, to somebody with a
+/// year of transcripts, exactly like an application that had lost them.
+///
+/// `rename` rather than a copy: both paths are siblings under `%APPDATA%`, so
+/// it is one atomic operation on the same volume — there is no window in which
+/// the data exists twice or half. And if it fails for any reason, the old
+/// folder is left untouched and opened where it stands. A rename that cannot
+/// happen must not cost anybody their work; the worst case is a folder with
+/// the old name, which nobody but this function ever looks at.
+///
+/// What it did is remembered here rather than written down on the spot: the
+/// log file lives inside the folder being moved, so it is not armed until
+/// `connect_database` knows where the archive ended up. The first run after a
+/// rename is exactly the run somebody would want a record of, and it was going
+/// only to a stderr nobody sees in a released build.
+static PROFILE_MOVE: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+
+fn profile_folder(profile: PathBuf) -> PathBuf {
+    let Some(old) = profile
+        .parent()
+        .map(|p| p.join(PROFILE_FOLDER_BEFORE_THE_RENAME))
+    else {
+        return profile;
+    };
+    // Nothing to bring over, or this copy has already been through here.
+    if !old.join("whisp.db").is_file() || profile.join("whisp.db").is_file() {
+        return profile;
+    }
+    /* Tauri may have created the new folder already. An empty one is in the
+    way of the rename and nothing else, so it goes; one with anything in it is
+    not ours to remove. */
+    if profile.is_dir() {
+        let _ = std::fs::remove_dir(&profile);
+    }
+    match std::fs::rename(&old, &profile) {
+        Ok(()) => {
+            let _ = PROFILE_MOVE.set(format!(
+                "moved the archive from {} to {} after the rename",
+                old.display(),
+                profile.display()
+            ));
+            profile
+        }
+        Err(error) => {
+            let _ = PROFILE_MOVE.set(format!(
+                "could not move {} to {} ({error}); opening it where it is",
+                old.display(),
+                profile.display()
+            ));
+            old
+        }
+    }
+}
+
 fn archive_path(app: &tauri::App) -> Result<PathBuf> {
     // Prenosny rezim: databaze lezi vedle programu, nic se nezapisuje
     // do profilu uzivatele na cizim pocitaci.
-    let profile = app.path().app_data_dir()?;
+    let profile = profile_folder(app.path().app_data_dir()?);
     let directory = tools::data_directory(profile.clone());
     let other = if directory == profile {
         tools::app_directory().join("data")
@@ -490,12 +554,12 @@ fn report_unusable_archive(
     }
 
     let message = format!(
-        "Slobot nemůže otevřít svůj archiv, a proto se nespustí.\n\n\
+        "Volocal nemůže otevřít svůj archiv, a proto se nespustí.\n\n\
          Archiv:\n{archive_text}\n\n\
          Zálohy:\n{backups_text}\n\n\
          Poškozený soubor archivu si uložte stranou a na jeho místo zkopírujte \
          nejnovější zálohu z uvedené složky. Zkopírovaný soubor přejmenujte tak, \
-         aby se jmenoval stejně jako archiv. Potom Slobot spusťte znovu.\n\n\
+         aby se jmenoval stejně jako archiv. Potom Volocal spusťte znovu.\n\n\
          Podrobnost: {error:#}"
     );
 
@@ -509,7 +573,7 @@ fn report_unusable_archive(
             .dialog()
             .message(message)
             .kind(MessageDialogKind::Error)
-            .title("Slobot")
+            .title("Volocal")
             .blocking_show();
         std::process::exit(1);
     });
@@ -522,6 +586,11 @@ fn connect_database(app: &tauri::App, db_path: PathBuf) -> Result<()> {
     // As early as the location is known: most of the lines below are the only
     // record that anything happened to somebody's archive.
     diagnostics::set_file(&db_path);
+    // Written now rather than when it happened, because the file to write it
+    // into was still being moved at the time.
+    if let Some(moved) = PROFILE_MOVE.get() {
+        crate::note!("{moved}");
+    }
     let mut connection = db::open(&db_path)?;
 
     // Anything still marked as running belongs to a session that never
@@ -676,6 +745,92 @@ mod archive_location_tests {
         let chosen = scratch("first-run");
         let other = scratch("also-empty");
         assert_eq!(archive_to_open(&chosen, &other), chosen.join("whisp.db"));
+    }
+
+    /// The rename moved the profile folder, and these say what that must never
+    /// do: lose an archive, and open an empty one while a full one sits beside
+    /// it under the old name.
+    mod after_the_rename {
+        use super::*;
+
+        /// A parent standing in for `%APPDATA%`, with both folder names under it.
+        fn profiles(name: &str) -> (std::path::PathBuf, std::path::PathBuf) {
+            let parent = scratch(name);
+            (
+                parent.join(PROFILE_FOLDER_BEFORE_THE_RENAME),
+                parent.join("cz.znackarna.volocal"),
+            )
+        }
+
+        #[test]
+        fn an_archive_under_the_old_name_is_brought_over() {
+            let (old, new) = profiles("upgrade");
+            std::fs::create_dir_all(&old).unwrap();
+            archive(&old);
+            std::fs::write(old.join("volocal-log.txt"), b"a line").unwrap();
+
+            assert_eq!(profile_folder(new.clone()), new);
+            assert!(new.join("whisp.db").is_file());
+            // Everything in the folder travels, not only the database.
+            assert!(new.join("volocal-log.txt").is_file());
+            assert!(!old.exists());
+        }
+
+        #[test]
+        fn a_first_run_finds_nothing_to_bring_and_says_so_by_doing_nothing() {
+            let (old, new) = profiles("fresh");
+            assert_eq!(profile_folder(new.clone()), new);
+            assert!(!old.exists());
+            assert!(!new.join("whisp.db").is_file());
+        }
+
+        /// Run twice — an upgrade, then any later start. The second must not
+        /// touch anything.
+        #[test]
+        fn an_archive_already_under_the_new_name_is_left_alone() {
+            let (old, new) = profiles("already-moved");
+            std::fs::create_dir_all(&new).unwrap();
+            archive(&new);
+            std::fs::create_dir_all(&old).unwrap();
+            archive(&old);
+            std::fs::write(new.join("whisp.db"), b"the one in use").unwrap();
+
+            assert_eq!(profile_folder(new.clone()), new);
+            assert_eq!(
+                std::fs::read(new.join("whisp.db")).unwrap(),
+                b"the one in use"
+            );
+            // The old one is not swept away either: it is not ours to delete.
+            assert!(old.join("whisp.db").is_file());
+        }
+
+        /// The new folder exists but is empty, which is what Tauri leaves
+        /// behind. It must not stop the move.
+        #[test]
+        fn an_empty_new_folder_is_not_in_the_way() {
+            let (old, new) = profiles("empty-new");
+            std::fs::create_dir_all(&old).unwrap();
+            archive(&old);
+            std::fs::create_dir_all(&new).unwrap();
+
+            assert_eq!(profile_folder(new.clone()), new);
+            assert!(new.join("whisp.db").is_file());
+        }
+
+        /// The move cannot happen — here because the new folder holds somebody
+        /// else's file. The archive is opened where it stands rather than a new
+        /// empty one being started.
+        #[test]
+        fn a_move_that_cannot_happen_opens_the_old_folder_in_place() {
+            let (old, new) = profiles("blocked");
+            std::fs::create_dir_all(&old).unwrap();
+            archive(&old);
+            std::fs::create_dir_all(&new).unwrap();
+            std::fs::write(new.join("something-else.txt"), b"not ours").unwrap();
+
+            assert_eq!(profile_folder(new.clone()), old);
+            assert!(old.join("whisp.db").is_file());
+        }
     }
 }
 

@@ -97,7 +97,7 @@ pub(crate) fn diarize(
     stop_if_cancelled(task, recording_id)?;
     // The reason goes three places on purpose. It is in the message the reader
     // sees, because "could not be started" without a why is not a report; it is
-    // in `slobot-log.txt`, because a notice that has already gone cannot be
+    // in `volocal-log.txt`, because a notice that has already gone cannot be
     // asked about; and `{model}` is in there because the path is the first
     // thing that is ever wrong.
     let mut voices = crate::voiceprint::Voices::open(Path::new(model)).map_err(|error| {

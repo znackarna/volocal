@@ -24,12 +24,12 @@ podrobností a domluvíme se.
 
 ### Které verze
 
-Slobot je ve verzi 0.9.0 a nemá zpětné vydávání oprav. Podporovaná je vždy
+Volocal je ve verzi 0.9.0 a nemá zpětné vydávání oprav. Podporovaná je vždy
 poslední vydaná verze; oprava přijde v té další.
 
 ### Hranice důvěry
 
-Slobot je desktopová aplikace pro Windows. Běží pod účtem uživatele, který ji
+Volocal je desktopová aplikace pro Windows. Běží pod účtem uživatele, který ji
 spustil, a má přesně jeho oprávnění.
 
 * **Webview nenačítá cizí obsah.** Zobrazuje jen rozhraní přiložené k programu,
@@ -51,7 +51,7 @@ Tohle nejsou hypotézy. Jsou to vlastnosti dnešního kódu, ověřené proti n�
 
 **1. Stažené součásti se zatím neporovnávají s žádným kontrolním součtem.**
 
-Slobot si při prvním spuštění stahuje nástroje (FFmpeg, whisper.cpp,
+Volocal si při prvním spuštění stahuje nástroje (FFmpeg, whisper.cpp,
 llama.cpp, yt-dlp, Deno) a modely, rozbaluje je a spouští je jako běžné
 programy pod vaším účtem.
 
@@ -90,7 +90,7 @@ v živých vydáních na GitHubu** (`whisper-cpu`, `whisper-cuda`, `deno`,
 míří na `releases/latest/download/`, takže je to rovněž to, co projekt vydává
 právě teď. Co se u těchto šesti nainstaluje, závisí na tom, co ty projekty
 v daný okamžik publikují; kdyby se přejmenoval nebo podstrčil soubor, který
-vzoru vyhoví, Slobot ho stáhne a spustí. Dokud nejsou připnuté na konkrétní
+vzoru vyhoví, Volocal ho stáhne a spustí. Dokud nejsou připnuté na konkrétní
 verzi, nemůže u nich žádný otisk vzniknout.
 
 **2. Webview má Content Security Policy. Asset protokol i tak vidí celý disk.**
@@ -180,12 +180,12 @@ without the details and we will arrange one.
 
 ### Which versions
 
-Slobot is at 0.9.0 and does not backport fixes. The supported version is
+Volocal is at 0.9.0 and does not backport fixes. The supported version is
 always the latest release; a fix arrives in the next one.
 
 ### Trust boundary
 
-Slobot is a Windows desktop application. It runs as the user who started it and
+Volocal is a Windows desktop application. It runs as the user who started it and
 has exactly that user's rights.
 
 * **The webview loads no foreign content.** It renders only the interface
@@ -208,7 +208,7 @@ against it on 10 August 2026.
 
 **1. Downloaded components are not yet compared against any checksum.**
 
-On first run Slobot downloads tools (FFmpeg, whisper.cpp, llama.cpp, yt-dlp,
+On first run Volocal downloads tools (FFmpeg, whisper.cpp, llama.cpp, yt-dlp,
 Deno) and models, unpacks them, and runs them as ordinary programs under your
 account.
 

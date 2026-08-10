@@ -36,9 +36,9 @@ export const enApp: Partial<Record<keyof typeof csApp, string>> = {
   "app.crash.reload": "Reload the window",
   "app.filePicker.audioAndVideo": "Audio and video",
   "app.watchFolder.transcribing.one":
-    "The recording was added to the Archive and Slobot started transcribing.",
+    "The recording was added to the Archive and Volocal started transcribing.",
   "app.watchFolder.transcribing.other":
-    "New recordings ({count}) were added to the Archive and Slobot started transcribing.",
+    "New recordings ({count}) were added to the Archive and Volocal started transcribing.",
   "app.watchFolder.added.one": "The recording was added to the Archive.",
   "app.watchFolder.added.other": "New recordings ({count}) were added to the Archive.",
   "app.confirm.removeTitle": "Remove from archive?",

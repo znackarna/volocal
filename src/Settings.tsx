@@ -1349,7 +1349,7 @@ export default function SettingsScreen({ onComplete, onError, onToModule }: Prop
           <p className="settings-section-description">
             <Filled message={t("settings.portable.copyDescription")} name="file">
               {/* i18n-ignore: the name of the file on disk */}
-              <code>Slobot.exe</code>
+              <code>Volocal.exe</code>
             </Filled>
           </p>
 
@@ -1486,7 +1486,7 @@ function About({
     <>
       <section className="settings-card-about">
         {/* i18n-ignore: the name of the product, the same word in every language */}
-        <h2>Slobot</h2>
+        <h2>Volocal</h2>
         <p className="settings-section-description">{t("settings.about.description")}</p>
 
         <dl className="about-panel">
