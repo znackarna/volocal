@@ -214,27 +214,25 @@ button, input, select, textarea { font: inherit; color: inherit; }
 /* The mark is an upright isometric cube; 24 px suits it in the bar. */
 .logotyp { display: block; }
 .logotyp svg { height: 24px; width: auto; display: block; }
-/* The product's name beside its mark, in the archive's header. It is the same
-   size and weight as the recording's name in the detail header (`.detail-hlavicka
-   h1`, 15/700) — the two headers are the same bar, and what stands after the
-   cube is the title of whatever screen you are on. Change them together.
-   The version and the description live in the window's own title bar, where
-   the operating system already asks what this program is. */
+/* The drawn wordmark beside the mark, in the archive's header. Both numbers
+   are measured off the printed lockup (`src-tauri/nsis/header.bmp`) rather
+   than chosen, so the pair sits here the way it sits on the installer: there
+   the cube's ink is 81 px tall, the wordmark's is 50, and 19 px separate them.
+   Against a 24 px cube that is 14.8 px and 5.6 px. If the cube's height
+   changes, scale both from it — do not round them to whole pixels first.
+   `currentColor` inside the file, `--text` here: black on the light theme,
+   white on the dark one, one file for both.
+
+   And it is not centred on the cube. On the installer the cube's ink is
+   centred at y 56 and the wordmark's at 62.5 — the wordmark sits 6.5 px lower,
+   which is 1.9 px at this size. That offset is the lockup, not a mistake: the
+   ™ lifts the top of the wordmark's ink box and the smile under the `o` drops
+   its bottom, so ink-centring the two would not look like the artwork. */
 .header-brand-name {
-  display: inline-flex; align-items: baseline;
-  margin-left: 8px;
-  color: var(--text); font-size: 15px; font-weight: 700;
-  white-space: nowrap;
+  display: block; margin-left: 5.6px; color: var(--text);
+  transform: translateY(1.9px);
 }
-/* The trademark sign's top sits on the wordmark's cap height. The 0.5em lift is
-   measured, not derived: the glyph is already drawn high inside its own em box,
-   so where its ink lands is the font's decision and not arithmetic. If either
-   size changes, measure the ink again rather than scaling this number.
-   Quiet and light: it is a legal mark, not part of the name being read. */
-.header-brand-tm {
-  font-size: 9px; font-weight: 600; color: var(--text-tichy);
-  margin-left: 1px; align-self: baseline; transform: translateY(-0.5em);
-}
+.header-brand-name svg { height: 14.8px; width: auto; display: block; }
 .lista-levo { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .lista-pravo { display: flex; align-items: center; gap: 4px; }
 /* The pills sit at the right edge, before the named actions. Half the space
