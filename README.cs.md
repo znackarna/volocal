@@ -148,8 +148,20 @@ Odinstalace odebere jen program. Modely v `%LOCALAPPDATA%\Whisp\` i archiv
 v `%APPDATA%\cz.znackarna.whisp\` zůstanou — přeinstalace je pak okamžitá a
 nikdo nepřijde o přepisy. Kdo je chce uklidit, smaže obě složky ručně.
 
-Verze se píše na třech místech a musí souhlasit: `package.json`,
-`src-tauri/Cargo.toml` a `src-tauri/tauri.conf.json`.
+#### Před vydáním
+
+Tři kontroly, které za nikoho neudělá stroj:
+
+* **Verze souhlasí na třech místech:** `package.json`, `src-tauri/Cargo.toml`
+  a `src-tauri/tauri.conf.json`.
+* **`SECURITY.md` odpovídá konfiguraci.** Projděte každé konkrétní tvrzení
+  proti kódu — `csp` a `assetProtocol.scope` v `src-tauri/tauri.conf.json`,
+  `EXPECTED_HASHES` a položky hledané vzorem v `src-tauri/src/download.rs`,
+  a jestli je instalátor podepsaný. Dokument u sebe nese datum posledního
+  ověření; když se tvrzení a kód rozejdou, platí kód. Česká i anglická
+  polovina se opravují zároveň, jinak si za měsíc odporují.
+* **Kontroly projdou:** `npm run build`, `cargo fmt --all --check`,
+  `cargo test`, `cargo clippy --all-targets -- -D warnings`.
 
 #### Podpis
 
