@@ -60,8 +60,6 @@ enum Source {
 enum Destination {
     /// Rozbalit archiv a vsechny .exe a .dll slozit do jedne slozky
     ProgramsInto(String),
-    /// Rozbalit archiv i s podslozkami
-    ExtractInto(String),
     /// Ulozit stazeny soubor pod danym jmenem
     AsFile(String),
 }
@@ -252,30 +250,6 @@ fn raw_catalog() -> Vec<DownloadComponent> {
             Destination::AsFile("models/editor/gemma-4-12b-q4.gguf".into()),
         ),
         // ---------------------------------------------------------- mluvci
-        k(
-            "sherpa",
-            35,
-            "speakers",
-            false,
-            "bin/sherpa-onnx-offline-speaker-diarization.exe",
-            Source::Github {
-                repo: "k2-fsa/sherpa-onnx".into(),
-                pattern: "win.*x64.*\\.(tar\\.bz2|zip)$".into(),
-                // -lib archives hold libraries without the executables;
-                // static and cuda builds are unusable here
-                exclude: "cuda|jni|jar|static|sha256|-lib\\.|_lib\\.".into(),
-            },
-            Destination::ProgramsInto("bin".into()),
-        ),
-        k(
-            "model-segmentace",
-            6,
-            "speakers",
-            false,
-            "models/sherpa-onnx-pyannote-segmentation-3-0/model.onnx",
-            Source::Url("https://github.com/k2-fsa/sherpa-onnx/releases/download/speaker-segmentation-models/sherpa-onnx-pyannote-segmentation-3-0.tar.bz2".into()),
-            Destination::ExtractInto("models".into()),
-        ),
         // Historie tohohle radku, aby ho nikdo nevracel dozadu:
         //
         // 1. Nejdriv tu byl 3dspeaker ... sv_zh-cn ..., natrenovany jen na
@@ -706,7 +680,7 @@ pub fn install_component(
         Destination::AsFile(rel) => {
             download_file(app, id, &url, &destination(rel), &cancellation)?;
         }
-        Destination::ProgramsInto(rel) | Destination::ExtractInto(rel) => {
+        Destination::ProgramsInto(rel) => {
             let temporary_directory = std::env::temp_dir().join("whisp-downloads");
             std::fs::create_dir_all(&temporary_directory)?;
 
@@ -728,29 +702,22 @@ pub fn install_component(
                 },
             );
 
-            match &component.destination {
-                Destination::ProgramsInto(_) => {
-                    let extracted = temporary_directory.join(format!("{id}-vybaleno"));
-                    let _ = std::fs::remove_dir_all(&extracted);
-                    extract(&archive, &extracted)?;
-                    let count = collect_programs(&extracted, &destination(rel))?;
-                    if count == 0 {
-                        let contents = list_tree(&extracted, 12);
-                        let _ = std::fs::remove_dir_all(&extracted);
-                        let message = if contents.is_empty() {
-                            UserMessage::new("download.archive_without_programs_empty")
-                        } else {
-                            UserMessage::new("download.archive_without_programs")
-                                .with("contents", contents.join(", "))
-                        };
-                        return Err(message.with("archive", name));
-                    }
-                    let _ = std::fs::remove_dir_all(&extracted);
-                }
-                _ => {
-                    extract(&archive, &destination(rel))?;
-                }
+            let extracted = temporary_directory.join(format!("{id}-vybaleno"));
+            let _ = std::fs::remove_dir_all(&extracted);
+            extract(&archive, &extracted)?;
+            let count = collect_programs(&extracted, &destination(rel))?;
+            if count == 0 {
+                let contents = list_tree(&extracted, 12);
+                let _ = std::fs::remove_dir_all(&extracted);
+                let message = if contents.is_empty() {
+                    UserMessage::new("download.archive_without_programs_empty")
+                } else {
+                    UserMessage::new("download.archive_without_programs")
+                        .with("contents", contents.join(", "))
+                };
+                return Err(message.with("archive", name));
             }
+            let _ = std::fs::remove_dir_all(&extracted);
             let _ = std::fs::remove_file(&archive);
         }
     }

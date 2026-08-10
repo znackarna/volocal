@@ -32,10 +32,6 @@ export const enCatalog: Partial<Record<keyof typeof csCatalog, string>> = {
   "catalog.editor-model-balanced.description": "Gemma 4 E4B. Fixes obvious errors better and keeps track of context.",
   "catalog.editor-model-best.name": "Best language editing",
   "catalog.editor-model-best.description": "Gemma 4 12B. The most reliable result, slower on the CPU.",
-  "catalog.sherpa.name": "Speaker identification",
-  "catalog.sherpa.description": "Recognizes who is speaking. Useful for interviews.",
-  "catalog.model-segmentace.name": "Speaker turn detection",
-  "catalog.model-segmentace.description": "Determines when speakers change.",
   "catalog.model-hlasy.name": "Voice identification",
   "catalog.model-hlasy.description": "Links the same voice across the whole recording.",
 };

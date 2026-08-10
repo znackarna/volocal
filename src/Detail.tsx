@@ -1878,7 +1878,7 @@ export default function Detail({
     if (aiMode === "speakers") {
       setAiDialog(null);
       if (!speakersReady) {
-        onToModule("sherpa");
+        onToModule("model-hlasy");
         return;
       }
       void diarizeSpeakers();

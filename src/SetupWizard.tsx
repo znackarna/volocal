@@ -48,7 +48,7 @@ const MODELS: Record<
   },
 };
 
-const DIARIZATION_COMPONENTS = ["sherpa", "model-segmentace", "model-hlasy"];
+const DIARIZATION_COMPONENTS = ["model-hlasy"];
 
 const EDITOR_MODELS: Record<
   Exclude<EditingQuality, "off">,

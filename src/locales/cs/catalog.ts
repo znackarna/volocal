@@ -49,10 +49,6 @@ export const csCatalog = {
     "Gemma 4 12B. Nejspolehlivější výsledek, na CPU je pomalejší.",
 
   // Telling speakers apart.
-  "catalog.sherpa.name": "Rozpoznání mluvčích",
-  "catalog.sherpa.description": "Pozná, kdo zrovna mluví. Užitečné u rozhovorů.",
-  "catalog.model-segmentace.name": "Rozpoznání střídání mluvčích",
-  "catalog.model-segmentace.description": "Určuje, kdy se mluvčí střídají.",
   "catalog.model-hlasy.name": "Rozpoznání hlasů",
   "catalog.model-hlasy.description": "Spojí stejný hlas napříč celou nahrávkou.",
 } as const;
@@ -71,10 +67,6 @@ export const csCatalogContext: Partial<Record<keyof typeof csCatalog, string>> =
     "„Nejpřesnější čeština“ platí pro české nahrávky; u jiných jazyků je model taky nejlepší z nabízených.",
   "catalog.editor-model-light.description":
     "Gemma 4 E2B je název modelu a nepřekládá se. CPU = procesor.",
-  "catalog.sherpa.name":
-    "Položka ke stažení — program, který pozná střídání mluvčích. V přepisu se pak u vět objeví jména mluvčích.",
-  "catalog.model-segmentace.name":
-    "Identifikátor položky zůstal český z historických důvodů, název se překládá normálně.",
   "catalog.model-hlasy.name":
     "Identifikátor položky zůstal český z historických důvodů, název se překládá normálně.",
 };
