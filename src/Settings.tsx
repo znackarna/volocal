@@ -48,6 +48,8 @@ function themeChoice(stored: string): string {
 interface Props {
   onComplete: () => void;
   onError: (z: string) => void;
+  /** A passing remark for the notice bar: nothing went wrong, nothing to do. */
+  onInfo: (z: string) => void;
   /** Opens the modules screen; with an id it preselects what to add. */
   onToModule: (module?: string) => void;
 }
@@ -292,7 +294,7 @@ function SettingsDisclosure({
   );
 }
 
-export default function SettingsScreen({ onComplete, onError, onToModule }: Props) {
+export default function SettingsScreen({ onComplete, onError, onInfo, onToModule }: Props) {
   const labels = useLabels();
   const formats = useFormats();
   const { language, setLanguage, t, tPlural, formatNumber } = useI18n();
@@ -1380,6 +1382,7 @@ export default function SettingsScreen({ onComplete, onError, onToModule }: Prop
       {activeTab === "about" && (
         <About
           onError={onError}
+          onInfo={onInfo}
           automaticUpdates={n.update_check_automatic}
           onAutomaticUpdatesChange={(on) => save({ ...n, update_check_automatic: on })}
         />
@@ -1399,10 +1402,12 @@ export default function SettingsScreen({ onComplete, onError, onToModule }: Prop
  */
 function About({
   onError,
+  onInfo,
   automaticUpdates,
   onAutomaticUpdatesChange,
 }: {
   onError: (message: string) => void;
+  onInfo: (message: string) => void;
   automaticUpdates: boolean;
   onAutomaticUpdatesChange: (on: boolean) => void;
 }) {
@@ -1503,6 +1508,7 @@ function About({
 
         <UpdateCheck
           onError={onError}
+          onInfo={onInfo}
           automatic={automaticUpdates}
           onAutomaticChange={onAutomaticUpdatesChange}
         />

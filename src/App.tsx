@@ -1367,6 +1367,7 @@ export default function App() {
             setScreen("library");
           }}
           onError={reportError}
+          onInfo={reportInfo}
           onToModule={(module) => {
             setWizardRequired(false);
             setMissingModule(module ?? null);

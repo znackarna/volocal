@@ -1,10 +1,10 @@
 /** Checking for a new version — the one place the application talks to a
  *  server that is not on this computer.
  *
- *  It happens on a button press and nowhere else: nothing here runs on start,
- *  on a timer, or in the background. That is a promise the README makes about
- *  what leaves the machine, and the shape of this file is what keeps it. If a
- *  later change wants an automatic check, it changes the promise first.
+ *  Nothing here runs on a timer or in the background. The button is one way in;
+ *  the switch below it is the other, and that one is off until somebody turns
+ *  it on. Either way the application asks and stops — the download is always a
+ *  second, separate press.
  *
  *  On Windows the installer is what finishes the job: `downloadAndInstall`
  *  hands the downloaded package to NSIS and the application exits itself —
@@ -21,7 +21,6 @@ import { useI18n } from "../i18n";
 type State =
   | { at: "idle" }
   | { at: "checking" }
-  | { at: "current" }
   | { at: "found"; version: string }
   /** `percent` is absent while the server did not say how large the file is. */
   | { at: "downloading"; percent: number | null }
@@ -33,16 +32,24 @@ function describe(error: unknown): string {
   return String(error);
 }
 
-/** A failed check goes to the notice bar, like every other failure in the
- *  application. Saying it inside the panel instead would give this one screen
- *  a second place errors can appear, and the reader would have to learn where
- *  to look for each kind. */
+/** Where an outcome is said depends on whether anything can be done about it.
+ *
+ *  A finished check — nothing newer, or it could not be reached — goes to the
+ *  notice bar, like every other passing remark the application makes. It has
+ *  no follow-up, and leaving it under the button would give this one screen a
+ *  second place to look for news.
+ *
+ *  What stays in the panel is what carries an action or a wait: the version
+ *  that was found sits beside the button that installs it, and the progress of
+ *  a download sits where the download was asked for. */
 export function UpdateCheck({
   onError,
+  onInfo,
   automatic,
   onAutomaticChange,
 }: {
   onError: (message: string) => void;
+  onInfo: (message: string) => void;
   automatic: boolean;
   onAutomaticChange: (on: boolean) => void;
 }) {
@@ -64,7 +71,12 @@ export function UpdateCheck({
     setState({ at: "checking" });
     try {
       const update = await check();
-      setState(update ? { at: "found", version: update.version } : { at: "current" });
+      if (update) {
+        setState({ at: "found", version: update.version });
+      } else {
+        setState({ at: "idle" });
+        onInfo(t("settings.about.updateCurrent"));
+      }
     } catch (error) {
       failed(error);
     }
@@ -78,7 +90,8 @@ export function UpdateCheck({
       // is a handle on the Rust side that the window should not sit on.
       const update = await check();
       if (!update) {
-        setState({ at: "current" });
+        setState({ at: "idle" });
+        onInfo(t("settings.about.updateCurrent"));
         return;
       }
       let total = 0;
@@ -117,7 +130,6 @@ export function UpdateCheck({
         )}
       </div>
 
-      {state.at === "current" && <p className="about-stav">{t("settings.about.updateCurrent")}</p>}
       {state.at === "found" && (
         <p className="about-stav">{t("settings.about.updateFound", { version: state.version })}</p>
       )}
