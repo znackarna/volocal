@@ -382,7 +382,7 @@ mod cancellation_tests {
             let mut program = std::process::Command::new(std::env::current_exe().unwrap());
             program.args([
                 "--exact",
-                "transcription::cancellation_tests::stands_in_for_a_long_program",
+                "transcription::jobs::cancellation_tests::stands_in_for_a_long_program",
                 "--ignored",
                 "--test-threads=1",
             ]);
@@ -450,7 +450,7 @@ mod cancellation_tests {
         let mut program = std::process::Command::new(std::env::current_exe().unwrap());
         program.args([
             "--exact",
-            "transcription::cancellation_tests::stands_in_for_a_long_program",
+            "transcription::jobs::cancellation_tests::stands_in_for_a_long_program",
             "--ignored",
             "--test-threads=1",
         ]);
