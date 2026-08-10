@@ -49,6 +49,23 @@ Set-Location $root
 function Step($text) { Write-Host "`n=== $text" -ForegroundColor Cyan }
 function Fail($text) { Write-Host "`n$text" -ForegroundColor Red; exit 1 }
 
+# The key's password, asked for once and passed on explicitly everywhere.
+#
+# Explicitly, because the signer waits for one even when the key has none, with
+# no prompt a script can answer - it simply hangs. An empty answer is a real
+# answer and means the key is not protected.
+#
+# Set TAURI_SIGNING_PRIVATE_KEY_PASSWORD before running to skip the question,
+# which is what a scripted release would do. Typing it in is better on a
+# machine where the shell history is kept.
+function Get-KeyPassword {
+  if ($null -ne $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD) {
+    return $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD
+  }
+  $secure = Read-Host "Password for the updater signing key (empty if it has none)" -AsSecureString
+  [System.Net.NetworkCredential]::new("", $secure).Password
+}
+
 # ---------------------------------------------------------------- the version
 
 # Three files carry it and nothing keeps them in step. A release built from a
@@ -103,7 +120,7 @@ if (-not $Publish) {
   # signature is thrown away below - it is over the unsigned bytes - but the
   # build needs it to finish.
   $env:TAURI_SIGNING_PRIVATE_KEY_PATH = $key
-  $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = ""
+  $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = Get-KeyPassword
   npm run tauri build
   if ($LASTEXITCODE) { Fail "The build failed." }
 
@@ -150,11 +167,10 @@ around it - that way it is a decision somebody made and can be found again.
 Write-Host "signed by $($sig.SignerCertificate.Subject)" -ForegroundColor Green
 
 Step "Updater signature"
-# Over the bytes as they now are, Authenticode and all. -p "" because the key
-# has no password and the signer otherwise sits waiting for one with no prompt
-# a script can answer.
-$env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = ""
-npx tauri signer sign -f $key -p "" $exe.FullName | Out-Null
+# Over the bytes as they now are, Authenticode and all.
+$password = Get-KeyPassword
+$env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = $password
+npx tauri signer sign -f $key -p $password $exe.FullName | Out-Null
 if ($LASTEXITCODE) { Fail "Signing for the updater failed." }
 $signature = (Get-Content "$($exe.FullName).sig" -Raw).Trim()
 if (-not $signature) { Fail "The signature file is empty." }
