@@ -21,7 +21,7 @@ the time.
 | [2026-08-07](2026-08-07.md) | 40 | A recording one worker holds is not offered to another … |
 | [2026-08-08](2026-08-08.md) | 10 | The unnamed interjections get a list of their own … |
 | [2026-08-09](2026-08-09.md) | 4 | The audio the application makes has a folder of its own … |
-| [2026-08-10](2026-08-10.md) | 11 | The change log leaves CLAUDE.md … |
+| [2026-08-10](2026-08-10.md) | 15 | The change log leaves CLAUDE.md … |
 
 ## What each day was about
 
@@ -43,4 +43,4 @@ the time.
 
 **[2026-08-09](2026-08-09.md)** — A folder for recordings, search inside a transcript, WebView2's own shortcuts switched off.
 
-**[2026-08-10](2026-08-10.md)** — The hardening work starts. The log moved here; the baseline got its Windows numbers; the security documentation was made to match the code; all 21 Clippy findings fixed; eight downloads compared against a published digest; the frontend's first tests.
+**[2026-08-10](2026-08-10.md)** — The hardening plan, start to finish. The log moved here; the baseline got its Windows numbers; the security documentation was made to match the code; all 21 Clippy findings fixed and CI now refuses new ones; fifteen downloads pinned and compared against a published digest; four oversized files split by what they do; the webview's access to the disk closed to one file at a time — which corrects an entry written the same morning; the interface's first tests; Vite 5 to 8; and a release candidate that has to install and run before it counts.
