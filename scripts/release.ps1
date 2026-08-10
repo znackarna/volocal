@@ -53,6 +53,13 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+# PowerShell 7.4 turns a non-zero exit code from a native command into a
+# terminating error, which sounds helpful and is not: it fires before the
+# `if ($LASTEXITCODE)` lines below, so every message this script writes about
+# what actually went wrong is skipped in favour of a stack trace. It also blew
+# up the one place a failure is the expected answer - asking whether the tag
+# exists yet. The exit codes are checked here explicitly; that is the design.
+$PSNativeCommandUseErrorActionPreference = $false
 $root = Split-Path $PSScriptRoot -Parent
 Set-Location $root
 
@@ -187,10 +194,15 @@ Only EV is trusted on sight.
 
 Step "Updater signature"
 # Over the bytes as they now are, Authenticode and all.
-$password = Get-KeyPassword
-$env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = $password
-npx tauri signer sign -f $key -p $password $exe.FullName | Out-Null
-if ($LASTEXITCODE) { Fail "Signing for the updater failed." }
+#
+# The password goes through the environment and never onto a command line.
+# `-p` worked and printed it: npm echoes the command it runs, so the password
+# ended up in the console, in the scrollback and in anything reading either.
+# And the binary is called directly rather than through `npm run`, because that
+# is what does the echoing.
+$env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = Get-KeyPassword
+& "node_modules\.bin\tauri.cmd" signer sign -f $key $exe.FullName | Out-Null
+if ($LASTEXITCODE) { Fail "Signing for the updater failed - wrong password for the key?" }
 $signature = (Get-Content "$($exe.FullName).sig" -Raw).Trim()
 if (-not $signature) { Fail "The signature file is empty." }
 
@@ -218,8 +230,14 @@ Step "Draft release $tag"
 # A draft, always. Its assets are not reachable at releases/latest/download,
 # so nothing is offered to anybody until somebody has looked at the page and
 # pressed publish. That is the last chance to notice a wrong number.
-gh release view $tag *> $null
-if ($LASTEXITCODE -eq 0) { Fail "$tag already exists on GitHub. Bump the version in all three files." }
+# `gh release list` rather than `gh release view`: view fails when the release
+# is absent, which is the ordinary case here, and a command whose failure is
+# the expected answer is a bad thing to build a guard on.
+$existing = gh release list --json tagName -q '.[].tagName' 2>$null
+if ($LASTEXITCODE) { Fail "Could not ask GitHub what has been released. Is gh signed in?" }
+if ($existing -contains $tag) {
+  Fail "$tag already exists on GitHub. Move the version on with scripts\version.ps1."
+}
 gh release create $tag --draft --title "Volocal $version" --notes $Notes `
   $exe.FullName "$($exe.FullName).sig" $latestPath
 if ($LASTEXITCODE) { Fail "Creating the release failed." }
