@@ -22,6 +22,7 @@ import type { CSSProperties } from "react";
 import type { RecordingMetadataKind } from "./RecordingMetadataIcon";
 // inlined into the page rather than via <img>, for sharpness and colours
 import mark from "./mark.svg?raw";
+import wordmark from "./wordmark.svg?raw";
 import type { ConfirmationRequest } from "./ConfirmationDialog";
 import { formatTime, applyFonts, applyTheme, fileName } from "./types";
 import { rememberSpeakerNames } from "./speakerNames";
@@ -1084,17 +1085,18 @@ export default function App() {
               or the screen the reader is in, and a wordmark repeated there
               would take room from what actually changes. */}
           {screen === "library" && (
-            <span className="header-brand-name">
-              {/* i18n-ignore: a product name, not copy — it is the same word in
-                  every language. Lower case because this is the wordmark, drawn
-                  beside the mark, and the wordmark is set that way. In running
-                  text it is `Volocal`. */}
-              volocal
-              {/* i18n-ignore: a symbol, not a word; the same in every language.
-                  Hidden from assistive technology — the mark beside it already
-                  names the application, and "Volocal trademark" is noise. */}
-              <span className="header-brand-tm" aria-hidden>™</span>
-            </span>
+            /* The drawn wordmark rather than the name set in the interface
+               font: it carries its own letterforms, the smile under the `o`
+               and the ™, none of which type can reproduce. Its paths are
+               `currentColor`, so it is black on the light theme and white on
+               the dark one without a second file.
+               Hidden from assistive technology — the mark it stands beside
+               already carries the application's name. */
+            <span
+              className="header-brand-name"
+              aria-hidden
+              dangerouslySetInnerHTML={{ __html: wordmark }}
+            />
           )}
         </button>
 
