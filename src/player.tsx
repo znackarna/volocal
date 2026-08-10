@@ -43,8 +43,11 @@ export const EMPTY_WAVEFORM: Waveform = {
 const playbackSourceRequests = new Map<string, Promise<string>>();
 
 function resolvedPlaybackSource(recordingId: string, path: string): Promise<string> {
-  if (!path.toLowerCase().endsWith(".mp3")) return Promise.resolve(path);
-  const key = `${recordingId}\u0000${path}`;
+  /* Every recording asks, not only the MP3s that get a converted proxy. The
+  backend hands a non-MP3 back unchanged, so the answer is the same — but it is
+  also the one place that opens the asset protocol for the file about to be
+  played, and a shortcut here would leave everything else unable to load. */
+  const key =`${recordingId}\u0000${path}`;
   const existing = playbackSourceRequests.get(key);
   if (existing) return existing;
   const request = api.playbackSource(recordingId).catch((error) => {

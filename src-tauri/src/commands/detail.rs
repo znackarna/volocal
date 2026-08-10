@@ -108,7 +108,29 @@ pub fn file_exists(path: String) -> bool {
 /// Long VBR MP3 files are converted once to a cached M4A. This command is
 /// asynchronous because encoding must never block Tauri's UI/IPC thread.
 #[tauri::command]
-pub async fn playback_source(app: State<'_, AppState>, id: String) -> Reported<String> {
+pub async fn playback_source(
+    app: State<'_, AppState>,
+    handle: tauri::AppHandle,
+    id: String,
+) -> Reported<String> {
+    let path = playback_path(app, id).await?;
+    /* The asset protocol starts with nothing allowed, so the one file about to
+    be played is opened here — and here only. Every source the window plays
+    comes back through this command, including the ones handed straight back
+    unchanged; that is deliberate, and `resolvedPlaybackSource` in player.tsx
+    says why on its side.
+
+    Measured, because the opposite was once recorded as fact: with the scope
+    closed and this call removed, a recording does not start at all - no error,
+    the clock simply stays put. */
+    use tauri::Manager;
+    if let Err(error) = handle.asset_protocol_scope().allow_file(&path) {
+        crate::note!("playback: {path} could not be opened for playing: {error}");
+    }
+    Ok(path)
+}
+
+async fn playback_path(app: State<'_, AppState>, id: String) -> Reported<String> {
     let (recording, settings, db_path) = {
         let db = app.db.lock().unwrap();
         (
