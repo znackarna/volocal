@@ -150,10 +150,10 @@ export const csSettings = {
 
   // The About page: what the application is, does, and stands on.
   "settings.about.description":
-    "Převádí mluvené slovo na text. Nahrávky, přepisy i jazykové modely běží pouze na vašem počítači a nic se neodesílá ven.",
+    "Převádí mluvené slovo na text. Data zpracovává pouze na vašem počítači a nic neodesílá ven. Nahrávky, přepisy a modely jsou plně pod vaší kontrolou.",
   "settings.about.version": "Verze",
   "settings.about.author": "Autor",
-  "settings.about.abilities": "Co aplikace umí",
+  "settings.about.abilities": "Schopnosti",
   "settings.about.abilityTranscribe": "Přepíše nahrávky i videa v češtině i dalších jazycích.",
   "settings.about.abilitySpeakers": "Rozpozná mluvčí a rozdělí text mezi ně.",
   "settings.about.abilityEditor": "Vylepší přepis jazykovým modelem, shrne ho a přeloží.",
@@ -161,7 +161,7 @@ export const csSettings = {
   "settings.about.abilityNotes": "Přehraje přesně na slovo a připne poznámku k libovolnému místu.",
   "settings.about.abilitySources": "Nahraje z mikrofonu, stáhne zvuk z online videí, hlídá vybranou složku.",
   "settings.about.abilityExport": "Uloží přepis do TXT, Markdownu, SRT, VTT nebo JSON a zvuk do MP3.",
-  "settings.about.credits": "Na čem to stojí",
+  "settings.about.credits": "Technologie",
   "settings.about.creditsDescription":
     "Aplikace pro vás nepracuje sama. Tohle jsou licence jazykových modelů a nástrojů, které na výsledku spolupracují.",
   "settings.about.groupApp": "Aplikace",
