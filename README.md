@@ -45,17 +45,20 @@ exact about when Volocal does reach the internet. Only here:
    own release pages. After that the application does not need the internet.
 2. **Adding an online video.** Only if you paste a link yourself. yt-dlp fetches
    the audio; the link is the only thing that goes out.
-3. **Nothing else.** No telemetry, no crash reporting, no update check, no
-   account. Recordings, transcripts, settings and the dictionary stay in the
-   archive on your disk.
+3. **Checking for a new version — only when you ask.** The button on Settings →
+   About fetches one small file from this project's releases page. There is
+   also a switch, **off by default**, that has the application ask the same
+   question once when it opens. It asks; it never downloads without a press.
+4. **Nothing else.** No telemetry, no crash reporting, no account. Recordings,
+   transcripts, settings and the dictionary stay in the archive on your disk.
 
-Two things worth knowing about the first item. Downloaded components are **not
-yet compared against any checksum**: the code computes one and would refuse a
-mismatch, but the table of expected digests is still empty, so HTTPS and the
-certificate chain remain the whole guarantee today. And six of them are whatever
-their project publishes at that moment — five located by matching a pattern
-against live GitHub releases, one pointing at `releases/latest`. Fixing this is
-the next piece of planned work; [SECURITY.md](SECURITY.md) has the detail.
+Worth knowing about the first item. Every component is pinned to an exact
+version at an exact address, and fifteen of the sixteen are checked against a
+SHA-256 the publisher stated — the download is refused if it does not match.
+The exception is the voice model, whose host publishes no digest; it has HTTPS
+and the certificate chain and nothing more. A robot proposes version bumps once
+a week and copies digests from the publisher rather than computing them, so a
+swapped file cannot smuggle its own. [SECURITY.md](SECURITY.md) has the detail.
 
 ## Getting it
 
@@ -74,9 +77,11 @@ Because it is not signed, Windows shows SmartScreen on first run: *Windows
 protected your PC* → **More info** → **Run anyway**.
 
 Tools and models go to `%LOCALAPPDATA%\Whisp\`, the archive to
-`%APPDATA%\cz.znackarna.whisp\`. Those two paths still say `Whisp`, the
-application's earlier name; renaming them would make existing archives
-unreadable, so they stay until there is a migration to move them.
+`%APPDATA%\cz.znackarna.volocal\`. The first still says `Whisp`, a name the
+application had before Slobot and before Volocal; renaming it would make
+existing installations download everything again, so it stays. The second was
+moved when the name changed, by a migration that carries the whole folder over
+on first run.
 
 ## Development
 

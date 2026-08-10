@@ -36,7 +36,12 @@ spustil, a má přesně jeho oprávnění.
   ze zdrojů, které jsou v binárce. Žádná externí stránka, žádná reklama, žádná
   analytika, žádný vzdálený skript.
 * **Nikam nic neposílá.** Přepis, nahrávky ani nastavení neopouštějí počítač.
-  Aplikace se neptá na aktualizace a neodesílá žádnou telemetrii.
+  Žádná telemetrie, žádné hlášení pádů, žádný účet.
+* **Na aktualizace se ptá jen na vyžádání.** Tlačítko v Nastavení → O aplikaci
+  stáhne z vydání tohohle projektu jeden malý soubor. Je tam i přepínač, **ve
+  výchozím stavu vypnutý**, který tutéž otázku položí jednou po spuštění.
+  Zeptá se; nestáhne nic bez stisku. Odchází při tom jen běžný požadavek na
+  GitHub — žádné číslo verze se neposílá, porovnává se až u vás.
 * **Sama od sebe jde na síť jen kvůli stahování součástí** — nástrojů a modelů
   při prvním spuštění, a `yt-dlp` při vámi zadaném importu online videa.
   Instalátor k tomu stáhne od Microsoftu běhové prostředí WebView2, pokud ho
@@ -192,7 +197,13 @@ has exactly that user's rights.
   bundled with the program, from sources compiled into the binary. No external
   page, no advertising, no analytics, no remote script.
 * **It sends nothing out.** Transcripts, recordings and settings never leave the
-  computer. The application does not check for updates and sends no telemetry.
+  computer. No telemetry, no crash reporting, no account.
+* **It checks for updates only when asked.** The button on Settings → About
+  fetches one small file from this project's releases page. There is also a
+  switch, **off by default**, that asks the same question once when the window
+  opens. It asks; it downloads nothing without a press. What leaves is an
+  ordinary request to GitHub — no version number is sent, the comparison
+  happens on your machine.
 * **It reaches the network on its own only to fetch components** — the tools and
   models on first run, and `yt-dlp` for an online video import you asked for.
   The installer additionally fetches the WebView2 runtime from Microsoft if the
