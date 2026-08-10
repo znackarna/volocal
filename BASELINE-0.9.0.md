@@ -178,12 +178,45 @@ Odchylky proti číslům v plánu: `main.rs` má 64 příkazů, ne 59; `Detail.t
 
 ## 5. Referenční snímky
 
-**Nepořízeny.** Vyžadují běžící aplikaci na Windows; ze sandboxu je pořídit
-nelze. Chybí obě velikosti okna (1000 × 660 a 1360 × 900) pro Archiv, Detail,
-Nastavení a hlavní dialogy, ve světlém i tmavém motivu.
+**Pořízeny 10. srpna z běžící aplikace na stroji vlastníka.** Šestnáct snímků
+v `D:\Repo\slobot-snimky\`, spolu s vlastním návodem a nástrojem `snap.ps1`,
+kterým jdou pořídit znovu stejně.
 
-Dokud snímky nejsou, nemá balíček 6 (rozdělení frontendu) čím doložit, že se
-nezměnil ani pixel.
+| | 1360 × 900 | 1000 × 660 |
+|---|---|---|
+| Archiv | světlý, tmavý | světlý, tmavý |
+| Detail přepisu | světlý, tmavý | světlý, tmavý |
+| Detail s otevřeným panelem | světlý | — |
+| Nastavení → Modely | světlý, tmavý | světlý, tmavý |
+| Nastavení → Vzhled | světlý | — |
+| Dialog Nový přepis | světlý, tmavý | — |
+
+**Schválně mimo repozitář.** Ten je veřejný a na snímcích jsou skutečné
+nahrávky vlastníka — jména, délky, obsah přepisu. Slouží k jedinému: až se bude
+dělit `Detail.tsx` a `styles.css`, porovná se výsledek s nimi. Snímek do
+`README.md` je jiná věc a musí vzniknout z vymyšlených dat.
+
+Rozměry v názvech jsou v jednotkách aplikace. Displej běží na 150 %, takže
+1360 × 900 je soubor 2040 × 1350.
+
+### Past, kvůli které první tři pokusy vyšly nakřivo
+
+Obsah byl posunutý a vpravo useknutý, ve všech pokusech stejně. Vypadalo to
+jako vada zobrazení v aplikaci a nebyla to ona: **proces, který Windows neřekne,
+že rozumí zvětšení displeje, dostává přepočítané souřadnice.** `GetWindowRect`
+pak hlásí dvě třetiny skutečné velikosti, snímek se založí moc malý a stránka
+vypadá vysázená do širšího okna, než jaké má. Rozhodl to až snímek pořízený
+druhou cestou — z obrazovky místo z okna — na kterém bylo vidět, že okno leží
+jinde a je větší, než co API tvrdilo.
+
+Řeší to jeden řádek na začátku `snap.ps1`, `SetProcessDpiAwarenessContext(-4)`,
+a musí být dřív, než se sáhne na první okno. Kdo ten postup přenese jinam, ať
+ho vezme s sebou: bez něj selže tiše a vypadá to jako vada aplikace.
+
+### Co se při focení v aplikaci měnilo
+
+Motiv byl na dobu tmavé sady přepnutý na `Tmavý` a pak vrácený na
+`Podle systému`. Nic jiného; archiv ani nastavení se nezměnily.
 
 ## 6. Nález mimo zadání: co je v instalátoru
 
@@ -213,19 +246,15 @@ v `slobot-log.txt` a doba rozpoznávání proti spuštění z `target/release`.
 
 **Neopraveno.** Patří k vydání a integritě součástí, ne k balíčku 0.
 
-## 7. Co protokolu chybí
+## 7. Protokolu už nechybí nic
 
 Doplněno 10. srpna na stroji vlastníka: verze Windows, Node a Rustu
-(odstavec 2) a všechny čtyři příkazy včetně seznamu nálezů Clippy (odstavec 3).
+(odstavec 2), všechny čtyři příkazy včetně seznamu nálezů Clippy (odstavec 3)
+a šestnáct referenčních snímků (odstavec 5).
 
-Zbývá:
-
-- **referenční snímky.** Chybí obě velikosti okna (1000 × 660 a 1360 × 900) pro
-  Archiv, Detail, Nastavení a hlavní dialogy, ve světlém i tmavém motivu.
-
-Dokud nejsou, nemá balíček 6 (rozdělení frontendu) čím doložit, že se nezměnil
-ani pixel. Zbytek výchozího stavu je uzamčený a pozdější balíčky mají proti
-čemu měřit.
+**Balíček 0 je tím hotový.** Výchozí stav je uzamčený a pozdější balíčky mají
+proti čemu měřit — balíček 6 (rozdělení frontendu) včetně, protože má konečně
+čím doložit, že nezměnil ani pixel.
 
 ## 8. GitHub: stav nastavení repozitáře (balíček 1)
 
