@@ -188,7 +188,7 @@ pub fn import(
     of its own and look. It is removed either way, on success and on every
     failure path below. */
     let import_id = uuid::Uuid::new_v4().to_string();
-    let media_root = crate::recordings_dir(settings, db_path);
+    let media_root = crate::commands::library::recordings_dir(settings, db_path);
     let output_directory = media_root.join(format!(".download-{import_id}"));
     std::fs::create_dir_all(&output_directory)
         .map_err(|error| UserMessage::new("online_import.directory_failed").detail(error))?;
@@ -356,7 +356,7 @@ pub fn import(
         .extension()
         .map(|value| value.to_string_lossy().to_string())
         .unwrap_or_else(|| "m4a".into());
-    let final_path = crate::free_path(&media_root, &recording_title, &extension);
+    let final_path = crate::commands::library::free_path(&media_root, &recording_title, &extension);
     let moved = std::fs::rename(&path, &final_path).is_ok()
         || (std::fs::copy(&path, &final_path).is_ok() && std::fs::remove_file(&path).is_ok());
     let path = if moved { final_path } else { path };
