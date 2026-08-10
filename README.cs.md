@@ -29,7 +29,16 @@ předvybere variantu, která se hodí pro grafickou kartu v tomto počítači. P
 výběru to je 700 MB až 1,7 GB. Po dokončení už aplikace internet nepotřebuje.
 
 Nástroje a modely jdou do `%LOCALAPPDATA%\Whisp\`, přepisy do
-`%APPDATA%\cz.znackarna.whisp\`. Instalace nepotřebuje práva správce.
+`%APPDATA%\cz.znackarna.volocal\`. Instalace nepotřebuje práva správce. Ta
+druhá cesta se změnila, když se ze Slobotu stal Volocal — starou složku si
+aplikace při prvním spuštění sama přestěhuje, i se zálohami a poznámkami.
+
+### Nová verze
+
+V Nastavení → O aplikaci je **Zkontrolovat aktualizace**. Aplikace se ptá jen
+tehdy, když o to požádáte. Vedle je přepínač **Automatické aktualizace**, ve
+výchozím stavu vypnutý: po zapnutí se po spuštění jednou zeptá a nález ohlásí
+v liště. Stáhne a nainstaluje se až na váš stisk.
 
 ### Kopie na flash disk
 
@@ -145,7 +154,7 @@ při prvním spuštění, takže má řádově megabajty, ne gigabajty. Instaluj
 přihlášeného uživatele (`installMode: currentUser`), takže nechce práva správce.
 
 Odinstalace odebere jen program. Modely v `%LOCALAPPDATA%\Whisp\` i archiv
-v `%APPDATA%\cz.znackarna.whisp\` zůstanou — přeinstalace je pak okamžitá a
+v `%APPDATA%\cz.znackarna.volocal\` zůstanou — přeinstalace je pak okamžitá a
 nikdo nepřijde o přepisy. Kdo je chce uklidit, smaže obě složky ručně.
 
 #### Před vydáním

@@ -76,10 +76,17 @@ would still pass with the defect restored is not a test. Where it is practical,
 say in the pull request that you watched the new test fail before it passed.
 
 **Do not change the application identifier, the historical `Whisp` paths or
-stored database values.** `cz.znackarna.whisp`, `%LOCALAPPDATA%\Whisp\` and the
-Czech column names in SQLite look like leftovers and are load-bearing: changing
-one without a migration makes existing archives unreadable. If a change needs
-one of them, that migration is its own piece of work.
+stored database values.** `%LOCALAPPDATA%\Whisp\`, the file name `whisp.db` and
+the Czech column names in SQLite look like leftovers and are load-bearing:
+changing one without a migration makes existing archives unreadable. If a
+change needs one of them, that migration is its own piece of work.
+
+The identifier was changed once, on 2026-08-10, when Slobot became Volocal —
+`cz.znackarna.whisp` to `cz.znackarna.volocal`. It cost a migration that moves
+the whole profile folder on first run (`profile_folder` in `main.rs`, with its
+tests), and that is what one of these costs. `whisp.db` inside it was left
+alone on purpose: renaming the file as well would have bought nothing and put
+the backups and the WAL in the way.
 
 ## Changes that touch the interface
 
