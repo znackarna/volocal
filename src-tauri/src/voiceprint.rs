@@ -584,10 +584,10 @@ fn into_k(prints: &[Vec<f32>], k: usize) -> Vec<usize> {
                 moved = true;
             }
         }
-        for c in 0..centres.len() {
+        for (c, centre) in centres.iter_mut().enumerate() {
             let members: Vec<usize> = (0..prints.len()).filter(|i| labels[*i] == c).collect();
             if !members.is_empty() {
-                centres[c] = average(prints, &members);
+                *centre = average(prints, &members);
             }
         }
         if !moved {
@@ -813,19 +813,14 @@ mod tests {
     #[test]
     fn the_filterbank_and_the_window_match_the_reference() {
         let w = window();
-        close(
-            w.iter().sum::<f64>() as f32,
-            212.146_985,
-            1e-2,
-            "window sum",
-        );
+        close(w.iter().sum::<f64>() as f32, 212.146_99, 1e-2, "window sum");
         close(w[0] as f32, 0.0, 1e-9, "window starts at zero");
         close(w[200] as f32, 0.999_987, 1e-5, "window peaks near one");
 
         let banks = mel_banks();
         close(
             banks.iter().sum::<f64>() as f32,
-            250.750_824,
+            250.750_82,
             1e-2,
             "filterbank sum",
         );

@@ -1334,7 +1334,7 @@ mod tests {
         let records = read_records(&path);
 
         assert!(
-            records.get("ffmpeg").is_none(),
+            !records.contains_key("ffmpeg"),
             "the presence of a file says nothing about where it came from"
         );
     }

@@ -177,7 +177,7 @@ impl TranscriptionTask {
     pub fn kill_all(&self) -> usize {
         let mut processes = self.processes.lock().unwrap();
         let mut killed = 0;
-        for (_, children) in processes.iter_mut() {
+        for children in processes.values_mut() {
             for child in children.iter_mut() {
                 // Already gone is the ordinary case, not a failure: a run that
                 // finished cleanly leaves its handle here until `cleanup`.
@@ -715,16 +715,12 @@ fn run(
         recording.language_choice.clone()
     };
 
-    start_whisper(
+    let run = Run {
         app,
         recording_id,
-        &settings,
-        &language,
-        &check,
-        &wav,
-        &prefix,
         task,
-    )?;
+    };
+    start_whisper(&run, &settings, &language, &check, &wav, &prefix)?;
 
     let json_file = prefix.with_extension("json");
     // With automatic detection the real language is only known from the output.
@@ -905,16 +901,29 @@ const WHISPER_LOGPROB_THRESHOLD: f64 = -1.0;
 const WHISPER_ENTROPY_THRESHOLD: f64 = 2.4;
 const WHISPER_TEMPERATURE_INCREMENT: f64 = 0.2;
 
+/// The three things every step of one run needs: the window to report to, which
+/// recording is being worked on, and the registry that owns its child processes
+/// so it can be cancelled. They are set once when a run starts and never vary
+/// within it — which is what makes them a group rather than a bag.
+struct Run<'a> {
+    app: &'a AppHandle,
+    recording_id: &'a str,
+    task: &'a TranscriptionTask,
+}
+
 fn start_whisper(
-    app: &AppHandle,
-    recording_id: &str,
+    run: &Run,
     settings: &Settings,
     language: &str,
     check: &tools::ToolCheck,
     wav: &Path,
     prefix: &Path,
-    task: &TranscriptionTask,
 ) -> Reported<()> {
+    let Run {
+        app,
+        recording_id,
+        task,
+    } = *run;
     let program = Path::new(check.whisper_cli.as_ref().unwrap());
 
     // Find out what this particular build supports. whisper.cpp versions
@@ -1424,7 +1433,7 @@ const ABBREVIATIONS: &[&str] = &[
 /// A sentence end is recognised from punctuation, but not every full stop
 /// ends a sentence.
 fn ends_sentence(word: &str, next: Option<&str>) -> bool {
-    let ocesane = word.trim_end_matches(|z: char| z == '"' || z == '»' || z == '“' || z == ')');
+    let ocesane = word.trim_end_matches(['"', '»', '“', ')']);
     if !ocesane.ends_with(['.', '!', '?', '…']) {
         return false;
     }
@@ -1503,8 +1512,7 @@ struct TimedWord {
 /// Natural sentence endings are handled before this function; these are the
 /// softer places available when Whisper punctuates a long thought with commas.
 fn boundary_strength(word: &str, next: &str, gap: f64) -> u8 {
-    let trimmed = word
-        .trim_end_matches(|character: char| matches!(character, '"' | '»' | '“' | '”' | ')' | ']'));
+    let trimmed = word.trim_end_matches(['"', '»', '“', '”', ')', ']']);
     let clause_mark = trimmed.ends_with([';', ':', '—', '–']);
     let comma = trimmed.ends_with(',');
     let next_core = next
@@ -2907,9 +2915,8 @@ mod queue_tests {
             "b must still be waiting while a holds the front"
         );
         task.leave_queue("a");
-        assert_eq!(
+        assert!(
             receiver.recv_timeout(Duration::from_secs(2)).unwrap(),
-            true,
             "leaving the queue wakes the next one"
         );
         worker.join().unwrap();

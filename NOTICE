@@ -90,10 +90,24 @@ The groups match the About card.
 
 --- Mluvčí / Speakers -----------------------------------------------------
 
-  sherpa-onnx ..................... Apache 2.0
   ONNX Runtime .................... MIT
-  pyannote segmentation 3.0 ....... MIT
   3D-Speaker CAM++ ................ Apache 2.0
+
+  ONNX Runtime je od srpna 2026 zalinkovaný přímo ve `Slobot.exe`, ne stažený
+  vedle něj. Jeho licence MIT proto putuje s programem samotným.
+  Since August 2026 ONNX Runtime is linked into `Slobot.exe` rather than
+  downloaded beside it, so its MIT licence travels with the program itself.
+
+  Do té doby rozpoznávání mluvčích spouštělo `sherpa-onnx` (Apache 2.0)
+  a používalo model pyannote segmentation 3.0 (MIT). Nic z toho se už
+  nestahuje ani nespouští. Kdo aplikaci povyšoval ze starší verze, může je mít
+  pořád na disku ve složce `bin` — a přenosná kopie z takového počítače je
+  odveze s sebou. Pro ten případ jsou jejich licence uvedené i tady.
+  Until then, speaker recognition ran `sherpa-onnx` (Apache 2.0) and used the
+  pyannote segmentation 3.0 model (MIT). Neither is downloaded or run any
+  more. An installation upgraded from an earlier version may still have them
+  in `bin`, and a portable copy made from such a machine carries them along —
+  which is why their licences are named here too.
 
 --- Jazyková úprava / Language editing ------------------------------------
 

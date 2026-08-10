@@ -98,7 +98,7 @@ pub fn tools_root() -> PathBuf {
     }
     std::env::var_os("LOCALAPPDATA")
         .map(PathBuf::from)
-        .unwrap_or_else(|| app_directory())
+        .unwrap_or_else(app_directory)
         .join("Whisp")
 }
 
@@ -344,11 +344,11 @@ pub fn check(n: &crate::db::Settings) -> ToolCheck {
     let editor_vulkan = bin.join("editor-vulkan");
     let editor_cpu = bin.join("editor-cpu");
     let editor = if k.vulkan_driver {
-        find_program_in(&[editor_vulkan.clone()], "llama-cli")
-            .or_else(|| find_program_in(&[editor_cpu.clone()], "llama-cli"))
+        find_program_in(std::slice::from_ref(&editor_vulkan), "llama-cli")
+            .or_else(|| find_program_in(std::slice::from_ref(&editor_cpu), "llama-cli"))
     } else {
-        find_program_in(&[editor_cpu.clone()], "llama-cli")
-            .or_else(|| find_program_in(&[editor_vulkan.clone()], "llama-cli"))
+        find_program_in(std::slice::from_ref(&editor_cpu), "llama-cli")
+            .or_else(|| find_program_in(std::slice::from_ref(&editor_vulkan), "llama-cli"))
     };
 
     k.ffmpeg = na_text(&ffmpeg);
@@ -985,9 +985,11 @@ mod tests {
         std::fs::create_dir_all(&editor_directory).unwrap();
         std::fs::write(editor_directory.join("gemma-4-12b-q4.gguf"), b"model").unwrap();
 
-        let mut settings = crate::db::Settings::default();
-        settings.models_directory = directory.to_string_lossy().to_string();
-        settings.editor_model = "gemma-4-e4b-q4".into();
+        let settings = crate::db::Settings {
+            models_directory: directory.to_string_lossy().to_string(),
+            editor_model: "gemma-4-e4b-q4".into(),
+            ..Default::default()
+        };
 
         let resolved = resolve_editor_model(&settings).unwrap();
         assert_eq!(resolved.0, "gemma-4-12b-q4");

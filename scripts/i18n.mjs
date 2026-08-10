@@ -240,6 +240,13 @@ const CZECH_LETTER = /[ěščřžýáíéúůťďňóĚŠČŘŽÝÁÍÉÚŮŤĎ�
  *  A glyph such as `—`, `·`, `×`, or `✎` may stay in the markup. */
 const NOT_A_SENTENCE = /^[^\p{L}]*$/u;
 
+/** A test file is not a screen. Its strings are read by whoever runs the tests
+ *  and by nobody else, and the ones that check Czech text handling — stripping
+ *  diacritics so `reknu` finds `řeknu` — have to *be* Czech to mean anything.
+ *  Putting them in the dictionary would offer them for translation, which is
+ *  the opposite of what they are for. */
+const isTest = (name) => /\.test\.tsx?$/.test(name);
+
 function sourceFiles() {
   const files = [];
   const walk = (dir) => {
@@ -247,7 +254,7 @@ function sourceFiles() {
       const path = join(dir, entry.name);
       if (entry.isDirectory()) {
         if (entry.name !== "locales") walk(path);
-      } else if (/\.tsx?$/.test(entry.name)) {
+      } else if (/\.tsx?$/.test(entry.name) && !isTest(entry.name)) {
         files.push(path);
       }
     }

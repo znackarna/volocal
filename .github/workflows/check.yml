@@ -37,11 +37,19 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      # Types first: a broken type makes every later message noise.
-      - run: npx tsc --noEmit
-      # Text in a component, a missing plural form, a Rust code with no entry,
-      # informal address, and a translation whose Czech has changed since.
-      - run: node scripts/i18n.mjs check
+      # The whole chain, in one command, because it is the same one the local
+      # checklist runs: `i18n:check`, then `tsc --noEmit`, then the real Vite
+      # build. Type checking alone would let a build failure through — a bad
+      # import or an asset that cannot be resolved type-checks fine.
+      #
+      # `i18n:check` is the unusual step: text written inside a component, a
+      # missing plural form, a Rust code with no dictionary entry, informal
+      # address, and a translation whose Czech source has been reworded since.
+      - run: npm run build
+      # The frontend had no automatic protection at all until 10 August, which
+      # is one reason the regressions it did have — keys, dialogs, the
+      # collapsing header, player state — were all in the interface.
+      - run: npm run test
 
   # There was a second Rust job on Ubuntu until 2026-08-07. It was the cheap
   # fast pass: a minute against Windows' three, and Windows minutes are billed
@@ -67,7 +75,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
-          components: rustfmt
+          components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
@@ -75,14 +83,18 @@ jobs:
       # First, because it is three seconds and it fails often enough to be worth
       # failing early.
       - run: cargo fmt --all --check
-      # `--all-targets` also type-checks the test binaries, so a
-      # `#[cfg(windows)]` block used only by a test is compiled too.
+      # Clippy rather than `cargo check`: it compiles everything `check` would,
+      # so nothing is lost, and it also refuses the lints. The 21 findings this
+      # replaced were fixed on 10 August; without this step they would come
+      # back one at a time and nobody would notice until the next audit.
       #
-      # Warnings are errors here: the agreement is that `cargo check` comes back
-      # silent, and a warning nobody has to look at is a warning nobody reads.
-      - run: cargo check --all-targets
-        env:
-          RUSTFLAGS: -D warnings
+      # `--all-targets` also compiles the test binaries, so a `#[cfg(windows)]`
+      # block used only by a test is checked too.
+      #
+      # Warnings are errors: a warning nobody has to look at is a warning
+      # nobody reads. A narrow `#[allow]` with a comment saying why is the way
+      # to make an exception — never a blanket one.
+      - run: cargo clippy --all-targets -- -D warnings
       # And run them. The tests worth the extra minutes are the ones about
       # process lifetime — killing a child, closing the window while a program
       # runs — which is behaviour the operating system decides, not the code.

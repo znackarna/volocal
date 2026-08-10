@@ -1467,9 +1467,7 @@ function About() {
     {
       label: "settings.about.groupSpeakers",
       items: [
-        ["sherpa-onnx", "Apache 2.0"],
         ["ONNX Runtime", "MIT"],
-        ["pyannote segmentation 3.0", "MIT"],
         ["3D-Speaker CAM++", "Apache 2.0"],
       ],
     },
