@@ -87,20 +87,21 @@ impl AiEditTask {
         let progress = self.progress.clone();
         let server = self.server.clone();
         std::thread::spawn(move || {
+            let reporter = Reporter {
+                app: &app,
+                recording_id: &recording_id,
+                state: &progress,
+            };
             if let Err(error) = generate_document(
-                &app,
+                &reporter,
                 &db_path,
                 &settings,
-                &recording_id,
                 &mode,
                 &cancellation,
-                &progress,
                 &server,
             ) {
                 let cancelled = cancellation.load(Ordering::Relaxed);
-                emit(
-                    &app,
-                    &recording_id,
+                reporter.say(
                     if cancelled { "cancelled" } else { "error" },
                     0.0,
                     if cancelled {
@@ -108,7 +109,6 @@ impl AiEditTask {
                     } else {
                         error
                     },
-                    &progress,
                 );
             }
             *running.lock().unwrap() = None;
@@ -161,21 +161,22 @@ impl AiEditTask {
         let progress = self.progress.clone();
         let server = self.server.clone();
         std::thread::spawn(move || {
+            let reporter = Reporter {
+                app: &app,
+                recording_id: &recording_id,
+                state: &progress,
+            };
             if let Err(error) = generate_output(
-                &app,
+                &reporter,
                 &db_path,
                 &settings,
-                &recording_id,
                 &kind,
                 &variant,
                 &cancellation,
-                &progress,
                 &server,
             ) {
                 let cancelled = cancellation.load(Ordering::Relaxed);
-                emit(
-                    &app,
-                    &recording_id,
+                reporter.say(
                     if cancelled { "cancelled" } else { "error" },
                     0.0,
                     if cancelled {
@@ -183,7 +184,6 @@ impl AiEditTask {
                     } else {
                         error
                     },
-                    &progress,
                 );
             }
             *running.lock().unwrap() = None;
@@ -245,22 +245,64 @@ pub fn transcript_source(connection: &rusqlite::Connection, recording_id: &str) 
     Ok(export::txt(&segments, &speakers).trim().to_string())
 }
 
-fn emit(
-    app: &AppHandle,
-    recording_id: &str,
-    phase: &str,
-    percent: f64,
-    description: UserMessage,
-    state: &Arc<Mutex<Option<AiEditProgress>>>,
-) {
-    let progress = AiEditProgress {
-        recording_id: recording_id.into(),
-        phase: phase.into(),
-        percent,
-        description,
-    };
-    *state.lock().unwrap() = Some(progress.clone());
-    let _ = app.emit("ai-edit:progress", progress);
+/// Who to tell about progress, for one run.
+///
+/// These three travel together everywhere in this file and never vary within a
+/// run: a caption with no window to reach and no state for the status poll to
+/// read is not a report. Grouping them is what keeps the functions below under
+/// the parameter count — and it is a real group, not a bag of whatever each one
+/// happened to need.
+struct Reporter<'a> {
+    app: &'a AppHandle,
+    recording_id: &'a str,
+    state: &'a Arc<Mutex<Option<AiEditProgress>>>,
+}
+
+impl Reporter<'_> {
+    fn say(&self, phase: &str, percent: f64, description: UserMessage) {
+        let progress = AiEditProgress {
+            recording_id: self.recording_id.into(),
+            phase: phase.into(),
+            percent,
+            description,
+        };
+        *self.state.lock().unwrap() = Some(progress.clone());
+        let _ = self.app.emit("ai-edit:progress", progress);
+    }
+
+    /// Announce a step at its own starting point, then run it. Every request in
+    /// this file is preceded by exactly this announcement; keeping the two
+    /// together is what stops one of them being changed without the other.
+    fn run_step(
+        &self,
+        step: Step,
+        chunk: &str,
+        instruction: &str,
+        max_tokens: u32,
+        cancellation: &AtomicBool,
+        server: &mut EditorServer,
+    ) -> Reported<String> {
+        self.say("processing", step.from, step.caption.clone());
+        request_chunk(
+            self,
+            &step,
+            chunk,
+            instruction,
+            max_tokens,
+            cancellation,
+            server,
+        )
+    }
+}
+
+/// The slice of the whole bar one chunk owns, and what to call it while it
+/// runs. Three numbers that mean nothing apart: a caption with no band would
+/// not know where to draw, and a band with no caption would not know what to
+/// say.
+struct Step {
+    from: f64,
+    to: f64,
+    caption: UserMessage,
 }
 
 /// Caption for work done chunk by chunk: which piece out of how many.
@@ -594,19 +636,17 @@ fn start_server(
 }
 
 fn request_chunk(
-    app: &AppHandle,
-    recording_id: &str,
-    base_url: String,
+    reporter: &Reporter,
+    step: &Step,
     chunk: &str,
     instruction: &str,
     max_tokens: u32,
-    progress_start: f64,
-    progress_end: f64,
-    description: &UserMessage,
     cancellation: &AtomicBool,
     server: &mut EditorServer,
-    progress_state: &Arc<Mutex<Option<AiEditProgress>>>,
 ) -> Reported<String> {
+    // Taken here rather than passed in: the caller was cloning it off the very
+    // server it also handed over, so it was the same value twice.
+    let base_url = server.base_url.clone();
     let body = serde_json::json!({
         "messages": [
             { "role": "system", "content": instruction },
@@ -682,13 +722,10 @@ fn request_chunk(
                 output.push_str(&delta);
                 if last_emit.elapsed() >= Duration::from_millis(250) {
                     let ratio = (generated_chars as f64 / expected_chars).min(0.98);
-                    emit(
-                        app,
-                        recording_id,
+                    reporter.say(
                         "processing",
-                        progress_start + (progress_end - progress_start) * ratio,
-                        description.clone(),
-                        progress_state,
+                        step.from + (step.to - step.from) * ratio,
+                        step.caption.clone(),
                     );
                     last_emit = Instant::now();
                 }
@@ -716,26 +753,18 @@ fn request_chunk(
 }
 
 fn generate_document(
-    app: &AppHandle,
+    reporter: &Reporter,
     db_path: &Path,
     settings: &db::Settings,
-    recording_id: &str,
     mode: &str,
     cancellation: &AtomicBool,
-    progress_state: &Arc<Mutex<Option<AiEditProgress>>>,
     registry: &Arc<Mutex<Option<Child>>>,
 ) -> Reported<()> {
+    let recording_id = reporter.recording_id;
     if settings.editor_model.is_empty() {
         return Err(UserMessage::new("ai.no_model_selected"));
     }
-    emit(
-        app,
-        recording_id,
-        "preparing",
-        2.0,
-        UserMessage::new("ai.preparing_model"),
-        progress_state,
-    );
+    reporter.say("preparing", 2.0, UserMessage::new("ai.preparing_model"));
 
     let connection = db::open(db_path)?;
     let source = transcript_source(&connection, recording_id)?;
@@ -757,14 +786,7 @@ fn generate_document(
         .ok_or_else(|| UserMessage::new("ai.model_missing"))?;
     let chunks = split_chunks(&source);
     let mut output = Vec::with_capacity(chunks.len());
-    emit(
-        app,
-        recording_id,
-        "preparing",
-        3.0,
-        UserMessage::new("ai.loading_model"),
-        progress_state,
-    );
+    reporter.say("preparing", 3.0, UserMessage::new("ai.loading_model"));
     let uses_vulkan = server_path
         .parent()
         .is_some_and(|parent| parent.ends_with("editor-vulkan"));
@@ -790,31 +812,20 @@ fn generate_document(
         if cancellation.load(Ordering::Relaxed) {
             return Err(UserMessage::new("ai.cancelled"));
         }
-        let percent = 5.0 + (index as f64 / chunks.len() as f64) * 90.0;
-        let description = chunk_step("ai.editing_chunk", index, chunks.len());
-        emit(
-            app,
-            recording_id,
-            "processing",
-            percent,
-            description.clone(),
-            progress_state,
-        );
-        let from = 5.0 + (index as f64 / chunks.len() as f64) * 90.0;
-        let to = 5.0 + ((index + 1) as f64 / chunks.len() as f64) * 90.0;
+        let step = Step {
+            from: 5.0 + (index as f64 / chunks.len() as f64) * 90.0,
+            to: 5.0 + ((index + 1) as f64 / chunks.len() as f64) * 90.0,
+            caption: chunk_step("ai.editing_chunk", index, chunks.len()),
+        };
+        reporter.say("processing", step.from, step.caption.clone());
         let mut edited = request_chunk(
-            app,
-            recording_id,
-            server.base_url.clone(),
+            reporter,
+            &step,
             chunk,
             &instruction,
             4096,
-            from,
-            to,
-            &description,
             cancellation,
             &mut server,
-            progress_state,
         )?;
 
         // An answer that keeps none of the wording is not an edit of this
@@ -825,18 +836,13 @@ fn generate_document(
         // silently replaced by something the speaker never said.
         if !is_an_edit_of(chunk, &edited) {
             edited = request_chunk(
-                app,
-                recording_id,
-                server.base_url.clone(),
+                reporter,
+                &step,
                 chunk,
                 &insist,
                 4096,
-                from,
-                to,
-                &description,
                 cancellation,
                 &mut server,
-                progress_state,
             )?;
             if !is_an_edit_of(chunk, &edited) {
                 edited = chunk.to_string();
@@ -855,28 +861,20 @@ fn generate_document(
         stale: false,
     };
     db::save_ai_document(&connection, &document)?;
-    emit(
-        app,
-        recording_id,
-        "complete",
-        100.0,
-        UserMessage::new("ai.document_ready"),
-        progress_state,
-    );
+    reporter.say("complete", 100.0, UserMessage::new("ai.document_ready"));
     Ok(())
 }
 
 fn generate_output(
-    app: &AppHandle,
+    reporter: &Reporter,
     db_path: &Path,
     settings: &db::Settings,
-    recording_id: &str,
     kind: &str,
     variant: &str,
     cancellation: &AtomicBool,
-    progress_state: &Arc<Mutex<Option<AiEditProgress>>>,
     registry: &Arc<Mutex<Option<Child>>>,
 ) -> Reported<()> {
+    let recording_id = reporter.recording_id;
     if settings.editor_model.is_empty() {
         return Err(UserMessage::new("ai.no_model_selected"));
     }
@@ -920,14 +918,7 @@ fn generate_output(
         .map(PathBuf::from)
         .ok_or_else(|| UserMessage::new("ai.model_missing"))?;
 
-    emit(
-        app,
-        recording_id,
-        "preparing",
-        3.0,
-        UserMessage::new("ai.loading_model"),
-        progress_state,
-    );
+    reporter.say("preparing", 3.0, UserMessage::new("ai.loading_model"));
     let uses_vulkan = server_path
         .parent()
         .is_some_and(|parent| parent.ends_with("editor-vulkan"));
@@ -942,30 +933,18 @@ fn generate_output(
             if cancellation.load(Ordering::Relaxed) {
                 return Err(UserMessage::new("ai.cancelled"));
             }
-            let start = 5.0 + (index as f64 / chunks.len() as f64) * (translation_end - 5.0);
-            let end = 5.0 + ((index + 1) as f64 / chunks.len() as f64) * (translation_end - 5.0);
-            let description = chunk_step("ai.translating_chunk", index, chunks.len());
-            emit(
-                app,
-                recording_id,
-                "processing",
-                start,
-                description.clone(),
-                progress_state,
-            );
-            translated.push(request_chunk(
-                app,
-                recording_id,
-                server.base_url.clone(),
+            let step = Step {
+                from: 5.0 + (index as f64 / chunks.len() as f64) * (translation_end - 5.0),
+                to: 5.0 + ((index + 1) as f64 / chunks.len() as f64) * (translation_end - 5.0),
+                caption: chunk_step("ai.translating_chunk", index, chunks.len()),
+            };
+            translated.push(reporter.run_step(
+                step,
                 chunk,
                 &instruction,
                 4096,
-                start,
-                end,
-                &description,
                 cancellation,
                 &mut server,
-                progress_state,
             )?);
         }
         if variant == "cs" {
@@ -974,30 +953,18 @@ fn generate_output(
                 if cancellation.load(Ordering::Relaxed) {
                     return Err(UserMessage::new("ai.cancelled"));
                 }
-                let start = 70.0 + (index as f64 / translated.len() as f64) * 25.0;
-                let end = 70.0 + ((index + 1) as f64 / translated.len() as f64) * 25.0;
-                let description = chunk_step("ai.reviewing_chunk", index, translated.len());
-                emit(
-                    app,
-                    recording_id,
-                    "processing",
-                    start,
-                    description.clone(),
-                    progress_state,
-                );
-                reviewed.push(request_chunk(
-                    app,
-                    recording_id,
-                    server.base_url.clone(),
+                let step = Step {
+                    from: 70.0 + (index as f64 / translated.len() as f64) * 25.0,
+                    to: 70.0 + ((index + 1) as f64 / translated.len() as f64) * 25.0,
+                    caption: chunk_step("ai.reviewing_chunk", index, translated.len()),
+                };
+                reviewed.push(reporter.run_step(
+                    step,
                     chunk,
                     czech_review_prompt(),
                     4096,
-                    start,
-                    end,
-                    &description,
                     cancellation,
                     &mut server,
-                    progress_state,
                 )?);
             }
             reviewed.join("\n\n")
@@ -1012,30 +979,18 @@ fn generate_output(
             if cancellation.load(Ordering::Relaxed) {
                 return Err(UserMessage::new("ai.cancelled"));
             }
-            let start = 5.0 + (index as f64 / chunks.len() as f64) * (notes_end - 5.0);
-            let end = 5.0 + ((index + 1) as f64 / chunks.len() as f64) * (notes_end - 5.0);
-            let description = chunk_step("ai.reading_chunk", index, chunks.len());
-            emit(
-                app,
-                recording_id,
-                "processing",
-                start,
-                description.clone(),
-                progress_state,
-            );
-            notes.push(request_chunk(
-                app,
-                recording_id,
-                server.base_url.clone(),
+            let step = Step {
+                from: 5.0 + (index as f64 / chunks.len() as f64) * (notes_end - 5.0),
+                to: 5.0 + ((index + 1) as f64 / chunks.len() as f64) * (notes_end - 5.0),
+                caption: chunk_step("ai.reading_chunk", index, chunks.len()),
+            };
+            notes.push(reporter.run_step(
+                step,
                 chunk,
                 summary_notes_prompt(),
                 768,
-                start,
-                end,
-                &description,
                 cancellation,
                 &mut server,
-                progress_state,
             )?);
         }
         let combined = notes
@@ -1044,88 +999,54 @@ fn generate_output(
             .map(|(index, note)| format!("ČÁST {}:\n{}", index + 1, note))
             .collect::<Vec<_>>()
             .join("\n\n");
-        let description = UserMessage::new(if translate_summary {
-            "ai.summarizing_source"
-        } else {
-            "ai.summarizing"
-        });
-        let summary_start = if translate_summary { 57.0 } else { 78.0 };
-        let summary_end = if translate_summary { 70.0 } else { 95.0 };
-        emit(
-            app,
-            recording_id,
-            "processing",
-            summary_start,
-            description.clone(),
-            progress_state,
-        );
+        let step = Step {
+            from: if translate_summary { 57.0 } else { 78.0 },
+            to: if translate_summary { 70.0 } else { 95.0 },
+            caption: UserMessage::new(if translate_summary {
+                "ai.summarizing_source"
+            } else {
+                "ai.summarizing"
+            }),
+        };
         let max_tokens = match variant {
             "short" => 512,
             "standard" => 1024,
             _ => 2048,
         };
-        let source_summary = request_chunk(
-            app,
-            recording_id,
-            server.base_url.clone(),
+        let source_summary = reporter.run_step(
+            step,
             &combined,
             summary_instruction.unwrap(),
             max_tokens,
-            summary_start,
-            summary_end,
-            &description,
             cancellation,
             &mut server,
-            progress_state,
         )?;
 
         if translate_summary {
-            let description = UserMessage::new("ai.translating_summary");
-            emit(
-                app,
-                recording_id,
-                "processing",
-                73.0,
-                description.clone(),
-                progress_state,
-            );
-            let translated = request_chunk(
-                app,
-                recording_id,
-                server.base_url.clone(),
+            let translated = reporter.run_step(
+                Step {
+                    from: 73.0,
+                    to: 85.0,
+                    caption: UserMessage::new("ai.translating_summary"),
+                },
                 &source_summary,
                 czech_summary_translation_prompt(),
                 max_tokens,
-                73.0,
-                85.0,
-                &description,
                 cancellation,
                 &mut server,
-                progress_state,
             )?;
 
-            let description = UserMessage::new("ai.reviewing_summary");
-            emit(
-                app,
-                recording_id,
-                "processing",
-                87.0,
-                description.clone(),
-                progress_state,
-            );
-            request_chunk(
-                app,
-                recording_id,
-                server.base_url.clone(),
+            reporter.run_step(
+                Step {
+                    from: 87.0,
+                    to: 95.0,
+                    caption: UserMessage::new("ai.reviewing_summary"),
+                },
                 &translated,
                 czech_review_prompt(),
                 max_tokens,
-                87.0,
-                95.0,
-                &description,
                 cancellation,
                 &mut server,
-                progress_state,
             )?
         } else {
             source_summary
@@ -1144,9 +1065,7 @@ fn generate_output(
             updated_at: chrono::Local::now().to_rfc3339(),
         },
     )?;
-    emit(
-        app,
-        recording_id,
+    reporter.say(
         "complete",
         100.0,
         UserMessage::new(if kind == "summary" {
@@ -1154,7 +1073,6 @@ fn generate_output(
         } else {
             "ai.translation_ready"
         }),
-        progress_state,
     );
     Ok(())
 }

@@ -715,16 +715,12 @@ fn run(
         recording.language_choice.clone()
     };
 
-    start_whisper(
+    let run = Run {
         app,
         recording_id,
-        &settings,
-        &language,
-        &check,
-        &wav,
-        &prefix,
         task,
-    )?;
+    };
+    start_whisper(&run, &settings, &language, &check, &wav, &prefix)?;
 
     let json_file = prefix.with_extension("json");
     // With automatic detection the real language is only known from the output.
@@ -905,16 +901,29 @@ const WHISPER_LOGPROB_THRESHOLD: f64 = -1.0;
 const WHISPER_ENTROPY_THRESHOLD: f64 = 2.4;
 const WHISPER_TEMPERATURE_INCREMENT: f64 = 0.2;
 
+/// The three things every step of one run needs: the window to report to, which
+/// recording is being worked on, and the registry that owns its child processes
+/// so it can be cancelled. They are set once when a run starts and never vary
+/// within it — which is what makes them a group rather than a bag.
+struct Run<'a> {
+    app: &'a AppHandle,
+    recording_id: &'a str,
+    task: &'a TranscriptionTask,
+}
+
 fn start_whisper(
-    app: &AppHandle,
-    recording_id: &str,
+    run: &Run,
     settings: &Settings,
     language: &str,
     check: &tools::ToolCheck,
     wav: &Path,
     prefix: &Path,
-    task: &TranscriptionTask,
 ) -> Reported<()> {
+    let Run {
+        app,
+        recording_id,
+        task,
+    } = *run;
     let program = Path::new(check.whisper_cli.as_ref().unwrap());
 
     // Find out what this particular build supports. whisper.cpp versions
