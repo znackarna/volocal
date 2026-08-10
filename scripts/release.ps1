@@ -39,7 +39,17 @@ param(
   [switch]$Publish,
   [string]$Installer,
   [string]$Notes = "",
-  [switch]$SkipChecks
+  [switch]$SkipChecks,
+  # Release without an Authenticode signature. Everybody who downloads it then
+  # meets SmartScreen - "Windows protected your PC", More info, Run anyway -
+  # and has to decide to trust a program Windows says it does not know.
+  #
+  # It has to be asked for, because the guard exists to stop it happening by
+  # accident, and it is worth knowing what it does not cost: a certificate on
+  # its own does not remove that warning either. OV and the cheap cloud
+  # services start with no reputation and earn it by being downloaded, which is
+  # the very thing that has not happened yet. Only EV is trusted on sight.
+  [switch]$Unsigned
 )
 
 $ErrorActionPreference = "Stop"
@@ -150,21 +160,30 @@ if (-not (Test-Path $Installer)) { Fail "No such file: $Installer" }
 $exe = Get-Item $Installer
 
 Step "Authenticode"
-# Checked rather than assumed. An unsigned installer is a release everybody
-# has to click past a SmartScreen warning to install, and the whole reason
-# this script has two passes is to make room for the signature.
+# Checked rather than assumed. The whole reason this script has two passes is
+# to make room for this signature.
 $sig = Get-AuthenticodeSignature $exe.FullName
-if ($sig.Status -ne "Valid") {
+if ($sig.Status -eq "Valid") {
+  Write-Host "signed by $($sig.SignerCertificate.Subject)" -ForegroundColor Green
+} elseif ($Unsigned) {
+  Write-Host @"
+Not signed ($($sig.Status)), and -Unsigned was passed.
+
+Everybody who downloads this will meet SmartScreen: "Windows protected your
+PC", More info, Run anyway. Say so wherever the download is offered - a warning
+nobody was warned about is what makes people close the page.
+"@ -ForegroundColor Yellow
+} else {
   Fail @"
 $($exe.Name) is not signed ($($sig.Status)).
 
-Sign it with the token and run this again. Releasing without a signature means
-SmartScreen warns every reader who downloads it, so if that is really the
-intention, take this guard out of the script deliberately rather than working
-around it - that way it is a decision somebody made and can be found again.
+Sign it and run this again, or pass -Unsigned to release it as it is and take
+the SmartScreen warning. Worth knowing before buying anything: a certificate
+does not remove that warning by itself. OV certificates and the cheap cloud
+signing services start with no reputation and earn it by being downloaded.
+Only EV is trusted on sight.
 "@
 }
-Write-Host "signed by $($sig.SignerCertificate.Subject)" -ForegroundColor Green
 
 Step "Updater signature"
 # Over the bytes as they now are, Authenticode and all.

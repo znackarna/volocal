@@ -23,6 +23,13 @@ import type { RecordingMetadataKind } from "./RecordingMetadataIcon";
 // inlined into the page rather than via <img>, for sharpness and colours
 import mark from "./mark.svg?raw";
 import wordmark from "./wordmark.svg?raw";
+/* Imported plainly rather than behind `await import(...)`. Deferring it looked
+   like it kept the updater out of the bundle until somebody turned the check
+   on — it did not: the About page imports the same module directly, so it is
+   in the main chunk either way, and the build says so. */
+/* Renamed: `check` is already the tool-availability state in this component,
+   and the two have nothing to do with each other. */
+import { check as checkForUpdate } from "@tauri-apps/plugin-updater";
 import type { ConfirmationRequest } from "./ConfirmationDialog";
 import { formatTime, applyFonts, applyTheme, fileName } from "./types";
 import { rememberSpeakerNames } from "./speakerNames";
@@ -302,8 +309,7 @@ export default function App() {
     try {
       const settings = await api.loadSettings();
       if (!settings.update_check_automatic) return;
-      const { check } = await import("@tauri-apps/plugin-updater");
-      const update = await check();
+      const update = await checkForUpdate();
       if (update) reportInfo(t("app.updateAvailable", { version: update.version }));
     } catch {
       /* An unreachable server is not worth interrupting a start for. The

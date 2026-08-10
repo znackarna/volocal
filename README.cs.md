@@ -184,6 +184,15 @@ Tři kontroly, které za nikoho neudělá stroj:
 Bez podpisu ukáže Windows při prvním spuštění SmartScreen
 („Windows ochránil váš počítač" → *Další informace* → *Přesto spustit*).
 
+**První vydání jde ven nepodepsané**, vědomě. Certifikát to okno sám o sobě
+nezavře: OV certifikáty i levné cloudové podepisovací služby začínají bez
+reputace a získávají ji tím, že si soubor lidé stahují — což je přesně to, co
+se ještě nestalo. Okamžitou důvěru má jen EV, a ten stojí stovky dolarů ročně
+a chce hardwarový token. Až bude co chránit, dá se to koupit; do té doby
+`scripts\release.ps1 -Publish -Unsigned` vydá bez podpisu a řekne u toho, co
+uživatel uvidí. Napište to i tam, odkud se stahuje — varování, na které nikdo
+nepřipravil, zavírá stránky.
+
 Od června 2023 nelze certifikát stáhnout jako soubor — soukromý klíč musí být
 na hardwarovém tokenu nebo v cloudovém HSM, a to u OV i EV. Rozdíl mezi nimi
 není v síle podpisu, ale v pověsti u SmartScreenu: **EV má důvěru okamžitě, OV
