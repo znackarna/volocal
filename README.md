@@ -1,6 +1,6 @@
 **English** · [Čeština](README.cs.md)
 
-# Slobot
+# Volocal
 
 Turns spoken words into text. Recordings, transcripts and language models run
 on your own computer, and nothing is sent out.
@@ -38,7 +38,7 @@ written permission. See [LICENSE](LICENSE); the program itself is covered by
 ## Where the network is used
 
 The claim is that your recordings never leave the machine, so it is worth being
-exact about when Slobot does reach the internet. Only here:
+exact about when Volocal does reach the internet. Only here:
 
 1. **First run.** The setup wizard downloads whisper.cpp, ffmpeg, speech
    detection and the models you pick — 700 MB to 1.7 GB — from their authors'

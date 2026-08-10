@@ -181,7 +181,7 @@ pub struct Settings {
     /// disk a recording costs, and that is the owner's decision, not ours.
     #[serde(default)]
     pub copy_imports: bool,
-    /// Look for a newer Slobot when the window opens, instead of only when the
+    /// Look for a newer Volocal when the window opens, instead of only when the
     /// button on the About page is pressed.
     ///
     /// Off by default, and the default is the promise: an application that

@@ -1,4 +1,4 @@
-# Contributing to Slobot
+# Contributing to Volocal
 
 Thank you for looking. Before you spend time on a change, two things are worth
 knowing up front.
@@ -7,9 +7,9 @@ knowing up front.
 verify what the program does with their recordings. You may read it and build it
 for yourself; redistribution and reuse need written permission. See
 [LICENSE](LICENSE). By opening a pull request you grant značkárna s.r.o. the
-right to use your contribution as part of Slobot (LICENSE, section 5).
+right to use your contribution as part of Volocal (LICENSE, section 5).
 
-**Product direction and design belong to the owner.** Slobot has a single
+**Product direction and design belong to the owner.** Volocal has a single
 maintainer who decides what it does and how it looks. A technically excellent
 pull request that changes visible behaviour without prior agreement will be
 asked to go back to a discussion first — not because it is bad, but because that
@@ -27,7 +27,7 @@ decision is not the reviewer's to make on the spot.
 ## Before you open a pull request
 
 Windows is the supported development platform. Everything below is expected to
-pass on Windows, because that is what Slobot ships on and it is the only place
+pass on Windows, because that is what Volocal ships on and it is the only place
 the `#[cfg(windows)]` code is compiled at all.
 
 ```powershell

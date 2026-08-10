@@ -3,8 +3,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: Report a vulnerability (private)
-    url: https://github.com/znackarna/slobot/security/policy
+    url: https://github.com/znackarna/volocal/security/policy
     about: Do not open a public issue. SECURITY.md explains how to report privately.
-  - name: Question about using Slobot
-    url: https://github.com/znackarna/slobot/blob/main/README.cs.md
+  - name: Question about using Volocal
+    url: https://github.com/znackarna/volocal/blob/main/README.cs.md
     about: The Czech README covers the keyboard, models, portable copies and where files live.

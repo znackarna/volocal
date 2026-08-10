@@ -17,7 +17,7 @@ describe("plain", () => {
   });
 
   test("case alone is not a difference", () => {
-    expect(plain("Slobot")).toBe(plain("SLOBOT"));
+    expect(plain("Volocal")).toBe(plain("VOLOCAL"));
   });
 
   test("letters that are not Czech are left as they are", () => {

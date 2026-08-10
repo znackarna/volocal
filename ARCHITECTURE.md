@@ -1,6 +1,6 @@
-# Slobot architecture
+# Volocal architecture
 
-Slobot is a Tauri desktop application with a React/TypeScript frontend
+Volocal is a Tauri desktop application with a React/TypeScript frontend
 and a Rust backend.
 
 ## Source layout

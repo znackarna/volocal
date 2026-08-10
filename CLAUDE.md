@@ -1,4 +1,4 @@
-# Slobot: working rules
+# Volocal: working rules
 
 Read `ARCHITECTURE.md` before changing cross-layer behavior. New internal
 identifiers and comments use standard English; visible UI copy remains Czech
@@ -126,7 +126,7 @@ at `zavané`. Also verify:
 | [ARCHITECTURE.md](ARCHITECTURE.md) | module layout, naming, the translation boundary |
 | [docs/history/](docs/history/README.md) | why the current implementation is the way it is, by day |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | what a pull request needs |
-| [README.md](README.md) | what Slobot is, and building it |
+| [README.md](README.md) | what Volocal is, and building it |
 
 Before handing work over:
 

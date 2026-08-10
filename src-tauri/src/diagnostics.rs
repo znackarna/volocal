@@ -33,7 +33,7 @@ pub fn set_file(archive: &Path) {
     let file = archive
         .parent()
         .unwrap_or_else(|| Path::new("."))
-        .join("slobot-log.txt");
+        .join("volocal-log.txt");
     let _ = FILE.set(file);
 }
 

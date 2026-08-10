@@ -1086,11 +1086,13 @@ export default function App() {
           {screen === "library" && (
             <span className="header-brand-name">
               {/* i18n-ignore: a product name, not copy — it is the same word in
-                  every language. */}
-              Slobot
+                  every language. Lower case because this is the wordmark, drawn
+                  beside the mark, and the wordmark is set that way. In running
+                  text it is `Volocal`. */}
+              volocal
               {/* i18n-ignore: a symbol, not a word; the same in every language.
                   Hidden from assistive technology — the mark beside it already
-                  names the application, and "Slobot trademark" is noise. */}
+                  names the application, and "Volocal trademark" is noise. */}
               <span className="header-brand-tm" aria-hidden>™</span>
             </span>
           )}
