@@ -71,16 +71,63 @@ enum Destination {
 /// SHA-256 of the exact file each component downloads, checked before anything
 /// is unpacked or moved into place.
 ///
-/// Empty is not an oversight. A hash here is a promise about one exact
-/// artefact, so it may only be written down once somebody has read it from the
-/// project's own release — not computed from whatever this machine happened to
-/// receive, which would attest that the file matches itself. Until an entry
-/// exists, `install_record` marks the component `origin unverified` rather than
-/// pretending otherwise.
+/// A hash here is a promise about one exact artefact, so it may only be written
+/// down once somebody has read it from the project's own release — not computed
+/// from whatever this machine happened to receive, which would attest that the
+/// file matches itself and nothing more. Every entry below was read from the
+/// publisher, on 2026-08-10:
 ///
-/// A component still fetched by matching a pattern against live releases can
-/// never have one: every machine may receive a different build.
-const EXPECTED_HASHES: &[(&str, &str)] = &[];
+/// * Hugging Face serves the SHA-256 of an LFS file as its object id, through
+///   `https://huggingface.co/api/models/<repo>/tree/main`. Those seven URLs are
+///   pinned to a revision rather than to `main` in the catalogue below — a hash
+///   against a moving branch would start refusing the download the day the
+///   publisher pushed anything, and the pair only means something together.
+/// * GitHub serves `digest` on a release asset, through
+///   `repos/<owner>/<repo>/releases/tags/<tag>`. It is present for
+///   `whisper-vulkan` and null for `model-hlasy`, whose asset predates the
+///   field — so that one has no entry and cannot get one from GitHub.
+///
+/// Until an entry exists, `install_record` marks the component
+/// `origin unverified` rather than pretending otherwise. Two reasons a
+/// component is still missing from this list, both of them the same reason:
+/// the address does not name one artefact. Five are found by matching a
+/// pattern against live releases, and `yt-dlp` and `ffmpeg` point at "latest"
+/// and at a rolling build. Pinning those to a version is what has to happen
+/// before they can appear here, and which version is not this file's decision.
+const EXPECTED_HASHES: &[(&str, &str)] = &[
+    (
+        "whisper-vulkan",
+        "a5d408c72e460433b39875f74a0b6e27e60a3724301d478fe9873db7ff4098e0",
+    ),
+    (
+        "vad",
+        "2aa269b785eeb53a82983a20501ddf7c1d9c48e33ab63a41391ac6c9f7fb6987",
+    ),
+    (
+        "model-turbo",
+        "394221709cd5ad1f40c46e6031ca61bce88931e6e088c188294c6d5a55ffa7e2",
+    ),
+    (
+        "model-large-q5",
+        "d75795ecff3f83b5faa89d1900604ad8c780abd5739fae406de19f23ecd98ad1",
+    ),
+    (
+        "model-large",
+        "64d182b440b98d5203c4f9bd541544d84c605196c4f7b845dfa11fb23594d1e2",
+    ),
+    (
+        "editor-model-light",
+        "fa401b55b07ee70a54c6dae3903c783a6e65064312529ea57175cb5f8dec6634",
+    ),
+    (
+        "editor-model-balanced",
+        "676c35070db6dbe52f93e9c864ee0fba4eddea94b9c875d9cb10daff453fbaee",
+    ),
+    (
+        "editor-model-best",
+        "93567e57a8fe10b23569b9d9ec38cd005deedf71e29477c421a4b83f418a538b",
+    ),
+];
 
 fn expected_hash(id: &str) -> Option<&'static str> {
     EXPECTED_HASHES
@@ -191,7 +238,7 @@ fn raw_catalog() -> Vec<DownloadComponent> {
             "model",
             true,
             "models/ggml-silero-v6.2.0.bin",
-            Source::Url("https://huggingface.co/ggml-org/whisper-vad/resolve/main/ggml-silero-v6.2.0.bin".into()),
+            Source::Url("https://huggingface.co/ggml-org/whisper-vad/resolve/9ffd54a1e1ee413ddf265af9913beaf518d1639b/ggml-silero-v6.2.0.bin".into()),
             Destination::AsFile("models/ggml-silero-v6.2.0.bin".into()),
         ),
         k(
@@ -200,7 +247,7 @@ fn raw_catalog() -> Vec<DownloadComponent> {
             "model",
             false,
             "models/ggml-large-v3-turbo-q5_0.bin",
-            Source::Url("https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-q5_0.bin".into()),
+            Source::Url("https://huggingface.co/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-large-v3-turbo-q5_0.bin".into()),
             Destination::AsFile("models/ggml-large-v3-turbo-q5_0.bin".into()),
         ),
         k(
@@ -209,7 +256,7 @@ fn raw_catalog() -> Vec<DownloadComponent> {
             "model",
             false,
             "models/ggml-large-v3-q5_0.bin",
-            Source::Url("https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-q5_0.bin".into()),
+            Source::Url("https://huggingface.co/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-large-v3-q5_0.bin".into()),
             Destination::AsFile("models/ggml-large-v3-q5_0.bin".into()),
         ),
         k(
@@ -218,7 +265,7 @@ fn raw_catalog() -> Vec<DownloadComponent> {
             "model",
             false,
             "models/ggml-large-v3.bin",
-            Source::Url("https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3.bin".into()),
+            Source::Url("https://huggingface.co/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-large-v3.bin".into()),
             Destination::AsFile("models/ggml-large-v3.bin".into()),
         ),
         // ---------------------------------------------------- language editing
@@ -254,7 +301,7 @@ fn raw_catalog() -> Vec<DownloadComponent> {
             "editor",
             false,
             "models/editor/gemma-4-e2b-q4.gguf",
-            Source::Url("https://huggingface.co/google/gemma-4-E2B-it-qat-q4_0-gguf/resolve/main/gemma-4-E2B_q4_0-it.gguf".into()),
+            Source::Url("https://huggingface.co/google/gemma-4-E2B-it-qat-q4_0-gguf/resolve/675cff42a74c774d6cb76f76d8eacb49b48c9b93/gemma-4-E2B_q4_0-it.gguf".into()),
             Destination::AsFile("models/editor/gemma-4-e2b-q4.gguf".into()),
         ),
         k(
@@ -263,7 +310,7 @@ fn raw_catalog() -> Vec<DownloadComponent> {
             "editor",
             false,
             "models/editor/gemma-4-e4b-q4.gguf",
-            Source::Url("https://huggingface.co/google/gemma-4-E4B-it-qat-q4_0-gguf/resolve/main/gemma-4-E4B_q4_0-it.gguf".into()),
+            Source::Url("https://huggingface.co/google/gemma-4-E4B-it-qat-q4_0-gguf/resolve/4b4a2c1d584be7264f87aac328a1bc739ce81b6c/gemma-4-E4B_q4_0-it.gguf".into()),
             Destination::AsFile("models/editor/gemma-4-e4b-q4.gguf".into()),
         ),
         k(
@@ -272,7 +319,7 @@ fn raw_catalog() -> Vec<DownloadComponent> {
             "editor",
             false,
             "models/editor/gemma-4-12b-q4.gguf",
-            Source::Url("https://huggingface.co/google/gemma-4-12B-it-qat-q4_0-gguf/resolve/main/gemma-4-12b-it-qat-q4_0.gguf".into()),
+            Source::Url("https://huggingface.co/google/gemma-4-12B-it-qat-q4_0-gguf/resolve/29d097773436b69ff9feafd636ab4cf873786537/gemma-4-12b-it-qat-q4_0.gguf".into()),
             Destination::AsFile("models/editor/gemma-4-12b-q4.gguf".into()),
         ),
         // ---------------------------------------------------------- mluvci
@@ -1305,5 +1352,57 @@ mod tests {
             assert_eq!(expected_hash(id), Some(*hash));
         }
         assert_eq!(expected_hash("a component that does not exist"), None);
+    }
+
+    /// A hash filed under a misspelt id is worse than no hash: nothing compares
+    /// it, nothing fails, and the catalogue reads as if that component were
+    /// verified.
+    #[test]
+    fn every_expected_hash_belongs_to_a_component_that_exists() {
+        let catalogue = raw_catalog();
+        for (id, _) in EXPECTED_HASHES {
+            assert!(
+                catalogue.iter().any(|component| component.id == *id),
+                "{id} has a hash but is not in the catalogue"
+            );
+        }
+    }
+
+    /// A component found by matching a pattern over live releases receives
+    /// whatever that project publishes today, so a hash against it would refuse
+    /// every download until somebody noticed. Pinning the version comes first;
+    /// the hash can only follow.
+    #[test]
+    fn a_component_found_by_pattern_carries_no_hash() {
+        for component in raw_catalog() {
+            if matches!(component.source, Source::Github { .. }) {
+                assert_eq!(
+                    expected_hash(&component.id),
+                    None,
+                    "{} is found by pattern, so a hash cannot hold",
+                    component.id
+                );
+            }
+        }
+    }
+
+    /// The two halves of one promise. A hash names one artefact, so the address
+    /// beside it has to name that same one — `main` moves, and a revision does
+    /// not.
+    #[test]
+    fn a_hashed_hugging_face_url_is_pinned_to_a_revision() {
+        for component in raw_catalog() {
+            let Source::Url(url) = &component.source else {
+                continue;
+            };
+            if !url.contains("huggingface.co") || expected_hash(&component.id).is_none() {
+                continue;
+            }
+            assert!(
+                !url.contains("/resolve/main/"),
+                "{} has a hash but downloads from a branch",
+                component.id
+            );
+        }
     }
 }
