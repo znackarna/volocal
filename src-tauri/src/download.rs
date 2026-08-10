@@ -46,18 +46,18 @@ pub struct DownloadComponent {
     destination: Destination,
 }
 
+/// One artefact, named exactly.
+///
+/// There used to be a second variant that searched recent GitHub releases for a
+/// file matching a pattern, because asset names carry the version and therefore
+/// change. It is gone: what it downloaded depended on what the project had
+/// published that morning, every machine could receive a different build, and
+/// no digest could ever be written down for it. A version is now chosen
+/// deliberately, and moving to a newer one is an edit somebody makes and
+/// records — see the note above `EXPECTED_HASHES` for how.
 #[derive(Serialize, Deserialize, Clone, Debug)]
 enum Source {
-    /// Pevna adresa
     Url(String),
-    /// Soubor se hleda v nedavnych vydanich na GitHubu podle vzoru v nazvu.
-    /// Prochazi se vic vydani zpatky - projektum obcas spadne sestaveni pro
-    /// jednu platformu a v poslednim vydani pak ten soubor proste neni.
-    Github {
-        repo: String,
-        pattern: String,
-        exclude: String,
-    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -87,17 +87,52 @@ enum Destination {
 ///   `whisper-vulkan` and null for `model-hlasy`, whose asset predates the
 ///   field — so that one has no entry and cannot get one from GitHub.
 ///
-/// Until an entry exists, `install_record` marks the component
-/// `origin unverified` rather than pretending otherwise. Two reasons a
-/// component is still missing from this list, both of them the same reason:
-/// the address does not name one artefact. Five are found by matching a
-/// pattern against live releases, and `yt-dlp` and `ffmpeg` point at "latest"
-/// and at a rolling build. Pinning those to a version is what has to happen
-/// before they can appear here, and which version is not this file's decision.
+/// * gyan.dev publishes `<archive>.sha256` beside each ffmpeg build, and
+///   `release-version` says which version the rolling link currently points at.
+///
+/// Fifteen of the sixteen components are here. The one that is not is
+/// `model-hlasy`: its asset predates GitHub's digest field and reads null, and
+/// no other publication of that file exists to read one from. It installs and
+/// is recorded `origin unverified`, which is the truth about it.
+///
+/// **Moving a component to a newer version is an edit, and both halves change
+/// together.** Read the new digest from the publisher — never from the file
+/// this machine received — and change the address in the catalogue in the same
+/// commit. A digest without its address, or an address without its digest, is
+/// worse than neither: the first refuses every download, the second quietly
+/// installs whatever arrives.
 const EXPECTED_HASHES: &[(&str, &str)] = &[
     (
         "whisper-vulkan",
         "a5d408c72e460433b39875f74a0b6e27e60a3724301d478fe9873db7ff4098e0",
+    ),
+    (
+        "whisper-cpu",
+        "49dcc16de826f20bd53d44f947a1ae49dfa81f86cad67a64d80820cb192d674a",
+    ),
+    (
+        "whisper-cuda",
+        "443110ddaad70d4290ab2e77179e31cf712035bbc4fad56bb4519a90c917b39c",
+    ),
+    (
+        "ffmpeg",
+        "e6b54767a6065919048f1a098eb27211ca4e12b4348a05d88777a5855d0b6e71",
+    ),
+    (
+        "yt-dlp",
+        "52fe3c26dcf71fbdc85b528589020bb0b8e383155cfa81b64dd447bbe35e24b8",
+    ),
+    (
+        "deno",
+        "171efab55ac6b9881fd53ee4c20f8bf3bb1340ffc618483746909014db12216a",
+    ),
+    (
+        "editor-vulkan",
+        "0fa6110380decb70b8e964f89214f7596efbda80dd8e133acf72a7c1a2744796",
+    ),
+    (
+        "editor-cpu",
+        "0c1865233965dbaa7bec9bfdfa85b622bcb4c4ce877d2cbe502a71173fc8ee47",
     ),
     (
         "vad",
@@ -178,11 +213,7 @@ fn raw_catalog() -> Vec<DownloadComponent> {
             "program",
             false,
             "bin/cpu/whisper-cli.exe",
-            Source::Github {
-                repo: "ggml-org/whisper.cpp".into(),
-                pattern: "^whisper-(blas-)?bin-x64\\.zip$".into(),
-                exclude: "".into(),
-            },
+            Source::Url("https://github.com/ggml-org/whisper.cpp/releases/download/v1.9.2/whisper-bin-x64.zip".into()),
             Destination::ProgramsInto("bin/cpu".into()),
         ),
         k(
@@ -191,11 +222,7 @@ fn raw_catalog() -> Vec<DownloadComponent> {
             "program",
             false,
             "bin/cuda/whisper-cli.exe",
-            Source::Github {
-                repo: "ggml-org/whisper.cpp".into(),
-                pattern: "cublas-12.*bin-x64\\.zip$".into(),
-                exclude: "".into(),
-            },
+            Source::Url("https://github.com/ggml-org/whisper.cpp/releases/download/v1.9.2/whisper-cublas-12.4.0-bin-x64.zip".into()),
             Destination::ProgramsInto("bin/cuda".into()),
         ),
         k(
@@ -204,7 +231,7 @@ fn raw_catalog() -> Vec<DownloadComponent> {
             "program",
             true,
             "bin/ffmpeg.exe",
-            Source::Url("https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip".into()),
+            Source::Url("https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-9.0-essentials_build.zip".into()),
             Destination::ProgramsInto("bin".into()),
         ),
         k(
@@ -214,7 +241,7 @@ fn raw_catalog() -> Vec<DownloadComponent> {
             false,
             "bin/yt-dlp.exe",
             Source::Url(
-                "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe".into(),
+                "https://github.com/yt-dlp/yt-dlp/releases/download/2026.07.04/yt-dlp.exe".into(),
             ),
             Destination::AsFile("bin/yt-dlp.exe".into()),
         ),
@@ -224,11 +251,7 @@ fn raw_catalog() -> Vec<DownloadComponent> {
             "program",
             false,
             "bin/deno.exe",
-            Source::Github {
-                repo: "denoland/deno".into(),
-                pattern: "^deno-x86_64-pc-windows-msvc\\.zip$".into(),
-                exclude: "aarch64|denort|sha256".into(),
-            },
+            Source::Url("https://github.com/denoland/deno/releases/download/v2.9.5/deno-x86_64-pc-windows-msvc.zip".into()),
             Destination::ProgramsInto("bin".into()),
         ),
         // ---------------------------------------------------------- modely
@@ -275,11 +298,7 @@ fn raw_catalog() -> Vec<DownloadComponent> {
             "editor",
             false,
             "bin/editor-vulkan/llama-cli.exe",
-            Source::Github {
-                repo: "ggml-org/llama.cpp".into(),
-                pattern: "^llama-.*-bin-win-vulkan-x64\\.zip$".into(),
-                exclude: "".into(),
-            },
+            Source::Url("https://github.com/ggml-org/llama.cpp/releases/download/b10342/llama-b10342-bin-win-vulkan-x64.zip".into()),
             Destination::ProgramsInto("bin/editor-vulkan".into()),
         ),
         k(
@@ -288,11 +307,7 @@ fn raw_catalog() -> Vec<DownloadComponent> {
             "editor",
             false,
             "bin/editor-cpu/llama-cli.exe",
-            Source::Github {
-                repo: "ggml-org/llama.cpp".into(),
-                pattern: "^llama-.*-bin-win-cpu-x64\\.zip$".into(),
-                exclude: "".into(),
-            },
+            Source::Url("https://github.com/ggml-org/llama.cpp/releases/download/b10342/llama-b10342-bin-win-cpu-x64.zip".into()),
             Destination::ProgramsInto("bin/editor-cpu".into()),
         ),
         k(
@@ -432,8 +447,6 @@ const CONNECT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(15);
 const KEEPALIVE_IDLE: std::time::Duration = std::time::Duration::from_secs(30);
 const KEEPALIVE_INTERVAL: std::time::Duration = std::time::Duration::from_secs(10);
 const KEEPALIVE_RETRIES: u32 = 6;
-/// Applies to the release listings only — see the call site.
-const METADATA_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
 
 fn client() -> Result<reqwest::blocking::Client> {
     Ok(reqwest::blocking::Client::builder()
@@ -446,99 +459,9 @@ fn client() -> Result<reqwest::blocking::Client> {
         .build()?)
 }
 
-/// U GitHubu se nazvy souboru mezi verzemi meni, proto je hledame v seznamu
-/// vydani misto hadani adresy. Prochazime vic vydani zpatky - projektum obcas
-/// spadne sestaveni pro jednu platformu a v poslednim vydani ten soubor chybi.
-fn resolve_url(source: &Source) -> Reported<String> {
+fn resolve_url(source: &Source) -> String {
     match source {
-        Source::Url(url) => Ok(url.clone()),
-        Source::Github {
-            repo,
-            pattern,
-            exclude,
-        } => {
-            // reqwest has default features off (for size), so we parse the
-            // response ourselves instead of the convenient .json()
-            let download = |url: String| -> Reported<serde_json::Value> {
-                // A whole-request deadline is safe here and only here: this is
-                // a page of JSON, not a model, so there is no legitimate reason
-                // for it to take half a minute. It is what keeps a stalled
-                // GitHub connection from hanging the very first step of a
-                // download, where the file-body keepalive has nothing to say
-                // yet.
-                let body = client()?
-                    .get(&url)
-                    .timeout(METADATA_TIMEOUT)
-                    .send()?
-                    .error_for_status()?
-                    .text()?;
-                serde_json::from_str(&body)
-                    .map_err(|error| UserMessage::new("download.github_unreadable").detail(error))
-            };
-
-            // Ask for "latest" first. Some projects (sherpa-onnx) publish
-            // dozens of model-only releases, so a date-ordered list is flooded
-            // with them and the actual program release never makes the cut.
-            let mut releases: Vec<serde_json::Value> = Vec::new();
-            if let Ok(v) = download(format!(
-                "https://api.github.com/repos/{repo}/releases/latest"
-            )) {
-                releases.push(v);
-            }
-            let list = download(format!(
-                "https://api.github.com/repos/{repo}/releases?per_page=30"
-            ))?;
-            releases.extend(list.as_array().cloned().unwrap_or_default());
-
-            let empty = vec![];
-
-            let requested = regex::Regex::new(pattern).map_err(|_| {
-                UserMessage::new("download.invalid_pattern").with("pattern", pattern)
-            })?;
-            let excluded = if exclude.is_empty() {
-                None
-            } else {
-                regex::Regex::new(exclude).ok()
-            };
-
-            // When nothing matches, report what was actually seen — without
-            // that, this failure is debugged blind.
-            let mut seen: Vec<String> = Vec::new();
-            let mut found: Option<String> = None;
-
-            'search: for release in &releases {
-                for asset in release["assets"].as_array().unwrap_or(&empty) {
-                    let Some(name) = asset["name"].as_str() else {
-                        continue;
-                    };
-                    if !requested.is_match(name) {
-                        continue;
-                    }
-                    if let Some(excluded) = &excluded {
-                        if excluded.is_match(name) {
-                            if seen.len() < 6 {
-                                seen.push(name.to_string());
-                            }
-                            continue;
-                        }
-                    }
-                    if let Some(download_url) = asset["browser_download_url"].as_str() {
-                        found = Some(download_url.to_string());
-                        break 'search;
-                    }
-                }
-            }
-
-            found.ok_or_else(|| {
-                let message = if seen.is_empty() {
-                    UserMessage::new("download.asset_not_found")
-                } else {
-                    UserMessage::new("download.asset_not_found_with_excluded")
-                        .with("excluded", seen.join(", "))
-                };
-                message.with("repository", repo).with("pattern", pattern)
-            })
-        }
+        Source::Url(url) => url.clone(),
     }
 }
 
@@ -843,7 +766,7 @@ pub fn install_component(
         },
     );
 
-    let url = resolve_url(&component.source)?;
+    let url = resolve_url(&component.source);
     let expected = expected_hash(&component.id);
     // The digest of what actually arrived, whether or not anything was
     // expected. It goes into the record so that a later version, once the
@@ -1368,21 +1291,36 @@ mod tests {
         }
     }
 
-    /// A component found by matching a pattern over live releases receives
-    /// whatever that project publishes today, so a hash against it would refuse
-    /// every download until somebody noticed. Pinning the version comes first;
-    /// the hash can only follow.
+    /// A component added without a digest installs whatever arrives, and does
+    /// it quietly. The exception is named here rather than left to be noticed:
+    /// `model-hlasy` predates GitHub's digest field and there is nowhere to
+    /// read one from. Anything else joining that list has to be a decision.
     #[test]
-    fn a_component_found_by_pattern_carries_no_hash() {
+    fn every_component_carries_a_digest_except_the_one_that_cannot() {
+        const WITHOUT: &[&str] = &["model-hlasy"];
         for component in raw_catalog() {
-            if matches!(component.source, Source::Github { .. }) {
-                assert_eq!(
-                    expected_hash(&component.id),
-                    None,
-                    "{} is found by pattern, so a hash cannot hold",
-                    component.id
-                );
-            }
+            let has = expected_hash(&component.id).is_some();
+            let excused = WITHOUT.contains(&component.id.as_str());
+            assert_ne!(
+                has, excused,
+                "{}: digest present = {has}, excused = {excused}",
+                component.id
+            );
+        }
+    }
+
+    /// An address that does not name one artefact cannot be hashed, whatever
+    /// the catalogue says. `latest` is the shape that reads as fixed and is
+    /// not.
+    #[test]
+    fn no_address_points_at_whatever_is_newest() {
+        for component in raw_catalog() {
+            let Source::Url(url) = &component.source;
+            assert!(
+                !url.contains("/releases/latest/"),
+                "{} downloads whatever is newest",
+                component.id
+            );
         }
     }
 
@@ -1392,9 +1330,7 @@ mod tests {
     #[test]
     fn a_hashed_hugging_face_url_is_pinned_to_a_revision() {
         for component in raw_catalog() {
-            let Source::Url(url) = &component.source else {
-                continue;
-            };
+            let Source::Url(url) = &component.source;
             if !url.contains("huggingface.co") || expected_hash(&component.id).is_none() {
                 continue;
             }

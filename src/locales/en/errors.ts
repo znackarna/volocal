@@ -82,10 +82,6 @@ export const enErrors: Partial<Record<keyof typeof csErrors, string>> = {
   "errors.download.cancelled": "Cancelled",
   "errors.download.connection_failed": "Could not connect to the server ({url})",
   "errors.download.rejected": "The server refused to hand over the file",
-  "errors.download.github_unreadable": "GitHub returned a response I do not understand",
-  "errors.download.invalid_pattern": "Invalid search pattern: {pattern}",
-  "errors.download.asset_not_found": "The latest {repository} releases contain no Windows file matching “{pattern}”.",
-  "errors.download.asset_not_found_with_excluded": "The latest {repository} releases contain no Windows file matching “{pattern}”. Similar files that were excluded: {excluded}",
   "errors.download.tar_launch_failed": "Could not start tar (it is part of Windows 10 and later)",
   "errors.download.extract_failed": "Extracting the archive failed",
   "errors.download.hash_mismatch":
