@@ -203,6 +203,13 @@
 .settings-disclosure {
   margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--linka);
 }
+/* A divider needs the same room on both sides, or the block between two of
+   them is not in the middle of what the eye reads as one block. The disclosure
+   carries its own tighter 14/14 rhythm — right after a field, wrong after a
+   switch, which sits on 22. Left at 14 the row had 22 above and 14 below, and
+   because the switch is centred on the row it was the switch that looked
+   dropped: 5.5 px below the midpoint of the two lines, measured. */
+.settings-toggle:not(.section) + .settings-disclosure { margin-top: 22px; }
 .settings-action-row + .settings-disclosure {
   margin-top: 12px; padding-top: 0; border-top: 0;
 }
