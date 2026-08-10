@@ -2,10 +2,41 @@
 //! FTS5 provides full-text search across the transcript archive.
 
 use anyhow::Result;
-use rusqlite::{params, Connection, OptionalExtension};
+use rusqlite::{params, Connection, OptionalExtension, Transaction};
 use serde::{Deserialize, Serialize};
 
 use crate::user_message::UserMessage;
+
+/// A transaction, unless the caller already holds one.
+///
+/// SQLite has no nested transactions: a `BEGIN` inside a `BEGIN` fails with
+/// *cannot start a transaction within a transaction*, and because a
+/// `Transaction` derefs to a `Connection` the nesting compiles perfectly and
+/// only shows up when somebody presses the button.
+///
+/// Which is what happened. Deleting a folder together with its recordings is
+/// one errand, so the command wraps it in a transaction — and then called
+/// `delete_folder`, which opened its own. Both halves were right on their own.
+///
+/// Every function here that wants both-or-neither has to work standalone *and*
+/// inside a larger errand, so each asks only when nobody else has. `commit` on
+/// `None` is nothing: the caller's transaction is still open and still owns the
+/// decision to keep the work or drop it.
+fn transaction_unless_in_one(db: &Connection) -> Result<Option<Transaction<'_>>> {
+    Ok(if db.is_autocommit() {
+        Some(db.unchecked_transaction()?)
+    } else {
+        None
+    })
+}
+
+/// Commits what `transaction_unless_in_one` handed back, if anything.
+fn commit(tx: Option<Transaction<'_>>) -> Result<()> {
+    if let Some(tx) = tx {
+        tx.commit()?;
+    }
+    Ok(())
+}
 
 // ---------------------------------------------------------------- data types
 
@@ -856,7 +887,7 @@ pub fn set_status(db: &Connection, id: &str, status: &str, error: Option<&str>) 
 /// declare the first one's work interrupted. Sharing an archive between two
 /// running copies is a worse problem than this one, so it is left alone.
 pub fn recover_interrupted(db: &Connection) -> Result<usize> {
-    let tx = db.unchecked_transaction()?;
+    let tx = transaction_unless_in_one(db)?;
     // A row still saying `prepisuje` while its segments are there is a run
     // that finished and failed to write down that it had. Segments are
     // written in one transaction at the very end — including a re-run, which
@@ -864,17 +895,17 @@ pub fn recover_interrupted(db: &Connection) -> Result<usize> {
     // transcript, whether from this run or the one before it. Calling that a
     // failure is how a forty-minute transcript that went fine comes back as
     // an error.
-    tx.execute(
+    db.execute(
         "UPDATE nahravky SET stav = 'hotova', chyba = NULL
          WHERE stav = 'prepisuje'
            AND EXISTS (SELECT 1 FROM segmenty WHERE nahravka_id = nahravky.id)",
         [],
     )?;
-    let count = tx.execute(
+    let count = db.execute(
         "UPDATE nahravky SET stav = 'chyba', chyba = ?1 WHERE stav = 'prepisuje'",
         params![UserMessage::new("transcription.interrupted").to_stored()],
     )?;
-    tx.commit()?;
+    commit(tx)?;
     Ok(count)
 }
 
@@ -1038,15 +1069,14 @@ pub fn rename_folder(db: &Connection, id: &str, name: &str) -> Result<()> {
 pub fn move_to_folder(db: &Connection, ids: &[String], folder: Option<&str>) -> Result<()> {
     // One transaction: a loop that gives up in the middle would leave half a
     // selection in one folder and half in another, with nothing said about it.
-    let tx = db.unchecked_transaction()?;
+    let tx = transaction_unless_in_one(db)?;
     for id in ids {
-        tx.execute(
+        db.execute(
             "UPDATE nahravky SET slozka = ?2 WHERE id = ?1",
             params![id, folder],
         )?;
     }
-    tx.commit()?;
-    Ok(())
+    commit(tx)
 }
 
 pub fn folder_recording_ids(db: &Connection, folder: &str) -> Result<Vec<String>> {
@@ -1066,14 +1096,13 @@ pub fn delete_folder(db: &Connection, id: &str) -> Result<()> {
     // Both statements or neither: returning the recordings to the root and
     // removing the folder are one decision, and the half where the folder is
     // gone but its recordings still point at it is unreachable from the UI.
-    let tx = db.unchecked_transaction()?;
-    tx.execute(
+    let tx = transaction_unless_in_one(db)?;
+    db.execute(
         "UPDATE nahravky SET slozka = NULL WHERE slozka = ?1",
         params![id],
     )?;
-    tx.execute("DELETE FROM slozky WHERE id = ?1", params![id])?;
-    tx.commit()?;
-    Ok(())
+    db.execute("DELETE FROM slozky WHERE id = ?1", params![id])?;
+    commit(tx)
 }
 
 // ---------------------------------------------------------------- poznamky a ukoly
@@ -1703,11 +1732,12 @@ mod cluster_threshold_migration_tests {
 #[cfg(test)]
 mod tests {
     use super::{
-        ai_outputs, align_word_timestamps, create_folder, delete_folder, delete_recording_note,
-        delete_segments, folder_recording_ids, folders, insert_recording_note, insert_segment,
-        load_settings, migrate_legacy_schema, move_to_folder, recording_notes, recover_interrupted,
-        save_ai_document, save_ai_output, segments, update_recording_note, watch_file_imported,
-        watch_file_is_stable, waveform, AiDocument, AiOutput, RecordingNote, Segment, WaveformData,
+        ai_outputs, align_word_timestamps, create_folder, delete_folder, delete_recording,
+        delete_recording_note, delete_segments, folder_recording_ids, folders,
+        insert_recording_note, insert_segment, load_settings, migrate_legacy_schema,
+        move_to_folder, recording_notes, recover_interrupted, save_ai_document, save_ai_output,
+        segments, update_recording_note, watch_file_imported, watch_file_is_stable, waveform,
+        AiDocument, AiOutput, RecordingNote, Segment, WaveformData,
     };
     use rusqlite::{params, Connection};
 
@@ -2233,6 +2263,66 @@ mod tests {
 
         move_to_folder(&db, &["a".into()], None).unwrap();
         assert_eq!(folder_recording_ids(&db, &folder.id).unwrap(), vec!["b"]);
+    }
+
+    /// Reported from the running application: deleting a folder together with
+    /// the transcripts in it gave *cannot start a transaction within a
+    /// transaction*. The command wraps the whole errand in one — the
+    /// recordings and the folder go together or not at all — and the functions
+    /// below opened a second one inside it. SQLite has no nesting, and because
+    /// a `Transaction` derefs to a `Connection` it all compiled.
+    mod inside_someone_elses_transaction {
+        use super::*;
+
+        #[test]
+        fn a_folder_and_its_recordings_go_together() {
+            let db = archive_with_folders();
+            let folder = create_folder(&db, "Kázání").unwrap();
+            recording_in(&db, "a", 60.0, Some(&folder.id));
+            recording_in(&db, "b", 60.0, Some(&folder.id));
+
+            // Exactly what commands::folders::delete_folder does.
+            let tx = db.unchecked_transaction().unwrap();
+            for id in folder_recording_ids(&tx, &folder.id).unwrap() {
+                delete_recording(&tx, &id).unwrap();
+            }
+            delete_folder(&tx, &folder.id).unwrap();
+            tx.commit().unwrap();
+
+            assert!(folders(&db).unwrap().is_empty());
+            let left: i64 = db
+                .query_row("SELECT COUNT(*) FROM nahravky", [], |row| row.get(0))
+                .unwrap();
+            assert_eq!(left, 0);
+        }
+
+        #[test]
+        fn moving_recordings_works_there_too() {
+            let db = archive_with_folders();
+            let folder = create_folder(&db, "Kázání").unwrap();
+            recording_in(&db, "a", 60.0, None);
+
+            let tx = db.unchecked_transaction().unwrap();
+            move_to_folder(&tx, &["a".into()], Some(&folder.id)).unwrap();
+            tx.commit().unwrap();
+
+            assert_eq!(folder_recording_ids(&db, &folder.id).unwrap(), vec!["a"]);
+        }
+
+        /// And the caller's transaction still decides. Rolling back must undo
+        /// the folder deletion too — which it cannot if the inner call
+        /// committed a transaction of its own.
+        #[test]
+        fn a_rollback_takes_the_folder_back() {
+            let db = archive_with_folders();
+            let folder = create_folder(&db, "Kázání").unwrap();
+
+            let tx = db.unchecked_transaction().unwrap();
+            delete_folder(&tx, &folder.id).unwrap();
+            drop(tx); // no commit: rusqlite rolls back
+
+            assert_eq!(folders(&db).unwrap().len(), 1);
+        }
     }
 
     #[test]
