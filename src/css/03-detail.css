@@ -1,0 +1,416 @@
+/* The transcript screen: the reader, the sidebar and searching inside it.
+ *
+ * Part 03 of styles.css. The number is the point: these files are
+ * one stylesheet cut into pieces, and the order they are imported in is the
+ * order the rules were in. Moving a rule between them can change the look
+ * without changing a value. */
+
+/* ---------------------------------------------------------------- detail */
+
+.detail { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+
+.detail-hlavicka {
+  display: flex; align-items: center; gap: 10px;
+  height: 57px; padding: 0 18px; flex: 0 0 auto;
+  border-bottom: 1px solid var(--linka); background: var(--panel);
+}
+.detail-hlavicka h1 {
+  font-size: 15px; font-weight: 700; margin: 0; min-width: 0;
+}
+.detail-hlavicka-levo {
+  display: flex; align-items: center; gap: 8px; flex: 1 1 auto; min-width: 0;
+}
+.detail-znacka { flex: 0 0 auto; margin-right: 1px; }
+.detail-back-button { flex: 0 0 auto; }
+.detail-nazev { display: flex; align-items: center; gap: 7px; flex: 0 1 auto; }
+.detail-status { align-self: center; margin-top: 0; }
+.detail-jmeno { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.detail-title-menu { flex: 0 0 auto; }
+.detail-akce { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+.ikona-tlacitko.header-icon-button {
+  width: 34px; height: 34px;
+}
+.ai-edit-button.ready { color: var(--akcent); border-color: var(--akcent-linka); }
+.ai-edit-button svg { flex: 0 0 auto; }
+
+.detail-progress-bubble {
+  position: fixed; right: 22px;
+  bottom: calc(var(--app-footer-height) + 22px); z-index: 50;
+  display: flex; align-items: center; gap: 12px;
+  width: min(340px, calc(100vw - 44px)); padding: 12px 12px 12px 14px;
+  border: 1px solid var(--akcent-linka); border-radius: var(--r-velky);
+  background: linear-gradient(var(--akcent-svetly), var(--akcent-svetly)), var(--panel);
+  box-shadow: var(--stin-vysoky); color: var(--text);
+  animation: detail-progress-appears 0.16s ease-out;
+}
+.detail-progress-icon {
+  display: grid; place-items: center; flex: 0 0 auto;
+  color: var(--akcent); font-size: 18px; line-height: 1;
+}
+.detail-progress-icon svg { display: block; }
+.detail-progress-body { min-width: 0; flex: 1 1 auto; }
+.detail-progress-row {
+  display: flex; justify-content: space-between; gap: 12px;
+  margin-bottom: 5px; font-size: 12.5px; font-weight: 600;
+}
+.detail-progress-row span:first-child {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.detail-progress-row span:last-child { flex: 0 0 auto; font-variant-numeric: tabular-nums; }
+.detail-progress-bubble .prubeh-lista { height: 4px; }
+.detail-progress-bubble .prubeh-vypln {
+  background-color: var(--akcent);
+  background-image: linear-gradient(
+    100deg,
+    transparent 20%,
+    rgba(255, 255, 255, 0.5) 45%,
+    transparent 70%
+  );
+  background-size: 220% 100%;
+  animation: detail-progress-flow 1.25s linear infinite;
+}
+@keyframes detail-progress-flow {
+  from { background-position: 130% 0; }
+  to { background-position: -90% 0; }
+}
+@keyframes detail-progress-appears {
+  from { opacity: 0; transform: translateY(6px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+/* 28 px, not 32: the bubble is a 340 px card and its close control must not
+   set the height of the row the phase description sits on. */
+.detail-progress-cancel {
+  display: grid; place-items: center; flex: 0 0 auto;
+  width: 28px; height: 28px; padding: 0;
+  border: 0; border-radius: 50%; background: transparent;
+  color: var(--text-tichy); cursor: pointer;
+  transition: background var(--hover-duration) var(--hover-ease),
+    color var(--hover-duration) var(--hover-ease);
+}
+.detail-progress-cancel:hover { background: var(--tlumene); color: var(--text); }
+@media (prefers-reduced-motion: reduce) {
+  .detail-progress-bubble, .detail-progress-bubble .prubeh-vypln { animation: none; }
+}
+
+/* auxiliary icon button — must not compete with the primary actions */
+.ikona-tlacitko {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; flex: 0 0 auto;
+  border: 0; background: none; border-radius: 50%;
+  color: var(--text-tichy); cursor: pointer;
+  transition: background var(--hover-duration) var(--hover-ease),
+    color var(--hover-duration) var(--hover-ease);
+}
+.ikona-tlacitko:hover { background: var(--tlumene); color: var(--text); }
+.ikona-tlacitko[aria-pressed="true"] { color: var(--text); }
+
+.prehravac {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 18px; border-bottom: 1px solid var(--linka); background: var(--panel);
+}
+.prehrat {
+  /* Both layers share one grid cell, so they centre on each other. 44 px,
+     not the 32 of an icon button: this is the transport's primary control
+     and the only circular button that leads a row. */
+  display: grid; place-items: center;
+  width: 44px; height: 44px; border-radius: 50%;
+  border: 0; background: none; padding: 0; line-height: 0;
+  cursor: pointer; flex: 0 0 auto;
+  color: var(--text);
+}
+/* The button surface reaches the ring: the ring is its border, not
+   a ring standing off it. Diameter 38 = a radius-20 track minus the stroke. */
+.prehrat-znak {
+  grid-area: 1 / 1; display: grid; place-items: center;
+  width: 38px; height: 38px; border-radius: 50%;
+  background: var(--panel);
+  transition: background var(--hover-duration) var(--hover-ease),
+    color var(--hover-duration) var(--hover-ease);
+}
+/* On hover only the glyph takes colour. Any fill behind the button
+   would overpower both the ring and the whole row. */
+.prehrat:hover .prehrat-znak { color: var(--akcent); }
+.prehrat-prstenec {
+  grid-area: 1 / 1; display: block;
+  width: 44px; height: 44px; transform: rotate(-90deg);
+}
+/* The ring track doubles as the button border, so it must stay visible
+   even at zero progress, or the button looks like it has no border at all. */
+.prehrat-drazka { fill: none; stroke: var(--linka-pole); stroke-width: 2; }
+.prehrat-postup {
+  fill: none; stroke: var(--akcent); stroke-width: 2; stroke-linecap: round;
+  transition: stroke-dashoffset 0.1s linear;
+}
+/* The range control is transparent except for its thumb and played portion.
+   Fixed frequency bands animate underneath it. */
+.posuvnik {
+  flex: 1; margin: 0; padding: 0;
+  -webkit-appearance: none; appearance: none;
+  background: none; border: 0; cursor: pointer;
+  height: 18px;
+}
+/* No track at all. Played position is shown by the equalizer bars behind it,
+   which are painted in the accent colour up to the handle — one signal instead
+   of a line and a row of bars saying the same thing twice. */
+.posuvnik::-webkit-slider-runnable-track {
+  height: 4px; border: 0; background: none;
+}
+.posuvnik::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 13px; height: 13px; margin-top: -4.5px;
+  border: 0; border-radius: 50%;
+  /* The accent colour, matching the bars it leads. */
+  background: var(--akcent);
+  /* A soft shadow separates the thumb from the equalizer underneath. Black
+     rather than --stin, and at 30 % rather than the token's 8: it has to hold
+     against the accent-coloured bars in both palettes. */
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.3);
+}
+.posuvnik:focus-visible::-webkit-slider-thumb { box-shadow: var(--prstenec); }
+
+/* Frequency bands stay fixed horizontally. The measured left position and
+   width match the slider track exactly. */
+.vlnky {
+  position: absolute; top: 0; bottom: 0; z-index: 0;
+  pointer-events: none;
+  color: hsl(var(--ds-foreground) / 0.12);
+  transition: color 0.4s ease;
+}
+.vlnky:not(.hraje) { color: hsl(var(--ds-foreground) / 0.075); }
+.cas { font-variant-numeric: tabular-nums; font-size: 13px; font-weight: 600; color: var(--text-tichy); flex: 0 0 auto; }
+.rychlosti { display: flex; gap: 2px; }
+.prehravac-konec {
+  display: flex; align-items: center; gap: 10px; flex: 0 0 auto;
+}
+
+/* the shortcuts strip: visible, but never louder than the transcript */
+/* A label so the row reads as an offer of help rather than a status line, and
+   a cross, because after the tenth recording nobody needs to be told what the
+   space bar does. Settings brings it back. */
+.zkratky-nadpis {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.09em; color: var(--text-tichy);
+}
+.zkratky-nadpis::after { content: ":"; }
+.zkratky-skryt {
+  /* 20 px, not 32: the strip is 35 px tall on its 12 px line, and an
+     ordinary 32 px icon button would take it to 47 — the strip would be set
+     by its own dismiss control, which is the one thing it must not be. */
+  margin-left: auto; flex: 0 0 auto;
+  display: grid; place-items: center;
+  width: 20px; height: 20px; padding: 0;
+  border: 0; background: none; cursor: pointer;
+  border-radius: 50%; color: var(--text-tichy);
+}
+.zkratky-skryt:hover { background: hsl(var(--ds-foreground) / 0.1); color: var(--text); }
+
+/* The strip used to borrow the sidebar's small-caps rule and then undo every
+   part of it with `!important`. It has its own settings now; only the label
+   is in small caps, as headings are everywhere else. */
+.zkratky {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  padding: 7px 18px; border-bottom: 1px solid var(--linka);
+  background: var(--jemne);
+  font-size: 12px; font-weight: 500; color: var(--text-tichy);
+}
+.zkratky kbd {
+  font-family: inherit; font-size: 11px; font-weight: 700;
+  background: var(--panel); border: 1px solid var(--linka);
+  border-radius: var(--r-maly); padding: 2px 6px; margin-right: 5px;
+}
+.zkratka-duraz { color: var(--text); }
+.zkratka-duraz kbd { border-color: var(--akcent-linka); color: var(--akcent); }
+
+/* 320 px, and it does not shrink with the window.
+   It was 300, dropping to 250 on a narrower one — and 250 is where the panel
+   stopped working: after padding it leaves 214 px, while a section heading and
+   its action want about 270 together. Everything in there then fought for room
+   and the headings lost, which is how `Mlu… Kontr… Opra…` happened. Narrowing
+   the one column whose contents have a fixed minimum was the wrong economy.
+   The transcript can give it up: at the window's own 1000 px minimum that still
+   leaves 680, and the text is capped at 760 anyway. */
+/* One number for the panel's width: the grid below sizes it and the find bar
+   keeps clear of it. Two literals would drift the first time it changes. */
+:root { --postranni-sirka: 320px; }
+.detail-telo {
+  flex: 1; display: grid; grid-template-columns: 1fr var(--postranni-sirka);
+  min-height: 0;
+}
+.detail-telo.bez-panelu { grid-template-columns: 1fr; }
+
+.prepis { overflow-y: auto; padding: 26px 32px 120px; }
+.prepis.prepis > * { max-width: 760px; margin-inline: auto; }
+.zivy-prepis { font-family: var(--pismo-text); font-size: var(--velikost-textu); line-height: var(--radkovani); color: var(--text-tichy); }
+
+.mluvci-hlavicka {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.09em; margin: 22px 0 6px;
+}
+
+.segment {
+  position: relative;
+  display: grid; grid-template-columns: 52px 1fr; gap: 12px;
+  padding: 3px 10px 3px 0; border-radius: var(--r-maly);
+}
+/* Note: `content-visibility: auto` does not belong here, tempting as it is.
+   The browser then only estimates the height of off-screen segments and
+   computes the real one when scrolling reaches them. During a smooth jump
+   across half the transcript those estimates get corrected one after
+   another, the content below shifts, and the target keeps moving away — it
+   looks as if the page were hunting for it. Transcript speed comes from
+   stable handlers and `memo` on the segments, not from this. */
+.segment.aktivni, .segment.upravuje { background: var(--akcent-svetly); }
+
+.cas-znacka {
+  background: none; border: 0; cursor: pointer;
+  color: var(--text-tichy); font-size: 12px; font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  padding: 4px 0 0; text-align: right; opacity: 0.5;
+  border-radius: var(--r-maly);
+}
+.segment:hover .cas-znacka { opacity: 1; }
+.cas-znacka:hover { color: var(--akcent); }
+
+.segment-text { margin: 0; font-family: var(--pismo-text); font-size: var(--velikost-textu); line-height: var(--radkovani); }
+.slovo {
+  cursor: pointer;
+  /* The highlight is drawn around the text line, not the full line box —
+     otherwise the boxes of adjacent lines collide and form steps.
+     4 px, not --r-maly: on a line-height-tall inline box 8 would be a pill.
+     Same amount as `mark`. */
+  border-radius: 4px;
+  box-decoration-break: clone; -webkit-box-decoration-break: clone;
+  padding: 1px 1px;
+  margin: 0 -1px;
+  transition: background var(--hover-duration) var(--hover-ease);
+}
+.slovo:hover { background: var(--zvyrazneni); }
+.segment.aktivni .slovo.znelo { color: var(--akcent); }
+.segment.nejisty .segment-text {
+  text-decoration: underline dotted var(--vystraha);
+  text-underline-offset: 4px;
+}
+/* A word somebody put right. Dashed rather than the dotted line an uncertain
+   block wears, and quiet rather than the warning colour: an uncertain place is
+   a question, a correction is an answer. The two never meet on one block —
+   correcting a segment marks it checked — so the decorations cannot stack.
+   Underline rather than a background: the transcript is set to be read, and a
+   highlight down a paragraph would fight the text for attention. */
+.slovo.opraveno {
+  text-decoration: underline dashed var(--text-tichy);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+}
+/* The same mark in the sidebar's list of corrections, at its own size. */
+.oprava-po .opraveno {
+  text-decoration: underline dashed var(--text-tichy);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+.upraveno-znak { color: var(--text-tichy); font-size: 11px; margin-left: 6px; }
+
+.segment.upravuje textarea {
+  width: 100%; border: 1px solid var(--akcent); border-radius: var(--r-maly);
+  padding: 6px 10px; resize: none; overflow: hidden;
+  font-family: var(--pismo-text); font-size: var(--velikost-textu); line-height: var(--radkovani);
+  background: var(--panel); outline: none;
+}
+
+/* ---------------------------------------------------------------- sidebar */
+
+.postranni {
+  /* White in the light theme. `--panel` rather than a literal white so the dark
+     theme gets its card colour instead of a glaring slab. */
+  border-left: 1px solid var(--linka); background: var(--panel);
+  overflow-y: auto; padding: 20px 18px 60px;
+}
+
+.mluvci-seznam { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+/* ------------------------------------------------- find inside a transcript */
+/* A panel over the reading column, with the dialog surface and shadow: it is
+   temporary and floats above the text rather than pushing it down. */
+/* Over the transcript, never over the panel: the bar belongs to the text it
+   searches, and the panel beside it is a different thing that stays readable. */
+.hledani-prepisu {
+  /* 26 above and 26 from the side — the transcript's own top padding, so the
+     bar starts on the line the first block of text does. */
+  position: absolute; z-index: 6; top: 26px;
+  right: calc(var(--postranni-sirka) + 26px);
+  display: flex; align-items: center; gap: 4px;
+  /* A full pill, not a rounded rectangle: the row is one line of circular
+     buttons around a pill field, so anything else would be a fourth corner
+     radius on a strip that has none. */
+  padding: 6px; border: 1px solid var(--linka); border-radius: var(--r-pilulka);
+  background: var(--panel); box-shadow: var(--stin-vysoky);
+}
+.hledani-prepisu input {
+  width: 200px; height: 32px; padding: 0 12px;
+  border: 1px solid transparent; border-radius: var(--r-pilulka);
+  background: var(--pozadi); color: var(--text); font: inherit; font-size: 13.5px;
+}
+.hledani-prepisu input:focus {
+  border-color: var(--akcent); box-shadow: var(--prstenec-pole); outline: 0;
+}
+.hledani-pocet {
+  min-width: 52px; padding: 0 4px; text-align: center;
+  color: var(--text-tichy); font-size: 12.5px; font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+/* The 26 px circular icon button, as in `.segment-akce`: this row is one line
+   of type tall and the standard 32 would make it taller than its own field. */
+.hledani-prepisu button {
+  display: grid; place-items: center; flex: 0 0 auto;
+  width: 26px; height: 26px; padding: 0;
+  border: 0; border-radius: 50%; background: transparent;
+  color: var(--text-tichy); cursor: pointer;
+  transition: background var(--hover-duration) var(--hover-ease),
+    color var(--hover-duration) var(--hover-ease);
+}
+.hledani-prepisu button:hover:not(:disabled) {
+  background: var(--tlumene); color: var(--text);
+}
+.hledani-prepisu button:disabled { opacity: 0.35; cursor: default; }
+/* Every match is tinted; the one being stood on takes the accent. Deliberately
+   a background here and not the underline the corrections use — this is a
+   transient state the eye must find at a glance, not a permanent mark on the
+   text. */
+.slovo.nalez { background: var(--akcent-svetly); border-radius: var(--r-maly); }
+.segment.nalezeno .slovo.nalez { background: var(--akcent); color: var(--panel); }
+.detail-telo { position: relative; }
+.detail-telo.bez-panelu .hledani-prepisu { right: 26px; }
+
+.mluvci-seznam li { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+/* A column of the shared 38 px fields — the group has one question above it,
+   so the fields carry only a placeholder each and no label of their own. */
+.speaker-names { display: flex; flex-direction: column; gap: 8px; }
+/* The shortlist drops onto its own line under the row it belongs to, so the
+   sample button, the field and the share keep the geometry they always had. */
+.mluvci-jmena {
+  flex: 0 0 100%; display: flex; flex-wrap: wrap; gap: 6px;
+  /* Under the field, not under the play button that precedes it. */
+  padding: 2px 0 4px 26px;
+}
+.tecka { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; }
+.mluvci-seznam input {
+  flex: 1; min-width: 0; border: 1px solid transparent; background: transparent;
+  border-radius: var(--r-pilulka); padding: 5px 10px; font-weight: 600; font-size: 13.5px;
+}
+.mluvci-seznam input:hover { border-color: var(--linka); }
+.mluvci-seznam input:focus {
+  border-color: var(--akcent); outline: none;
+  background: var(--pozadi); box-shadow: var(--prstenec-pole);
+}
+/* The merge control is the shared Select now, so it needs no colours of its
+   own — only a width, or it would stretch and push the name into two lines. */
+.mluvci-seznam .vyber { flex: 0 0 auto; width: 132px; }
+.mluvci-seznam .vyber button { min-height: 30px; font-size: 12px; }
+
+.nabidka {
+  position: fixed; left: 50%;
+  bottom: calc(var(--app-footer-height) + 24px); transform: translateX(-50%);
+  display: flex; align-items: center; gap: 10px;
+  background: var(--panel); border: 1px solid var(--linka);
+  box-shadow: var(--stin-vysoky); border-radius: var(--r-velky);
+  padding: 11px 16px; z-index: 20; font-size: 13.5px; font-weight: 500;
+}
+
