@@ -21,7 +21,7 @@ the time.
 | [2026-08-07](2026-08-07.md) | 40 | A recording one worker holds is not offered to another … |
 | [2026-08-08](2026-08-08.md) | 10 | The unnamed interjections get a list of their own … |
 | [2026-08-09](2026-08-09.md) | 4 | The audio the application makes has a folder of its own … |
-| [2026-08-10](2026-08-10.md) | 9 | The change log leaves CLAUDE.md … |
+| [2026-08-10](2026-08-10.md) | 10 | The change log leaves CLAUDE.md … |
 
 ## What each day was about
 
