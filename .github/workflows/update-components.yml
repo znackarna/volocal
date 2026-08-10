@@ -1,0 +1,91 @@
+# Proposes newer versions of the downloaded tools and models, once a week.
+#
+# The catalogue stopped following "latest" on 10 August, because what a machine
+# installed then depended on what each project had published that morning and no
+# digest could ever be written down for it. The cost of that decision is this
+# workflow: somebody has to notice when a new version appears. A robot notices
+# and writes it down; a person still decides.
+#
+# It opens a pull request and never pushes to main. That is the whole point —
+# and it is also what the branch rules require.
+name: Component updates
+
+on:
+  schedule:
+    # Monday morning, so it is waiting at the start of a week rather than
+    # arriving in the middle of one.
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  propose:
+    name: Look for newer versions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Reads each publisher and rewrites src-tauri/components.json. Every
+      # digest is copied from the publisher; none is computed from a downloaded
+      # file. See the header of the script for why that distinction is the
+      # whole value of this.
+      - id: check
+        run: node scripts/update-components.mjs --write
+        env:
+          # Only to raise the API rate limit; the script reads public releases.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Open a pull request
+        if: steps.check.outputs.changed != '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SUMMARY: ${{ steps.check.outputs.summary }}
+        run: |
+          BRANCH="component-updates/$(date +%Y-%m-%d)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$BRANCH"
+          git add src-tauri/components.json
+          git commit -m "Move components to their newest published versions
+
+          $SUMMARY
+
+          Proposed by scripts/update-components.mjs. Every address and digest
+          was read from the publisher - GitHub's release asset digest, a
+          Hugging Face LFS object id, or gyan.dev's published .sha256 - and
+          none was computed from a downloaded file. Each new address was
+          checked to answer before being written down."
+          git push -u origin "$BRANCH"
+          # Written as a here-document so the summary keeps its line breaks.
+          gh pr create --base main --head "$BRANCH" \
+            --title "Move components to their newest published versions" \
+            --body "$(cat <<BODY
+          $SUMMARY
+
+          ## What was checked
+
+          Every address and digest here was **read from the publisher** — GitHub's release asset \`digest\`, a Hugging Face LFS object id, or gyan.dev's published \`.sha256\`. None was computed from a downloaded file: a digest computed by whoever fetched the file only says the file matches itself.
+
+          Each new address was requested before being written down, so none of them 404s.
+
+          ## What was not checked, and cannot be by a robot
+
+          **That the new version works.** A newer whisper.cpp or llama.cpp can change a command-line flag, a model format, or an output shape. Nothing here runs a transcription.
+
+          Before merging, on a Windows machine: delete the affected component from \`%LOCALAPPDATA%\\Whisp\\bin\`, let Slobot download it again, and transcribe something short.
+
+          ## If a version should not move
+
+          Set that component's \`track\` to \`null\` in \`src-tauri/components.json\`, with a sentence in \`why\` saying what it is waiting for. The robot then leaves it alone.
+          BODY
+          )"
+
+      - name: Say when nothing moved
+        if: steps.check.outputs.changed == '0'
+        run: echo "Everything is on its newest published version."
