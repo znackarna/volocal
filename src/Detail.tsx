@@ -12,6 +12,7 @@ import RecordingActionsMenu from "./RecordingActionsMenu";
 import NameDialog from "./NameDialog";
 import Select from "./Select";
 import { LineIcon, type LineIconName } from "./icons";
+import { changedWords, plain } from "./transcriptText";
 import mark from "./mark.svg?raw";
 import {
   EMPTY_WAVEFORM,
@@ -160,19 +161,6 @@ function readOpenSections(): SidebarOpenSections {
  *  count, and a chevron. The whole row opens and closes the section; the
  *  section's own action sits outside that button, because a button cannot
  *  contain another one. */
-/** Lower case and without diacritics, so that `reknu` finds `řeknu`.
- *
- *  Not a nicety in Czech: the diacritics are exactly what somebody typing
- *  quickly leaves out, and a search that misses because of a háček is a search
- *  nobody trusts twice. NFD splits a letter from its marks, and the marks are
- *  then thrown away. */
-function plain(value: string) {
-  return value
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "")
-    .toLowerCase();
-}
-
 /** Before the time on a row that plays from it.
  *
  *  The same triangle the speaker's sample button draws, so the one gesture that
@@ -3349,54 +3337,6 @@ export default function Detail({
       />
     </main>
   );
-}
-
-/** A segment longer than this is not diffed. The table below is quadratic, and
- *  a block this size means something other than a hand correction. */
-const MAX_DIFF_WORDS = 400;
-
-/**
- * Which words of `text` were not in `original`, by index.
- *
- * A longest-common-subsequence walk rather than a position-by-position
- * comparison: correcting one word into two, or dropping a word, shifts
- * everything after it, and a naive compare would then mark the whole rest of
- * the sentence as changed. Words are compared exactly, so a comma added is a
- * correction — because it is one.
- */
-function changedWords(original: string, text: string): Set<number> {
-  const changed = new Set<number>();
-  const before = original.trim().split(/\s+/).filter(Boolean);
-  const after = text.trim().split(/\s+/).filter(Boolean);
-  if (before.length > MAX_DIFF_WORDS || after.length > MAX_DIFF_WORDS) return changed;
-
-  const common: number[][] = Array.from({ length: before.length + 1 }, () =>
-    new Array<number>(after.length + 1).fill(0)
-  );
-  for (let i = before.length - 1; i >= 0; i--) {
-    for (let j = after.length - 1; j >= 0; j--) {
-      common[i][j] =
-        before[i] === after[j]
-          ? common[i + 1][j + 1] + 1
-          : Math.max(common[i + 1][j], common[i][j + 1]);
-    }
-  }
-
-  let i = 0;
-  let j = 0;
-  while (i < before.length && j < after.length) {
-    if (before[i] === after[j]) {
-      i++;
-      j++;
-    } else if (common[i + 1][j] >= common[i][j + 1]) {
-      i++; // a word that is gone leaves nothing to underline
-    } else {
-      changed.add(j);
-      j++;
-    }
-  }
-  while (j < after.length) changed.add(j++);
-  return changed;
 }
 
 /** The words of `text`, with the ones that were not in `original` underlined. */
