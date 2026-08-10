@@ -56,4 +56,5 @@ export const enApp: Partial<Record<keyof typeof csApp, string>> = {
   "app.player.sourceMissing": "file missing",
   "app.player.preparingShort": "preparing…",
   "app.player.stop": "Stop playback",
+  "app.updateAvailable": "Version {version} is available. You will find it in Settings → About.",
 };

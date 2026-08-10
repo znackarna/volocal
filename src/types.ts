@@ -80,6 +80,8 @@ export interface Settings {
   /** Where the app keeps audio it owns. Empty means the default place. */
   recording_folder: string;
   copy_imports: boolean;
+  /** Ask about a newer Slobot on start, not only when the button is pressed. */
+  update_check_automatic: boolean;
   model: string;
   /** Optional local model used to turn a transcript into a readable document. */
   editor_model: string;

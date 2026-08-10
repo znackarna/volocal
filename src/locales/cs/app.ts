@@ -80,6 +80,7 @@ export const csApp = {
   "app.player.sourceMissing": "soubor chybí",
   "app.player.preparingShort": "připravuji…",
   "app.player.stop": "Zastavit přehrávání",
+  "app.updateAvailable": "Je k dispozici verze {version}. Najdete ji v Nastavení → O aplikaci.",
 } as const;
 
 export const csAppContext: Partial<Record<keyof typeof csApp, string>> = {
@@ -145,4 +146,6 @@ export const csAppContext: Partial<Record<keyof typeof csApp, string>> = {
   "app.player.preparingShort":
     "Text místo času v mini přehrávači, dokud se zvuk načítá. Malé písmeno je záměr.",
   "app.player.stop": "Popis křížku v mini přehrávači. Přehrávání skončí a přehrávač zmizí.",
+  "app.updateAvailable":
+    "Hláška v notifikační liště po spuštění, když je zapnutá automatická kontrola. Nic se nestahuje — jen říká, kde je tlačítko. {version} je číslo verze, například 0.9.1.",
 };

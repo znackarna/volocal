@@ -66,6 +66,7 @@ hex = "0.4"
 # on Windows there is no plain build in its distribution table, so the one it
 # fetches is the DirectML build.
 ort = "=2.0.0-rc.13"
+tauri-plugin-updater = "2.10.1"
 
 [profile.release]
 opt-level = "s"

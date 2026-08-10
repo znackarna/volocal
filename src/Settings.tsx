@@ -21,6 +21,8 @@ import type { TranslationKey } from "./i18n";
 import { FONTS, MODEL_IDS, applyFonts, applyTheme } from "./types";
 import { useFormats } from "./formats";
 import { useLabels } from "./labels";
+import { SettingsToggle } from "./settings/toggle";
+import { UpdateCheck } from "./settings/updates";
 import type {
   ToolCheck,
   Settings,
@@ -264,47 +266,6 @@ function ModelMark({ id }: { id: string }) {
 }
 
 /** One toggle pattern for section switches, field switches and card footers. */
-function SettingsToggle({
-  title,
-  description,
-  label,
-  checked,
-  onChange,
-  disabled = false,
-  heading = false,
-  separated = false,
-}: {
-  title?: string;
-  description: ReactNode;
-  label: string;
-  checked: boolean;
-  onChange: (checked: boolean) => void;
-  disabled?: boolean;
-  heading?: boolean;
-  separated?: boolean;
-}) {
-  return (
-    <div className={`settings-toggle ${heading ? "section" : ""} ${separated ? "separated" : ""}`}>
-      <div className="settings-toggle-copy">
-        {title && (heading
-          ? <h2>{title}</h2>
-          : <strong className="settings-toggle-title">{title}</strong>)}
-        <InfoNote compact={!heading}>{description}</InfoNote>
-      </div>
-      <label className="vypinac settings-toggle-control" title={label}>
-        <input
-          type="checkbox"
-          checked={checked}
-          disabled={disabled}
-          onChange={(event) => onChange(event.target.checked)}
-          aria-label={label}
-        />
-        <span className="vypinac-drazka" aria-hidden />
-      </label>
-    </div>
-  );
-}
-
 /** Native disclosure shared by advanced transcription and module diagnostics. */
 function SettingsDisclosure({
   title,
@@ -1416,7 +1377,13 @@ export default function SettingsScreen({ onComplete, onError, onToModule }: Prop
         </section>
       )}
 
-      {activeTab === "about" && <About />}
+      {activeTab === "about" && (
+        <About
+          onError={onError}
+          automaticUpdates={n.update_check_automatic}
+          onAutomaticUpdatesChange={(on) => save({ ...n, update_check_automatic: on })}
+        />
+      )}
 
       </div>
     </main>
@@ -1430,7 +1397,15 @@ export default function SettingsScreen({ onComplete, onError, onToModule }: Prop
  * on, under what licences, and what the application can actually do. Nothing
  * here is a setting — it is the one page that exists to be read.
  */
-function About() {
+function About({
+  onError,
+  automaticUpdates,
+  onAutomaticUpdatesChange,
+}: {
+  onError: (message: string) => void;
+  automaticUpdates: boolean;
+  onAutomaticUpdatesChange: (on: boolean) => void;
+}) {
   const { t } = useI18n();
   const [version, setVersion] = useState("");
 
@@ -1525,6 +1500,12 @@ function About() {
             <dd>značkárna s.r.o.</dd>
           </div>
         </dl>
+
+        <UpdateCheck
+          onError={onError}
+          automatic={automaticUpdates}
+          onAutomaticChange={onAutomaticUpdatesChange}
+        />
       </section>
 
       <section className="settings-card-abilities">

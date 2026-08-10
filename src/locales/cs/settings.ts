@@ -153,6 +153,21 @@ export const csSettings = {
     "Převádí mluvené slovo na text. Data zpracovává pouze na vašem počítači a nic neodesílá ven. Nahrávky, přepisy a modely jsou plně pod vaší kontrolou.",
   "settings.about.version": "Verze",
   "settings.about.author": "Autor",
+  "settings.about.updateCheck": "Zkontrolovat aktualizace",
+  "settings.about.updateNote": "Aplikace hledá novou verzi pouze na vaši žádost.",
+  "settings.about.updateAuto": "Automatické aktualizace",
+  "settings.about.updateAutoDescription":
+    "Po spuštění hledá novější verzi. Stáhne ji až na vaše svolení.",
+  "settings.about.updateChecking": "Kontroluji…",
+  "settings.about.updateCurrent": "Máte nejnovější verzi.",
+  "settings.about.updateFound": "K dispozici je verze {version}.",
+  "settings.about.updateInstall": "Stáhnout a nainstalovat",
+  "settings.about.updateDownloading": "Stahuji… {percent} %",
+  "settings.about.updateDownloadingUnknown": "Stahuji…",
+  "settings.about.updateInstalling":
+    "Instaluji. Aplikace se za chvíli zavře a po dokončení se sama spustí.",
+  "settings.about.updateFailed":
+    "Nepodařilo se zjistit, jestli je dostupná novější verze. Zkontrolujte připojení k internetu.",
   "settings.about.abilities": "Schopnosti",
   "settings.about.abilityTranscribe": "Přepíše nahrávky i videa v češtině i dalších jazycích.",
   "settings.about.abilitySpeakers": "Rozpozná mluvčí a rozdělí text mezi ně.",
@@ -349,6 +364,20 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
     "Gemma jsou jazykové modely Googlu; jejich podmínky nejsou open source a omezují způsoby použití. FFmpeg je GPL v3. Obojí je důležité pro toho, kdo přenosnou kopii aplikace předá dál.",
   "settings.about.abilityReview":
     "Nejistý je přepis, ne čtenář — model sám označí místa s nízkou jistotou.",
+  "settings.about.updateNote":
+    "Vysvětlení pod tlačítkem. Aplikace slibuje, že sama nikam neposílá nic; tohle je jediné místo, kde se ptá vnějšího serveru, a jen na výslovné vyžádání.",
+  "settings.about.updateAuto":
+    "Popisek přepínače. Automatická je jen ta otázka, ne stažení ani instalace.",
+  "settings.about.updateAutoDescription":
+    "Vysvětlení pod přepínačem. Důležité je, že se nic nestáhne samo — aplikace jen zjistí, jestli novější verze existuje.",
+  "settings.about.updateFound":
+    "{version} je číslo nové verze, například 0.9.1. Bez slova „verze“ před číslem by věta zněla útržkovitě.",
+  "settings.about.updateDownloading":
+    "{percent} je celé číslo od 0 do 100, bez znaku procenta — ten je v textu.",
+  "settings.about.updateInstalling":
+    "Instalátor si aplikaci sám zavře a po dokončení ji znovu spustí. Uživatel nemusí dělat nic.",
+  "settings.about.updateFailed":
+    "Jediná hláška pro každé selhání kontroly. Technický důvod z Tauri je anglicky a uživateli nic neřekne — jde do konzole, ne na obrazovku.",
 
   "settings.appearance.description":
     "Úvodní věta záložky Vzhled. Karta drží jazyk rozhraní, motiv, obě písma, velikost a řádkování; pod nimi je živá ukázka přepisu.",

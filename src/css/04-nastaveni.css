@@ -602,8 +602,18 @@ button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
   .mic-stage.bezi .mic-znak { animation: none; }
 }
 .mic-udaje { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
-.mic-stav { font-size: 13.5px; font-weight: 600; }
-.mic-stav.chyba { color: var(--vystraha); }
+/* One line saying what a control is doing right now. The recorder had the only
+   one until the About page grew a check for updates; both say the same kind of
+   thing, so they are one rule rather than two that drift apart. The About one
+   is stacked under its buttons rather than sitting in a row, so it carries the
+   gap the row already provides for the recorder. */
+.mic-stav, .about-stav { font-size: 13.5px; font-weight: 600; }
+.mic-stav.chyba, .about-stav.chyba { color: var(--vystraha); }
+.about-stav { margin: 12px 0 0; }
+.about-aktualizace { margin-top: 22px; }
+.about-aktualizace-akce { display: flex; gap: 10px; }
+/* The explanation belongs to the whole block above it, not to one button. */
+.about-aktualizace .settings-section-description { margin: 14px 0 0; }
 .mic-cas {
   color: var(--text-tichy); font-size: 13px; font-weight: 600;
   font-variant-numeric: tabular-nums;
