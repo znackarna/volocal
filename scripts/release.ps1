@@ -132,13 +132,14 @@ if (-not $Publish) {
   }
 
   Step "Building the installer (twenty minutes and change)"
-  # `createUpdaterArtifacts` makes the bundler produce a .sig beside the
-  # installer, and it refuses to run without a key to make it with. That
-  # signature is thrown away below - it is over the unsigned bytes - but the
-  # build needs it to finish.
-  $env:TAURI_SIGNING_PRIVATE_KEY_PATH = $key
-  $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = Get-KeyPassword
-  npm run tauri build
+  # Built with the updater artifact turned off, which is also how CI builds it.
+  #
+  # The bundler would otherwise make a .sig here and demand the signing key to
+  # make it with - and that signature is thrown away anyway, because it is over
+  # bytes Authenticode has not touched yet. So the long step needs no key and
+  # no password: the only signature that survives is made in the second pass,
+  # over the file as it will be downloaded.
+  npm run tauri build -- --config src-tauri/tauri.ci.conf.json
   if ($LASTEXITCODE) { Fail "The build failed." }
 
   $exe = Get-ChildItem "$bundle\*.exe" | Sort-Object LastWriteTime | Select-Object -Last 1
