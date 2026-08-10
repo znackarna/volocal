@@ -223,7 +223,18 @@ $latest = [ordered]@{
   }
 }
 $latestPath = Join-Path $exe.DirectoryName "latest.json"
-$latest | ConvertTo-Json -Depth 5 | Set-Content $latestPath -Encoding utf8
+# Written without a byte order mark, and that is the whole point of not using
+# Set-Content here. It wrote one - EF BB BF, three bytes nobody sees in an
+# editor - and the updater's JSON parser stops on them. The file downloads with
+# a perfectly good 200 and the application reports that it cannot find out
+# whether there is a new version, which sounds like the network and is not.
+[System.IO.File]::WriteAllText(
+  $latestPath,
+  ($latest | ConvertTo-Json -Depth 5),
+  (New-Object System.Text.UTF8Encoding $false)
+)
+$firstByte = [System.IO.File]::ReadAllBytes($latestPath)[0]
+if ($firstByte -ne 0x7B) { Fail "latest.json does not start with '{' - something wrote a mark in front of it." }
 Write-Host (Get-Content $latestPath -Raw)
 
 Step "Draft release $tag"
