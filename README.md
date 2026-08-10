@@ -55,13 +55,14 @@ programu, ne do profilu uživatele.
 | dvojklik na úsek | otevře úpravu textu |
 | Enter | uloží úpravu (Shift+Enter = nový řádek) |
 | mezerník | přehrát / pauza |
-| **Tab** | skočí na další místo ke kontrole |
-| Esc | zavře úpravu |
+| **F3** | skočí na další místo ke kontrole |
+| Ctrl+F | hledání v přepisu (Enter a Shift+Enter mezi shodami) |
+| Esc | zavře úpravu nebo hledání |
 | pravé tlačítko | nabídka nad přepisem |
 | boční tlačítka myši | zpět a vpřed v aplikaci |
 
 Místa ke kontrole jsou tečkovaně podtržená a najdete je pohromadě v postranním
-panelu. U hodinové nahrávky jich bývá pár desítek — projít je Tabem trvá
+panelu. U hodinové nahrávky jich bývá pár desítek — projít je klávesou F3 trvá
 minuty místo přečítání celého textu.
 
 **Slovník** je v Nastavení. Co přepis slyší špatně, zapíšete jednou a opraví
@@ -184,12 +185,18 @@ Rust jádro ── SQLite (přepisy, mluvčí, slovník, poznámky, fulltext)
    ├── stahování    katalog součástí, průběh, rozbalení
    ├── ffmpeg       převod na 16 kHz mono, export zvuku
    ├── whisper-cli  přepis (cuda / vulkan / cpu)
-   ├── sherpa-onnx  rozpoznání mluvčích na CPU
+   ├── CAM++        rozpoznání mluvčích přímo v procesu (ONNX Runtime)
    └── llama-server jazyková úprava, shrnutí, překlad
 ```
 
-Každý nástroj je samostatný proces, ne linkovaná knihovna. Kterýkoli jde
+Externí nástroje jsou samostatné procesy, ne linkované knihovny. Kterýkoli jde
 vyměnit bez zásahu do aplikace, a když jeden spadne, nespadne s ním okno.
+
+Výjimkou je rozpoznání mluvčích. Od srpna 2026 neběží jako samostatný program:
+model hlasů CAM++ počítá ONNX Runtime přímo uvnitř Slobotu, na Windows přes
+DirectML se záložním během na procesoru. Kde je řeč, se přitom nehledá znovu —
+to už řekl přepis. Sousední kroky (`sherpa-onnx`, segmentační model pyannote)
+se sice pořád stahují, ale k ničemu se nepoužívají.
 
 | Soubor | |
 |---|---|
@@ -197,6 +204,7 @@ vyměnit bez zásahu do aplikace, a když jeden spadne, nespadne s ním okno.
 | `src-tauri/src/download.rs` | katalog součástí, stahování, přenosná kopie |
 | `src-tauri/src/tools.rs` | hledání programů, volba výpočtu, přenosný režim |
 | `src-tauri/src/transcription.rs` | běh přepisu včetně VAD a rozpoznání mluvčích |
+| `src-tauri/src/voiceprint.rs` | příznaky hlasu, model CAM++, shlukování mluvčích |
 | `src-tauri/src/ai_edit.rs` | jazyková úprava, shrnutí, překlad |
 | `src-tauri/src/db.rs` | schéma SQLite, dotazy, fulltext, zálohy |
 | `src-tauri/src/export.rs` | TXT, Markdown, SRT, VTT, JSON |
