@@ -586,7 +586,10 @@ fn place_verified(
         if !expected.eq_ignore_ascii_case(&actual) {
             let _ = std::fs::remove_file(partial);
             return Err(UserMessage::new("download.hash_mismatch")
-                .with("file", target.file_name().unwrap_or_default().to_string_lossy())
+                .with(
+                    "file",
+                    target.file_name().unwrap_or_default().to_string_lossy(),
+                )
                 .detail(format!("expected {expected}, got {actual}")));
         }
     }
@@ -610,7 +613,10 @@ fn extract_zip(archive: &Path, destination: &Path) -> Reported<()> {
         // an archive that tries this is not one to install any part of.
         let Some(relative_path) = item.enclosed_name() else {
             return Err(UserMessage::new("download.unsafe_archive_path")
-                .with("archive", archive.file_name().unwrap_or_default().to_string_lossy())
+                .with(
+                    "archive",
+                    archive.file_name().unwrap_or_default().to_string_lossy(),
+                )
                 .detail(item.name().to_string()));
         };
         let target = destination.join(relative_path);
@@ -1254,7 +1260,11 @@ mod tests {
         );
 
         let records = read_records(&path);
-        assert_eq!(records.len(), 2, "the second entry did not replace the first");
+        assert_eq!(
+            records.len(),
+            2,
+            "the second entry did not replace the first"
+        );
         assert!(records["vad"].verified);
         assert!(
             !records["ffmpeg"].verified,
