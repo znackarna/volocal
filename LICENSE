@@ -1,0 +1,96 @@
+SLOBOT — licence zdrojového kódu / source code licence
+značkárna s.r.o., 2026. Všechna práva vyhrazena. All rights reserved.
+
+Tento soubor se týká zdrojového kódu v tomto repozitáři. Užívání samotného
+programu se řídí souborem src-tauri/LICENSE.txt.
+
+This file covers the source code in this repository. Use of the program
+itself is governed by src-tauri/LICENSE.txt.
+
+
+ČESKY
+=====
+
+1. Co to je
+
+Zdrojový kód Slobotu je veřejně čitelný, ale není open source. Autorská práva
+náleží značkárně s.r.o. Zveřejněný je proto, aby si kdokoli mohl ověřit, co
+program dělá s jeho nahrávkami — ne proto, aby se dál šířil nebo upravoval.
+
+2. Co smíte
+
+  - kód číst, prohlížet a studovat;
+  - pořídit si kopii repozitáře a sestavit z ní program pro vlastní potřebu;
+  - citovat části kódu v rozsahu nutném pro popis chyby, bezpečnostní hlášení,
+    recenzi nebo výuku, s uvedením zdroje;
+  - navrhnout změnu formou pull requestu (viz bod 5).
+
+3. Co nesmíte bez písemného souhlasu značkárny s.r.o.
+
+  - šířit zdrojový kód ani z něj odvozené dílo, v původní nebo změněné podobě;
+  - zveřejnit fork nebo vydat vlastní sestavení pod jiným jménem;
+  - použít kód nebo jeho části v jiném projektu;
+  - kód prodávat, pronajímat, poskytovat na něj podlicence ani ho vydávat
+    za svůj.
+
+4. Součásti třetích stran
+
+Knihovny, nástroje a modely, které Slobot používá nebo si stahuje, mají vlastní
+licence a tento soubor se jich nijak nedotýká. Jejich seznam je v souboru
+NOTICE a v aplikaci pod Nastavení → O aplikaci.
+
+5. Příspěvky
+
+Odesláním pull requestu poskytujete značkárně s.r.o. nevýhradní, bezplatné,
+neodvolatelné a časově neomezené právo váš příspěvek užít, upravit a šířit
+jako součást Slobotu, včetně budoucích vydání pod jinou licencí. Vaše autorství
+tím nezaniká.
+
+6. Bez záruky
+
+Kód se poskytuje „jak stojí a leží“, bez záruky jakéhokoli druhu. značkárna
+s.r.o. neodpovídá za škodu vzniklou jeho použitím.
+
+
+ENGLISH
+=======
+
+1. What this is
+
+Slobot's source code is publicly readable but it is not open source. Copyright
+belongs to značkárna s.r.o. It is published so that anyone can verify what the
+program does with their recordings — not so that it can be redistributed or
+modified.
+
+2. What you may do
+
+  - read, browse and study the code;
+  - clone the repository and build the program from it for your own use;
+  - quote parts of the code as far as needed to describe a bug, file a security
+    report, review it or teach from it, with attribution;
+  - propose a change as a pull request (see 5).
+
+3. What you may not do without written permission from značkárna s.r.o.
+
+  - distribute the source code or a work derived from it, unchanged or changed;
+  - publish a fork or release your own build under another name;
+  - use the code or parts of it in another project;
+  - sell, rent, sublicense or present the code as your own.
+
+4. Third-party components
+
+The libraries, tools and models Slobot uses or downloads carry their own
+licences and this file does not affect them in any way. They are listed in
+NOTICE and in the application under Settings → About.
+
+5. Contributions
+
+By submitting a pull request you grant značkárna s.r.o. a non-exclusive,
+royalty-free, irrevocable and perpetual right to use, modify and distribute
+your contribution as part of Slobot, including in future releases under a
+different licence. Your authorship is unaffected.
+
+6. No warranty
+
+The code is provided "as is", without warranty of any kind. značkárna s.r.o.
+is not liable for damage arising from its use.
