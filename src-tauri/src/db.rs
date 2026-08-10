@@ -181,6 +181,15 @@ pub struct Settings {
     /// disk a recording costs, and that is the owner's decision, not ours.
     #[serde(default)]
     pub copy_imports: bool,
+    /// Look for a newer Slobot when the window opens, instead of only when the
+    /// button on the About page is pressed.
+    ///
+    /// Off by default, and the default is the promise: an application that
+    /// says nothing leaves this computer must not start asking a server about
+    /// itself because somebody upgraded. Turning it on is a choice, and it
+    /// only ever asks — nothing is downloaded or installed without a press.
+    #[serde(default)]
+    pub update_check_automatic: bool,
     pub model: String,
     /// Optional local language-editing model. Empty means that the feature was
     /// skipped and no background model is downloaded or loaded.
@@ -308,6 +317,7 @@ impl Default for Settings {
             watch_folder_auto: false,
             recording_folder: String::new(),
             copy_imports: false,
+            update_check_automatic: false,
             model: "large-v3".into(),
             editor_model: String::new(),
             language: "auto".into(),

@@ -290,6 +290,26 @@ export default function App() {
     }
   }, []);
 
+  /* The only thing in the application that reaches a server on its own, and it
+     does so only if somebody has said it may. Off by default; see
+     `update_check_automatic` in db.rs for why the default is the promise.
+
+     It asks and stops there. A found version is a line in the notice bar
+     pointing at Settings, never a download — that press stays the reader's.
+     Once per start, never on a timer. */
+  const offerUpdate = useCallback(async () => {
+    try {
+      const settings = await api.loadSettings();
+      if (!settings.update_check_automatic) return;
+      const { check } = await import("@tauri-apps/plugin-updater");
+      const update = await check();
+      if (update) reportInfo(t("app.updateAvailable", { version: update.version }));
+    } catch {
+      /* An unreachable server is not worth interrupting a start for. The
+         button on the About page reports what went wrong; this does not. */
+    }
+  }, [reportInfo, t]);
+
   const loadRecordings = useCallback(async () => {
     try {
       setRecordings(await api.listRecordings());
@@ -457,6 +477,7 @@ export default function App() {
   useEffect(() => {
     loadAppearance();
     loadRecordings();
+    offerUpdate();
     // With tools missing, showing an empty archive and waiting for the user
     // to find Settings makes no sense. Open the wizard straight away.
     // Names for the download bubble. One call at start-up; the catalogue is a

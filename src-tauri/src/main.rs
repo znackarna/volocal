@@ -272,6 +272,12 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        /* Registering it does not make the application talk to anybody. The
+        updater only ever acts when the window calls it, and the only thing
+        that calls it is the button on the About page. Nothing here runs on
+        start, on a timer, or in the background — see README's promise about
+        what leaves the computer, which this was written to keep. */
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             // The failure is reported and the process ended from inside
             // `report_unusable_archive`, not returned from here: an error out of

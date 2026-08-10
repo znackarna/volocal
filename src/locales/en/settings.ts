@@ -14,6 +14,21 @@ export const enSettings: Partial<Record<keyof typeof csSettings, string>> = {
     "It turns speech into text. Everything is processed on your computer alone and nothing is sent out. Your recordings, transcripts and models stay fully under your control.",
   "settings.about.version": "Version",
   "settings.about.author": "Author",
+  "settings.about.updateCheck": "Check for updates",
+  "settings.about.updateNote": "The application looks for a new version only when you ask it to.",
+  "settings.about.updateAuto": "Automatic updates",
+  "settings.about.updateAutoDescription":
+    "Looks for a newer version on start. It downloads one only with your permission.",
+  "settings.about.updateChecking": "Checking…",
+  "settings.about.updateCurrent": "You have the newest version.",
+  "settings.about.updateFound": "Version {version} is available.",
+  "settings.about.updateInstall": "Download and install",
+  "settings.about.updateDownloading": "Downloading… {percent} %",
+  "settings.about.updateDownloadingUnknown": "Downloading…",
+  "settings.about.updateInstalling":
+    "Installing. The application will close in a moment and start again when it is done.",
+  "settings.about.updateFailed":
+    "Could not find out whether a newer version exists. Check your internet connection.",
   "settings.about.abilities": "Capabilities",
   "settings.about.abilityTranscribe": "Transcribes recordings and videos, in Czech and other languages.",
   "settings.about.abilitySpeakers": "Identifies the speakers and splits the text between them.",
