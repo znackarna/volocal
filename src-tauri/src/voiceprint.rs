@@ -6,7 +6,7 @@
 //! 512-point transform are less code than the crate that would provide them.
 //!
 //! Every constant here was measured rather than chosen, against the real model
-//! and a real recording; the numbers are in `CLAUDE.md` under *The numbers that
+//! and a real recording; the numbers are in `docs/history/2026-08-07.md` under *The numbers that
 //! settle the design*. Two of them are load-bearing:
 //!
 //! * **Cepstral mean normalisation is not optional.** Without it the same

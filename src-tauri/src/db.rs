@@ -320,7 +320,7 @@ impl Default for Settings {
             // shluku. Na skutecnych nahravkach delala z dvouclenneho rozhovoru
             // sestnact mluvcich. Na 0.8 klesl pocet prepnuti z 119 na 20 a
             // pomer hlasu sedl na to, co je v nahravce slyset. Podrobne
-            // v CLAUDE.md.
+            // v docs/history/.
             cluster_threshold: 0.8,
             segmentation_window_shift: default_segmentation_window_shift(),
             beam: 5,

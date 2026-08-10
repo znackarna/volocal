@@ -286,7 +286,7 @@ fn raw_catalog() -> Vec<DownloadComponent> {
         //    jmeno rodiny — ten byl jednojazycny, tenhle neni.
         //
         // Zmereno na skutecnych nahravkach uzivatele, ne odhadnuto. Cely
-        // rozbor je v CLAUDE.md; ve zkratce, pri vynucenych dvou mluvcich
+        // rozbor je v docs/history/; ve zkratce, pri vynucenych dvou mluvcich
         // dal VoxCeleb 65 prepnuti a pomer hlasu 55/45, zatimco tenhle 17
         // prepnuti a 94/6 — a to same na anglicke i ceske verzi tehoz
         // rozhovoru. Je pritom o megabajt mensi a stejne rychly.

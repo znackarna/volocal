@@ -12,8 +12,8 @@ Postavené na whisper.cpp, Silero VAD, sherpa-onnx a llama.cpp. Aplikace je
 Tauri 2: jádro v Rustu, rozhraní v Reactu, archiv v SQLite.
 
 Technický přehled a pravidla pojmenování jsou v
-[ARCHITECTURE.md](ARCHITECTURE.md), rozhodnutí a jejich důvody v
-[CLAUDE.md](CLAUDE.md).
+[ARCHITECTURE.md](ARCHITECTURE.md), pracovní pravidla v [CLAUDE.md](CLAUDE.md)
+a důvody jednotlivých rozhodnutí v [docs/history/](docs/history/README.md).
 
 ---
 

@@ -2,7 +2,7 @@
 
 Notable changes, in English. Commit messages up to and including 9 August 2026
 are Czech, from before the project was opened up; they are left as they are.
-The reasoning behind individual decisions lives in `CLAUDE.md`.
+The reasoning behind individual decisions lives in `docs/history/`.
 
 ## 0.9.0 — not yet released
 

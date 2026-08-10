@@ -12,8 +12,9 @@ over this file; this only says how far it got and what is still undecided.
    nothing is called done without the command that proves it.
 2. `BASELINE-0.9.0.md` — the package 0 protocol, including what it is still
    missing.
-3. `CLAUDE.md` — project rules and change log. Its opening *Visual system*
-   section and the last few entries are enough for most tasks.
+3. `CLAUDE.md` — the working rules, short enough to read whole. The reasoning
+   behind past decisions moved to `docs/history/`, one file per day; read a day
+   only when you need the reason behind something you are about to change.
 
 ## Do not touch
 
