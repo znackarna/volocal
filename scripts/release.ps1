@@ -139,7 +139,7 @@ if (-not $Publish) {
   # bytes Authenticode has not touched yet. So the long step needs no key and
   # no password: the only signature that survives is made in the second pass,
   # over the file as it will be downloaded.
-  npm run tauri build -- --config src-tauri/tauri.ci.conf.json
+  & "node_modules\.bin\tauri.cmd" build --config src-tauri/tauri.ci.conf.json
   if ($LASTEXITCODE) { Fail "The build failed." }
 
   $exe = Get-ChildItem "$bundle\*.exe" | Sort-Object LastWriteTime | Select-Object -Last 1
@@ -166,6 +166,20 @@ if (-not $Installer) {
 }
 if (-not (Test-Path $Installer)) { Fail "No such file: $Installer" }
 $exe = Get-Item $Installer
+
+# The installer is picked by date, so a build that failed leaves the previous
+# one sitting there looking like the newest thing in the folder. Publishing
+# that would put the old binary behind the new version number: the update would
+# install, report the version it was before, and be offered again for ever.
+# Tauri puts the version in the file name, so the two can simply be compared.
+if ($exe.Name -notlike "*$version*") {
+  Fail @"
+$($exe.Name) is not version $version.
+
+That is the previous build, still in the folder because this one did not get
+as far as replacing it. Run the first pass again and watch it finish.
+"@
+}
 
 Step "Authenticode"
 # Checked rather than assumed. The whole reason this script has two passes is

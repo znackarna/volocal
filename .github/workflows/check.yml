@@ -155,7 +155,7 @@ jobs:
       # result runs. A release anybody installs is built and signed by hand;
       # `scripts\release.ps1` is that path, and „Vydání" in README.cs.md
       # describes it.
-      - run: npm run tauri build -- --config tauri.ci.conf.json
+      - run: ./node_modules/.bin/tauri build --config src-tauri/tauri.ci.conf.json
       # Install it and start it. Everything above says the code compiles and
       # bundles; none of it says the result runs. What this catches is exactly
       # the class of failure that only appears once the pieces are assembled —
