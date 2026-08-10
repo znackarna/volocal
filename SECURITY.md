@@ -39,47 +39,104 @@ spustil, a má přesně jeho oprávnění.
   Aplikace se neptá na aktualizace a neodesílá žádnou telemetrii.
 * **Sama od sebe jde na síť jen kvůli stahování součástí** — nástrojů a modelů
   při prvním spuštění, a `yt-dlp` při vámi zadaném importu online videa.
+  Instalátor k tomu stáhne od Microsoftu běhové prostředí WebView2, pokud ho
+  počítač ještě nemá (`downloadBootstrapper` v `tauri.conf.json`).
 * **Archiv je nešifrovaná databáze SQLite** ve vašem uživatelském profilu.
   Chrání ho jen oprávnění účtu a šifrování disku, pokud ho máte zapnuté.
 
 ### Co v aplikaci opravdu je a je dobré to vědět
 
-Tohle nejsou hypotézy. Jsou to vlastnosti dnešního kódu.
+Tohle nejsou hypotézy. Jsou to vlastnosti dnešního kódu, ověřené proti němu
+10. srpna 2026.
 
-**1. Stažené programy se neověřují kontrolním součtem ani podpisem.**
+**1. Stažené součásti se zatím neporovnávají s žádným kontrolním součtem.**
 
 Slobot si při prvním spuštění stahuje nástroje (FFmpeg, whisper.cpp,
-sherpa-onnx, llama.cpp, yt-dlp, Deno) a modely, rozbaluje je a spouští je jako
-běžné programy pod vaším účtem. Jediná kontrola po stažení je, že očekávaný
-soubor po rozbalení existuje — v `src-tauri/src/download.rs`, kde se testuje
-`verification_path`. Žádný SHA-256, žádný podpis, žádné připnutí certifikátu.
+llama.cpp, yt-dlp, Deno) a modely, rozbaluje je a spouští je jako běžné
+programy pod vaším účtem.
 
-Jediná záruka integrity je tedy HTTPS: spojení je šifrované (rustls) a ověřuje
-se certifikát protistrany. To znamená, že důvěřujeme provozovatelům
-`github.com`, `objects.githubusercontent.com`, `huggingface.co` a
-`www.gyan.dev`, a celému řetězci certifikačních autorit ve vašem systému.
+Postup na ověřování připravený je. `src-tauri/src/download.rs` počítá SHA-256
+už během zápisu staženého souboru a porovnává ho dřív, než se cokoli rozbalí
+nebo přesune na místo. Tabulka očekávaných otisků (`EXPECTED_HASHES`) je ale
+**prázdná**, takže dnes se neporovnává nic, a to u žádné součásti. Otisk tam
+smí přibýt teprve tehdy, až ho někdo přečte z vydání toho kterého projektu;
+spočítat ho z toho, co dorazilo na tento stroj, by dokazovalo jen to, že se
+soubor shoduje sám se sebou.
 
-Šest položek katalogu se navíc nehledá na pevné adrese, ale **regulárním
-výrazem v živých vydáních na GitHubu** (`whisper-cpu`, `whisper-cuda`, `deno`,
-`editor-vulkan`, `editor-cpu`, `sherpa`). Co se nainstaluje, tedy závisí na
-tom, co ty projekty v daný okamžik vydávají. Kdyby se přejmenoval nebo
-podstrčil soubor, který vzoru vyhoví, Slobot ho stáhne a spustí.
+Jediná záruka integrity tedy zůstává HTTPS: spojení je šifrované (rustls) a
+ověřuje se certifikát protistrany. To znamená, že důvěřujeme provozovatelům
+`github.com`, `api.github.com`, `objects.githubusercontent.com`,
+`huggingface.co` a `www.gyan.dev`, a celému řetězci certifikačních autorit ve
+vašem systému.
 
-**2. Webview nemá Content Security Policy a asset protokol vidí celý disk.**
+Proti vydání 0.9.0 se změnilo jedno: aplikace už netvrdí, že původ ověřila.
+Každá dokončená instalace zapíše do `installed.json` adresu, otisk toho, co
+skutečně dorazilo, a `verified: false`, dokud nebylo s čím porovnávat. Samotná
+existence souboru na disku už za doklad původu neplatí. Tento záznam ale zatím
+není v rozhraní nikde vidět.
 
-V `src-tauri/tauri.conf.json` je `"csp": null` a
-`"assetProtocol": { "scope": ["**"] }`.
+Nezávisle na otiscích už platí:
 
-Rozsah `**` je tam proto, že aplikace přehrává nahrávky odkudkoli, kam uživatel
-ukázal — nahrávka může ležet na kterémkoli disku. Důsledek je, že webview
-dokáže přečíst cokoli, na co má účet právo, ne jen soubory v archivu.
+* archiv, jehož položka by skončila mimo cílovou složku (`..`, absolutní cesta,
+  písmeno disku), se odmítne celý — nerozbalí se z něj ani zbytek;
+* přerušené stahování nemůže vypadat jako hotová součást: zapisuje se do
+  dočasného souboru a na cílové jméno se přejmenuje až nakonec;
+* kdyby otisk nesouhlasil, dočasný soubor se smaže a předchozí funkční
+  instalace zůstane nedotčená.
 
-`csp: null` znamená, že kdyby se do rozhraní kdy dostal cizí kód, není žádná
-druhá pojistka, která by ho zastavila. To, co dnes drží, je vstup: rozhraní se
-skládá v Reactu jako text, ne jako HTML. Jediné tři výskyty
-`dangerouslySetInnerHTML` v `src/` vkládají tentýž přiložený SVG znak
-(`src/mark.svg`) zapečený v binárce. Přepis, jména mluvčích, poznámky ani názvy
-souborů se jako HTML nikdy nevykreslují.
+**Pět položek katalogu se nehledá na pevné adrese, ale regulárním výrazem
+v živých vydáních na GitHubu** (`whisper-cpu`, `whisper-cuda`, `deno`,
+`editor-vulkan`, `editor-cpu`). Šestá, `yt-dlp`, sice pevnou adresu má, ale
+míří na `releases/latest/download/`, takže je to rovněž to, co projekt vydává
+právě teď. Co se u těchto šesti nainstaluje, závisí na tom, co ty projekty
+v daný okamžik publikují; kdyby se přejmenoval nebo podstrčil soubor, který
+vzoru vyhoví, Slobot ho stáhne a spustí. Dokud nejsou připnuté na konkrétní
+verzi, nemůže u nich žádný otisk vzniknout.
+
+**2. Webview má Content Security Policy. Asset protokol i tak vidí celý disk.**
+
+V `src-tauri/tauri.conf.json` je od 7. srpna 2026 tato politika (zalomená kvůli
+šířce stránky; v konfiguraci je to jeden řádek):
+
+```
+default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';
+font-src 'self'; img-src 'self' data: asset: http://asset.localhost;
+media-src 'self' blob: data: asset: http://asset.localhost;
+connect-src 'self' ipc: http://ipc.localhost asset: http://asset.localhost;
+object-src 'none'; base-uri 'self'; frame-ancestors 'none'
+```
+
+Co zastaví: skript, styl, písmo ani obrázek se nenačte odjinud než z binárky.
+`script-src 'self'` neobsahuje `'unsafe-eval'`, takže `eval` ani `new Function`
+neběží. `object-src 'none'` vylučuje zásuvné moduly, `base-uri 'self'`
+přepsání základní adresy, `frame-ancestors 'none'` vložení okna do cizí
+stránky. A `connect-src` dovoluje jen `self`, `ipc:` a `asset:`, takže obvyklé
+cesty, kterými by cizí kód posílal data ven, jsou zavřené: `fetch`, XHR,
+WebSocket i obrázkový maják, protože `img-src` cizí adresu nepřipouští.
+
+Co nezastaví, a je potřeba to říct nahlas:
+
+* `style-src` má `'unsafe-inline'`, protože React zapisuje styly atributem;
+* zavřené jsou *obvyklé* cesty ven, ne všechny: přesměrování okna
+  (`window.location`) žádná z těchto direktiv neřeší a `form-action` nastavená
+  není, takže data v adrese by odejít mohla;
+* a hlavně — CSP určuje, odkud se smí načíst obsah, ne co smí dělat kód, který
+  už běží. Neomezuje, které příkazy Tauri smí okno zavolat, a most IPC musí
+  zůstat otevřený.
+
+CSP je tedy druhá pojistka, ne první.
+
+První je pořád vstup: rozhraní se skládá v Reactu jako text, ne jako HTML.
+Jediné tři výskyty `dangerouslySetInnerHTML` v `src/` vkládají tentýž přiložený
+SVG znak (`src/mark.svg`) zapečený v binárce. Přepis, jména mluvčích, poznámky
+ani názvy souborů se jako HTML nikdy nevykreslují.
+
+`"assetProtocol": { "scope": ["**"] }` se nezměnilo. Rozsah `**` je tam proto,
+že aplikace přehrává nahrávky odkudkoli, kam uživatel ukázal — nahrávka může
+ležet na kterémkoli disku. Důsledek je, že webview dokáže přečíst cokoli, na co
+má účet právo, ne jen soubory v archivu. CSP na tom nic nemění: `media-src`
+i `img-src` protokol `asset:` výslovně povolují. Zúžit ten rozsah je samostatný
+úkol, který zatím hotový není.
 
 **3. Program není podepsaný.** Instalátor zatím nenese podpis, takže Windows
 SmartScreen na něj upozorní. Podepisování je připravené (`Vydání` v README),
@@ -138,48 +195,110 @@ has exactly that user's rights.
   computer. The application does not check for updates and sends no telemetry.
 * **It reaches the network on its own only to fetch components** — the tools and
   models on first run, and `yt-dlp` for an online video import you asked for.
+  The installer additionally fetches the WebView2 runtime from Microsoft if the
+  machine does not already have it (`downloadBootstrapper` in
+  `tauri.conf.json`).
 * **The archive is an unencrypted SQLite database** in your user profile. It is
   protected by account permissions and by disk encryption if you have it on.
 
 ### What is actually in the application, and worth knowing
 
-These are not hypotheticals. They are properties of today's code.
+These are not hypotheticals. They are properties of today's code, checked
+against it on 10 August 2026.
 
-**1. Downloaded programs are verified by neither checksum nor signature.**
+**1. Downloaded components are not yet compared against any checksum.**
 
-On first run Slobot downloads tools (FFmpeg, whisper.cpp, sherpa-onnx,
-llama.cpp, yt-dlp, Deno) and models, unpacks them, and runs them as ordinary
-programs under your account. The only check afterwards is that the expected file
-exists once the archive is unpacked — in `src-tauri/src/download.rs`, where
-`verification_path` is tested. No SHA-256, no signature, no certificate pinning.
+On first run Slobot downloads tools (FFmpeg, whisper.cpp, llama.cpp, yt-dlp,
+Deno) and models, unpacks them, and runs them as ordinary programs under your
+account.
 
-The single integrity guarantee is therefore HTTPS: the connection is encrypted
-(rustls) and the peer's certificate is validated. Which means trusting whoever
-operates `github.com`, `objects.githubusercontent.com`, `huggingface.co` and
-`www.gyan.dev`, and the whole chain of certificate authorities on your system.
+The machinery for verifying them is in place. `src-tauri/src/download.rs`
+computes a SHA-256 as the downloaded bytes are written and compares it before
+anything is unpacked or moved where it belongs. But the table of expected
+digests (`EXPECTED_HASHES`) is **empty**, so today nothing is compared, for any
+component. A digest may only be written there once somebody has read it from
+that project's own release; computing it from whatever arrived on this machine
+would attest that the file matches itself, and nothing more.
 
-Six catalogue entries are not fetched from a fixed address at all but **found by
-a regular expression over live GitHub releases** (`whisper-cpu`, `whisper-cuda`,
-`deno`, `editor-vulkan`, `editor-cpu`, `sherpa`). What gets installed therefore
-depends on what those projects publish at that moment. An asset renamed or
-substituted so that it satisfies the pattern would be downloaded and run.
+The single integrity guarantee therefore remains HTTPS: the connection is
+encrypted (rustls) and the peer's certificate is validated. Which means trusting
+whoever operates `github.com`, `api.github.com`,
+`objects.githubusercontent.com`, `huggingface.co` and `www.gyan.dev`, and the
+whole chain of certificate authorities on your system.
 
-**2. The webview has no Content Security Policy, and the asset protocol sees
+One thing has changed since 0.9.0 was released: the application no longer claims
+the origin was checked. Every completed installation records the address, the
+digest of what actually arrived, and `verified: false` while there was nothing
+to compare against, in `installed.json`. A file sitting in the right place is no
+longer accepted as evidence of where it came from. That record is not yet shown
+anywhere in the interface.
+
+Regardless of digests, this already holds:
+
+* an archive with an entry that would land outside the destination folder
+  (`..`, an absolute path, a drive letter) is refused whole — not even the rest
+  of it is unpacked;
+* an interrupted download cannot look like a finished component: bytes go to a
+  temporary file that is renamed to the target name only at the end;
+* were a digest not to match, the temporary file is deleted and the previous
+  working installation is left untouched.
+
+**Five catalogue entries are not fetched from a fixed address at all but found
+by a regular expression over live GitHub releases** (`whisper-cpu`,
+`whisper-cuda`, `deno`, `editor-vulkan`, `editor-cpu`). A sixth, `yt-dlp`, does
+have a fixed address, but it points at `releases/latest/download/`, so it too is
+whatever that project publishes right now. What gets installed for these six
+depends on what those projects publish at that moment; an asset renamed or
+substituted so that it satisfies the pattern would be downloaded and run. Until
+they are pinned to a version, no digest can exist for them.
+
+**2. The webview has a Content Security Policy. The asset protocol still sees
 the whole disk.**
 
-`src-tauri/tauri.conf.json` carries `"csp": null` and
-`"assetProtocol": { "scope": ["**"] }`.
+`src-tauri/tauri.conf.json` has carried this policy since 7 August 2026 (wrapped
+for the page; in the configuration it is a single line):
 
-The `**` scope is there because the application plays recordings from wherever
-the user pointed it — a recording may sit on any drive. The consequence is that
-the webview can read anything the account may read, not only the archive.
+```
+default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';
+font-src 'self'; img-src 'self' data: asset: http://asset.localhost;
+media-src 'self' blob: data: asset: http://asset.localhost;
+connect-src 'self' ipc: http://ipc.localhost asset: http://asset.localhost;
+object-src 'none'; base-uri 'self'; frame-ancestors 'none'
+```
 
-`csp: null` means that if foreign code ever reached the interface, there is no
-second line of defence to stop it. What holds today is the input side: the
-interface is composed in React as text, not as HTML. The only three occurrences
-of `dangerouslySetInnerHTML` in `src/` insert the same bundled SVG mark
-(`src/mark.svg`), compiled into the binary. Transcripts, speaker names, notes
-and file names are never rendered as HTML.
+What it stops: no script, style, font or image loads from anywhere but the
+binary. `script-src 'self'` carries no `'unsafe-eval'`, so `eval` and
+`new Function` do not run. `object-src 'none'` rules out plugins, `base-uri
+'self'` rewriting the base address, `frame-ancestors 'none'` embedding the
+window in a foreign page. And `connect-src` allows only `self`, `ipc:` and
+`asset:`, so the usual ways foreign code would send data out are closed:
+`fetch`, XHR, WebSocket, and the image beacon too, because `img-src` admits no
+foreign address.
+
+What it does not stop, said plainly:
+
+* `style-src` carries `'unsafe-inline'`, because React writes styles as an
+  attribute;
+* what is closed are the *usual* ways out, not all of them: navigating the
+  window (`window.location`) is governed by none of these directives, and
+  `form-action` is not set, so data in an address could still leave;
+* and above all — a CSP governs where content may be loaded from, not what code
+  already running may do. It does not restrict which Tauri commands the window
+  may call, and the IPC bridge has to stay open.
+
+The policy is a second line of defence, not the first.
+
+The first is still the input side: the interface is composed in React as text,
+not as HTML. The only three occurrences of `dangerouslySetInnerHTML` in `src/`
+insert the same bundled SVG mark (`src/mark.svg`), compiled into the binary.
+Transcripts, speaker names, notes and file names are never rendered as HTML.
+
+`"assetProtocol": { "scope": ["**"] }` has not changed. The `**` scope is there
+because the application plays recordings from wherever the user pointed it — a
+recording may sit on any drive. The consequence is that the webview can read
+anything the account may read, not only the archive. The policy changes nothing
+about that: both `media-src` and `img-src` admit the `asset:` protocol
+explicitly. Narrowing that scope is a separate piece of work and is not done.
 
 **3. The program is not signed.** The installer carries no signature yet, so
 Windows SmartScreen warns about it. Signing is prepared (`Vydání` in README) but
