@@ -46,6 +46,10 @@ jobs:
       # missing plural form, a Rust code with no dictionary entry, informal
       # address, and a translation whose Czech source has been reworded since.
       - run: npm run build
+      # The frontend had no automatic protection at all until 10 August, which
+      # is one reason the regressions it did have — keys, dialogs, the
+      # collapsing header, player state — were all in the interface.
+      - run: npm run test
 
   # There was a second Rust job on Ubuntu until 2026-08-07. It was the cheap
   # fast pass: a minute against Windows' three, and Windows minutes are billed
