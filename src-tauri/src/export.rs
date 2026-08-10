@@ -42,7 +42,7 @@ const ORPHAN_PARAGRAPH_CHARS: usize = 120;
 /// subordinate clause stranded on the next line.
 fn ends_prose_sentence(text: &str) -> bool {
     text.trim_end()
-        .trim_end_matches(|character: char| matches!(character, '"' | '»' | '“' | '”' | ')' | ']'))
+        .trim_end_matches(['"', '»', '“', '”', ')', ']'])
         .ends_with(['.', '!', '?', '…'])
 }
 

@@ -1658,8 +1658,10 @@ mod cluster_threshold_migration_tests {
     #[test]
     fn an_untouched_threshold_is_raised_once() {
         let db = archive();
-        let mut settings = Settings::default();
-        settings.cluster_threshold = 0.5;
+        let settings = Settings {
+            cluster_threshold: 0.5,
+            ..Default::default()
+        };
         save_settings(&db, &settings).unwrap();
 
         assert!(raise_cluster_threshold_once(&db).unwrap());
@@ -1677,8 +1679,10 @@ mod cluster_threshold_migration_tests {
     #[test]
     fn a_deliberately_chosen_threshold_is_left_alone() {
         let db = archive();
-        let mut settings = Settings::default();
-        settings.cluster_threshold = 0.35;
+        let settings = Settings {
+            cluster_threshold: 0.35,
+            ..Default::default()
+        };
         save_settings(&db, &settings).unwrap();
 
         assert!(!raise_cluster_threshold_once(&db).unwrap());
