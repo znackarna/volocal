@@ -117,13 +117,6 @@ export const csErrors = {
   "errors.download.cancelled": "Zrušeno",
   "errors.download.connection_failed": "Nepodařilo se spojit se serverem ({url})",
   "errors.download.rejected": "Server odmítl soubor vydat",
-  "errors.download.github_unreadable": "GitHub vrátil odpověď, které nerozumím",
-  "errors.download.invalid_pattern": "Chybný vzor pro hledání: {pattern}",
-  "errors.download.asset_not_found":
-    "V posledních vydáních {repository} není soubor pro Windows odpovídající „{pattern}“.",
-  "errors.download.asset_not_found_with_excluded":
-    "V posledních vydáních {repository} není soubor pro Windows odpovídající „{pattern}“." +
-    " Vyloučené podobné soubory: {excluded}",
   "errors.download.tar_launch_failed":
     "Nepodařilo se spustit tar (je součástí Windows 10 a novějších)",
   "errors.download.extract_failed": "Rozbalení archivu selhalo",
@@ -215,8 +208,6 @@ export const csErrorsContext: Partial<Record<keyof typeof csErrors, string>> = {
     "{detail} je technický popis, proč se vlákno přerušilo. Anglicky.",
   "errors.online_import.unsupported_scheme":
     "http:// a https:// jsou části adresy, nepřekládají se.",
-  "errors.download.asset_not_found":
-    "{repository} je jméno projektu na GitHubu, {pattern} je vzor pro hledání názvu souboru. Obojí se nepřekládá.",
   "errors.download.archive_without_programs":
     "{archive} je název staženého souboru, {contents} seznam toho, co v něm bylo. Nepřekládá se.",
   "errors.download.file_not_in_archive":
