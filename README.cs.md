@@ -8,8 +8,8 @@ na vašem počítači a nic se neodesílá ven.
 Program je vlastnictvím značkárny s.r.o. Zdrojový kód je veřejně čitelný, ale
 není open source — podrobnosti v [LICENSE](LICENSE).
 
-Postavené na whisper.cpp, Silero VAD, sherpa-onnx a llama.cpp. Aplikace je
-Tauri 2: jádro v Rustu, rozhraní v Reactu, archiv v SQLite.
+Postavené na whisper.cpp, Silero VAD, modelu hlasů CAM++ a llama.cpp. Aplikace
+je Tauri 2: jádro v Rustu, rozhraní v Reactu, archiv v SQLite.
 
 Technický přehled a pravidla pojmenování jsou v
 [ARCHITECTURE.md](ARCHITECTURE.md), pracovní pravidla v [CLAUDE.md](CLAUDE.md)
@@ -200,8 +200,8 @@ vyměnit bez zásahu do aplikace, a když jeden spadne, nespadne s ním okno.
 Výjimkou je rozpoznání mluvčích. Od srpna 2026 neběží jako samostatný program:
 model hlasů CAM++ počítá ONNX Runtime přímo uvnitř Slobotu, na Windows přes
 DirectML se záložním během na procesoru. Kde je řeč, se přitom nehledá znovu —
-to už řekl přepis. Sousední kroky (`sherpa-onnx`, segmentační model pyannote)
-se sice pořád stahují, ale k ničemu se nepoužívají.
+to už řekl přepis. Program `sherpa-onnx` ani segmentační model pyannote, které
+tuhle práci dělaly dřív, se proto od té doby nestahují.
 
 | Soubor | |
 |---|---|
@@ -230,8 +230,8 @@ odmítne text napsaný přímo v komponentě. Čeština je zdrojový jazyk a vyk
 | Tauri 2, React 18 | MIT / Apache 2.0 |
 | SQLite | volné dílo |
 | whisper.cpp, modely Whisper, Silero VAD | MIT |
-| sherpa-onnx, 3D-Speaker CAM++ | Apache 2.0 |
-| ONNX Runtime, pyannote segmentation 3.0 | MIT |
+| 3D-Speaker CAM++ | Apache 2.0 |
+| ONNX Runtime | MIT |
 | llama.cpp | MIT |
 | Gemma (Google) | Gemma Terms of Use |
 | FFmpeg | GPL v3 |
