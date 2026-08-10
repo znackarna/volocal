@@ -1,0 +1,350 @@
+/* Tokens, both palettes, the scrollbar, the header bar, buttons and the notice.
+ *
+ * Part 01 of styles.css. The number is the point: these files are
+ * one stylesheet cut into pieces, and the order they are imported in is the
+ * order the rules were in. Moving a rule between them can change the look
+ * without changing a value. */
+
+/* Přemysl — visual language taken from the supplied design system.
+   Colours are carried over unchanged as raw HSL triples so the next version
+   of the system can be pasted into one place. The shapes come from there too:
+   controls are pills, cards have a large radius, section labels are small
+   caps, numerals are tabular. */
+
+:root {
+  --ds-background: 220 13% 96%;
+  --ds-foreground: 240 7% 11%;
+  --ds-card: 0 0% 100%;
+  --ds-muted: 220 10% 91%;
+  --ds-muted-foreground: 225 5% 43%;
+  --ds-accent: 220 12% 92%;
+  --ds-border: 220 8% 91%;
+  --ds-input: 220 8% 82%;
+  --ds-destructive: 6 91% 57%;
+  --ds-ring: 240 7% 11%;
+  --ds-petrol: 218 100% 55%;
+  --ds-amber: 32 59% 44%;
+  --ds-grass: 101 51% 46%;
+
+  --pozadi: hsl(var(--ds-background));
+  --panel: hsl(var(--ds-card));
+  --text: hsl(var(--ds-foreground));
+  --text-tichy: hsl(var(--ds-muted-foreground));
+  --linka: hsl(var(--ds-border));
+  --linka-pole: hsl(var(--ds-input));
+  --tlumene: hsl(var(--ds-accent));
+  --jemne: hsl(var(--ds-foreground) / 0.02);
+  --akcent: hsl(var(--ds-petrol));
+  --akcent-svetly: hsl(var(--ds-petrol) / 0.08);
+  --akcent-linka: hsl(var(--ds-petrol) / 0.25);
+  --vystraha: hsl(var(--ds-destructive));
+  --vystraha-svetla: hsl(var(--ds-destructive) / 0.08);
+  --uspech: hsl(var(--ds-grass));
+
+  /* Three colours that carry text, where the brand value is tuned for the
+     opposite job — being read *against* a neutral surface rather than under
+     white, or written on its own tint. Each one below is the same hue and
+     saturation taken to the lightness that reaches 4.5 : 1, and each is used
+     only where that pair actually occurs. The brand tokens above do not move,
+     so nothing that merely borrows the colour changes with them.
+
+     --akcent-plny   white on a filled accent bar: 4.47 : 1 light and
+       3.29 : 1 dark, where the accent is lightened so it can be read as text.
+       One value for both palettes, 4.76 : 1 — a filled bar has the same job
+       whatever is behind it.
+     --vystraha-plna white on a filled red surface: 3.69 / 3.50 before.
+       44 % rather than 46 so the brightness(1.08) hover still clears 4.5
+       (4.53 light, 4.82 dark) instead of falling to 4.19.
+     --uspech-text   grass written on the grass/0.14 tint it always sits on:
+       2.36 : 1 in the light palette. The tint is unchanged, only the ink —
+       5.26 : 1 on a panel, 4.84 : 1 on the page background. The dark palette
+       already clears it at 4.93 and keeps its own value. */
+  --akcent-plny: hsl(218 100% 53%);
+  --vystraha-plna: hsl(6 91% 44%);
+  --uspech-text: hsl(101 51% 29%);
+  --zvyrazneni: hsl(var(--ds-amber) / 0.22);
+  /* Notes are the one surface that is not part of the neutral chrome. Paper
+     yellow says "written by hand" at a glance, without a label. */
+  --listek: hsl(46 88% 92%);
+  --listek-linka: hsl(44 52% 78%);
+  --listek-pole: hsl(48 70% 97%);
+  --prstenec: 0 0 0 2px hsl(var(--ds-ring) / 0.4);
+  --prstenec-pole: 0 0 0 3px hsl(var(--ds-petrol) / 0.16);
+  --hover-duration: 0.22s;
+  --hover-ease: ease;
+  --app-footer-height: 30px;
+
+  /* The veil behind a dialog. Dark in both palettes on purpose — see
+     `.prekryv-dialogu`. */
+  --zaves: hsl(240 7% 11% / 0.35);
+  --stin: 0 1px 4px hsl(var(--ds-foreground) / 0.08);
+  --stin-vysoky: 0 12px 32px hsl(var(--ds-foreground) / 0.14), 0 2px 8px hsl(var(--ds-foreground) / 0.06);
+
+  /* Shapes: pills for controls, soft corners for surfaces */
+  --r-pilulka: 999px;
+  --r-karta: 12px;
+  --r-velky: 16px;
+  --r-maly: 8px;
+
+  /* Overwritten from Settings at runtime; this is only the default. */
+  --pismo: "Geist Variable", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --pismo-text: "Literata Variable", Georgia, "Times New Roman", serif;
+  /* Paths and other fixed-pitch values. Not written from Settings — it was
+     used through a fallback in two places and defined nowhere, so the two
+     could have drifted apart without anything noticing. */
+  --pismo-cesty: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+  --velikost-textu: 17.5px;
+  --radkovani: 1.72;
+}
+
+/* The dark palette. Which one applies is decided in JavaScript and written to
+   `data-theme` on the root element — following the system is one of the three
+   choices in Settings, and a media query alone cannot be overridden by a
+   person's decision. `main.tsx` writes the attribute before React mounts, from
+   the choice remembered in local storage, so the window never opens light and
+   then turn dark. */
+:root[data-theme="dark"] {
+  --ds-background: 240 5% 12%;
+  --ds-foreground: 220 15% 94%;
+  --ds-card: 240 4% 16%;
+  --ds-muted: 240 4% 21%;
+  --ds-muted-foreground: 220 6% 66%;
+  --ds-accent: 240 4% 21%;
+  --ds-border: 240 4% 23%;
+  --ds-input: 240 4% 28%;
+  --ds-destructive: 6 80% 60%;
+  --ds-ring: 220 15% 94%;
+  --ds-petrol: 218 100% 64%;
+  --ds-amber: 33 60% 55%;
+  --ds-grass: 101 45% 52%;
+
+  --jemne: hsl(var(--ds-foreground) / 0.04);
+  /* Same idea in the dark theme: warm enough to read as paper, dim enough
+     not to glare beside the neutral panels. */
+  --listek: hsl(46 16% 19%);
+  --listek-linka: hsl(46 14% 31%);
+  --listek-pole: hsl(46 12% 15%);
+  --akcent-svetly: hsl(var(--ds-petrol) / 0.14);
+  /* `--akcent-plny` is deliberately the same in both palettes; the other two
+     follow their own palette's hue and saturation. Grass at 52 % already
+     reads 4.93 : 1 on its own tint here, so it keeps the brand value. */
+  --vystraha-plna: hsl(6 80% 44%);
+  --uspech-text: hsl(var(--ds-grass));
+  --zvyrazneni: hsl(var(--ds-amber) / 0.28);
+  --zaves: rgb(0 0 0 / 0.55);
+  --stin: 0 1px 4px rgb(0 0 0 / 0.3);
+  --stin-vysoky: 0 12px 32px rgb(0 0 0 / 0.45), 0 2px 8px rgb(0 0 0 / 0.3);
+}
+
+* { box-sizing: border-box; }
+
+/* Custom scrollbar. The native one is needlessly wide and loud in an app window. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--ds-foreground) / 0.22) transparent;
+}
+::-webkit-scrollbar { width: 12px; height: 12px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--ds-foreground) / 0.2);
+  border-radius: var(--r-pilulka);
+  /* a transparent border insets the thumb without narrowing the track */
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover { background: hsl(var(--ds-foreground) / 0.35); background-clip: content-box; }
+::-webkit-scrollbar-corner { background: transparent; }
+html, body, #root { height: 100%; margin: 0; }
+
+body {
+  font-family: var(--pismo);
+  background: var(--pozadi);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: none; box-shadow: var(--prstenec); }
+
+.aplikace { display: flex; flex-direction: column; height: 100%; }
+
+/* The sidebar holds five cards on one page, and each one heads a list the
+   reader works in. Upper case at 11 px labelled them; at that size five of
+   them down one column read as fine print rather than as structure.
+   This is the only rule that types this heading — the margin it once also
+   carried further down the file is gone, because the card owns its spacing. */
+.postranni h2 {
+  /* 680, the weight the archive's folder heading uses for the same job — a
+     14 px label at the top of a list — and one the documented set allows. */
+  font-size: 14px; font-weight: 680; text-transform: none;
+  letter-spacing: -0.005em; color: var(--text);
+}
+/* A group label above a list in the wizard — deliberately below the 19 px of
+   a card or a dialog heading, because it labels one part of a screen. This is
+   the "wizard group label 17/700" of the type scale, and the only <h2> in the
+   wizard is the one it describes: the group heading in the manual component
+   list. `.rucni h2` further down used to redeclare the type at the same
+   specificity and win purely on file order, so this rule never drew anything;
+   it now carries only that list's own margin. */
+.pruvodce h2 {
+  font-size: 17px; font-weight: 700; color: var(--text);
+  letter-spacing: -0.01em; text-transform: none;
+}
+
+/* ---------------------------------------------------------------- header bar */
+
+/* Fixed height rather than derived from content. The mini player is two points taller
+   than the buttons beside it, so closing it lifted the bar and everything
+   below jumped. */
+.lista {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  height: 57px; padding: 0 18px; border-bottom: 1px solid var(--linka);
+  background: var(--panel); flex: 0 0 auto;
+}
+.header-brand-mark {
+  display: flex; align-items: center;
+  padding: 4px 2px;
+}
+.znacka {
+  background: none; border: 0; cursor: pointer;
+  border-radius: var(--r-pilulka);
+}
+/* The mark is an upright isometric cube; 24 px suits it in the bar. */
+.logotyp { display: block; }
+.logotyp svg { height: 24px; width: auto; display: block; }
+/* The product's name beside its mark, in the archive's header. It is the same
+   size and weight as the recording's name in the detail header (`.detail-hlavicka
+   h1`, 15/700) — the two headers are the same bar, and what stands after the
+   cube is the title of whatever screen you are on. Change them together.
+   The version and the description live in the window's own title bar, where
+   the operating system already asks what this program is. */
+.header-brand-name {
+  display: inline-flex; align-items: baseline;
+  margin-left: 8px;
+  color: var(--text); font-size: 15px; font-weight: 700;
+  white-space: nowrap;
+}
+/* The trademark sign's top sits on the wordmark's cap height. The 0.5em lift is
+   measured, not derived: the glyph is already drawn high inside its own em box,
+   so where its ink lands is the font's decision and not arithmetic. If either
+   size changes, measure the ink again rather than scaling this number.
+   Quiet and light: it is a legal mark, not part of the name being read. */
+.header-brand-tm {
+  font-size: 9px; font-weight: 600; color: var(--text-tichy);
+  margin-left: 1px; align-self: baseline; transform: translateY(-0.5em);
+}
+.lista-levo { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.lista-pravo { display: flex; align-items: center; gap: 4px; }
+/* The pills sit at the right edge, before the named actions. Half the space
+   comes from the group's own gap, half from here, so pill-to-pill and
+   pill-to-button distances come out the same 8 px. */
+.lista-pravo > .mini-prehravac { margin-right: 4px; }
+
+.app-status-footer {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  height: var(--app-footer-height); padding: 0 20px; flex: 0 0 auto;
+  border-top: 1px solid var(--linka); background: var(--panel);
+  color: var(--text-tichy); font-size: 11.5px; font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.app-status-footer-group {
+  display: flex; align-items: center; gap: 14px; min-width: 0;
+}
+.app-status-footer-group:last-child:not(:first-child) { flex: 0 0 auto; }
+.app-status-item {
+  display: inline-flex; align-items: center; gap: 5px; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.app-status-item svg { flex: 0 0 auto; opacity: 0.8; }
+.app-status-item > span { overflow: hidden; text-overflow: ellipsis; }
+
+/* ---------------------------------------------------------------- buttons */
+
+.tlacitko {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 34px; padding: 0 15px;
+  border: 1px solid var(--linka-pole); background: var(--panel);
+  border-radius: var(--r-pilulka);
+  font-size: 13.5px; font-weight: 600; line-height: 1;
+  cursor: pointer; white-space: nowrap;
+  transition: background var(--hover-duration) var(--hover-ease),
+    border-color var(--hover-duration) var(--hover-ease),
+    color var(--hover-duration) var(--hover-ease);
+}
+.tlacitko:not(:disabled):hover { background: var(--tlumene); }
+.tlacitko.hlavni {
+  background: var(--text); border-color: var(--text); color: var(--pozadi);
+}
+.tlacitko.hlavni:not(:disabled):hover {
+  background: var(--text); border-color: var(--text); color: var(--pozadi);
+  filter: brightness(1.25);
+}
+.tlacitko.tichy {
+  border-color: transparent; background: transparent; color: var(--text-tichy);
+}
+.tlacitko.tichy:not(:disabled):hover { background: var(--tlumene); color: var(--text); }
+.tlacitko.vystraha { color: var(--vystraha); }
+.tlacitko.aktivni { background: var(--text); border-color: var(--text); color: var(--pozadi); }
+.tlacitko.aktivni:not(:disabled):hover {
+  background: var(--text); border-color: var(--text); color: var(--pozadi);
+}
+.tlacitko.drobne-tl { height: 24px; padding: 0 10px; font-size: 12px; }
+.tlacitko:disabled { opacity: 0.45; cursor: default; }
+
+
+/* ---------------------------------------------------------------- toast */
+
+/* Two kinds of message, two colours. Red is reserved for something that needs
+   attention; a confirmation gets the accent colour. Everything else about the
+   bar stays the same, so the difference reads as tone rather than as two
+   unrelated components. */
+/* The lifetime arrives from App as `--notice-life`, because the ring has to
+   empty over exactly the time the timer there waits. The value below is only a
+   fallback for a bar rendered without it. */
+.hlaska {
+  --notice-life: 5s;
+  display: flex; justify-content: space-between; gap: 16px; align-items: center;
+  padding: 10px 18px; color: #fff; font-weight: 500;
+  max-height: 120px; overflow: hidden; background: var(--akcent-plny);
+  transform-origin: top;
+  animation: notice-enter 0.32s ease-out both;
+}
+.hlaska.error { background: var(--vystraha-plna); }
+/* The text takes the room the ring does not, so the close button keeps the
+   right edge and the ring the left. */
+.hlaska > span { flex: 1 1 auto; }
+.hlaska-odpocet { margin-right: -6px; }
+.hlaska .odpocet-drah { animation: odpocet var(--notice-life) linear forwards; }
+/* A bar on its way out has nothing left to count down. */
+.hlaska.odchazi .odpocet-drah { animation: none; }
+.hlaska.odchazi {
+  pointer-events: none;
+  animation: notice-leave 0.28s ease-in-out both;
+}
+/* The chip darkens its backdrop rather than lightening it. A white veil is the
+   obvious way to lift a control off a coloured bar, and it is the one thing
+   that cannot be done here: it lightens the very surface the white label has to
+   stand on. White on white/0.2 measured 3.48 : 1 over the accent bar and
+   4.04 / 4.08 over the red one — all three short of 4.5, and the first short of
+   the 4.76 the bare bar already gives, so the chip was the worst place on the
+   bar to read. Black/0.18 takes the same three composites to 6.51, 7.04 and
+   7.39. The bar's own colour is untouched; only the veil changed sign. */
+.hlaska button {
+  background: rgb(0 0 0 / 0.18); border: 0; border-radius: var(--r-pilulka);
+  padding: 5px 13px; cursor: pointer; color: #fff; font-weight: 600; font-size: 13px;
+}
+@keyframes notice-enter {
+  from { max-height: 0; padding-block: 0; opacity: 0; transform: translateY(-2px); }
+  to { max-height: 120px; padding-block: 10px; opacity: 1; transform: none; }
+}
+@keyframes notice-leave {
+  from { max-height: 120px; padding-block: 10px; opacity: 1; transform: none; }
+  to { max-height: 0; padding-block: 0; opacity: 0; transform: translateY(-2px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hlaska { animation: none; }
+  .hlaska.odchazi { display: none; animation: none; }
+}
+

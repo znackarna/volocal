@@ -1,0 +1,1058 @@
+/* Settings, the wizard, dialogs and the recorder.
+ *
+ * Part 04 of styles.css. The number is the point: these files are
+ * one stylesheet cut into pieces, and the order they are imported in is the
+ * order the rules were in. Moving a rule between them can change the look
+ * without changing a value. */
+
+/* ---------------------------------------------------------------- settings */
+
+.nastaveni { flex: 1; overflow-y: auto; padding: 34px 24px 96px; }
+.nastaveni.nastaveni > * { max-width: 720px; margin-inline: auto; }
+.nastaveni-hlava {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 18px; margin-bottom: 18px;
+}
+.nastaveni h1 {
+  font-size: 28px; line-height: 1.15; font-weight: 700;
+  margin: 0; letter-spacing: -0.025em;
+}
+/* Settings save themselves; this is only a quiet confirmation.
+   Fixed to the window rather than sitting beside the title: most settings are
+   changed further down the page, where a pill up in the header is off screen
+   and the confirmation might as well not exist. It floats in the corner
+   instead, so it is in the same place whatever was just changed. */
+.ulozeno {
+  position: fixed; right: 22px; bottom: 22px; z-index: 50;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 13px 6px 10px; border-radius: var(--r-pilulka);
+  background: hsl(var(--ds-grass) / 0.14); color: var(--uspech-text);
+  border: 1px solid hsl(var(--ds-grass) / 0.3);
+  box-shadow: var(--stin-vysoky);
+  font-size: 12.5px; font-weight: 700;
+  opacity: 0; transform: translateY(6px);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+  pointer-events: none;
+}
+.ulozeno.vidno { opacity: 1; transform: none; }
+/* The ring drains over however long its owner is shown for; the surface sets
+   the duration, the ring only knows how to empty. The dash array is the
+   circle's circumference, so the offset runs from nothing to all of it. */
+.odpocet { flex: 0 0 auto; }
+.odpocet-drah { stroke-dasharray: 40.2; stroke-dashoffset: 0; }
+@keyframes odpocet {
+  from { stroke-dashoffset: 0; }
+  to { stroke-dashoffset: 40.2; }
+}
+.ulozeno.vidno .odpocet-drah { animation: odpocet 1.4s linear forwards; }
+@media (prefers-reduced-motion: reduce) {
+  .ulozeno { transition: opacity 0.18s ease; transform: none; }
+  .odpocet-drah { animation: none; }
+}
+.settings-tabs {
+  display: flex; align-items: center; gap: 4px;
+  margin-bottom: 18px; padding: 2px 0;
+}
+/* Navigation between views: no border at all, the chosen one raised as a white
+   pill on the grey ground. One of the application's three button jobs, and the
+   only one that applies to a row of views — a bordered pill is a standalone
+   action, a dark pill is a value that has been set. The document preview's
+   tabs are the same job and share this rule; do not give either a border. */
+.settings-tabs button,
+.ai-document-tabs button,
+.ai-output-options button {
+  position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  height: 36px; padding: 0 14px;
+  border: 0; border-radius: var(--r-pilulka); background: transparent;
+  color: var(--text-tichy); cursor: pointer;
+  font: inherit; font-size: 13.5px; font-weight: 650; white-space: nowrap;
+  transition: background var(--hover-duration) var(--hover-ease),
+    color var(--hover-duration) var(--hover-ease),
+    box-shadow var(--hover-duration) var(--hover-ease);
+}
+/* The rule is not "a white pill" but "the chosen one is filled, one step off
+   its own ground" — white cannot be that step on white.
+   On grey: raised in white. Settings' page, and the strip that sits on the
+   document inside the preview dialog. */
+.settings-tabs button:hover,
+.ai-output-options button:hover { background: var(--tlumene); color: var(--text); }
+.settings-tabs button.active,
+.ai-output-options button.active {
+  background: var(--panel); color: var(--text); box-shadow: var(--stin);
+}
+/* On white: filled dark, which is the same rule taken to its end — the chosen
+   one is the ground's opposite. It is also what the playback speeds do, on
+   white, for the same job: one of a row, chosen. `--tlumene` was tried and is
+   an 8 % step off white, too little to mark anything. */
+.ai-document-tabs button:hover { background: var(--tlumene); color: var(--text); }
+.ai-document-tabs button.active { background: var(--text); color: var(--pozadi); }
+.settings-tab-alert {
+  width: 7px; height: 7px; flex: 0 0 auto; border-radius: 50%;
+  background: var(--vystraha);
+}
+.settings-panels {
+  display: flex; flex-direction: column; gap: 16px;
+}
+/* The transcription tab reads model → what is in the recording → speakers →
+   language editing, whatever order the JSX happens to declare them in. */
+.settings-card-transcription { order: 1; }
+.settings-card-speech { order: 2; }
+.settings-card-speakers { order: 3; }
+.settings-card-language-edit { order: 4; }
+.settings-card-modules { order: 1; }
+.settings-card-performance { order: 2; }
+.settings-card-locations { order: 3; }
+.settings-card-dictionary { order: 1; }
+.settings-card-appearance { order: 1; }
+.settings-card-quick-tips { order: 2; }
+.settings-card-portable { order: 1; }
+.settings-card-watch-folder { order: 2; }
+.settings-card-backups { order: 3; }
+.settings-card-portable-copy { order: 4; }
+.settings-card-about { order: 1; }
+.settings-card-abilities { order: 2; }
+.settings-card-credits { order: 3; }
+.nastaveni section {
+  background: var(--panel); border: 1px solid var(--linka);
+  border-radius: var(--r-velky); padding: 26px 28px;
+}
+.nastaveni h2 {
+  margin: 0; font-size: 19px; line-height: 1.25; font-weight: 700;
+  letter-spacing: -0.018em;
+}
+.nastaveni code {
+  font-size: 12px; background: var(--tlumene); padding: 2px 7px;
+  border-radius: var(--r-maly); word-break: break-all;
+}
+
+.settings-section-description {
+  max-width: 62ch; margin: 8px 0 24px;
+  color: var(--text-tichy); font-size: 14px; line-height: 1.55;
+}
+.nastaveni section > h2 + .pole { margin-top: 24px; }
+/* A card whose content follows its heading with no introductory sentence
+   between them takes the same 24 px that a field does. Without this the list
+   sat on the heading, because `h2` carries no bottom margin of its own — the
+   description normally provides the gap. */
+.nastaveni section > h2 + .about-abilities { margin-top: 24px; }
+.settings-info-note {
+  display: flex; align-items: flex-start; gap: 8px;
+  margin: 8px 0 0; color: var(--text-tichy);
+  font-size: 13.5px; line-height: 1.5;
+}
+.settings-info-note.compact { margin: 0; }
+.settings-info-note-icon { flex: 0 0 auto; margin-top: 2px; color: var(--akcent); }
+.settings-toggle {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 32px;
+}
+.settings-toggle-copy { min-width: 0; flex: 1 1 auto; }
+.settings-toggle.section .settings-info-note { max-width: 62ch; }
+.settings-toggle:not(.section) {
+  margin: 0; padding: 0;
+}
+.settings-toggle:not(.section) .settings-info-note { margin-top: 8px; }
+.settings-toggle-title {
+  display: block; font-size: 15px; line-height: 1.35; font-weight: 680;
+}
+.pole + .settings-toggle:not(.section) {
+  margin-top: 24px; padding-top: 22px; border-top: 1px solid var(--linka);
+}
+.settings-toggle:not(.section) + .pole {
+  margin-top: 24px; padding-top: 22px; border-top: 1px solid var(--linka);
+}
+.settings-toggle.separated {
+  margin: 22px 0 0; padding: 20px 0 0;
+  border-top: 1px solid var(--linka);
+}
+.settings-toggle-control {
+  margin: 0 -7px 0 0; padding: 7px;
+  border-radius: var(--r-pilulka);
+}
+.settings-toggle-control:has(input:disabled) { opacity: 0.45; cursor: default; }
+.settings-toggle.section + .pole,
+/* One dependent switch under another — watching a folder, and transcribing
+   what it finds. They belong together, so no divider: only the room a control
+   needs to stop reading as a second line of the one above it. */
+.settings-toggle:not(.section) + .settings-toggle:not(.section) { margin-top: 20px; }
+/* Choice cards revealed by a section switch sit on the same divider as a
+   revealed field, so turning a section on always looks the same. */
+.settings-toggle.section + .volby {
+  margin-top: 24px; padding-top: 22px; border-top: 1px solid var(--linka);
+}
+.volby + .settings-info-note.compact { margin-top: 14px; }
+.settings-action-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  font-size: 13.5px;
+}
+.settings-action-row.separated {
+  margin-top: 22px; padding-top: 20px; border-top: 1px solid var(--linka);
+}
+.settings-action-row > .settings-info-note { margin: 0; }
+.settings-action-row > .tlacitko { flex: 0 0 auto; }
+.settings-success { color: var(--uspech); }
+.pole { margin-bottom: 24px; }
+.nastaveni section > .pole:last-child { margin-bottom: 0; }
+.pole > .drobne {
+  max-width: 62ch; margin: 8px 0 0; line-height: 1.5;
+}
+/* the value beside a slider belongs to the label, not to a sentence */
+.hodnota { font-style: normal; color: var(--text); font-variant-numeric: tabular-nums; }
+
+/* One disclosure pattern for advanced controls and technical diagnostics. */
+.settings-disclosure {
+  margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--linka);
+}
+.settings-action-row + .settings-disclosure {
+  margin-top: 12px; padding-top: 0; border-top: 0;
+}
+.settings-disclosure > summary {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 0; border: 0; background: none; cursor: pointer;
+  list-style: none;
+  font: inherit; font-size: 13.5px; font-weight: 600; color: var(--text-tichy);
+}
+.settings-disclosure > summary::-webkit-details-marker { display: none; }
+.settings-disclosure > summary:hover { color: var(--text); }
+.settings-disclosure > summary:focus-visible { box-shadow: var(--prstenec); border-radius: var(--r-maly); }
+.settings-disclosure-chevron {
+  display: grid; place-items: center; line-height: 0;
+  transition: transform 0.16s ease;
+}
+.settings-disclosure[open] .settings-disclosure-chevron { transform: rotate(90deg); }
+.settings-disclosure-content {
+  margin-top: 8px; padding-left: 16px;
+  border-left: 2px solid var(--linka);
+  display: flex; flex-direction: column; gap: 2px;
+}
+.settings-disclosure-content > .drobne:first-child { margin-top: 0; }
+/* A panel inside the disclosure carries its own frame, so the indent's rule
+   would be a second border beside the first. The panel stands on its own. */
+.settings-disclosure-content:has(> .kontrola) { padding-left: 0; border-left: 0; }
+/* Below the window's own 1000 px minimum (tauri.conf.json), so this cannot
+   fire today. Kept as a net, like the 900 px rule for the header pills, in
+   case the minimum ever drops or the interface is opened in a browser.
+   560 px: Settings loses its outer padding and the tabs scroll. */
+@media (max-width: 560px) {
+  .nastaveni { padding: 24px 12px 72px; }
+  .nastaveni section { padding: 22px 20px; }
+  .settings-tabs { overflow-x: auto; scrollbar-width: none; }
+  .settings-tabs::-webkit-scrollbar { display: none; }
+  .settings-toggle, .settings-action-row { gap: 16px; }
+  .radka { flex-wrap: wrap; }
+  .radka input { flex-basis: 100%; }
+}
+/* The toggle is a <label> too, but inline. Without :not() this rule would
+   switch it to block, the track would lose its width and the knob would end
+   up inside the text. */
+.pole > label:not(.vypinac) {
+  display: block; margin-bottom: 8px;
+  color: var(--text); font-size: 13.5px; line-height: 1.35; font-weight: 650;
+}
+.pole input[type="text"], .pole input:not([type]), .pole input[type="url"],
+.pole select, .pole input[type="number"] {
+  width: 100%; height: 38px;
+  border: 1px solid var(--linka-pole); background: var(--pozadi);
+  border-radius: var(--r-pilulka); padding: 0 15px; outline: none; font-size: 14px;
+}
+/* A field lights up when it is being filled in. A slider is not filled in,
+   it is grabbed — so dragging one does not light anything up (Jakub's ask).
+   `:focus-visible` further down still gives it a ring on keyboard focus, which
+   is the only way to see where the focus stands without a pointer. */
+.pole input:not([type="range"]):focus, .pole select:focus {
+  border-color: var(--akcent); box-shadow: var(--prstenec-pole);
+}
+.pole input[type="range"] { width: 100%; accent-color: hsl(var(--ds-foreground)); height: auto; }
+/* ---------------------------------------------------------------- custom menu
+   On Windows the native <select> is painted by the OS: square corners and
+   foreign colours. This is its replacement in the design system's language. */
+
+.vyber { position: relative; }
+.vyber-spoust {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  width: 100%; height: 38px; padding: 0 16px;
+  border: 1px solid var(--linka-pole); background: var(--pozadi);
+  border-radius: var(--r-pilulka); cursor: pointer;
+  font-size: 14px; text-align: left;
+  transition: border-color var(--hover-duration) var(--hover-ease),
+    background var(--hover-duration) var(--hover-ease);
+}
+.vyber-spoust:hover { border-color: hsl(var(--ds-foreground) / 0.35); }
+.vyber-spoust.otevreno {
+  border-color: var(--akcent); background: var(--panel);
+  box-shadow: var(--prstenec-pole);
+}
+.vyber-spoust:disabled { opacity: 0.45; cursor: default; }
+.vyber-hodnota { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vyber-sipka { flex: 0 0 auto; color: var(--text-tichy); transition: transform 0.15s; }
+.vyber-spoust.otevreno .vyber-sipka { transform: rotate(180deg); }
+
+.vyber-nabidka {
+  position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 40;
+  background: var(--panel); border: 1px solid var(--linka);
+  border-radius: var(--r-velky); box-shadow: var(--stin-vysoky);
+  padding: 6px; max-height: 320px; overflow-y: auto;
+}
+.vyber-skupina {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.09em; color: var(--text-tichy);
+  padding: 10px 12px 5px;
+}
+.vyber-polozka {
+  display: flex; align-items: baseline; gap: 8px; width: 100%;
+  padding: 9px 12px; border: 0; background: none; cursor: pointer;
+  border-radius: var(--r-karta); text-align: left; font-size: 14px;
+}
+.vyber-polozka.zvyrazneno { background: var(--tlumene); }
+.vyber-polozka.vybrano { font-weight: 600; }
+.vyber-popisek { flex: 1; min-width: 0; }
+.vyber-poznamka { font-size: 12px; color: var(--text-tichy); white-space: nowrap; }
+.vyber-fajfka { flex: 0 0 auto; color: var(--akcent); align-self: center; }
+
+.radka { display: flex; gap: 8px; }
+.radka input { flex: 1; min-width: 0; }
+.pole .radka > .tlacitko { height: 38px; }
+
+.prenosna-info {
+  border-color: var(--akcent-linka) !important;
+  background: var(--akcent-svetly) !important;
+}
+.prenosna-info p { margin: 0 0 8px; }
+
+/* What is installed and where. Three columns — mark, what it is, where it is —
+   so the eye can run down either the names or the paths without meeting the
+   other. The tick is the same circular mark the manual download list uses,
+   rather than a character glued to the label with `::before`. */
+/* The same container the archive backups use: one bordered, quietly filled
+   panel whose rows are separated by rules, rather than a bare list leaning on
+   the disclosure's own indent. Both are the same kind of thing — a short
+   table of facts about where things are — and they should not look like two
+   different ideas. */
+.kontrola {
+  list-style: none; margin: 0; overflow: hidden;
+  border: 1px solid var(--linka); border-radius: var(--r-karta);
+  background: var(--jemne); font-size: 13px; padding: 0;
+}
+.kontrola li {
+  display: grid; grid-template-columns: 22px minmax(0, 190px) minmax(0, 1fr);
+  align-items: center; gap: 12px;
+  min-height: 40px; padding: 6px 14px;
+}
+.kontrola li + li { border-top: 1px solid var(--linka); }
+.kontrola-znak {
+  display: grid; place-items: center; width: 22px; height: 22px;
+  border-radius: 50%; background: hsl(var(--ds-grass) / 0.14); color: var(--uspech-text);
+}
+.kontrola li.ne .kontrola-znak { background: var(--vystraha-svetla); color: var(--vystraha); }
+.kontrola-nazev { font-weight: 600; line-height: 1.35; }
+.kontrola li.ne .kontrola-nazev { color: var(--vystraha); }
+/* The end of a path is what identifies the file, so the beginning is what
+   gets cut. `direction: rtl` puts the ellipsis there; `bdi` keeps the text
+   itself reading left to right. */
+.kontrola-cesta {
+  color: var(--text-tichy); font-size: 12.5px;
+  font-family: var(--pismo-cesty);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  /* No `unicode-bidi: plaintext` here: it re-derives the direction from the
+     text and moves the ellipsis back to the end, which cuts off the file
+     name — the one part of a path worth reading. */
+  direction: rtl; text-align: left;
+}
+.problemy { color: var(--vystraha); font-size: 13px; padding-left: 18px; }
+
+.zkouska { list-style: none; margin: 14px 0 0; padding: 0; font-size: 13px; }
+.zkouska li {
+  display: flex; justify-content: space-between; gap: 12px;
+  padding: 7px 0; border-bottom: 1px solid var(--linka); font-weight: 600;
+}
+.zkouska li:last-child { border-bottom: 0; }
+.zkouska li.ano span:last-child { color: var(--uspech); font-variant-numeric: tabular-nums; }
+.zkouska li.ne span:last-child { color: var(--vystraha); font-weight: 500; }
+/* The label used to be `content: " — nejrychlejší"` here, which meant a Czech
+   sentence in the English interface — and `i18n:check` cannot see it, because
+   it reads TypeScript. The word is in the dictionary now and the component
+   renders it; this rule only styles it. */
+.zkouska .nejrychlejsi { color: var(--text-tichy); font-weight: 500; }
+
+.nahled-pisma {
+  border: 1px solid var(--linka); border-radius: var(--r-karta);
+  padding: 18px 20px; background: var(--pozadi); margin-top: 4px;
+}
+.nahled-pisma p { font-family: var(--pismo-text); font-size: var(--velikost-textu); line-height: var(--radkovani); margin: 0; }
+.nahled-mluvci {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.09em; color: var(--akcent); margin-bottom: 6px;
+}
+.nahled-popisek {
+  font-size: 13px !important; line-height: 1.6 !important;
+  color: var(--text-tichy); margin-top: 14px !important;
+  font-family: var(--pismo) !important;
+}
+
+/* ---------------------------------------------------------------- wizard */
+
+.pruvodce { flex: 1; overflow-y: auto; padding: 36px 20px 40px; }
+.pruvodce.pruvodce > * { max-width: 620px; margin-inline: auto; }
+
+.kroky { display: flex; gap: 6px; margin-bottom: 28px; }
+.kroky span { height: 3px; flex: 1; background: var(--linka); border-radius: var(--r-pilulka); transition: background 0.25s; }
+.kroky span.hotovy { background: var(--akcent); }
+
+.krok-cislo { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: var(--text-tichy); margin: 0 0 6px; }
+.krok h1 { font-size: 28px; line-height: 1.15; margin: 0 0 8px; letter-spacing: -0.025em; font-weight: 700; }
+.krok-uvod { color: var(--text-tichy); margin: 0 0 22px; max-width: 52ch; font-size: 14px; line-height: 1.55; }
+.krok-zaver { text-align: center; padding-top: 40px; }
+.krok-zaver .krok-uvod, .krok-zaver .drobne { margin-left: auto; margin-right: auto; }
+.krok-zaver .krok-patka { justify-content: center; }
+
+.krok-patka {
+  display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  margin-top: 26px; padding-top: 18px; border-top: 1px solid var(--linka);
+}
+.krok-patka .tlacitko.hlavni { margin-left: auto; }
+
+.zjisteno {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 1px;
+  background: var(--linka); border: 1px solid var(--linka);
+  border-radius: var(--r-velky); overflow: hidden; margin-bottom: 14px;
+}
+/* A row, not a stack: the icon names the thing and the two lines of text sit
+   beside it, the same way a module tile is built. */
+.zjisteno > div { background: var(--panel); padding: 13px 16px; display: flex; align-items: center; gap: 13px; }
+.zjisteno-telo { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.zjisteno-popis { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: var(--text-tichy); }
+.zjisteno-hodnota { font-size: 14px; font-weight: 600; }
+
+.volby { display: flex; flex-direction: column; gap: 8px; }
+/* One frame for every row of this kind — a choice card and a status tile
+   alike. They carry different content but must read as one family, so the
+   padding, the radius and the vertical rhythm live here and nowhere else. */
+.volba, .modul-dlazdice {
+  border: 1px solid var(--linka); background: var(--panel);
+  border-radius: var(--r-velky); padding: 12px 14px;
+}
+.volba {
+  display: flex; flex-direction: column; gap: 4px; width: 100%;
+  text-align: left; cursor: pointer;
+  transition: border-color var(--hover-duration) var(--hover-ease),
+    background var(--hover-duration) var(--hover-ease),
+    box-shadow var(--hover-duration) var(--hover-ease);
+}
+/* Under the pointer a choice card lifts, exactly as an archive row does — the
+   shared low `--stin`, not a shadow chosen for these cards. The keyboard gets
+   the same lift: the focus ring says where you are, the shadow says the thing
+   under it is pickable, and that is the same statement in both directions.
+   One rule for every choice card in the application — the three sources in
+   `Nový přepis`, the transcription models, the acceleration and the
+   language-editing tiers, the wizard's quality cards, the AI dialog's modes. */
+.volba:hover,
+.volba:focus-visible { border-color: var(--linka-pole); box-shadow: var(--stin); }
+.volba.zvolena { border-color: var(--akcent-linka); background: var(--akcent-svetly); }
+.volba-hlava { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.volba-nazev { font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+.volba-velikost { font-size: 13px; color: var(--text-tichy); white-space: nowrap; font-variant-numeric: tabular-nums; font-weight: 600; }
+
+.odznak {
+  font-style: normal; font-size: 11px; font-weight: 700;
+  background: hsl(var(--ds-petrol) / 0.14); color: var(--akcent);
+  padding: 2px 9px; border-radius: var(--r-pilulka); letter-spacing: 0.02em;
+}
+.odznak.nutny { background: var(--vystraha-svetla); color: var(--vystraha); }
+.odznak.hotovo { background: hsl(var(--ds-grass) / 0.14); color: var(--uspech-text); }
+/* A badge that is the card's action, not its state. The whole card is the
+   button, so this must read as something that happens, not as a label. */
+.odznak.akce { background: var(--akcent-svetly); color: var(--akcent); }
+.volba.chybi .volba-ikona { background: var(--vystraha-svetla); color: var(--vystraha); }
+.volba.chybi:hover .odznak.akce { background: var(--akcent); color: white; }
+.odznak.tichy { background: var(--tlumene); color: var(--text-tichy); }
+
+.souhrn { list-style: none; margin: 0; padding: 0; border: 1px solid var(--linka); border-radius: var(--r-velky); overflow: hidden; }
+.souhrn li {
+  display: flex; justify-content: space-between; gap: 12px;
+  padding: 10px 16px; background: var(--panel); font-size: 14px; font-weight: 500;
+  border-bottom: 1px solid var(--linka);
+}
+.souhrn li:last-child { border-bottom: 0; }
+.souhrn li.hotova { color: var(--text-tichy); }
+.souhrn li.hotova span:last-child { color: var(--uspech); font-weight: 600; }
+.souhrn li.selhala span:last-child { color: var(--vystraha); }
+
+.prubeh-velky { margin-bottom: 20px; }
+.prubeh-velky .prubeh-lista { height: 6px; }
+.prubeh-velky .prubeh-popis { font-size: 13px; margin-top: 7px; }
+
+.rucni { margin-bottom: 4px; }
+.rucni > div { margin-bottom: 16px; }
+/* Only the gap under the label. The type comes from `.pruvodce h2` — see the
+   note there; this rule used to restate it and beat it on file order. */
+.rucni h2 { margin: 0 0 8px; }
+
+.soucasti { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.soucast { border: 1px solid var(--linka); background: var(--panel); border-radius: var(--r-karta); padding: 12px 15px; }
+.soucast.hotova { background: var(--jemne); }
+.soucast.hotova .soucast-text { color: var(--text-tichy); }
+.soucast label { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: start; cursor: pointer; }
+.soucast.hotova label { cursor: default; }
+.soucast input { margin-top: 3px; accent-color: var(--akcent); }
+.soucast-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.soucast-nazev { font-weight: 600; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.soucast-velikost { color: var(--text-tichy); font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.downloaded-mark {
+  display: inline-grid; place-items: center;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: hsl(var(--ds-grass) / 0.14); color: var(--uspech-text);
+  /* Centred against the whole row, not against its first line: the mark is
+     about the component, while the checkbox belongs to the title beside it. */
+  align-self: center;
+}
+
+/* ---------------------------------------------------------------- dialog */
+
+.prekryv-dialogu {
+  position: fixed; inset: 0; z-index: 60;
+  /* A veil is dark in both palettes. It used to be `--ds-foreground / 0.35`,
+     which is the *text* colour — dark on the light palette, and near-white on
+     the dark one, where it lightened the page by 35 % behind a dialog that is
+     darker than its own scrim. The depth cue inverted: the dialog read as a
+     hole punched under a haze. */
+  background: var(--zaves);
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+}
+.dialog {
+  background: var(--panel); border: 1px solid var(--linka);
+  border-radius: var(--r-velky); box-shadow: var(--stin-vysoky);
+  padding: 24px 26px; width: 100%; max-width: 420px;
+  animation: dialog-nabehne 0.14s ease-out;
+}
+@keyframes dialog-nabehne {
+  from { opacity: 0; transform: translateY(6px) scale(0.98); }
+  to   { opacity: 1; transform: none; }
+}
+/* One rhythm for every dialog, owned by the dialog rather than by whatever
+   happens to sit inside it. The heading and the sentence under it are one
+   unit — 19 px, 4 px apart, so the sentence reads as the heading's own — and
+   then 18 px to the content, whatever the content is. Content blocks
+   therefore carry no margin-top of their own: they used to, each with its own
+   number (18/18/18/20/16), and the two dialogs that had none left their first
+   label 2 px under the sentence.
+   Descendant, not child: in the online view of Přidat nahrávku the heading and
+   the sentence sit inside a <form>, so `.dialog > h2 + p` would miss them. */
+.dialog h2 {
+  font-size: 19px; font-weight: 700; margin: 0 0 4px;
+  letter-spacing: -0.015em; text-transform: none; color: var(--text);
+  line-height: 1.25;
+}
+.dialog p { margin: 0; color: var(--text-tichy); line-height: 1.5; }
+.dialog h2 + p { margin-bottom: 18px; }
+/* A field is the dialog's last block; the footer owns the space above it. */
+.dialog .pole { margin-bottom: 0; }
+.dialog-patka { display: flex; justify-content: flex-end; gap: 8px; margin-top: 22px; }
+/* Two widths: 420 px for a question with a field, 520 px for a column of
+   choice cards. 520 is the wider of the two former numbers because the cards
+   in the AI dialog carry a badge in a third column (.volba.s-ikonou > .odznak),
+   and the narrower dialog took that width out of their descriptions. */
+.ai-edit-dialog, .add-recording-dialog { max-width: 520px; }
+.ai-edit-note {
+  display: flex; align-items: flex-start; gap: 8px;
+  margin-top: 14px !important;
+}
+.ai-edit-note-icon { flex: 0 0 auto; margin-top: 1px; color: var(--akcent); }
+
+.add-recording-options .drobne { margin: 0; }
+.add-recording-back {
+  display: inline-flex; align-items: center; gap: 6px;
+  margin: -4px 0 14px; padding: 4px 0;
+  border: 0; background: none; color: var(--text-tichy);
+  font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.add-recording-back:hover { color: var(--text); }
+.add-recording-back:disabled { opacity: 0.45; cursor: default; }
+.add-recording-url { margin: 0; }
+.pole.add-recording-url input:disabled { opacity: 0.65; }
+/* ------------------------------------------------- microphone recording */
+/* One surface holds the whole state of the take: the capsule icon, what is
+   happening, the clock, and a live level bar. The bar is the honest part —
+   a timer proves the application is counting, the level proves it hears. */
+.mic-stage {
+  display: grid; grid-template-columns: auto 1fr; align-items: center;
+  column-gap: 14px; row-gap: 12px;
+  margin: 0; padding: 16px;
+  border: 1px solid var(--linka); border-radius: var(--r-karta);
+  background: var(--jemne);
+}
+.mic-stage.bezi .mic-znak {
+  background: var(--vystraha-svetla); color: var(--vystraha);
+  animation: mic-tep 1.6s ease-in-out infinite;
+}
+/* In preview the capsule becomes the take's play button — the same circle,
+   now an instruction instead of a picture. */
+button.mic-prehrat {
+  border: 0; cursor: pointer;
+  background: var(--akcent-svetly); color: var(--akcent);
+  transition: background var(--hover-duration) var(--hover-ease);
+}
+button.mic-prehrat:hover:not(:disabled) { background: hsl(var(--ds-petrol) / 0.22); }
+button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
+@keyframes mic-tep {
+  0%, 100% { box-shadow: 0 0 0 0 hsl(var(--ds-destructive) / 0.25); }
+  50% { box-shadow: 0 0 0 6px hsl(var(--ds-destructive) / 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mic-stage.bezi .mic-znak { animation: none; }
+}
+.mic-udaje { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.mic-stav { font-size: 13.5px; font-weight: 600; }
+.mic-stav.chyba { color: var(--vystraha); }
+.mic-cas {
+  color: var(--text-tichy); font-size: 13px; font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+/* Under both columns: the spectrum belongs to the take, not to the icon.
+   The same bars the transport pill draws, so the recorder and the player
+   speak one language. Quiet while the microphone merely listens; the accent
+   arrives with the recording, the same way the pill lights up on play. */
+.mic-spektrum-obal { grid-column: 1 / -1; position: relative; }
+/* No colour transition here, deliberately: the bars are drawn onto a canvas,
+   which samples this colour only when it repaints. During a transition the
+   drawing takes whatever value the colour happens to hold at that instant, and
+   when the spectrum stops updating — exactly when the take ends — the canvas
+   keeps that half-way colour for good. The recorder's strip therefore stayed
+   accent-blue after stopping. */
+.mic-spektrum {
+  display: block; height: 38px;
+  color: hsl(var(--ds-foreground) / 0.22);
+}
+.mic-spektrum.bezi { color: var(--akcent); }
+/* The take's timeline, laid over the spectrum. The bars are the track, so
+   the control paints only the shared `.posuvnik` thumb, vertically centred
+   on the 38 px strip. */
+.mic-posuvnik { position: absolute; inset: 0; height: 100%; }
+.mic-posuvnik:disabled { cursor: default; }
+.mic-posuvnik::-webkit-slider-runnable-track { background: none; height: 100%; }
+/* The dot's centre sits exactly on the line the bars grow from, per Jakub.
+   The offset is measured, not derived: Chromium places this thumb from its
+   own track box: the thumb's *top* lands on the margin, so its centre is
+   `margin-top + 6.5`. The bars' minimum stubs paint rows 36–37 of the 38 px
+   canvas, centre 36.5 — hence 30. The first attempt read 32.5 off a
+   screenshot whose blue blob included the thumb's own drop shadow, which
+   pulled the reading two pixels down; the shadow is switched off while
+   measuring now. Re-measure rather than re-reason if the strip changes. */
+.mic-posuvnik::-webkit-slider-thumb { margin-top: 30px; }
+/* Room under the strip for the dot's lower half, so the control's own box
+   contains it instead of letting it hang over whatever follows. */
+.mic-spektrum-obal { padding-bottom: 7px; }
+
+/* The take minimised into the header — the mini player's sibling. Sized to
+   its content rather than the player's fixed width; the live spectrum runs
+   behind the text exactly as the stored envelope does next door. The dot is
+   the record mark, pulsing on the same beat as the dialog's capsule. */
+/* Both class names, deliberately: the pill's shared rule later in this file
+   sets 290 px at the same single-class specificity, and a plain
+   `.mini-rekorder` loses to it by order — which is exactly what happened,
+   and the recorder rode at the player's width without anyone deciding it. */
+.mini-prehravac.mini-rekorder { width: 200px; }
+.mini-rekorder > .mini-vlny { inset: 0 34px 0 10px; color: hsl(var(--ds-destructive) / 0.3); }
+/* A waiting take: the dot stands still and dims, the bars are already flat
+   (the spectrum hook zeroes while suspended). Movement means recording. */
+.mini-rekorder.pozastaveny .mini-rekorder-tecka { animation: none; opacity: 0.45; }
+.mini-rekorder-tecka {
+  width: 10px; height: 10px; margin-left: 12px; flex: 0 0 auto;
+  border-radius: 50%; background: var(--vystraha);
+  animation: mic-tep 1.6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .mini-rekorder-tecka { animation: none; }
+}
+
+/* The one place a red dot is not a warning: it is the record mark, and it
+   keeps the primary button's own surface. 10 px is the mini recorder's dot,
+   so the button and the pill that appears once it is running agree. */
+.mic-start { gap: 9px; }
+.mic-start-tecka {
+  width: 10px; height: 10px; flex: 0 0 auto; border-radius: 50%;
+  background: var(--vystraha);
+}
+.mic-start:disabled .mic-start-tecka { opacity: 0.5; }
+
+.add-recording-note {
+  display: flex; align-items: flex-start; gap: 8px;
+  margin-top: 14px !important;
+}
+.add-recording-note svg { flex: 0 0 auto; margin-top: 1px; color: var(--akcent); }
+.add-recording-progress { margin-top: 18px; }
+.add-recording-error {
+  margin-top: 14px !important; padding: 10px 12px;
+  border: 1px solid hsl(var(--ds-destructive) / 0.25);
+  border-radius: var(--r-karta); background: var(--vystraha-svetla);
+  color: var(--vystraha) !important; font-size: 12.5px;
+  white-space: pre-line; max-height: 130px; overflow-y: auto;
+}
+
+.ai-preview-dialog {
+  max-width: 840px; height: min(760px, calc(100vh - 48px));
+  display: flex; flex-direction: column; padding: 0;
+}
+.ai-preview-header {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;
+  padding: 20px 26px 14px;
+}
+.ai-preview-header h2 + p { margin-bottom: 0; }
+.ai-preview-warning {
+  margin: 0 26px 14px; padding: 10px 12px;
+  border: 1px solid hsl(var(--ds-destructive) / 0.25);
+  border-radius: var(--r-karta); background: var(--vystraha-svetla);
+  color: var(--text); font-size: 12.5px; line-height: 1.45;
+}
+/* Segmented controls use the same pill geometry as the rest of the app.
+   The generic class is shared by document navigation and compact choices. */
+.segmented-control {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 3px; border-radius: var(--r-pilulka); background: var(--tlumene);
+}
+.segmented-control button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: 30px; padding: 0 11px;
+  border: 0; border-radius: var(--r-pilulka); background: transparent;
+  color: var(--text-tichy); cursor: pointer;
+  font: inherit; font-size: 12.5px; font-weight: 650; white-space: nowrap;
+  transition: background var(--hover-duration) var(--hover-ease),
+    color var(--hover-duration) var(--hover-ease),
+    box-shadow var(--hover-duration) var(--hover-ease);
+}
+.segmented-control button:hover { color: var(--text); }
+.segmented-control button.active {
+  background: var(--panel); color: var(--text); box-shadow: var(--stin);
+}
+
+.sidebar-count {
+  display: inline-grid; place-items: center;
+  min-width: 19px; height: 19px; padding: 0 5px;
+  border-radius: var(--r-pilulka); background: hsl(var(--ds-foreground) / 0.08);
+  /* 11 px, the badge size `.odznak` already uses and the documented
+     micro-label. 10.5 belonged to the archive calendar's weekday, not here. */
+  color: var(--text-tichy); font-size: 11px; font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+/* Each section is a card that opens, not a row on a shared sheet. The card is
+   what makes the whole width clickable without inventing anything: it has an
+   edge, so there is no question where the target ends. */
+.postranni .sidebar-section {
+  /* `--r-velky`, like every other bordered card on `--panel` in this
+     application. `--r-karta` is the inner radius here: menu items, list rows,
+     the inset data panel. No `overflow: hidden` — the focus ring is an outer
+     shadow and the toggle is flush with three of these edges, so hiding the
+     overflow would clip it. The toggle rounds its own corners instead. */
+  margin: 0; border: 1px solid var(--linka); border-radius: var(--r-velky);
+  background: var(--panel);
+  transition: border-color var(--hover-duration) var(--hover-ease),
+    box-shadow var(--hover-duration) var(--hover-ease);
+}
+.postranni .sidebar-section + .sidebar-section { margin-top: 8px; }
+/* Pickable, exactly as a choice card and an archive row say it — the shared
+   low `--stin` and `--linka-pole`. Open is not exempt: `.volba.zvolena` and
+   `.radek.bezi` both keep their lift, and a state that suppressed it would
+   make this the only surface in the application that does. */
+.postranni .sidebar-section:hover,
+.postranni .sidebar-section:focus-within {
+  border-color: var(--linka-pole); box-shadow: var(--stin);
+}
+.postranni .sidebar-section h2 { margin: 0; line-height: 1.3; }
+/* The whole card width, because the action moved inside the body and nothing
+   competes with it on this row any more. Every arrangement before this one was
+   a way around a button that could not contain another button. */
+.sidebar-section-toggle {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  /* `8px 12px`, the compact archive row's own pair. 12 px of side inset rather
+     than the card family's 14–16 because this card is 283 px wide and its body
+     is a list of rows that need the width — and every card in this application
+     keeps its horizontal inset at least as large as its vertical one, which
+     `14px 12px` was alone in inverting. With the circle back, 8 lands the
+     header on its 46 px. */
+  padding: 8px 12px;
+  /* One less than the card's 16, for the 1 px border it sits inside. Squared
+     off at the bottom once the body is showing. */
+  border: 0; border-radius: 15px; background: transparent;
+  color: inherit; font: inherit; text-align: left; cursor: pointer;
+  transition: background var(--hover-duration) var(--hover-ease);
+}
+.sidebar-section.open .sidebar-section-toggle { border-radius: 15px 15px 0 0; }
+/* `--pozadi`, the transcript's own ground, like the rows inside the card.
+   Deliberately not `--tlumene`, which the icon's circle already uses: on that
+   ground the circle would dissolve into its own background. */
+.sidebar-section-toggle:hover { background: var(--pozadi); }
+/* The mark leads the words under the pointer, having been quieter at rest. */
+.sidebar-section-toggle:hover .sidebar-section-icon { color: var(--text); }
+/* A circle, like every other leading icon in this application — module tiles,
+   choice cards, the folder card, the About rows. There is no bare one. It was
+   tried and it was wrong twice over: the header kept its height while losing
+   its object, so five identical text lines behind hairlines read as one grey
+   slab; and `Library.tsx` reuses this rule for the archive's folder heading,
+   so a second screen changed with it.
+   30/17 rather than the 38/22 of the larger surfaces — the reduced variant the
+   About rows already use for exactly this reason. */
+.sidebar-section-icon {
+  display: grid; place-items: center; flex: 0 0 auto;
+  width: 30px; height: 30px; border-radius: 50%;
+  background: var(--tlumene); color: var(--text-tichy);
+  transition: color var(--hover-duration) var(--hover-ease);
+}
+/* Takes the free width, so the arrow is pushed to the end of the row and the
+   count sits just before it. Never gives way to an ellipsis: every heading
+   here is one short word and it is the only thing the row has to say. */
+.sidebar-section-title { flex: 1 1 auto; }
+.sidebar-section-chevron {
+  flex: 0 0 auto; color: var(--text-tichy);
+  transition: transform var(--hover-duration) var(--hover-ease);
+}
+.sidebar-section.open .sidebar-section-chevron { transform: rotate(180deg); }
+/* The card owns the gap under its heading, so every kind of body starts on the
+   same line. Left to themselves the five sections began at 2, 2, 4 and 12 px —
+   four rhythms under five identical headers, because each list carried a top
+   margin of its own. Those are zeroed; this is the one number. */
+.sidebar-section-body {
+  min-width: 0; padding: 10px 12px 12px;
+  animation: sidebar-section-open 180ms var(--hover-ease);
+}
+.sidebar-section-body > :first-child { margin-top: 0; }
+/* Bottom right of the card, under what it acts on. */
+.sidebar-section-action { display: flex; justify-content: flex-end; margin-top: 10px; }
+@keyframes sidebar-section-open {
+  from { opacity: 0; transform: translateY(-3px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-section-body { animation: none; }
+  .sidebar-section-chevron { transition: none; }
+}
+.sidebar-text-action {
+  display: inline-flex; align-items: center; gap: 6px;
+  flex: 0 0 auto; min-height: 30px; padding: 0 9px;
+  border: 0; border-radius: var(--r-pilulka); background: transparent;
+  color: var(--akcent); cursor: pointer; font: inherit;
+  font-size: 12.5px; font-weight: 650;
+  transition: background var(--hover-duration) var(--hover-ease),
+    color var(--hover-duration) var(--hover-ease);
+}
+.sidebar-text-action:hover { background: var(--akcent-svetly); }
+.sidebar-text-action:disabled { color: var(--text-tichy); cursor: default; opacity: 0.65; }
+.sidebar-text-action:disabled:hover { background: transparent; }
+.sidebar-empty {
+  margin: 0; color: var(--text-tichy); font-size: 13px; line-height: 1.45;
+}
+
+/* Notes are cards, not table rows. The four-column grid they used to sit in
+   left the text about 190 px, so anything longer than a phrase wrapped five
+   times. A closed card gives the text the whole panel and clamps it; opening
+   one turns it into an editor. */
+.stickies {
+  display: flex; flex-direction: column; gap: 8px;
+  margin: 0; padding: 0; list-style: none;
+}
+.sticky {
+  padding: 11px 12px; border-radius: var(--r-velky);
+  background: var(--listek); border: 1px solid transparent;
+  transition: border-color var(--hover-duration) var(--hover-ease);
+}
+.sticky:hover { border-color: var(--listek-linka); }
+.sticky.open { border-color: var(--akcent-linka); }
+.sticky-body { min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+/* The note keeps its paper colour while being written; only the writing
+   area lightens, the way a pad does. */
+/* The closed note is one big target, so it is a button; the text inside keeps
+   the paragraph's own left alignment and wrapping. */
+.sticky-text {
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+  overflow: hidden; width: 100%; margin: 0; padding: 0;
+  border: 0; background: transparent; cursor: pointer;
+  color: var(--text); font: inherit; font-size: 13.5px; line-height: 1.45;
+  text-align: left; white-space: pre-wrap; overflow-wrap: anywhere;
+  /* The same three lines the clamp shows, said in a length so it can be eased
+     to and from. Keep the two in step: 3 × the line height above. */
+  max-height: calc(3 * 1.45em);
+  /* Closing. The clamp is discrete, so it is held until the height has
+     finished shrinking; without `allow-discrete` it snaps back instead, which
+     is what an older WebView will do. */
+  transition: max-height 190ms var(--hover-ease), -webkit-line-clamp 0s 190ms;
+  transition-behavior: allow-discrete;
+}
+/* Reading a long note should not cost a click.
+   Pointing at a clamped note unrolls it; opening it is still a click and still
+   means editing. Keyboard focus does the same, so the note is readable without
+   a mouse. A note that already fits does not move, because its measured height
+   is the height it already has.
+   The short delay is deliberate: sweeping the pointer down the list on the way
+   somewhere else must not set every note in it moving. */
+.sticky:hover .sticky-text,
+.sticky:focus-within .sticky-text {
+  -webkit-line-clamp: unset;
+  max-height: var(--sticky-full, 40em);
+  transition: max-height 220ms var(--hover-ease) 90ms, -webkit-line-clamp 0s 90ms;
+  /* The shorthand resets it, and it is wanted in this direction too: the
+     ellipsis should go when the note starts moving, not before. */
+  transition-behavior: allow-discrete;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sticky-text,
+  .sticky:hover .sticky-text,
+  .sticky:focus-within .sticky-text { transition: none; }
+}
+.sticky-editor {
+  width: 100%; min-width: 0; padding: 7px 8px;
+  border: 1px solid var(--listek-linka); border-radius: var(--r-maly);
+  outline: 0; resize: none; overflow: hidden; field-sizing: content;
+  background: var(--listek-pole); color: var(--text); font: inherit;
+  font-size: 13.5px; line-height: 1.45;
+}
+.sticky-editor::placeholder { color: var(--text-tichy); }
+.sticky-editor:focus { border-color: var(--akcent); box-shadow: var(--prstenec-pole); }
+.sticky-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.sticky-time,
+.sticky-pin,
+.sticky-quiet,
+.sticky-confirm,
+.sticky-danger {
+  border: 0; border-radius: var(--r-pilulka); cursor: pointer;
+  font: inherit; font-size: 11.5px; font-weight: 700;
+  transition: background var(--hover-duration) var(--hover-ease),
+    color var(--hover-duration) var(--hover-ease);
+}
+.sticky-time {
+  display: inline-flex; align-items: center; gap: 5px; padding: 4px 9px 4px 8px;
+  background: var(--akcent-svetly); color: var(--akcent);
+  font-variant-numeric: tabular-nums;
+}
+.sticky-time:disabled { cursor: default; }
+.sticky-pin,
+.sticky-quiet,
+.sticky-danger {
+  padding: 4px 8px; background: transparent; color: var(--text-tichy);
+  font-weight: 650;
+}
+.sticky-pin:hover:not(:disabled),
+.sticky-quiet:hover { background: hsl(var(--ds-foreground) / 0.08); color: var(--text); }
+.sticky-pin:disabled { opacity: 0.45; cursor: default; }
+.sticky-danger { margin-left: auto; }
+.sticky-danger:hover { background: var(--vystraha-svetla); color: var(--vystraha); }
+.sticky-confirm { margin-left: auto; padding: 4px 11px; background: var(--akcent); color: white; }
+.sticky-confirm:disabled { opacity: 0.4; cursor: default; }
+.sticky-time-input {
+  width: calc(6ch + 12px); height: 25px; margin: 0; padding: 3px 5px;
+  border: 1px solid var(--listek-linka); border-radius: var(--r-maly); outline: 0;
+  background: var(--listek-pole); color: var(--text); font: inherit;
+  font-size: 11.5px; font-weight: 650; text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.sticky-time-input:focus { border-color: var(--akcent); box-shadow: var(--prstenec-pole); }
+.sticky-time-input[aria-invalid="true"] {
+  border-color: hsl(var(--ds-destructive) / 0.45);
+  background: var(--vystraha-svetla); color: var(--vystraha);
+}
+.speaker-count-choices {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 0 0 14px;
+}
+.speaker-count-choices .tlacitko { min-width: 46px; justify-content: center; }
+/* 34 px and the button surface are not a third field size: this input stands
+   in one flex row with four .tlacitko and behaves as the fifth choice. */
+.speaker-count-input {
+  width: 84px; height: 34px; padding: 0 10px;
+  border: 1px solid var(--linka-pole); border-radius: var(--r-pilulka);
+  background: var(--panel); color: var(--text); font: inherit;
+  font-size: 13px; font-weight: 600; text-align: center;
+}
+.speaker-count-input:focus {
+  outline: 0; border-color: var(--akcent); box-shadow: var(--prstenec-pole);
+}
+/* Which of the three documents to read. Stays on the dialog's white with the
+   heading it belongs to, on the 26 px inset every dialog shares. */
+.ai-document-tabs {
+  display: flex; gap: 4px; flex: 0 0 auto;
+  padding: 0 26px 14px; overflow-x: auto;
+}
+.ai-output-options { display: flex; gap: 4px; flex: 0 0 auto; }
+.ai-document-tabs button svg {
+  width: 15px; height: 15px; flex: 0 0 auto;
+  fill: none; stroke: currentColor; stroke-width: 1.5;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+.ai-document-tabs button:first-child svg { fill: currentColor; stroke: none; }
+/* This row belongs to the document, not to the dialog: it chooses a version,
+   a length, a language — of the thing being read, not which thing to read.
+   So it lives on the grey with the document and carries the edge between the
+   two. The tabs above it choose the view and stay with the heading. */
+.ai-output-toolbar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 26px 0; background: var(--pozadi);
+  border-top: 1px solid var(--linka);
+}
+.ai-output-toolbar .vyber { width: 190px; }
+/* 36, the height of the tabs beside it — this strip held three different
+   heights until every control in it became the same one. */
+.ai-output-toolbar .vyber-spoust { height: 36px; background: var(--panel); font-size: 13px; }
+.ai-preview-text {
+  flex: 1 1 auto; min-height: 0; overflow: auto;
+  /* No border of its own: the row above it is already on this grey and carries
+     the edge. 26 on the sides, the dialog's own line. */
+  padding: 16px 26px 24px; background: var(--pozadi);
+  font-family: var(--pismo-text); font-size: var(--velikost-textu);
+  line-height: var(--radkovani); white-space: pre-wrap;
+}
+.ai-preview-text p { margin: 0 0 1.1em; }
+.ai-preview-empty {
+  flex: 1 1 auto; min-height: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 40px 24px; text-align: center; background: var(--pozadi);
+}
+.ai-preview-empty-icon {
+  display: grid; place-items: center; width: 44px; height: 44px;
+  margin-bottom: 14px; border-radius: 50%;
+  background: var(--akcent-svetly); color: var(--akcent);
+}
+.ai-preview-empty-icon svg {
+  width: 21px; height: 21px; fill: none; stroke: currentColor;
+  stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round;
+}
+.ai-preview-empty h3 { margin: 0 0 6px; font-size: 16px; }
+.ai-preview-empty p { max-width: 440px; margin: 0 0 18px; color: var(--text-tichy); }
+.ai-preview-actions {
+  flex: 0 0 auto; margin: 0; padding: 14px 22px;
+  border-top: 1px solid var(--linka);
+}
+.ai-preview-actions .tlacitko.tichy:first-child { margin-right: auto; }
+
+.tlacitko.nicive {
+  background: var(--vystraha-plna); border-color: var(--vystraha-plna); color: #fff;
+}
+.tlacitko.nicive:hover { filter: brightness(1.08); background: var(--vystraha-plna); }
+
+/* ---------------------------------------------------------------- drag and drop */
+
+.prekryv-pretazeni {
+  position: fixed; inset: 0; z-index: 50;
+  background: hsl(var(--ds-petrol) / 0.12);
+  backdrop-filter: blur(2px);
+  display: flex; align-items: center; justify-content: center; pointer-events: none;
+}
+.prekryv-obsah {
+  background: var(--panel); border: 2px dashed var(--akcent);
+  /* 22 px: the drop zone's amount, because this is the same dashed panel. */
+  border-radius: 22px; padding: 40px 60px; text-align: center;
+  box-shadow: var(--stin-vysoky);
+}
+.prekryv-ikona { font-size: 34px; color: var(--akcent); line-height: 1; margin-bottom: 8px; }
+.prekryv-obsah p { margin: 0; font-size: 17px; font-weight: 600; }
+
+/* The panel always stays a right-hand column, at one width. It used to move
+   below the text in a narrow window, which meant speakers and notes suddenly
+   vanished somewhere below; then it narrowed instead, which is what broke it —
+   see the note on `.detail-telo`. It keeps its 320 px now, and if that is too
+   much on a small screen the user closes it, which is one click and has been
+   there all along.
+   Only the padding still gives way, and only a little. */
+@media (max-width: 1180px) {
+  .postranni { padding: 18px 14px 60px; }
+}
+
+
+
+

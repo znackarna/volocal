@@ -1,0 +1,669 @@
+/* The archive: the hero, the filter row, recording cards and folders.
+ *
+ * Part 02 of styles.css. The number is the point: these files are
+ * one stylesheet cut into pieces, and the order they are imported in is the
+ * order the rules were in. Moving a rule between them can change the look
+ * without changing a value. */
+
+/* ---------------------------------------------------------------- knihovna */
+
+.knihovna {
+  flex: 1; min-height: 0; overflow-y: auto; overflow-anchor: none;
+  display: block; padding: 0 20px;
+  scrollbar-gutter: stable;
+}
+.knihovna.knihovna > * { max-width: 900px; margin-inline: auto; }
+/* The hero and the filter row are pinned together, as one block, so the
+   toolbar's offset is the wrapper's own edge rather than a copy of the
+   compact hero's height that somebody has to keep in step with it.
+
+   Everything the earlier entries say about a sticky header is still true —
+   it slices whatever passes under it. What changed is the answer: the two
+   layers below the block blur the passing content into it, so the boundary
+   reads as an edge the list goes under rather than as a card cut in half.
+   The block is opaque so nothing shows through it; only the strip below is
+   translucent. */
+.knihovna.knihovna > .archive-sticky {
+  position: sticky; top: 0; z-index: 20;
+  width: 100%; max-width: none; margin-inline: 0;
+  background: var(--pozadi);
+}
+.archive-sticky > * { width: 100%; max-width: 900px; margin-inline: auto; }
+/* Two layers, not one: the blur is stronger and shorter next to the block and
+   weaker over a longer run below it, which is what makes it read as a
+   gradient rather than as a frosted band with an edge of its own. Both are
+   masked to nothing at their far end, so neither has a visible boundary.
+   `pointer-events: none` — this is glass, not a surface to click. */
+.archive-sticky::before,
+.archive-sticky::after {
+  content: ""; position: absolute; left: 0; right: 0; top: 100%;
+  pointer-events: none;
+  /* Only while something is actually passing underneath. At the top of the
+     list there is nothing to dissolve, and a strip that is always there sits
+     over the first row — a folder's own name, blurred, in a folder with
+     nothing in it. */
+  opacity: 0; transition: opacity 0.16s ease;
+}
+.archive-sticky.zasunute::before,
+.archive-sticky.zasunute::after { opacity: 1; }
+.archive-sticky::before {
+  height: 42px;
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  /* The colour fade is what carries the effect where `backdrop-filter` is not
+     available; on its own it already reads as the list dissolving upward. */
+  background: linear-gradient(to bottom, var(--pozadi) 0%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0%, #000 15%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 15%, transparent 100%);
+}
+.archive-sticky::after {
+  height: 18px;
+  backdrop-filter: blur(9px);
+  -webkit-backdrop-filter: blur(9px);
+  mask-image: linear-gradient(to bottom, #000, transparent);
+  -webkit-mask-image: linear-gradient(to bottom, #000, transparent);
+}
+.knihovna.knihovna > .archive-scroll-content {
+  width: 100%; max-width: none; margin-inline: 0;
+  padding: 4px 0 60px;
+}
+/* More specific than component rules such as `.seznam { margin: 0 }` below.
+   Every archive block must share the drop zone's centred 900 px column. */
+.knihovna .archive-scroll-content > * {
+  width: 100%; max-width: 900px; margin-inline: auto;
+}
+
+.upozorneni {
+  display: flex; gap: 16px; align-items: flex-start; justify-content: space-between;
+  border: 1px solid hsl(var(--ds-destructive) / 0.25);
+  background: var(--vystraha-svetla);
+  border-radius: var(--r-velky); padding: 15px 18px; margin-bottom: 20px;
+}
+/* Standing above the hero rather than inside the list, the notice is the first
+   thing under the application bar and needs the hero's own inset — 40 px. It
+   keeps its 20 px below, which is what separates it from the hero's 40. */
+.knihovna > .upozorneni { margin-top: 40px; }
+.upozorneni strong { font-weight: 700; }
+.upozorneni ul { margin: 6px 0 0; padding-left: 18px; color: var(--text-tichy); }
+
+.watch-folder-notice {
+  padding: 18px; margin-bottom: 18px;
+  border: 1px solid var(--linka); border-radius: var(--r-velky);
+  background: var(--panel); box-shadow: var(--stin);
+}
+.watch-folder-header {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px;
+  align-items: center;
+}
+.watch-folder-icon {
+  display: grid; place-items: center; width: 34px; height: 34px;
+  border-radius: 50%; background: var(--akcent-svetly); color: var(--akcent);
+}
+.watch-folder-copy { min-width: 0; }
+.watch-folder-copy > strong { display: block; font-size: 15px; line-height: 1.35; }
+.watch-folder-copy > p { margin: 3px 0 0; color: var(--text-tichy); font-size: 13.5px; }
+.watch-folder-file-panel {
+  margin-top: 16px; overflow: hidden;
+  border: 1px solid var(--linka); border-radius: var(--r-karta);
+  background: var(--pozadi);
+}
+.watch-folder-file-header {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  min-height: 38px; padding: 0 12px;
+  border-bottom: 1px solid var(--linka); background: var(--jemne);
+}
+.watch-folder-file-header > strong {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.09em; color: var(--text-tichy);
+}
+.watch-folder-select-all {
+  padding: 4px 0; border: 0; background: transparent; color: var(--akcent);
+  cursor: pointer; font-size: 12.5px; font-weight: 650;
+}
+.watch-folder-select-all:hover { text-decoration: underline; text-underline-offset: 3px; }
+.watch-folder-select-all:disabled { opacity: 0.45; cursor: default; text-decoration: none; }
+.watch-folder-files {
+  max-height: 188px; overflow-y: auto;
+  list-style: none; margin: 0; padding: 0;
+}
+.watch-folder-files li + li { border-top: 1px solid var(--linka); }
+/* The row is the label plus its dismiss button; the label takes what is left
+   after the button, so a long file name ellipsizes rather than pushing it out. */
+/* The surface belongs to the row, not to the label inside it — otherwise the
+   strip behind the dismiss button is a different colour and the separator
+   stops short of it. */
+.watch-folder-files li { display: flex; align-items: center; background: var(--panel); }
+.watch-folder-files li > .watch-folder-file { flex: 1 1 auto; min-width: 0; }
+/* Visible from the start. Revealing it on hover would have kept the list
+   calmer, but a control nobody can see is a control nobody uses — and this one
+   is the answer to "this file, no". Quiet colour instead of hiding: it is
+   present, it just does not lead. */
+.watch-folder-dismiss {
+  flex: 0 0 auto; display: grid; place-items: center;
+  width: 28px; height: 28px; margin-right: 8px; padding: 0;
+  border: 0; border-radius: 50%; background: transparent;
+  color: var(--text-tichy); cursor: pointer;
+  transition: background var(--hover-duration) var(--hover-ease),
+    color var(--hover-duration) var(--hover-ease);
+}
+.watch-folder-dismiss:hover { background: var(--vystraha-svetla); color: var(--vystraha); }
+.watch-folder-dismiss:disabled { cursor: default; }
+.watch-folder-file {
+  position: relative; display: flex; align-items: center; gap: 10px;
+  min-height: 42px; padding: 7px 12px; cursor: pointer;
+  background: none;
+}
+.watch-folder-files li {
+  transition: background var(--hover-duration) var(--hover-ease);
+}
+.watch-folder-files li:hover { background: var(--tlumene); }
+.watch-folder-file input {
+  position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none;
+}
+.watch-folder-checkbox {
+  /* 5 px, not --r-maly: on an 18 px box 8 would be nearly a circle, and a
+     circle is what this application uses for a radio, not a checkbox. */
+  display: grid; place-items: center; width: 18px; height: 18px; flex: 0 0 auto;
+  border: 1px solid var(--linka-pole); border-radius: 5px;
+  background: var(--panel); color: transparent;
+  transition: background var(--hover-duration) var(--hover-ease),
+    border-color var(--hover-duration) var(--hover-ease),
+    color var(--hover-duration) var(--hover-ease);
+}
+.watch-folder-file input:checked + .watch-folder-checkbox {
+  border-color: var(--akcent); background: var(--akcent); color: #fff;
+}
+.watch-folder-file input:focus-visible + .watch-folder-checkbox { box-shadow: var(--prstenec-pole); }
+.watch-folder-file input:disabled ~ * { opacity: 0.55; }
+.watch-folder-file-name {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 13.5px; font-weight: 600;
+}
+/* The note is about the list, not part of it. It had no gap at all: the rule
+   below said 12 px, but `.settings-info-note.compact { margin: 0 }` is written
+   later at the same specificity and won, so the note sat straight on the
+   panel's border. Naming `.compact` here takes the class back. */
+.watch-folder-notice > .settings-info-note.compact {
+  margin-top: 20px; font-size: 12.5px;
+}
+.watch-folder-footer {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--linka);
+}
+.watch-folder-selection { color: var(--text-tichy); font-size: 12.5px; }
+.watch-folder-actions { display: flex; gap: 8px; }
+/* Below the window's own 1000 px minimum (tauri.conf.json), so this cannot
+   fire today. Kept as a net, like the 900 px rule for the header pills, in
+   case the minimum ever drops or the interface is opened in a browser.
+   650 px: the notice's footer would stack. */
+@media (max-width: 650px) {
+  .watch-folder-footer { align-items: flex-start; flex-direction: column; }
+  .watch-folder-actions { align-self: stretch; justify-content: flex-end; }
+}
+
+  .knihovna-lista {
+    display: grid;
+    grid-template-columns: minmax(220px, 360px) 138px 160px minmax(64px, 1fr);
+  position: relative; z-index: 10;
+  align-items: center; justify-content: start; gap: 12px; margin-bottom: 0; padding: 8px 0 18px;
+  background: var(--pozadi);
+}
+.knihovna-lista .hledani { min-width: 0; margin-bottom: 0; }
+.archive-filter-select { position: relative; min-width: 0; }
+.archive-filter-select .vyber-spoust {
+  height: 40px; padding-left: 38px; padding-right: 13px;
+  background: var(--panel); font-size: 13.5px;
+}
+.archive-filter-icon {
+  position: absolute; left: 13px; top: 50%; z-index: 2;
+  display: grid; place-items: center; transform: translateY(-50%);
+  color: var(--text-tichy); pointer-events: none;
+}
+.archive-filter-select .vyber-nabidka { min-width: 100%; }
+/* 40 px is not a second size for this control: 32px buttons + 2×3 px padding
+   + 2×1 px border is exactly the height of .archive-filter-select beside it in
+   the toolbar. The same pill inside a dialog stays 36 px. */
+.archive-view-toggle {
+  height: 40px; padding: 3px;
+  border: 1px solid var(--linka); background: var(--tlumene);
+  justify-self: end;
+}
+.archive-view-toggle button { width: 32px; height: 32px; min-height: 32px; padding: 0; }
+.archive-view-toggle button svg { flex: 0 0 auto; }
+.archive-calendar-popover {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 50;
+  width: 292px; padding: 14px;
+  border: 1px solid var(--linka); border-radius: var(--r-velky);
+  background: var(--panel); box-shadow: var(--stin-vysoky);
+  animation: calendar-open 0.12s ease-out;
+}
+@keyframes calendar-open {
+  from { opacity: 0; transform: translateY(-3px); }
+  to { opacity: 1; transform: none; }
+}
+.archive-calendar-header {
+  display: grid; grid-template-columns: 32px minmax(0, 1fr) 32px;
+  align-items: center; gap: 8px; margin-bottom: 10px;
+}
+.archive-calendar-header strong {
+  overflow: hidden; text-align: center; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 14px; font-weight: 680;
+}
+.archive-calendar-nav {
+  display: grid; place-items: center; width: 32px; height: 32px; padding: 0;
+  border: 1px solid transparent; border-radius: 50%;
+  background: transparent; color: var(--text-tichy); cursor: pointer;
+  transition: background var(--hover-duration) var(--hover-ease),
+    color var(--hover-duration) var(--hover-ease);
+}
+.archive-calendar-nav:hover { background: var(--tlumene); color: var(--text); }
+.archive-calendar-weekdays,
+.archive-calendar-days {
+  display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px;
+}
+.archive-calendar-weekdays { margin-bottom: 5px; }
+.archive-calendar-weekdays span {
+  display: grid; place-items: center; height: 24px;
+  color: var(--text-tichy); font-size: 10.5px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+.archive-calendar-day,
+.archive-calendar-empty { width: 34px; height: 34px; }
+.archive-calendar-day {
+  position: relative; display: grid; place-items: center; padding: 0;
+  border: 1px solid transparent; border-radius: 50%;
+  background: transparent; color: var(--text); cursor: pointer;
+  font-size: 13px; font-variant-numeric: tabular-nums;
+  transition: background var(--hover-duration) var(--hover-ease),
+    border-color var(--hover-duration) var(--hover-ease),
+    color var(--hover-duration) var(--hover-ease);
+}
+.archive-calendar-day:hover { background: var(--tlumene); }
+.archive-calendar-day.today:not(.selected) {
+  border-color: var(--akcent-linka); color: var(--akcent); font-weight: 700;
+}
+.archive-calendar-day.selected,
+.archive-calendar-day.selected:hover {
+  border-color: var(--akcent); background: var(--akcent); color: #fff;
+  font-weight: 700;
+}
+@media (prefers-reduced-motion: reduce) {
+  .archive-calendar-popover { animation: none; }
+}
+.archive-filter-empty {
+  margin: 22px auto 0; color: var(--text-tichy); text-align: center;
+}
+/* Below the window's own 1000 px minimum (tauri.conf.json), so this cannot
+   fire today. Kept as a net, like the 900 px rule for the header pills, in
+   case the minimum ever drops or the interface is opened in a browser.
+   760 px: search takes its own row above the two filters. */
+@media (max-width: 760px) {
+    .knihovna-lista {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  }
+  .knihovna-lista .hledani { grid-column: 1 / -1; }
+}
+
+/* Toggle per the design system: 36 x 20 track, 16 knob.
+   Same dimensions as h-5 w-9 in their notation. */
+.vypinac {
+  display: flex; align-items: center; gap: 9px;
+  cursor: pointer; flex: 0 0 auto; user-select: none;
+  /* the hidden checkbox anchors here, not to some arbitrary ancestor */
+  position: relative;
+}
+.vypinac input { position: absolute; opacity: 0; width: 0; height: 0; }
+.vypinac-drazka {
+  position: relative; width: 36px; height: 20px; flex: 0 0 auto;
+  background: var(--linka-pole); border-radius: var(--r-pilulka);
+  transition: background 0.18s ease;
+}
+.vypinac-drazka::after {
+  content: ""; position: absolute; top: 2px; left: 2px;
+  width: 16px; height: 16px; border-radius: 50%;
+  /* Black rather than --stin: this is a white knob lifted off its own track,
+     the one shadow that must not follow the palette. 25 % at a 3 px blur. */
+  background: #fff; box-shadow: 0 1px 3px rgb(0 0 0 / 0.25);
+  transition: transform 0.18s ease;
+}
+.vypinac input:checked + .vypinac-drazka { background: var(--akcent); }
+.vypinac input:checked + .vypinac-drazka::after { transform: translateX(16px); }
+.vypinac input:focus-visible + .vypinac-drazka { box-shadow: var(--prstenec); }
+.vypinac-popis { font-size: 13px; font-weight: 600; color: var(--text-tichy); white-space: nowrap; }
+.vypinac input:checked ~ .vypinac-popis { color: var(--text); }
+
+/* stands in for the player while transcription runs */
+
+.hledani { margin-bottom: 18px; }
+.hledani input {
+  width: 100%; height: 40px;
+  border: 1px solid var(--linka-pole); background: var(--panel);
+  border-radius: var(--r-pilulka); padding: 0 18px; outline: none;
+  font-size: 14px;
+}
+.hledani input:focus { border-color: var(--akcent); box-shadow: var(--prstenec-pole); }
+
+/* 12 px between cards, not 8: at 85 px tall with a border of their own they
+   need the room to read as separate blocks rather than as one ruled table.
+   The compact list keeps a tighter 8 px — density is what it is for. */
+.seznam { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.seznam.compact { gap: 8px; }
+.seznam.compact .radek { padding: 8px 12px 8px 8px; border-radius: var(--r-karta); }
+.seznam.compact .radek-hlavni { align-items: center; gap: 10px; }
+/* 6 px against the roomy tile's 7: the same proportion on a 38 x 38 px mark.
+   Both are commented where `.recording-calendar` is defined. */
+.seznam.compact .recording-calendar {
+  width: 38px; border-radius: 6px;
+}
+.seznam.compact .recording-calendar-month { padding: 2px 0; font-size: 7.5px; }
+.seznam.compact .recording-calendar-day { margin-top: 2px; font-size: 16px; }
+.seznam.compact .recording-calendar-year { display: none; }
+.seznam.compact .radek-text {
+  flex: 1 1 auto; flex-direction: row; align-items: center; gap: 14px;
+}
+.seznam.compact .radek-nazev { flex: 1 1 210px; }
+.seznam.compact .recording-metadata {
+  flex: 0 1 auto; flex-wrap: nowrap; margin-top: 0; gap: 4px 10px;
+  font-size: 11.5px;
+}
+/* A failure explains itself in a whole sentence, which is right in the roomy
+   list and does not fit on one compact line — it wrapped and pushed the row
+   taller than every other one. Here it is cut where it runs out of room; the
+   sentence is whole in the tooltip and whole in the accessible name. */
+.seznam.compact .recording-metadata { min-width: 0; }
+/* The short facts hold their size; the sentence is the one that gives way, so
+   the squeeze lands entirely on it instead of clipping a duration. */
+.seznam.compact .recording-metadata-item { flex: 0 0 auto; }
+.seznam.compact .recording-metadata-item.error { flex: 0 1 auto; min-width: 0; }
+.seznam.compact .recording-metadata-item.error > span {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* Below the window's own 1000 px minimum (tauri.conf.json), so this cannot
+   fire today. Kept as a net, like the 900 px rule for the header pills, in
+   case the minimum ever drops or the interface is opened in a browser.
+   720 px: the compact row's metadata drops below its title. */
+@media (max-width: 720px) {
+  .seznam.compact .radek-text { flex-direction: column; align-items: flex-start; gap: 1px; }
+  .seznam.compact .recording-metadata { flex-wrap: wrap; }
+}
+/* interpolate-size allows animating a content-derived height */
+@supports (interpolate-size: allow-keywords) {
+  html { interpolate-size: allow-keywords; }
+  .radek {
+    transition: border-color var(--hover-duration) var(--hover-ease),
+      background var(--hover-duration) var(--hover-ease),
+      box-shadow var(--hover-duration) var(--hover-ease),
+      height 0.16s ease-out;
+  }
+}
+
+.radek {
+  border: 1px solid var(--linka); background: var(--panel);
+  border-radius: var(--r-velky); padding: 14px 16px;
+  display: grid; grid-template-columns: 1fr auto; gap: 8px;
+  /* The rename input is taller than the title. Without a transition the row
+     would jolt on every switch. */
+  transition: border-color var(--hover-duration) var(--hover-ease),
+    background var(--hover-duration) var(--hover-ease),
+    box-shadow var(--hover-duration) var(--hover-ease);
+}
+.radek-text { transition: none; }
+.radek:hover,
+.radek:focus-within { border-color: var(--linka-pole); box-shadow: var(--stin); }
+.radek.bezi { border-color: var(--akcent-linka); background: var(--akcent-svetly); }
+
+/* The calendar occupies the card's left edge; the status dot now belongs to
+   the title itself, where it also appears on transcript Detail. */
+.radek-hlavni {
+  display: flex; align-items: flex-start; gap: 12px;
+  background: none; border: 0; text-align: left; cursor: pointer;
+  padding: 0; min-width: 0;
+}
+.seznam:not(.compact) .radek-hlavni { align-items: center; }
+.radek-hlavni:disabled { cursor: default; opacity: 0.75; }
+
+/* The offset puts the dot on the optical centre of the first title line. */
+.znak {
+  width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto;
+  background: var(--text-tichy); margin-top: 7px;
+}
+.znak.hotova { background: var(--uspech); }
+.znak.prepisuje { background: var(--akcent); box-shadow: 0 0 0 4px hsl(var(--ds-petrol) / 0.2); animation: puls 1.6s ease-in-out infinite; }
+.znak.chyba { background: var(--vystraha); }
+.znak.nova { background: transparent; border: 1.5px solid var(--linka-pole); }
+@keyframes puls { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+/* The height of whatever stands at a row's left edge — the calendar on a
+   transcript, the drawer on a folder. It is what makes a row 85 px, so the
+   two kinds of block are the same height by construction rather than by two
+   numbers that happen to agree today. */
+.seznam { --radek-znacka: 55px; }
+.seznam.compact { --radek-znacka: 38px; }
+.recording-calendar {
+  position: relative; overflow: hidden;
+  display: flex; flex-direction: column; align-items: center;
+  /* 7 px, and 6 on the compact tile above: the radius is proportional to a
+     48 x 55 px tile, the same reasoning as the archive calendar popover. */
+  width: 48px; height: var(--radek-znacka); flex: 0 0 auto;
+  border: 1px solid var(--linka-pole); border-radius: 7px;
+  background: var(--panel); color: var(--text);
+  box-shadow: var(--stin);
+  transition: box-shadow var(--hover-duration) var(--hover-ease);
+}
+.recording-calendar-month {
+  width: 100%; padding: 4px 0 3px;
+  background: var(--tlumene); color: var(--text-tichy); text-align: center;
+  font-size: 9px; font-weight: 700; line-height: 1;
+  letter-spacing: 0.08em;
+  transition: background var(--hover-duration) var(--hover-ease),
+    color var(--hover-duration) var(--hover-ease);
+}
+.radek:hover .recording-calendar-month,
+.radek:focus-within .recording-calendar-month { background: var(--akcent); color: #fff; }
+.radek:hover .recording-calendar,
+.radek:focus-within .recording-calendar { box-shadow: none; }
+.recording-calendar-day {
+  margin-top: 3px; font-size: 20px; font-weight: 700; line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.recording-calendar-year {
+  margin-top: 2px; color: var(--text-tichy);
+  font-size: 8.5px; font-weight: 650; line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.radek-text { display: flex; flex-direction: column; min-width: 0; gap: 1px; }
+.radek-nazev {
+  display: flex; align-items: baseline; gap: 7px;
+  font-weight: 600; font-size: 14.5px; min-width: 0;
+}
+.seznam:not(.compact) .radek-nazev { position: relative; top: -1px; font-size: 16px; }
+.radek-status-icon {
+  display: grid; place-items: center; width: 14px; height: 14px; flex: 0 0 auto;
+  align-self: center;
+}
+.radek-status-icon .znak { margin-top: 0; }
+.radek-jmeno { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.recording-metadata {
+  display: flex; align-items: center; flex-wrap: wrap;
+  gap: 5px 13px; margin-top: 3px;
+  color: var(--text-tichy); font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+.seznam:not(.compact) .recording-metadata { margin-top: 5px; }
+.recording-metadata-item {
+  display: inline-flex; align-items: center; gap: 5px;
+  min-width: 0; line-height: 1.25; font-weight: 500;
+}
+.recording-metadata-item > svg { flex: 0 0 auto; opacity: 0.72; }
+.recording-metadata-item.error { color: var(--vystraha); }
+/* Buttons centred in the block, not pinned to the top. */
+.radek-akce { display: flex; gap: 4px; align-items: center; }
+
+.nabidka-akci { position: relative; }
+.nabidka-akci-seznam {
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: 40;
+  min-width: 190px; padding: 6px;
+  background: var(--panel); border: 1px solid var(--linka);
+  border-radius: var(--r-velky); box-shadow: var(--stin-vysoky);
+  display: flex; flex-direction: column;
+}
+.nabidka-akci-seznam button {
+  display: flex; align-items: center; gap: 10px;
+  border: 0; background: none; cursor: pointer; text-align: left;
+  padding: 8px 12px; border-radius: var(--r-karta);
+  font-size: 13.5px; font-weight: 500; white-space: nowrap;
+}
+.nabidka-ikona { color: var(--text-tichy); flex: 0 0 auto; }
+.nabidka-akci-seznam button:hover .nabidka-ikona { color: var(--text); }
+.nabidka-akci-seznam button.varovne .nabidka-ikona { color: inherit; }
+/* the second level has no icons; indentation aligns its text with the level above */
+.nabidka-akci-seznam button:not(:has(.nabidka-ikona)):not(.nabidka-zpet) {
+  padding-left: 42px;
+}
+.nabidka-akci-seznam button:hover { background: var(--tlumene); }
+/* The label takes the remaining space so the arrow always meets the right edge
+   and it is obvious at a glance that the item leads somewhere. */
+.nabidka-popisek { flex: 1 1 auto; }
+.nabidka-sipka { color: var(--text-tichy); flex: 0 0 auto; margin-left: 18px; }
+.nabidka-akci-seznam button:hover .nabidka-sipka { color: var(--text); }
+.nabidka-zpet {
+  display: flex; align-items: center; gap: 6px;
+  color: var(--text-tichy);
+  /* The divider is its own line under the button, not the button's bottom border —
+     that would force square corners and the hover highlight would be boxy. */
+  position: relative; margin-bottom: 7px;
+}
+.nabidka-zpet::after {
+  content: ""; position: absolute; left: 6px; right: 6px; bottom: -4px;
+  height: 1px; background: var(--linka);
+}
+.nabidka-akci-seznam button.varovne { color: var(--vystraha); }
+.nabidka-akci-seznam button.varovne:hover { background: var(--vystraha-svetla); }
+
+.prubeh { grid-column: 1 / -1; margin-top: 10px; }
+.prubeh-lista {
+  height: 5px; border-radius: var(--r-pilulka); overflow: hidden;
+  /* derived from the text colour, not a fixed grey, or it vanishes on a tinted ground */
+  background: hsl(var(--ds-foreground) / 0.12);
+}
+.prubeh-vypln { height: 100%; background: var(--akcent); border-radius: var(--r-pilulka); transition: width 0.4s ease; }
+.prubeh-popis {
+  display: flex; justify-content: space-between; margin-top: 5px;
+  font-size: 12px; font-weight: 600; color: var(--text-tichy);
+  font-variant-numeric: tabular-nums;
+}
+.prubeh-ai { margin-top: 8px; }
+.prubeh-ai .prubeh-vypln {
+  background: linear-gradient(90deg, var(--akcent), hsl(var(--ds-petrol) / 0.65));
+}
+
+.zivy-text {
+  margin-top: 10px; padding: 10px 14px;
+  background: var(--panel); border-radius: var(--r-karta);
+  max-height: 110px; overflow: hidden;
+  font-family: var(--pismo-text); color: var(--text-tichy); font-size: 14px;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 40%);
+  mask-image: linear-gradient(to bottom, transparent, #000 40%);
+}
+.zivy-text p { margin: 0 0 4px; }
+
+/* Not sticky, and that is the decision rather than an omission. A pinned
+   header means everything else passes underneath it and gets cut through the
+   middle. It is `.archive-sticky` above that is pinned now, with the hero and
+   the filter row inside it as one block; this element only collapses. Do not
+   make it sticky again — two pinned layers in one scroller is what used to
+   cover the first card's top edge. */
+.archive-drop-zone {
+  position: relative; z-index: 1;
+  width: 100%;
+  /* 40 px above the hero and 28 below it. The number to look at is not this
+     one alone but this one against the block it introduces: the hero is a
+     dashed panel over 460 px tall, so 24 px above it read as a seam rather
+     than as a margin. The compact state keeps its own 20/16. */
+  padding: 40px 0 28px; background: var(--pozadi);
+  transition: padding 0.18s ease;
+}
+  .archive-drop-zone-surface {
+    position: relative; display: grid; grid-template-columns: 1fr;
+    grid-template-areas: "mark" "copy" "actions";
+  justify-items: center; align-items: center; gap: 14px;
+  text-align: center;
+  /* 22 px, not --r-velky: a 320 px dashed panel, the largest surface in the
+     window. The drag overlay repeats the amount so the two read as one. */
+  border: 1.5px dashed var(--linka-pole); border-radius: 22px;
+  min-height: 320px; padding: 56px 32px 52px; background: var(--jemne);
+  transition: min-height 0.18s ease, padding 0.18s ease, border-radius 0.18s ease,
+    background 0.18s ease, box-shadow 0.18s ease;
+}
+.archive-drop-zone-mark { grid-area: mark; margin-bottom: 4px; opacity: 0.9; }
+.archive-drop-zone-mark svg {
+  height: 56px; width: auto; display: block;
+  transition: height 0.18s ease;
+}
+.archive-drop-zone-copy { grid-area: copy; min-width: 0; }
+.archive-drop-zone-copy h1 {
+  font-size: 26px; font-weight: 700; margin: 0;
+  letter-spacing: -0.02em; transition: font-size 0.18s ease;
+}
+.archive-drop-zone-copy p {
+  color: var(--text-tichy); margin: 8px 0 0; max-width: 44ch;
+  max-height: 44px; overflow: hidden; opacity: 1;
+  transition: max-height 0.16s ease, opacity 0.12s ease, margin 0.16s ease;
+}
+  .archive-drop-zone-actions {
+    grid-area: actions; display: flex; flex-direction: column;
+    align-items: center; gap: 10px;
+  }
+  .archive-drop-zone-actions .archive-automatic-toggle {
+    position: absolute; right: 24px; bottom: 20px;
+  }
+  .archive-automatic-toggle .vypinac-popis {
+    order: 1; color: var(--text-tichy); font-size: 12.5px; font-weight: 600;
+  }
+  .archive-automatic-toggle .vypinac-drazka { order: 2; }
+  .archive-drop-zone.compact { padding: 20px 0 16px; }
+  .archive-drop-zone.compact .archive-drop-zone-surface {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: "mark copy actions";
+  justify-items: stretch; gap: 12px; min-height: 85px; padding: 14px 16px;
+}
+.archive-drop-zone.compact .archive-drop-zone-mark { margin: 0; align-self: center; }
+.archive-drop-zone.compact .archive-drop-zone-mark svg { height: 34px; }
+.archive-drop-zone.compact .archive-drop-zone-copy {
+  align-self: center; text-align: left;
+}
+.archive-drop-zone.compact .archive-drop-zone-copy h1 { font-size: 15px; }
+  .archive-drop-zone.compact .archive-drop-zone-copy p {
+    max-height: 44px; margin: 2px 0 0; opacity: 1;
+  }
+  .archive-drop-zone.compact .archive-drop-zone-actions {
+    flex-direction: row-reverse; justify-self: end; gap: 14px;
+  }
+  .archive-drop-zone.compact .archive-drop-zone-actions .archive-automatic-toggle {
+    position: static;
+  }
+@media (prefers-reduced-motion: reduce) {
+  .archive-drop-zone,
+  .archive-drop-zone-surface,
+  .archive-drop-zone-mark svg,
+  .archive-drop-zone-copy h1,
+  .archive-drop-zone-copy p { transition: none; }
+}
+.drobne { font-size: 13px; color: var(--text-tichy); }
+.poznamka { font-size: 13px; color: var(--text-tichy); margin-top: 20px; }
+
+.vysledky { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.vysledky button {
+  width: 100%; text-align: left; background: var(--panel);
+  border: 1px solid var(--linka); border-radius: var(--r-karta);
+  padding: 11px 14px; cursor: pointer; display: flex; flex-direction: column; gap: 2px;
+}
+.vysledky button:hover { border-color: var(--akcent-linka); background: var(--akcent-svetly); }
+.vysledek-kde { font-size: 12px; font-weight: 600; color: var(--text-tichy); font-variant-numeric: tabular-nums; }
+.vysledek-text { font-family: var(--pismo-text); font-size: 15px; }
+/* 4 px, not --r-maly: an inline highlight is about 20 px tall, and 8 would
+   round it into a pill. Same amount as `.slovo`, which is the same idea. */
+mark { background: var(--zvyrazneni); color: inherit; padding: 0 2px; border-radius: 4px; }
+.prazdny-vysledek { color: var(--text-tichy); }
+
