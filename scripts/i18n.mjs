@@ -586,7 +586,21 @@ function informalAddress() {
   return found;
 }
 
-function check() {
+/** The everyday check, and the one a release has to pass.
+ *
+ *  `strict` promotes one warning to an error: a translation whose Czech source
+ *  has never been fingerprinted. Without a fingerprint there is nothing to
+ *  compare the Czech against later, so `drifted` — the one check that can catch
+ *  a translation left behind by a reworded source — is blind to that key
+ *  forever. During a change in progress that is a note to self; in something
+ *  handed to somebody it is a hole in the only guard the dictionary has.
+ *
+ *  The other warnings stay warnings in both modes. A key nobody uses yet and a
+ *  text sitting under two keys are untidiness, not a defect a reader would
+ *  meet, and a release gate that is red for a reason nobody intends to fix is
+ *  a gate everybody learns to ignore.
+ */
+function check(strict = false) {
   const source = load("cs");
   const keys = Object.keys(source.entries);
   const used = usedKeys();
@@ -749,7 +763,10 @@ function check() {
       console.log(`    node scripts/i18n.mjs approve ${language} ${drifted.slice(0, 3).join(" ")}…`);
     }
     if (unrecorded.length) {
-      warnings.push(`${language}: ${unrecorded.length} překladů bez otisku zdroje`);
+      // The one warning a release does not get to pass with — see check().
+      (strict ? errors : warnings).push(
+        `${language}: ${unrecorded.length} překladů bez otisku zdroje`
+      );
       console.log(
         `  bez otisku zdroje: ${unrecorded.length} — po kontrole spusť node scripts/i18n.mjs approve ${language}`
       );
@@ -761,11 +778,19 @@ function check() {
   for (const warning of warnings) console.log(`upozornění: ${warning}`);
   if (errors.length) {
     for (const error of errors) console.log(`CHYBA: ${error}`);
-    console.log("\nPřeklad by o tenhle text přišel. Oprav to a spusť znovu.");
+    console.log(
+      strict
+        ? "\nPro vydání to nestačí. Při běžné práci je otisk zdroje jen upozornění."
+        : "\nPřeklad by o tenhle text přišel. Oprav to a spusť znovu."
+    );
     process.exitCode = 1;
     return;
   }
-  console.log("Vše, co uživatel uvidí, je ve slovníku.");
+  console.log(
+    strict
+      ? "Slovník je připravený k vydání: každý překlad má otisk svého zdroje."
+      : "Vše, co uživatel uvidí, je ve slovníku."
+  );
   process.exitCode = 0;
 }
 
@@ -870,7 +895,7 @@ function importLanguage(language, file) {
 }
 
 const [command, language, file] = process.argv.slice(2);
-if (command === "check") check();
+if (command === "check") check(process.argv.includes("--strict"));
 else if (command === "sync") sync();
 else if (command === "new" && language) createNamespace(language);
 else if (command === "clear" && language) clearLanguage(language);
@@ -880,6 +905,7 @@ else if (command === "approve" && language) approve(language, process.argv.slice
 else {
   console.log("použití:");
   console.log("  i18n.mjs check                    kontrola před sestavením");
+  console.log("  i18n.mjs check --strict           totéž, ale upozornění jsou chyby (vydání)");
   console.log("  i18n.mjs new <název>              nový slovník pro novou obrazovku");
   console.log("  i18n.mjs sync                     dorovnat index.ts a chybějící jazyky");
   console.log("  i18n.mjs export <jazyk>           vypsat, co zbývá přeložit");

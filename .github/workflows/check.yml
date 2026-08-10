@@ -121,6 +121,22 @@ jobs:
           workspaces: src-tauri
           key: windows-release
       - run: npm ci
+      # The stricter half of the dictionary check, and the only place it runs.
+      #
+      # `i18n:check` treats a translation whose Czech source has never been
+      # fingerprinted as a warning, which is right while a change is in
+      # progress — the fingerprint is recorded once somebody has actually
+      # compared the two. But that fingerprint is the only thing `drifted` can
+      # later compare against, so a key without one can never be caught by a
+      # reworded source. Handing that to somebody is different from carrying it
+      # for an afternoon, and this is where the difference is enforced.
+      #
+      # Tags only. Asking for an installer by hand is usually a test of the
+      # bundling, not a release, and failing that on dictionary bookkeeping
+      # would only teach people to stop asking.
+      - name: Dictionary, release rules
+        if: github.ref_type == 'tag'
+        run: node scripts/i18n.mjs check --strict
       # `beforeBuildCommand` in tauri.conf.json is `npm run build`, i.e.
       # `i18n:check && tsc --noEmit && vite build`. The bundler runs it itself;
       # it is not repeated here.
@@ -130,6 +146,49 @@ jobs:
       # release handed to anybody is still signed and built by hand on Windows.
       # See „Vydání“ in README.cs.md.
       - run: npm run tauri build
+      # Install it and start it. Everything above says the code compiles and
+      # bundles; none of it says the result runs. What this catches is exactly
+      # the class of failure that only appears once the pieces are assembled —
+      # a resource left out of the bundle, a missing WebView2, a panic in
+      # `setup` before a window ever appears — and every one of those looks
+      # like a perfectly green build right up until somebody double-clicks.
+      #
+      # The archive file is the signal, not the window: `whisp.db` is created
+      # by the Rust side during startup, after the settings are read and the
+      # migrations have run. If it appears, the application got past the part
+      # that can fail on a machine that is not this one.
+      - name: Smoke test of the installed copy
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem src-tauri/target/release/bundle/nsis/*.exe |
+            Select-Object -First 1
+          Write-Host "installing $($installer.Name)"
+          # /S is NSIS's silent install; the bundle is a currentUser install,
+          # so it needs no elevation and lands under %LOCALAPPDATA%.
+          Start-Process -FilePath $installer.FullName -ArgumentList '/S' -Wait
+          $exe = Get-ChildItem "$env:LOCALAPPDATA" -Filter Slobot.exe -Recurse `
+            -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $exe) { throw "the installer did not leave a Slobot.exe behind" }
+          Write-Host "installed to $($exe.FullName)"
+
+          # Asserted rather than deleted. On a fresh runner this file cannot
+          # exist, and if it somehow did, an old one would make the whole test
+          # pass without the application having done anything.
+          $archive = "$env:APPDATA\cz.znackarna.whisp\whisp.db"
+          if (Test-Path $archive) { throw "an archive was already here; this runner is not clean" }
+          $app = Start-Process -FilePath $exe.FullName -PassThru
+          $deadline = (Get-Date).AddSeconds(90)
+          while (-not (Test-Path $archive) -and (Get-Date) -lt $deadline) {
+            if ($app.HasExited) { throw "it exited on its own with code $($app.ExitCode)" }
+            Start-Sleep -Seconds 2
+          }
+          $log = "$env:APPDATA\cz.znackarna.whisp\slobot-log.txt"
+          if (Test-Path $log) { Write-Host "--- slobot-log.txt ---"; Get-Content $log }
+          if (-not (Test-Path $archive)) {
+            throw "it started but never got as far as creating its archive"
+          }
+          Write-Host "archive created, $((Get-Item $archive).Length) bytes - it runs"
+          Stop-Process -Id $app.Id -Force -ErrorAction SilentlyContinue
       - uses: actions/upload-artifact@v4
         with:
           name: slobot-nsis
