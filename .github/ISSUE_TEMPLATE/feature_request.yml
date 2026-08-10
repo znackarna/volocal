@@ -1,0 +1,45 @@
+name: Feature idea
+description: Suggest something Slobot should do
+labels: ["idea"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Ideas are welcome, and it is fair to say up front how they are handled:
+        Slobot has one maintainer who decides what it does and how it looks.
+        An idea may be turned down for fitting badly rather than for being bad,
+        and that decision will come with a reason.
+
+        Please describe the problem before the solution. The most useful issues
+        say what you were trying to get done and where the application got in
+        your way.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do
+      description: The situation, not the feature. What happens today instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: What you have in mind
+      description: If it touches the interface, say where it would live.
+    validations:
+      required: true
+
+  - type: textarea
+    id: workaround
+    attributes:
+      label: What you do instead today
+      description: Including "nothing, I gave up" — that is useful to know.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I have looked whether an open issue already asks for this.
+          required: true

@@ -1,0 +1,76 @@
+name: Bug report
+description: Something in Slobot behaves wrongly
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Not for vulnerabilities.** If this is a security problem, close this
+        form and write to jsme@znackarna.cz — see
+        [SECURITY.md](https://github.com/znackarna/slobot/blob/main/SECURITY.md).
+
+        Please do not attach a real recording or a screenshot containing
+        someone's name, a file path or transcript content.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you saw, and what you expected instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open the Archive
+        2. …
+        3. …
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Slobot version
+      description: Settings → About, or the installer filename.
+      placeholder: "0.9.0"
+    validations:
+      required: true
+
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+      placeholder: "Windows 11 24H2"
+    validations:
+      required: true
+
+  - type: input
+    id: hardware
+    attributes:
+      label: Graphics card and the acceleration in use
+      description: Settings → Performance shows which one is selected.
+      placeholder: "Radeon RX 9070, Vulkan"
+
+  - type: textarea
+    id: log
+    attributes:
+      label: Log
+      description: |
+        `slobot-log.txt` sits next to the archive — Settings → Files shows
+        where that is. Paste the lines around the failure. Read them first:
+        the log contains file paths.
+      render: text
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: This is not a security vulnerability.
+          required: true
+        - label: There is no private recording or transcript content in this report.
+          required: true
