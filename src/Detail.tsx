@@ -67,6 +67,7 @@ import {
   noteTimeIsValid,
   parseNoteTime,
 } from "./detail/notes";
+import { transcriptKey } from "./detail/keys";
 import { MENU_ICONS, TranscriptContextMenu } from "./detail/TranscriptContextMenu";
 import type { TranscriptMenuItem } from "./detail/TranscriptContextMenu";
 import { MarkedWords, SegmentRow, UncertainEditor, describeEdit } from "./detail/corrections";
@@ -818,59 +819,49 @@ export default function Detail({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
-      const isTyping =
-        target &&
-        (target.tagName === "TEXTAREA" ||
-          target.tagName === "INPUT" ||
-          target.isContentEditable);
-      /* A control the browser already owns: Space activates a button, a
-         checkbox, a link, a summary. Taking it to start the audio instead
-         means the control silently does nothing — and on the shared `Select`
-         it did both at once. */
-      const onAControl =
-        target?.closest("button, a[href], select, summary, [role='button'], [tabindex]") != null;
-      /* A dialog is the top of the stack and its keys are its own. This
-         listener sits on the window and used to fire straight through one:
-         with a confirmation on screen, Space played audio behind it. */
-      const dialogOpen = document.querySelector(".prekryv-dialogu") != null;
+      /* What the press means is decided in `detail/keys.ts`, where it can be
+         read and tested on its own. Everything gathered here is what only the
+         live window knows. */
+      const response = transcriptKey(e, {
+        finding,
+        hits: findHits.length,
+        isTyping: Boolean(
+          target &&
+            (target.tagName === "TEXTAREA" ||
+              target.tagName === "INPUT" ||
+              target.isContentEditable)
+        ),
+        onAControl:
+          target?.closest("button, a[href], select, summary, [role='button'], [tabindex]") != null,
+        dialogOpen: document.querySelector(".prekryv-dialogu") != null,
+      });
+      if (!response) return;
+      if (response.preventDefault) e.preventDefault();
 
-      /* Ctrl+F first, and before the typing guard: it has to work from inside
-         the find field itself, and WebView2 answers it with a find bar drawn
-         by Windows unless the key is taken here. */
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "f" && !dialogOpen) {
-        e.preventDefault();
-        setFinding(true);
-        findRef.current?.select();
-        findRef.current?.focus();
-        return;
-      }
-
-      if (isTyping || dialogOpen) {
-        if (e.key === "Escape" && !dialogOpen) {
-          if (finding) closeFind();
-          else setEditing(null);
-        }
-        return;
-      }
-
-      if (e.code === "Space" && !onAControl) {
-        e.preventDefault();
-        togglePlayback();
-      } else if (e.key === "F3") {
-        /* Not Tab. Tab belongs to the browser, and taking it disabled the
-           keyboard on the whole screen — back, the title menu, both document
-           actions, the sidebar and every control in it were unreachable, and
-           because this listener is on the window it did the same behind open
-           dialogs. F3 is the conventional "find next" and collides with
-           nothing here. */
-        e.preventDefault();
-        // While the find bar is open F3 keeps its usual meaning of "next
-        // match"; closed, it goes on stepping through the uncertain spots.
-        if (finding && findHits.length > 0) goToHit(findAt + (e.shiftKey ? -1 : 1));
-        else goToNextUncertain();
-      } else if (e.key === "Escape") {
-        if (finding) closeFind();
-        else setEditing(null);
+      switch (response.act) {
+        case "openFind":
+          setFinding(true);
+          findRef.current?.select();
+          findRef.current?.focus();
+          break;
+        case "closeFind":
+          closeFind();
+          break;
+        case "stopEditing":
+          setEditing(null);
+          break;
+        case "togglePlayback":
+          togglePlayback();
+          break;
+        case "findNext":
+          goToHit(findAt + 1);
+          break;
+        case "findPrevious":
+          goToHit(findAt - 1);
+          break;
+        case "nextUncertain":
+          goToNextUncertain();
+          break;
       }
     };
     window.addEventListener("keydown", handleKeyDown);
