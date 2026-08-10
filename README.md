@@ -49,12 +49,13 @@ exact about when Slobot does reach the internet. Only here:
    account. Recordings, transcripts, settings and the dictionary stay in the
    archive on your disk.
 
-Two things worth knowing about the first item: downloaded components are **not
-yet verified by checksum or signature** (HTTPS and the certificate chain are the
-whole guarantee today — see [SECURITY.md](SECURITY.md)), and some are located by
-matching a pattern against live GitHub releases, so what arrives depends on what
-those projects publish at that moment. Fixing this is the next piece of planned
-work.
+Two things worth knowing about the first item. Downloaded components are **not
+yet compared against any checksum**: the code computes one and would refuse a
+mismatch, but the table of expected digests is still empty, so HTTPS and the
+certificate chain remain the whole guarantee today. And six of them are whatever
+their project publishes at that moment — five located by matching a pattern
+against live GitHub releases, one pointing at `releases/latest`. Fixing this is
+the next piece of planned work; [SECURITY.md](SECURITY.md) has the detail.
 
 ## Getting it
 
