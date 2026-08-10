@@ -11,10 +11,10 @@ export const enSettings: Partial<Record<keyof typeof csSettings, string>> = {
   "settings.tab.dictionary": "Dictionary",
   "settings.tab.about": "About",
   "settings.about.description":
-    "It turns speech into text. Recordings, transcripts and language models run on your computer alone, and nothing is sent out.",
+    "It turns speech into text. Everything is processed on your computer alone and nothing is sent out. Your recordings, transcripts and models stay fully under your control.",
   "settings.about.version": "Version",
   "settings.about.author": "Author",
-  "settings.about.abilities": "What it can do",
+  "settings.about.abilities": "Capabilities",
   "settings.about.abilityTranscribe": "Transcribes recordings and videos, in Czech and other languages.",
   "settings.about.abilitySpeakers": "Identifies the speakers and splits the text between them.",
   "settings.about.abilityEditor": "Enhances the transcript with a language model, summarises it and translates it.",
@@ -22,7 +22,7 @@ export const enSettings: Partial<Record<keyof typeof csSettings, string>> = {
   "settings.about.abilityNotes": "Plays back to the exact word and pins a note to any moment.",
   "settings.about.abilitySources": "Records from the microphone, takes audio from online videos, watches a chosen folder.",
   "settings.about.abilityExport": "Saves the transcript as TXT, Markdown, SRT, VTT or JSON, and the audio as MP3.",
-  "settings.about.credits": "What it stands on",
+  "settings.about.credits": "Technology",
   "settings.about.creditsDescription":
     "The application does not work alone. These are the licences of the language models and tools that work on the result together.",
   "settings.about.groupApp": "Application",
