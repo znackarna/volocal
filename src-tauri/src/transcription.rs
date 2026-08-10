@@ -177,7 +177,7 @@ impl TranscriptionTask {
     pub fn kill_all(&self) -> usize {
         let mut processes = self.processes.lock().unwrap();
         let mut killed = 0;
-        for (_, children) in processes.iter_mut() {
+        for children in processes.values_mut() {
             for child in children.iter_mut() {
                 // Already gone is the ordinary case, not a failure: a run that
                 // finished cleanly leaves its handle here until `cleanup`.
@@ -1424,7 +1424,7 @@ const ABBREVIATIONS: &[&str] = &[
 /// A sentence end is recognised from punctuation, but not every full stop
 /// ends a sentence.
 fn ends_sentence(word: &str, next: Option<&str>) -> bool {
-    let ocesane = word.trim_end_matches(|z: char| z == '"' || z == '»' || z == '“' || z == ')');
+    let ocesane = word.trim_end_matches(['"', '»', '“', ')']);
     if !ocesane.ends_with(['.', '!', '?', '…']) {
         return false;
     }
@@ -1503,8 +1503,7 @@ struct TimedWord {
 /// Natural sentence endings are handled before this function; these are the
 /// softer places available when Whisper punctuates a long thought with commas.
 fn boundary_strength(word: &str, next: &str, gap: f64) -> u8 {
-    let trimmed = word
-        .trim_end_matches(|character: char| matches!(character, '"' | '»' | '“' | '”' | ')' | ']'));
+    let trimmed = word.trim_end_matches(['"', '»', '“', '”', ')', ']']);
     let clause_mark = trimmed.ends_with([';', ':', '—', '–']);
     let comma = trimmed.ends_with(',');
     let next_core = next
@@ -2907,9 +2906,8 @@ mod queue_tests {
             "b must still be waiting while a holds the front"
         );
         task.leave_queue("a");
-        assert_eq!(
+        assert!(
             receiver.recv_timeout(Duration::from_secs(2)).unwrap(),
-            true,
             "leaving the queue wakes the next one"
         );
         worker.join().unwrap();
