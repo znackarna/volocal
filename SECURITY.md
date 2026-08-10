@@ -131,12 +131,12 @@ Jediné tři výskyty `dangerouslySetInnerHTML` v `src/` vkládají tentýž př
 SVG znak (`src/mark.svg`) zapečený v binárce. Přepis, jména mluvčích, poznámky
 ani názvy souborů se jako HTML nikdy nevykreslují.
 
-`"assetProtocol": { "scope": ["**"] }` se nezměnilo. Rozsah `**` je tam proto,
-že aplikace přehrává nahrávky odkudkoli, kam uživatel ukázal — nahrávka může
-ležet na kterémkoli disku. Důsledek je, že webview dokáže přečíst cokoli, na co
-má účet právo, ne jen soubory v archivu. CSP na tom nic nemění: `media-src`
-i `img-src` protokol `asset:` výslovně povolují. Zúžit ten rozsah je samostatný
-úkol, který zatím hotový není.
+`"assetProtocol": { "scope": [] }` — webview nesmí číst nic. Nahrávka může ležet
+na kterémkoli disku, takže seznam cest nelze napsat dopředu; místo toho se
+otevře vždy jen ten jeden soubor, který se chystá hrát, a to v `playback_source`
+(`src-tauri/src/commands/detail.rs`). Jiná cesta se přes `asset:` nedostane.
+CSP na tom nic nemění — `media-src` i `img-src` protokol `asset:` povolují —
+rozhoduje ten rozsah.
 
 **3. Program není podepsaný.** Instalátor zatím nenese podpis, takže Windows
 SmartScreen na něj upozorní. Podepisování je připravené (`Vydání` v README),
@@ -293,12 +293,12 @@ not as HTML. The only three occurrences of `dangerouslySetInnerHTML` in `src/`
 insert the same bundled SVG mark (`src/mark.svg`), compiled into the binary.
 Transcripts, speaker names, notes and file names are never rendered as HTML.
 
-`"assetProtocol": { "scope": ["**"] }` has not changed. The `**` scope is there
-because the application plays recordings from wherever the user pointed it — a
-recording may sit on any drive. The consequence is that the webview can read
-anything the account may read, not only the archive. The policy changes nothing
-about that: both `media-src` and `img-src` admit the `asset:` protocol
-explicitly. Narrowing that scope is a separate piece of work and is not done.
+`"assetProtocol": { "scope": [] }` — the webview may read nothing. A recording
+may sit on any drive, so the list of paths cannot be written in advance;
+instead the one file about to be played is opened for it, and only there, in
+`playback_source` (`src-tauri/src/commands/detail.rs`). No other path travels
+over `asset:`. The policy changes nothing about that — both `media-src` and
+`img-src` admit the `asset:` protocol — the scope is what decides.
 
 **3. The program is not signed.** The installer carries no signature yet, so
 Windows SmartScreen warns about it. Signing is prepared (`Vydání` in README) but
