@@ -10,7 +10,7 @@
 # The Windows job compiles them.
 #
 # The installer is deliberately not built on every push — see `installer` below.
-name: Kontroly
+name: Checks
 
 on:
   push:
@@ -22,13 +22,13 @@ on:
   workflow_dispatch:
     inputs:
       installer:
-        description: "Postavit i instalátor (NSIS, ~20 minut)"
+        description: "Also build the installer (NSIS, ~20 minutes)"
         type: boolean
         default: false
 
 jobs:
   frontend:
-    name: TypeScript a slovníky
+    name: TypeScript and dictionaries
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -58,7 +58,7 @@ jobs:
   # platform-independent, but it has to run somewhere, and this is the only
   # place left that has a Rust toolchain.
   windows:
-    name: Rust na Windows
+    name: Rust on Windows
     runs-on: windows-latest
     defaults:
       run:
@@ -89,7 +89,7 @@ jobs:
       - run: cargo test
 
   installer:
-    name: Instalátor (NSIS)
+    name: Installer (NSIS)
     # Only when asked for, or for a tag. `npm run tauri build` links the release
     # profile with LTO and then runs NSIS; that is twenty minutes and change,
     # billed at the Windows rate, and nothing about it is worth paying on every
@@ -116,7 +116,7 @@ jobs:
       # Unsigned. The signing certificate lives on a hardware token and cannot
       # be handed to a runner, so the artifact from here is for testing — a
       # release handed to anybody is still signed and built by hand on Windows.
-      # See „Vydání“ in README.md.
+      # See „Vydání“ in README.cs.md.
       - run: npm run tauri build
       - uses: actions/upload-artifact@v4
         with:
