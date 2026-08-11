@@ -2350,29 +2350,35 @@ export default function Detail({
               icon: MENU_ICONS.note,
               action: () => beginNoteAt(transcriptMenu.time),
             },
-            // Only offered when there is somebody to give the block to. A block
-            // in a transcript nobody has separated has no neighbours to speak
-            // of, and the menu stays as it was.
-            ...([-1, 1] as const).flatMap((step) => {
-              const voice = neighbourVoice(transcriptMenu.segment, step);
-              if (!voice) return [];
-              return [
-                {
-                  label: t(
-                    step === -1 ? "detail.menu.toPrevious" : "detail.menu.toNext",
-                    { name: voice.name }
-                  ),
-                  icon: step === -1 ? MENU_ICONS.toPrevious : MENU_ICONS.toNext,
-                  action: () => void giveToVoice(transcriptMenu.segment, voice.key),
-                },
-              ];
-            }),
-            // Last, because it is the rarer answer — but it is the only one
-            // when the right person has no group at all.
+            /* One question — who said this — and every answer to it in one
+               place. The speakers by name, rather than the block above and the
+               block below: those two were the machine's way of pointing at a
+               person, and the reader had to work out who "above" was before
+               they could agree with it.
+
+               Somebody new is the last answer rather than a second question at
+               the top. It is the same decision, reached when none of the names
+               fit, and it is where the eye already is by then.
+
+               The only name missing is whoever already has this block. */
             {
-              label: t("detail.menu.toNewVoice"),
-              icon: MENU_ICONS.newVoice,
-              action: () => void giveToNewVoice(transcriptMenu.segment),
+              label: t("detail.menu.toSpeaker"),
+              icon: MENU_ICONS.speaker,
+              children: [
+                ...speakers
+                  .filter((m) => m.key !== transcriptMenu.segment.speakers)
+                  .map((m) => ({
+                    label: m.name,
+                    icon: MENU_ICONS.speaker,
+                    color: m.color,
+                    action: () => void giveToVoice(transcriptMenu.segment, m.key),
+                  })),
+                {
+                  label: t("detail.menu.newSpeaker"),
+                  icon: MENU_ICONS.newVoice,
+                  action: () => void giveToNewVoice(transcriptMenu.segment),
+                },
+              ],
             },
           ]}
         />

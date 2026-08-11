@@ -131,6 +131,81 @@ describe("TranscriptContextMenu", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  /** An item with children opens them in place of the menu. It is how the
+   *  transcript offers the speakers by name, and the rules are the ones a
+   *  drill-down needs: going in acts on nothing, and there is a way back. */
+  describe("an item that opens more items", () => {
+    const assign = (action = vi.fn()) => ({
+      label: "Přiřadit mluvčího",
+      icon: MENU_ICONS.speaker,
+      children: [
+        { label: "Roman Povala", icon: MENU_ICONS.speaker, color: "#1f6feb", action },
+        { label: "Janka Bílá", icon: MENU_ICONS.speaker, action: vi.fn() },
+      ],
+    });
+
+    test("opening it replaces the menu rather than closing it", () => {
+      const onClose = vi.fn();
+      render(
+        <TranscriptContextMenu x={10} y={10} items={[assign()]} onClose={onClose} />
+      );
+      fireEvent.click(screen.getByText("Přiřadit mluvčího"));
+
+      expect(onClose).not.toHaveBeenCalled();
+      expect(screen.getAllByRole("menuitem").map((b) => b.textContent)).toEqual([
+        "Roman Povala",
+        "Janka Bílá",
+      ]);
+    });
+
+    test("and there is a way back to what was there before", () => {
+      render(<TranscriptContextMenu x={10} y={10} items={[assign()]} onClose={vi.fn()} />);
+      fireEvent.click(screen.getByText("Přiřadit mluvčího"));
+      // The back button carries the name of what was opened, so it says where
+      // it goes rather than only that it goes.
+      fireEvent.click(screen.getByText("Přiřadit mluvčího"));
+
+      expect(screen.getAllByRole("menuitem").map((b) => b.textContent)).toEqual([
+        "Přiřadit mluvčího",
+      ]);
+    });
+
+    test("choosing one of them closes the menu and acts", () => {
+      const order: string[] = [];
+      const action = vi.fn(() => order.push("action"));
+      const onClose = vi.fn(() => order.push("close"));
+      render(
+        <TranscriptContextMenu x={10} y={10} items={[assign(action)]} onClose={onClose} />
+      );
+      fireEvent.click(screen.getByText("Přiřadit mluvčího"));
+      fireEvent.click(screen.getByText("Roman Povala"));
+
+      expect(order).toEqual(["close", "action"]);
+    });
+
+    test("a speaker's colour reaches the mark beside the name", () => {
+      render(<TranscriptContextMenu x={10} y={10} items={[assign()]} onClose={vi.fn()} />);
+      fireEvent.click(screen.getByText("Přiřadit mluvčího"));
+
+      const mark = screen.getByText("Roman Povala").closest("button")?.querySelector("svg");
+      expect(mark).toHaveProperty("style.color", "rgb(31, 111, 235)");
+    });
+
+    /** The list of names is taller than the item it replaced, so a menu opened
+     *  near the bottom has to be measured again or it hangs off the edge. */
+    test("it is measured again after opening, not only when it appeared", () => {
+      const restore = withSize(200, 150);
+      const { surface } = open({ x: 1000, y: 750, items: [assign()] });
+      expect(surface.style.top).toBe(`${768 - 150 - 8}px`);
+
+      restore();
+      const taller = withSize(200, 400);
+      fireEvent.click(screen.getByText("Přiřadit mluvčího"));
+      expect(surface.style.top).toBe(`${768 - 400 - 8}px`);
+      taller();
+    });
+  });
+
   test("once closed it listens for nothing", () => {
     const onClose = vi.fn();
     const { unmount } = render(
