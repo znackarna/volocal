@@ -509,6 +509,7 @@
     "errors.transcription.whisper_failed": "27f30dc6111a",
     "errors.transcription.whisper_launch_failed": "590a06f25059",
     "errors.unknown": "caf3c2c2d54b",
+    "errors.update.install_failed": "d3da86af1a4a",
     "errors.watch_folder.disabled": "b142d8e8302c",
     "errors.watch_folder.file_changed": "6bcacc1bfd6b",
     "errors.watch_folder.file_gone": "da39dd7e68ad",

@@ -55,6 +55,8 @@ export const enErrors: Partial<Record<keyof typeof csErrors, string>> = {
   "errors.microphone.save_failed": "The take couldn’t be saved: {detail}",
   "errors.microphone.convert_failed": "The take couldn’t be converted into an audio file.",
   "errors.watch_folder.import_interrupted": "Adding files was interrupted: {detail}",
+  "errors.update.install_failed":
+    "The update could not be made ready to install. Please try again.",
   "errors.playback.ffmpeg_missing": "ffmpeg is missing, so precise MP3 playback cannot be prepared.",
   "errors.playback.source_missing": "The audio file is no longer where it was.",
   "errors.playback.conversion_failed": "Could not prepare precise playback: {reason}",

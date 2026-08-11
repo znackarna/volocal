@@ -257,8 +257,77 @@ fn die_with_this_process() {
         }
         if let Err(error) = AssignProcessToJobObject(job, GetCurrentProcess()) {
             crate::note!("job object: not joined, children may outlive the window: {error}");
+            return;
         }
+        // Kept so the one process that must outlive us can be let out. See
+        // `let_the_installer_out`.
+        let _ = JOB.set(job.0 as isize);
     }
+}
+
+/// The job the window and its children belong to, as a plain number because a
+/// raw handle is not `Send`. Only `let_the_installer_out` reads it.
+#[cfg(windows)]
+static JOB: std::sync::OnceLock<isize> = std::sync::OnceLock::new();
+
+/// Lets processes started from now on stay out of the job.
+///
+/// The job exists so that whisper, ffmpeg and llama-server cannot outlive the
+/// window — it kills everything inside it the moment the last handle closes.
+/// The updater's installer is started by this process and would join the job
+/// like anything else, and then the plugin calls `exit(0)` immediately after
+/// starting it. Windows closes the job, and the installer dies before it has
+/// unpacked anything.
+///
+/// Which is exactly what it looked like from outside: the download finishes,
+/// the window disappears, nothing is installed and nothing comes back.
+///
+/// `SILENT_BREAKAWAY_OK` is added rather than the kill flag removed, so
+/// everything already running still dies with the window. Only what starts
+/// after this call — the installer — is left out of the job.
+pub(crate) fn let_the_installer_out() -> Reported<()> {
+    breakaway()
+}
+
+/// Everything platform-specific, kept out of the command itself so that the
+/// command exists once and reads the same on every system.
+#[cfg(windows)]
+fn breakaway() -> Reported<()> {
+    use windows::Win32::Foundation::HANDLE;
+    use windows::Win32::System::JobObjects::{
+        JobObjectExtendedLimitInformation, SetInformationJobObject,
+        JOBOBJECT_EXTENDED_LIMIT_INFORMATION, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
+        JOB_OBJECT_LIMIT_SILENT_BREAKAWAY_OK,
+    };
+
+    let Some(job) = JOB.get() else {
+        // No job means nothing to escape from, which is the same outcome.
+        return Ok(());
+    };
+    let mut limits = JOBOBJECT_EXTENDED_LIMIT_INFORMATION::default();
+    limits.BasicLimitInformation.LimitFlags =
+        JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE | JOB_OBJECT_LIMIT_SILENT_BREAKAWAY_OK;
+    let sized = std::mem::size_of::<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>() as u32;
+    unsafe {
+        SetInformationJobObject(
+            HANDLE(*job as *mut core::ffi::c_void),
+            JobObjectExtendedLimitInformation,
+            &limits as *const _ as *const core::ffi::c_void,
+            sized,
+        )
+    }
+    .map_err(|error| {
+        crate::note!("job object: the installer could not be let out: {error}");
+        UserMessage::new("update.install_failed").detail(error)
+    })?;
+    crate::note!("job object: the installer may now outlive the window");
+    Ok(())
+}
+
+/// Nothing to escape on a system without job objects.
+#[cfg(not(windows))]
+fn breakaway() -> Reported<()> {
+    Ok(())
 }
 
 fn main() {
@@ -302,6 +371,7 @@ fn main() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            commands::updates::let_the_installer_out,
             commands::settings::load_settings,
             commands::settings::save_settings,
             commands::settings::check_tools,

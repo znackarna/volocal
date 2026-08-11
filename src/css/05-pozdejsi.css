@@ -9,11 +9,15 @@
 .nejista-mista,
 .opravy,
 .neprirazene {
-  /* Out to the card's edges. These rows are menu items and a menu item's
-     highlight spans its whole menu; inset by the body's 12 px it read as a
-     floating filled cell with the row's own 12 px of padding inside it, which
-     is two insets doing one job. */
-  list-style: none; margin: 0 -12px; padding: 0;
+  /* Wider than the text, but not out to the card's edge. These rows are menu
+     items and a menu item's highlight spans its whole menu — inset by the
+     body's full 12 px it read as a floating filled cell with the row's own
+     12 px inside it, two insets doing one job. Pulled out the whole 12 px it
+     went the other way: the highlight ran into the card's border and its
+     rounded corner, which reads as something that failed to stop rather than
+     something that was placed. 6 px is the half measure, and it is a half
+     measure on purpose. */
+  list-style: none; margin: 0 -6px; padding: 0;
   display: flex; flex-direction: column; gap: 2px;
   /* A longer recording can have dozens. The panel must not grow forever. */
   max-height: 280px; overflow-y: auto;

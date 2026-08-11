@@ -14,6 +14,7 @@
  */
 import { useState } from "react";
 import { check } from "@tauri-apps/plugin-updater";
+import { api } from "../api";
 import InfoNote from "../InfoNote";
 import { SettingsToggle } from "./toggle";
 import { useI18n } from "../i18n";
@@ -72,7 +73,11 @@ export function UpdateCheck({
     try {
       const update = await check();
       if (update) {
+        // The version goes to the notice bar too. What stays behind is the
+        // button that acts on it, which says what it does without repeating
+        // the number.
         setState({ at: "found", version: update.version });
+        onInfo(t("settings.about.updateFound", { version: update.version }));
       } else {
         setState({ at: "idle" });
         onInfo(t("settings.about.updateCurrent"));
@@ -94,6 +99,12 @@ export function UpdateCheck({
         onInfo(t("settings.about.updateCurrent"));
         return;
       }
+      /* Before a single byte is fetched, because the installer is started by
+         this process and would otherwise be killed the moment it exits. The
+         window and everything it runs live in a job object so that whisper and
+         ffmpeg cannot outlive it; the installer has to be the exception, and
+         this is where it is made one. */
+      await api.letTheInstallerOut();
       let total = 0;
       let received = 0;
       await update.downloadAndInstall((event) => {
@@ -130,9 +141,6 @@ export function UpdateCheck({
         )}
       </div>
 
-      {state.at === "found" && (
-        <p className="about-stav">{t("settings.about.updateFound", { version: state.version })}</p>
-      )}
       {state.at === "downloading" && (
         <p className="about-stav">
           {state.percent === null
