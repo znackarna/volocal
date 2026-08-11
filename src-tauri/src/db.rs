@@ -477,6 +477,50 @@ fn has_table(db: &Connection, name: &str) -> Result<bool> {
     Ok(found > 0)
 }
 
+/// Takes in a Czech table standing beside the English one it became.
+///
+/// This is what an archive looks like after a build older than 1.0.5 has opened
+/// it: that build looks for `nahravky`, does not find it, and its own
+/// `CREATE TABLE IF NOT EXISTS` makes an empty one. The next start then finds
+/// both and cannot rename one onto the other — which is how 1.0.5 came to
+/// refuse to open an archive it had itself migrated the day before.
+///
+/// Usually the leftover is empty and simply goes. It is not always: somebody
+/// can have added a recording in the older build before coming back, and that
+/// work is theirs. The rows are copied across by name, mapped through the same
+/// table the rename used, so nothing rests on the two tables having their
+/// columns in the same order.
+fn absorb_leftover(db: &Connection, from: &str, to: &str, columns: &[(&str, &str)]) -> Result<()> {
+    let rows: i64 = db.query_row(&format!("SELECT count(*) FROM {from}"), [], |r| r.get(0))?;
+    if rows > 0 {
+        let present: Vec<String> = db
+            .prepare(&format!("SELECT name FROM pragma_table_info('{from}')"))?
+            .query_map([], |r| r.get::<_, String>(0))?
+            .collect::<std::result::Result<_, _>>()?;
+        let renamed: Vec<String> = present
+            .iter()
+            .map(|name| {
+                columns
+                    .iter()
+                    .find(|(old, _)| old == name)
+                    .map(|(_, new)| (*new).to_string())
+                    .unwrap_or_else(|| name.clone())
+            })
+            .collect();
+        // OR IGNORE, because the same row can be in both: the older build may
+        // have been shown work that was already there before it recreated the
+        // table. A conflict means the English side already has it.
+        db.execute_batch(&format!(
+            "INSERT OR IGNORE INTO {to} ({}) SELECT {} FROM {from};",
+            renamed.join(", "),
+            present.join(", ")
+        ))?;
+        crate::note!("archive: {rows} rows moved from the leftover {from} into {to}");
+    }
+    db.execute_batch(&format!("DROP TABLE {from};"))?;
+    Ok(())
+}
+
 /// Puts the schema into English, once, in an archive written before 1.0.5.
 ///
 /// This runs before the `CREATE TABLE IF NOT EXISTS` batch and has to: those
@@ -506,7 +550,15 @@ fn rename_schema_to_english(db: &Connection, path: &std::path::Path) -> Result<(
     // back. `VACUUM INTO` rather than a file copy: the write-ahead log may hold
     // the last session's work, and copying the main file alone would leave it
     // out of the very backup taken to protect it.
-    let copy = path.with_file_name("whisp-before-english.db");
+    // Named after the archive rather than fixed, so a file called anything
+    // else gets a copy that says what it is a copy of. For `whisp.db`, which is
+    // what every installation has, this is `whisp-before-english.db`.
+    let stem = path
+        .file_stem()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .to_string();
+    let copy = path.with_file_name(format!("{stem}-before-english.db"));
     if !copy.exists() {
         match db.execute("VACUUM INTO ?1", params![copy.to_string_lossy()]) {
             Ok(_) => crate::note!("archive: copied to {} before the rename", copy.display()),
@@ -523,6 +575,10 @@ fn rename_schema_to_english(db: &Connection, path: &std::path::Path) -> Result<(
     for (names, columns) in RENAMED {
         let (from, to) = names.split_once(' ').expect("a pair");
         if !has_table(db, from)? {
+            continue;
+        }
+        if has_table(db, to)? {
+            absorb_leftover(db, from, to, columns)?;
             continue;
         }
         db.execute_batch(&format!("ALTER TABLE {from} RENAME TO {to};"))?;
@@ -2036,7 +2092,16 @@ mod tests {
 
     impl Drop for TempDb {
         fn drop(&mut self) {
-            // WAL leaves two more files beside the one that was asked for.
+            // WAL leaves two more files beside the one that was asked for, and
+            // the migration leaves the copy it took before renaming anything.
+            let stem = self
+                .0
+                .file_stem()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_string();
+            let _ =
+                std::fs::remove_file(self.0.with_file_name(format!("{stem}-before-english.db")));
             for suffix in ["", "-wal", "-shm"] {
                 let mut name = self.0.clone().into_os_string();
                 name.push(suffix);
@@ -2169,7 +2234,8 @@ mod tests {
 
         // And the way back exists: a copy of the archive as it was, which an
         // older build can still read.
-        let copy = path.with_file_name("whisp-before-english.db");
+        let stem = path.file_stem().unwrap().to_string_lossy().to_string();
+        let copy = path.with_file_name(format!("{stem}-before-english.db"));
         assert!(copy.exists(), "a copy was left before the rename");
         let old = Connection::open(&copy).unwrap();
         let kept: String = old
@@ -2200,6 +2266,89 @@ mod tests {
             .query_row("SELECT count(*) FROM segments_fts", [], |r| r.get(0))
             .unwrap();
         assert_eq!(indexed, 1, "and the index is not filled a second time");
+    }
+
+    /// The state that actually happened, on the owner's own machine, the day
+    /// 1.0.5 went out: migrate, then open the archive once with an older build.
+    ///
+    /// That build looks for `nahravky`, does not find it, and its own
+    /// `CREATE TABLE IF NOT EXISTS` makes an empty one beside `recordings`. The
+    /// next start found both, tried to rename one onto the other, and refused
+    /// to open the archive at all — `there is already another table or index
+    /// with this name: recordings`.
+    #[test]
+    fn an_archive_an_older_build_reopened_is_repaired_rather_than_refused() {
+        let temp = TempDb::new("archive");
+        let path = temp.0.clone();
+        drop(czech_archive(&path));
+        drop(open(&path).unwrap());
+
+        // What the older build does on its way past: the empty Czech shells.
+        let older = Connection::open(&path).unwrap();
+        older
+            .execute_batch(
+                "CREATE TABLE IF NOT EXISTS nahravky (
+                     id TEXT PRIMARY KEY, cesta TEXT NOT NULL, nazev TEXT NOT NULL,
+                     delka REAL NOT NULL DEFAULT 0, vytvoreno TEXT NOT NULL,
+                     stav TEXT NOT NULL DEFAULT 'nova', model TEXT NOT NULL DEFAULT '',
+                     chyba TEXT, slozka TEXT);
+                 CREATE TABLE IF NOT EXISTS mluvci (
+                     klic TEXT NOT NULL, nahravka_id TEXT NOT NULL,
+                     jmeno TEXT NOT NULL, barva TEXT NOT NULL,
+                     PRIMARY KEY (klic, nahravka_id));
+                 CREATE TABLE IF NOT EXISTS klice (klic TEXT PRIMARY KEY, hodnota TEXT NOT NULL);",
+            )
+            .unwrap();
+        drop(older);
+
+        let db = open(&path).unwrap();
+
+        assert!(!has_table(&db, "nahravky").unwrap(), "the shell is gone");
+        assert!(!has_table(&db, "mluvci").unwrap());
+        assert!(!has_table(&db, "klice").unwrap());
+        assert_eq!(
+            segments(&db, "r1").unwrap().len(),
+            1,
+            "and the work is still there"
+        );
+        assert_eq!(speakers(&db, "r1").unwrap()[0].name, "Janka Bílá");
+    }
+
+    /// And if somebody added a recording in that older build before coming
+    /// back, that recording is theirs and has to survive the repair.
+    #[test]
+    fn work_done_in_the_older_build_is_carried_over_before_the_shell_is_dropped() {
+        let temp = TempDb::new("archive");
+        let path = temp.0.clone();
+        drop(czech_archive(&path));
+        drop(open(&path).unwrap());
+
+        let older = Connection::open(&path).unwrap();
+        older
+            .execute_batch(
+                "CREATE TABLE IF NOT EXISTS nahravky (
+                     id TEXT PRIMARY KEY, cesta TEXT NOT NULL, nazev TEXT NOT NULL,
+                     delka REAL NOT NULL DEFAULT 0, vytvoreno TEXT NOT NULL,
+                     stav TEXT NOT NULL DEFAULT 'nova', model TEXT NOT NULL DEFAULT '',
+                     chyba TEXT, slozka TEXT);
+                 INSERT INTO nahravky (id, cesta, nazev, delka, vytvoreno, stav, model)
+                 VALUES ('r2', 'C:\\pozdejsi.mp3', 'Přidáno ve staré verzi', 60.0,
+                         '2026-08-12', 'nova', '');",
+            )
+            .unwrap();
+        drop(older);
+
+        let db = open(&path).unwrap();
+
+        let names: Vec<String> = db
+            .prepare("SELECT name FROM recordings ORDER BY id")
+            .unwrap()
+            .query_map([], |r| r.get(0))
+            .unwrap()
+            .collect::<std::result::Result<_, _>>()
+            .unwrap();
+        assert_eq!(names, vec!["Janka", "Přidáno ve staré verzi"]);
+        assert!(!has_table(&db, "nahravky").unwrap());
     }
 
     /// A fresh archive has nothing to rename and must not be slowed or touched.
