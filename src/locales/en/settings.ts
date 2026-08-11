@@ -225,6 +225,13 @@ export const enSettings: Partial<Record<keyof typeof csSettings, string>> = {
   "settings.decoding.temperatureStep": "Temperature step",
   "settings.decoding.temperatureStepNote": "Raises the temperature by this much on the next attempt. Zero turns further attempts off.",
   "settings.decoding.reset": "Back to defaults",
+  "settings.diagnostics.copy": "Copy the technical details",
+  "settings.diagnostics.copyNote":
+    "Put on the clipboard. Nothing is sent anywhere — where the text goes is up to you.",
+  "settings.diagnostics.copied": "The technical details are on the clipboard.",
+  "settings.diagnostics.copyRefused":
+    "The system refused the clipboard. Try again, or send the volocal-log.txt file.",
+  "settings.diagnostics.copyFailed": "The technical details could not be prepared.",
   "settings.diagnostics.title": "Technical details",
   "settings.diagnostics.modelWhisper": "Whisper model",
   "settings.diagnostics.modelVad": "VAD model",

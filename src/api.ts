@@ -21,6 +21,8 @@ export const api = {
   loadSettings: () => invoke<Settings>("load_settings"),
   saveSettings: (settings: Settings) => invoke<void>("save_settings", { settings }),
   checkTools: () => invoke<ToolCheck>("check_tools"),
+  /** Plain text for a person to paste into a message when something is wrong. */
+  diagnosticReport: () => invoke<string>("diagnostic_report"),
 
   listRecordings: () => invoke<Recording[]>("list_recordings"),
   addRecording: (path: string) => invoke<Recording>("add_recording", { path }),

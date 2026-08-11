@@ -278,6 +278,13 @@ export const csSettings = {
 
   // Where each tool and model was found on disk.
   "settings.diagnostics.title": "Technické podrobnosti",
+  "settings.diagnostics.copy": "Zkopírovat technické údaje",
+  "settings.diagnostics.copyNote":
+    "Vloží se do schránky. Nikam se nic neposílá — kam text pošlete, je na vás.",
+  "settings.diagnostics.copied": "Technické údaje jsou ve schránce.",
+  "settings.diagnostics.copyRefused":
+    "Systém zkopírování odmítl. Zkuste to znovu, nebo pošlete soubor volocal-log.txt.",
+  "settings.diagnostics.copyFailed": "Technické údaje se nepodařilo připravit.",
   "settings.diagnostics.modelWhisper": "model Whisperu",
   "settings.diagnostics.modelVad": "model VAD",
   "settings.diagnostics.diarizationProgram": "diarizace (program)",
@@ -463,6 +470,15 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
   "settings.decoding.reset": "Tlačítko vracející všechny hodnoty na výchozí.",
 
   "settings.diagnostics.title": "Nadpis skrytého bloku s cestami k nalezeným souborům.",
+  "settings.diagnostics.copy":
+    "Tlačítko pod tím seznamem. Zkopíruje verzi, cesty, nastavení a konec logu, aby to šlo poslat, když se něco pokazí.",
+  "settings.diagnostics.copyNote":
+    "Vysvětlení pod tlačítkem. Podstatné je, že aplikace nic neodesílá; text jde do schránky a rozhoduje uživatel.",
+  "settings.diagnostics.copied": "Potvrzení v notifikační liště, že se kopírování povedlo.",
+  "settings.diagnostics.copyRefused":
+    "Schránku odmítl systém, ne aplikace. Proto se nabízí druhá cesta — poslat rovnou soubor s logem.",
+  "settings.diagnostics.copyFailed":
+    "Nepodařilo se ty údaje vůbec sestavit. Jiná chyba než odmítnutá schránka.",
   "settings.diagnostics.modelWhisper": "Řádek kontroly: soubor s modelem Whisperu.",
   "settings.diagnostics.modelVad": "Řádek kontroly: model detekce řeči (VAD).",
   "settings.diagnostics.diarizationProgram":

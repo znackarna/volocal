@@ -14,6 +14,7 @@ import { api } from "./api";
 import CountdownRing from "./CountdownRing";
 import InfoNote from "./InfoNote";
 import { LineIcon, type LineIconName } from "./icons";
+import { ClipboardRefused, copyPlainText } from "./detail/clipboard";
 import Select from "./Select";
 import { useI18n, type AppLanguage } from "./i18n";
 import { useUserMessage } from "./messages";
@@ -642,7 +643,7 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
               : t("settings.modules.manage")}
           </button>
         </div>
-        {check && <ToolDiagnostics k={check} />}
+        {check && <ToolDiagnostics k={check} onInfo={onInfo} onError={onError} />}
       </section>}
 
       {activeTab === "transcription" && <section className="settings-card-language-edit">
@@ -1787,7 +1788,15 @@ function DecodingSettings({
   );
 }
 
-function ToolDiagnostics({ k }: { k: ToolCheck }) {
+function ToolDiagnostics({
+  k,
+  onInfo,
+  onError,
+}: {
+  k: ToolCheck;
+  onInfo: (message: string) => void;
+  onError: (message: string) => void;
+}) {
   const { t } = useI18n();
   /** Executable names are technical identifiers and stay as they are; the rest
    *  names what the file is for and is looked up. */
@@ -1828,6 +1837,28 @@ function ToolDiagnostics({ k }: { k: ToolCheck }) {
           </li>
         ))}
       </ul>
+      {/* What this list shows plus everything around it — the settings as they
+          are stored, the compute that was chosen, the end of the log. The list
+          above answers "is it there"; a problem usually needs "and what was it
+          doing", which no screenshot of this panel can say. */}
+      <button
+        className="button diagnostics-copy"
+        onClick={async () => {
+          try {
+            await copyPlainText(await api.diagnosticReport());
+            onInfo(t("settings.diagnostics.copied"));
+          } catch (error) {
+            onError(
+              error instanceof ClipboardRefused
+                ? t("settings.diagnostics.copyRefused")
+                : t("settings.diagnostics.copyFailed")
+            );
+          }
+        }}
+      >
+        {t("settings.diagnostics.copy")}
+      </button>
+      <InfoNote>{t("settings.diagnostics.copyNote")}</InfoNote>
     </SettingsDisclosure>
   );
 }

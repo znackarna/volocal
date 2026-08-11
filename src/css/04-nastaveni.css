@@ -1117,3 +1117,8 @@ button.mic-play:disabled { cursor: default; opacity: 0.6; }
 
 
 
+
+/* The button under the component list. 14 px, the gap this application gives an
+   explanation that belongs to a whole group rather than to the line above it —
+   and that is what this is: it copies the list and everything around it. */
+.diagnostics-copy { margin-top: 14px; }

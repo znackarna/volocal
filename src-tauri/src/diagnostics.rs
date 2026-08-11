@@ -65,3 +65,31 @@ macro_rules! note {
         $crate::diagnostics::write(format_args!($($arg)*))
     };
 }
+
+/// How much of the log the report carries.
+///
+/// The end of it, because a problem is described soon after it happens. Sixty
+/// lines is a few sessions' worth — enough to see the start that led to it,
+/// short enough to stay a message rather than an attachment.
+const REPORT_LINES: usize = 60;
+
+/// The tail of the log file, oldest first, or nothing if there is no file yet.
+pub fn recent_lines() -> Vec<String> {
+    let Some(path) = FILE.get() else {
+        return Vec::new();
+    };
+    let Ok(text) = std::fs::read_to_string(path) else {
+        return Vec::new();
+    };
+    let lines: Vec<&str> = text.lines().collect();
+    lines
+        .iter()
+        .skip(lines.len().saturating_sub(REPORT_LINES))
+        .map(|l| (*l).to_string())
+        .collect()
+}
+
+/// Where the log is, so the report can say where the rest of it lives.
+pub fn file_path() -> Option<PathBuf> {
+    FILE.get().cloned()
+}

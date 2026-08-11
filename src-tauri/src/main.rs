@@ -375,6 +375,7 @@ fn main() {
             commands::settings::load_settings,
             commands::settings::save_settings,
             commands::settings::check_tools,
+            commands::settings::diagnostic_report,
             commands::library::list_recordings,
             commands::library::add_recording,
             commands::library::scan_watch_folder,
