@@ -904,7 +904,7 @@ fn enable_language_detection(db: &Connection) {
     );
 }
 
-// ---------------------------------------------------------------- nastaveni
+// ---------------------------------------------------------------- settings
 
 pub fn load_settings(db: &Connection) -> Result<Settings> {
     let json: Option<String> = db
@@ -1520,7 +1520,8 @@ pub fn set_segment_speaker(db: &Connection, id: &str, speakers: Option<&str>) ->
 
 // ---------------------------------------------------------------- mluvci
 
-/// Barvy voleny tak, aby byly rozlisitelne i pri barvosleposti a citelne na svetlem pozadi.
+/// Chosen to stay distinguishable to a colour-blind reader and legible on a
+/// light ground.
 pub const COLORS: [&str; 8] = [
     "#2563eb", "#c2410c", "#15803d", "#7c3aed", "#0891b2", "#b45309", "#be123c", "#4d7c0f",
 ];
@@ -1666,7 +1667,7 @@ pub fn search(db: &Connection, query: &str) -> Result<Vec<SearchResult>> {
         return Ok(vec![]);
     }
     // The user types an ordinary word, not FTS syntax. Quoting prevents a
-    // znacich jako '-' nebo '"', a hvezdickou povolime prefixove hledani.
+    // marks such as '-' or '"', and the star allows a prefix search.
     let safe = format!("\"{}\"*", trimmed_query.replace('"', ""));
 
     let mut st = db.prepare(

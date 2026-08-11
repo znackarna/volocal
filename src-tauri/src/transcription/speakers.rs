@@ -154,7 +154,7 @@ pub(crate) const MIN_TURN_WORDS: usize = 3;
 /// going to be split, let it split where a clause ends anyway.
 pub(crate) const PUNCTUATION_SNAP: usize = 2;
 
-/// Souvisle sledy slov jednoho mluvciho, jako dvojice prvni a posledni index.
+/// The unbroken runs of one speaker's words, as pairs of first and last index.
 pub(crate) fn speaker_runs(speakers: &[Option<String>]) -> Vec<(usize, usize)> {
     let mut runs: Vec<(usize, usize)> = Vec::new();
     let mut i = 0usize;

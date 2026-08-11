@@ -412,7 +412,8 @@ fn run(
     task: &TranscriptionTask,
     speaker_count: Option<i64>,
 ) -> Reported<usize> {
-    // Vlastni spojeni pro toto vlakno - hlavni vlakno tak neceka minuty na zamek.
+    // A connection of this thread's own, so the main thread does not wait
+    // minutes on the lock.
     let connection = db::open(db_path)?;
     let mut settings = db::load_settings(&connection)?;
     // An answer given for this recording wins over the stored default without
@@ -491,7 +492,7 @@ fn run(
         }
     }
 
-    // ------------------------------------------------------------ prepis
+    // ------------------------------------------------------------ transcript
     // Whisper is the expensive one. Starting it after a cancellation that
     // arrived during preparation is how `Zrušit` used to look like it did
     // nothing at all: the request was noted and the run went on for minutes.
@@ -590,7 +591,8 @@ fn run(
                     bridge_unknown(&mut segments);
                 }
                 Err(error) => {
-                    // Diarizace je bonus. Kdyz selze, prepis prece nezahodime.
+                    // Diarization is a bonus. If it fails, the transcript is
+                    // not thrown away over it.
                     // The reason itself is the caption: it is one finished
                     // sentence, and the phase already says what was running.
                     status(

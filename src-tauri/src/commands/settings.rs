@@ -8,7 +8,7 @@ use crate::db::Settings;
 use crate::{db, tools};
 use crate::{reported, AppState, Reported};
 use tauri::State;
-// ---------------------------------------------------------------- nastaveni
+// ---------------------------------------------------------------- settings
 
 #[tauri::command]
 pub fn load_settings(app: State<'_, AppState>) -> Reported<Settings> {

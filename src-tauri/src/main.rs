@@ -1,4 +1,4 @@
-// Bez konzoloveho okna pri spusteni sestavene aplikace na Windows
+// No console window when the built application starts on Windows.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod ai_edit;
@@ -576,8 +576,8 @@ fn profile_folder(profile: PathBuf) -> PathBuf {
 }
 
 fn archive_path(app: &tauri::App) -> Result<PathBuf> {
-    // Prenosny rezim: databaze lezi vedle programu, nic se nezapisuje
-    // do profilu uzivatele na cizim pocitaci.
+    // Portable mode: the archive sits beside the program, and nothing is
+    // written into the user profile of somebody else's computer.
     let profile = profile_folder(app.path().app_data_dir()?);
     let directory = tools::data_directory(profile.clone());
     let other = if directory == profile {

@@ -346,7 +346,7 @@ const MIN_KEPT_WORDING: f64 = 0.45;
 /// judgement is made.
 const MIN_WORDS_TO_JUDGE: usize = 20;
 
-/// Podil slov predlohy, ktera se objevila i v odpovedi.
+/// The share of the original's words that appear in the answer as well.
 fn kept_wording(source: &str, edited: &str) -> f64 {
     fn words(text: &str) -> Vec<String> {
         text.split(|c: char| !c.is_alphanumeric())

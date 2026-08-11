@@ -65,19 +65,19 @@ fn main() -> Result<(), Box<dyn Error>> {
             "--cpu" => want_dml = false,
             "--dml" => want_dml = true,
             "--sweep" => sweep = true,
-            "--runs" => runs = args.next().ok_or("--runs chce číslo")?.parse()?,
-            "--frames" => frames = args.next().ok_or("--frames chce číslo")?.parse()?,
-            "--batch" => batch = args.next().ok_or("--batch chce číslo")?.parse()?,
+            "--runs" => runs = args.next().ok_or("--runs wants a number")?.parse()?,
+            "--frames" => frames = args.next().ok_or("--frames wants a number")?.parse()?,
+            "--batch" => batch = args.next().ok_or("--batch wants a number")?.parse()?,
             other => model_path = Some(PathBuf::from(other)),
         }
     }
 
     let model_path = model_path
         .or_else(default_model)
-        .ok_or("model nenalezen; předej cestu k .onnx jako argument")?;
+        .ok_or("no model found; pass the path to an .onnx as an argument")?;
     if !model_path.exists() {
         return Err(format!(
-            "{} neexistuje — stáhni model v Nastavení, nebo předej cestu jako argument",
+            "{} does not exist — download the model in Settings, or pass a path",
             model_path.display()
         )
         .into());
@@ -85,33 +85,33 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("model: {}", model_path.display());
 
     if sweep {
-        return projed(&model_path, runs, frames);
+        return run_through(&model_path, runs, frames);
     }
 
-    println!("režim: {}\n", if want_dml { "DirectML" } else { "procesor" });
-    let mut session = sezeni(&model_path, want_dml)?;
+    println!("mode: {}\n", if want_dml { "DirectML" } else { "processor" });
+    let mut session = session_for(&model_path, want_dml)?;
 
     println!("\n-- vstupy --");
     for (i, o) in session.inputs().iter().enumerate() {
         println!("  [{i}] {:<28} {}", o.name(), popis(o));
     }
-    println!("-- výstupy --");
+    println!("-- outputs --");
     for (i, o) in session.outputs().iter().enumerate() {
         println!("  [{i}] {:<28} {}", o.name(), popis(o));
     }
 
-    let (jmeno, dims) = tvar_vstupu(&session, batch, frames)?;
+    let (name, dims) = input_shape(&session, batch, frames)?;
     println!(
-        "\nkrmím `{jmeno}` tvarem {dims:?}, tedy {} čísel",
+        "\nfeeding `{name}` a shape of {dims:?}, which is {} numbers",
         dims.iter().product::<i64>()
     );
 
     if runs == 0 {
         return Ok(());
     }
-    let m = zmer(&mut session, &jmeno, &dims, runs, true)?;
+    let m = measure(&mut session, &name, &dims, runs, true)?;
     println!(
-        "\n{} běhů: průměr {:.2} ms | medián {:.2} ms | nejrychlejší {:.2} ms | nejpomalejší {:.2} ms",
+        "\n{} runs: mean {:.2} ms | median {:.2} ms | fastest {:.2} ms | slowest {:.2} ms",
         runs,
         m.prumer * 1e3,
         m.median * 1e3,
@@ -121,58 +121,58 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-/// Kolik úseků najednou. Jeden je to, co dělá sherpa dnes; šedesát čtyři je to,
-/// co by grafická karta chtěla.
-const DAVKY: [i64; 5] = [1, 4, 16, 64, 256];
+/// How many passages at once. One is what sherpa does today; sixty-four is what
+/// a graphics card would want.
+const BATCHES: [i64; 5] = [1, 4, 16, 64, 256];
 
-/// Obě cesty, několik velikostí dávky, jedna tabulka. Zajímavý není žádný
-/// jednotlivý řádek, ale to, jak se ty dva sloupce od sebe vzdalují.
-fn projed(model: &Path, runs: usize, frames: i64) -> Result<(), Box<dyn Error>> {
-    println!("\nvteřin zvuku na úsek: {:.1}", frames as f64 / 100.0);
+/// Both paths, several batch sizes, one table. No single row is interesting —
+/// what matters is how far apart the two columns drift.
+fn run_through(model: &Path, runs: usize, frames: i64) -> Result<(), Box<dyn Error>> {
+    println!("\nseconds of audio per passage: {:.1}", frames as f64 / 100.0);
     println!(
         "\n{:>7}  {:>12}  {:>12}  {:>9}  {:>14}",
-        "dávka", "DirectML", "procesor", "poměr", "DML na úsek"
+        "batch", "DirectML", "processor", "ratio", "DML per passage"
     );
     println!("{}", "-".repeat(62));
 
-    // Sezení vzniká jednou pro každou cestu; překlad grafu je drahý a do měření
-    // dávek nepatří.
-    let mut dml = match sezeni(model, true) {
+    // A session is made once per path: compiling the graph is expensive and
+    // does not belong in a measurement of batches.
+    let mut dml = match session_for(model, true) {
         Ok(s) => Some(s),
         Err(e) => {
-            eprintln!("DirectML sezení nevzniklo: {e}");
+            eprintln!("the DirectML session was not created: {e}");
             None
         }
     };
-    let mut cpu = sezeni(model, false)?;
+    let mut cpu = session_for(model, false)?;
 
-    for davka in DAVKY {
-        let (jmeno, dims) = tvar_vstupu(&cpu, davka, frames)?;
+    for batch in BATCHES {
+        let (name, dims) = input_shape(&cpu, batch, frames)?;
 
-        let t_cpu = zmer(&mut cpu, &jmeno, &dims, runs, false)?.median;
+        let t_cpu = measure(&mut cpu, &name, &dims, runs, false)?.median;
         let t_dml = match dml.as_mut() {
-            Some(s) => zmer(s, &jmeno, &dims, runs, false)?.median,
+            Some(s) => measure(s, &name, &dims, runs, false)?.median,
             None => f64::NAN,
         };
 
         println!(
-            "{davka:>7}  {:>10.2} ms  {:>10.2} ms  {:>8.2}x  {:>11.3} ms",
+            "{batch:>7}  {:>10.2} ms  {:>10.2} ms  {:>8.2}x  {:>11.3} ms",
             t_dml * 1e3,
             t_cpu * 1e3,
             t_cpu / t_dml,
-            t_dml * 1e3 / davka as f64
+            t_dml * 1e3 / batch as f64
         );
     }
 
     println!(
-        "\nPoslední sloupec je to, na čem záleží: kolik stojí jeden úsek, když\n\
-         se jich posílá víc najednou. Když s rostoucí dávkou klesá, karta se\n\
-         nudila a stačí ji krmit po větších soustech."
+        "\nThe last column is the one that matters: what a single passage costs\n\
+         when several are sent at once. If it falls as the batch grows, the\n\
+         card was idling and only needs to be fed in bigger mouthfuls."
     );
     Ok(())
 }
 
-fn sezeni(model: &Path, want_dml: bool) -> Result<Session, Box<dyn Error>> {
+fn session_for(model: &Path, want_dml: bool) -> Result<Session, Box<dyn Error>> {
     let mut providers = Vec::new();
 
     #[cfg(windows)]
@@ -182,18 +182,19 @@ fn sezeni(model: &Path, want_dml: bool) -> Result<Session, Box<dyn Error>> {
     }
     #[cfg(not(windows))]
     if want_dml {
-        eprintln!("nejsme na Windows, DirectML není; poběží procesor");
+        eprintln!("not on Windows, so no DirectML; the processor will run it");
     }
 
-    // Poslední v řadě. Když se DirectML nezaregistruje, ONNX Runtime tiše
-    // propadne sem — proto se na hlášky nedá spolehnout a měří se čas.
+    // Last in line. When DirectML does not register, ONNX Runtime quietly
+    // falls through to here — which is why the messages cannot be trusted and
+    // the time is what gets measured.
     providers.push(CPU::default().build());
 
     let mut builder = Session::builder()?.with_optimization_level(GraphOptimizationLevel::Level3)?;
     if want_dml {
-        // Není to ladění, ale podmínka: DirectML odmítne vzniknout, pokud je
-        // zapnutá optimalizace paměťových vzorů, a ta je ve výchozím stavu
-        // zapnutá. Bez tohohle řádku sezení rovnou skončí chybou.
+        // Not a tuning knob but a condition: DirectML refuses to be created
+        // while memory pattern optimisation is on, and it is on by default.
+        // Without this line the session fails outright.
         builder = builder.with_memory_pattern(false)?;
     }
     Ok(builder
@@ -201,19 +202,19 @@ fn sezeni(model: &Path, want_dml: bool) -> Result<Session, Box<dyn Error>> {
         .commit_from_file(model)?)
 }
 
-/// Jméno prvního vstupu a tvar, kterým se dá nakrmit. Neznámý rozměr je -1;
-/// nultý je dávka, každý další je počet rámců.
-fn tvar_vstupu(
+/// The first input's name and a shape it can be fed with. An unknown dimension
+/// is -1; the zeroth is the batch, every other one the frame count.
+fn input_shape(
     session: &Session,
     batch: i64,
     frames: i64,
 ) -> Result<(String, Vec<i64>), Box<dyn Error>> {
-    let jmeno = session.inputs()[0].name().to_owned();
+    let name = session.inputs()[0].name().to_owned();
     let ValueType::Tensor { ty, shape, .. } = session.inputs()[0].dtype() else {
-        return Err("vstup 0 není tenzor".into());
+        return Err("input 0 is not a tensor".into());
     };
     if *ty != TensorElementType::Float32 {
-        return Err(format!("vstup 0 je {ty:?}, tenhle program umí vyrobit jen f32").into());
+        return Err(format!("input 0 is {ty:?}, and this program can only make f32").into());
     }
     let dims = shape
         .iter()
@@ -228,7 +229,7 @@ fn tvar_vstupu(
             }
         })
         .collect();
-    Ok((jmeno, dims))
+    Ok((name, dims))
 }
 
 struct Mereni {
@@ -238,16 +239,17 @@ struct Mereni {
     nejhorsi: f64,
 }
 
-fn zmer(
+fn measure(
     session: &mut Session,
-    jmeno: &str,
+    name: &str,
     dims: &[i64],
     runs: usize,
     hlasite: bool,
 ) -> Result<Mereni, Box<dyn Error>> {
     let count: usize = dims.iter().product::<i64>() as usize;
-    // Něco, co vypadá jako řeč aspoň rozsahem. Na rychlosti násobení nezáleží,
-    // co se do matic nasype, ale samé nuly umí některé optimalizace zkratkovat.
+    // Something that at least resembles speech in range. What goes into the
+    // matrices does not change the speed of the multiplication, but all zeroes
+    // can be short-circuited by some optimisations.
     let data: Vec<f32> = (0..count)
         .map(|i| ((i % 97) as f32 - 48.0) / 48.0)
         .collect();
@@ -256,16 +258,17 @@ fn zmer(
     for n in 0..=runs {
         let tensor = TensorRef::from_array_view((dims.to_vec(), data.as_slice()))?;
         let start = Instant::now();
-        let outputs = session.run(ort::inputs![jmeno => tensor])?;
+        let outputs = session.run(ort::inputs![name => tensor])?;
         let took = start.elapsed();
 
         if n == 0 {
-            // První běh nese probuzení ovladače a překlad grafu, takže do
-            // průměru nepatří — u DirectML bývá řádově delší než ty další.
+            // The first run carries waking the driver and compiling the graph,
+            // so it stays out of the average — under DirectML it tends to be an
+            // order of magnitude longer than the rest.
             let (s, d) = outputs[0].try_extract_tensor::<f32>()?;
             if hlasite {
                 println!(
-                    "zahřívací běh (v něm je i start ovladače): {:.1} ms, výstup {:?}, {} čísel",
+                    "warm-up run, driver start included: {:.1} ms, output {:?}, {} numbers",
                     took.as_secs_f64() * 1e3,
                     &**s,
                     d.len()

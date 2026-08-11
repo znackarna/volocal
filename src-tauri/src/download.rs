@@ -303,7 +303,7 @@ fn raw_catalog() -> Vec<DownloadComponent> {
     ]
 }
 
-/// Doplni, co uz je hotove, a co se pro tenhle konkretni pocitac hodi.
+/// Fills in what is already done, and what suits this particular computer.
 pub fn catalog(settings: &crate::db::Settings) -> Vec<DownloadComponent> {
     let has_nvidia = tools::has_nvidia();
     let has_vulkan = tools::has_vulkan();
@@ -428,7 +428,7 @@ fn download_file(
     if let Some(parent) = target.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    // stahujeme do .cast, at v cili nikdy nelezi nedodelany soubor
+    // Downloaded into .cast, so an unfinished file never sits at the target.
     let partial = target.with_extension("cast");
     let mut file = std::fs::File::create(&partial)?;
     let mut digest = Sha256::new();
@@ -451,7 +451,7 @@ fn download_file(
         digest.update(&buffer[..bytes_read]);
         downloaded += bytes_read as u64;
 
-        // hlasit kazdych 200 ms staci, jinak by se okno zahltilo
+        // Reporting every 200 ms is enough; more would flood the window.
         if last_update.elapsed().as_millis() > 200 {
             last_update = std::time::Instant::now();
             emit_progress(
@@ -541,7 +541,7 @@ fn extract_zip(archive: &Path, destination: &Path) -> Reported<()> {
     Ok(())
 }
 
-/// .tar.bz2 umi rozbalit tar.exe, ktery je soucasti Windows 10 a novejsich.
+/// .tar.bz2 is unpacked by tar.exe, which ships with Windows 10 and later.
 fn extract_tar(archive: &Path, destination: &Path) -> Reported<()> {
     std::fs::create_dir_all(destination)?;
     let status = tools::command("tar")

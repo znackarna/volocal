@@ -511,7 +511,7 @@ export default function Library({
   };
   const scrollContentRef = useRef<HTMLDivElement>(null);
 
-  // Hledani se spousti samo, ale az kdyz uzivatel na chvili prestane psat.
+  // The search runs on its own, but not until the typing pauses.
   useEffect(() => {
     if (query.trim().length < 2) {
       setResults(null);
@@ -1421,7 +1421,8 @@ function SearchResults({
   );
 }
 
-/** SQLite vraci nalezena slova obalena v << >> - prevedeme je na zvyrazneni. */
+/** SQLite returns the matched words wrapped in << >>; this turns them into the
+ *  highlight. */
 function highlight(text: string) {
   const parts = text.split(/(<<|>>)/);
   const out: JSX.Element[] = [];

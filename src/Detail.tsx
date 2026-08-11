@@ -1011,8 +1011,8 @@ export default function Detail({
         );
         setAiDocument((document) => document ? { ...document, stale: true } : null);
 
-        // Kdyz se zmenilo prave jedno slovo, nabidneme to zapamatovat.
-        // Slovnik tak roste sam pouzivanim, misto aby ho nekdo musel plnit.
+        // When exactly one word changed, offer to remember it. The dictionary
+        // then grows by being used, rather than by somebody filling it in.
         const old = segment.text.split(/\s+/);
         const newWords = trimmedText.split(/\s+/);
         if (old.length === newWords.length) {

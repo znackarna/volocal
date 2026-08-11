@@ -163,7 +163,8 @@ pub(crate) fn start_whisper(
     if settings.threads > 0 {
         cmd.args(["-t", &settings.threads.to_string()]);
     }
-    // VAD: bez ni Whisper na tichu opakuje jeden token dokola a spolkne zacatek reci.
+    // VAD: without it Whisper repeats one token over silence and swallows the
+    // beginning of the speech.
     if settings.vad && supports("--vad ") {
         if let Some(vad) = &check.model_vad {
             cmd.arg("--vad").arg("--vad-model").arg(vad);
