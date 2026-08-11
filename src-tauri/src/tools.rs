@@ -1,11 +1,12 @@
-//! Hledani a spousteni externich nastroju: ffmpeg, whisper-cli, sherpa-onnx.
+//! Finding and running the external tools: ffmpeg, whisper-cli, sherpa-onnx.
 //!
-//! Zamerne bez vazani knihoven - kazdy nastroj je samostatny proces. Diky tomu
-//! jde kterykoliv z nich vymenit nebo prelozit znovu bez zasahu do aplikace.
+//! Deliberately without linking any of them in — each is a process of its own.
+//! That is what lets any one of them be swapped or rebuilt without touching the
+//! application.
 //!
-//! Prenosny rezim: kdyz vedle programu lezi slozka `bin`, aplikace se prepne
-//! do rezimu "vsechno na flasce" - relativni cesty, databaze vedle programu,
-//! zadny zapis do systemu.
+//! Portable mode: when a `bin` folder sits beside the program, the application
+//! switches to everything-on-the-stick — relative paths, the archive next to the
+//! program, and nothing written into the system.
 
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
@@ -14,7 +15,7 @@ use std::process::{Command, Stdio};
 
 use crate::user_message::UserMessage;
 
-/// Na Windows by kazdy spusteny proces jinak blikl cernym oknem konzole.
+/// Without it, every process started here flashes a black console window.
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x0800_0000; // CREATE_NO_WINDOW
 
@@ -63,9 +64,9 @@ impl CommandRunner for PlainRunner {
     }
 }
 
-// ---------------------------------------------------------------- prenosnost
+// ---------------------------------------------------------------- portability
 
-/// Slozka, ve ktere lezi spustitelny soubor aplikace.
+/// The folder the application's executable sits in.
 pub fn app_directory() -> PathBuf {
     std::env::current_exe()
         .ok()
@@ -88,10 +89,11 @@ pub fn is_portable() -> bool {
     app_directory().join("prenosna.txt").is_file()
 }
 
-/// Kam se stahuji nastroje a modely.
+/// Where the tools and models are downloaded to.
 ///
-/// V prenosnem rezimu vedle programu. Jinak do profilu uzivatele - nikoliv do
-/// Program Files, protoze tam by aplikace bez prav spravce nic nezapsala.
+/// Beside the program in portable mode. Otherwise into the user's profile —
+/// not Program Files, where an application without administrator rights could
+/// write nothing at all.
 pub fn tools_root() -> PathBuf {
     if is_portable() {
         return app_directory();
@@ -102,11 +104,12 @@ pub fn tools_root() -> PathBuf {
         .join("Whisp")
 }
 
-/// Kam patri soubor, ktery katalog popisuje jako "bin/neco" nebo "models/neco".
+/// Where a file the catalogue describes as "bin/something" or "models/something"
+/// belongs.
 ///
-/// Musi to jit pres nastaveni, ne pres zakladni slozku napevno. Jinak by se
-/// stahovalo jinam, nez kam se pak aplikace diva - a uzivatel by po uspesnem
-/// stazeni videl hlasku, ze soubor chybi.
+/// It has to go through the settings rather than a hard-coded root. Otherwise
+/// the download lands somewhere the application does not then look — and after
+/// a download that succeeded, the reader is told the file is missing.
 pub fn component_path(settings: &crate::db::Settings, rel: &str) -> PathBuf {
     let (first, remainder) = rel.split_once('/').unwrap_or((rel, ""));
     let root = match first {
@@ -121,8 +124,8 @@ pub fn component_path(settings: &crate::db::Settings, rel: &str) -> PathBuf {
     }
 }
 
-/// Relativni cesty se vztahuji k zakladni slozce - diky tomu je jedno,
-/// jake pismeno dostane flaska na cizim pocitaci.
+/// Relative paths are read against the root folder, so it does not matter what
+/// drive letter the stick is given on somebody else's computer.
 pub fn expand(path: &str) -> PathBuf {
     let p = Path::new(path);
     if path.is_empty() || p.is_absolute() {
@@ -132,7 +135,8 @@ pub fn expand(path: &str) -> PathBuf {
     }
 }
 
-/// Kde ma byt databaze. V prenosnem rezimu vedle programu, jinak v profilu.
+/// Where the archive belongs: beside the program in portable mode, otherwise
+/// in the user's profile.
 pub fn data_directory(fallback: PathBuf) -> PathBuf {
     if is_portable() {
         app_directory().join("data")
@@ -141,23 +145,23 @@ pub fn data_directory(fallback: PathBuf) -> PathBuf {
     }
 }
 
-/// Nastavi WebView2 na verzi prilozenou na flasce, pokud tam je.
-/// Bez toho by aplikace na cizim pocitaci bez WebView2 vubec neotevrela okno.
+/// Points WebView2 at the copy carried on the stick, if there is one. Without
+/// it, a computer with no WebView2 of its own opens no window at all.
 pub fn set_webview2() -> Option<PathBuf> {
     let root = app_directory().join("webview2");
     if !root.is_dir() {
         return None;
     }
-    // Rozbaleny CAB ma uvnitr jeste slozku s cislem verze
-    let s_programem = |d: &Path| d.join("msedgewebview2.exe").is_file();
+    // The unpacked CAB has a folder named after the version inside it.
+    let holds_the_program = |d: &Path| d.join("msedgewebview2.exe").is_file();
 
-    let target = if s_programem(&root) {
+    let target = if holds_the_program(&root) {
         Some(root.clone())
     } else {
         std::fs::read_dir(&root).ok().and_then(|it| {
             it.filter_map(|e| e.ok())
                 .map(|e| e.path())
-                .find(|p| p.is_dir() && s_programem(p))
+                .find(|p| p.is_dir() && holds_the_program(p))
         })
     }?;
 
@@ -165,9 +169,9 @@ pub fn set_webview2() -> Option<PathBuf> {
     Some(target)
 }
 
-// ---------------------------------------------------------------- hledani
+// ---------------------------------------------------------------- finding
 
-/// Najde spustitelny soubor: nejdriv v zadanych slozkach, pak v systemove PATH.
+/// Finds an executable: in the given folders first, then on the system PATH.
 pub fn find_program_in(directories: &[PathBuf], title: &str) -> Option<PathBuf> {
     for s in directories {
         for k in [format!("{title}.exe"), title.to_string()] {
@@ -177,10 +181,10 @@ pub fn find_program_in(directories: &[PathBuf], title: &str) -> Option<PathBuf> 
             }
         }
     }
-    let promenna = std::env::var_os("PATH")?;
-    for adr in std::env::split_paths(&promenna) {
+    let path_variable = std::env::var_os("PATH")?;
+    for directory in std::env::split_paths(&path_variable) {
         for k in [format!("{title}.exe"), title.to_string()] {
-            let p = adr.join(&k);
+            let p = directory.join(&k);
             if p.is_file() {
                 return Some(p);
             }
@@ -199,10 +203,10 @@ pub fn find_file(directory: &Path, names: &[&str]) -> Option<PathBuf> {
     None
 }
 
-// ---------------------------------------------------------------- vypocet
+// ---------------------------------------------------------------- compute
 
-/// Ktere varianty whisper.cpp jsou na disku k dispozici.
-/// Podslozky bin\cuda, bin\vulkan, bin\cpu; pripadne primo bin\.
+/// Which whisper.cpp builds are on the disk.
+/// The subfolders bin\cuda, bin\vulkan, bin\cpu, or bin\ itself.
 pub fn available_compute_backends(bin: &Path) -> Vec<String> {
     let mut v = Vec::new();
     for name in ["cuda", "vulkan", "cpu"] {
@@ -217,8 +221,8 @@ pub fn available_compute_backends(bin: &Path) -> Vec<String> {
     v
 }
 
-/// Rozhodne se podle ovladacu, ktere jsou v systemu nainstalovane.
-/// nvcuda.dll = ovladac NVIDIA, vulkan-1.dll = Vulkan runtime.
+/// Decided by the drivers the system has installed.
+/// nvcuda.dll is the NVIDIA driver, vulkan-1.dll the Vulkan runtime.
 fn system_library_exists(title: &str) -> bool {
     let system = std::env::var_os("SystemRoot")
         .map(PathBuf::from)
@@ -235,9 +239,10 @@ pub fn has_vulkan() -> bool {
     system_library_exists("vulkan-1.dll")
 }
 
-/// Umi tenhle pocitac dane sestaveni vubec spustit?
+/// Can this computer run that build at all?
 ///
-/// `cpu` a `vychozi` jdou vzdycky; u ostatnich rozhoduje ovladac v systemu.
+/// `cpu` and `vychozi` always work; for the rest the system's driver decides.
+/// Those two names are stored settings and folder names on disk, so they stay.
 pub fn usable_compute(backend: &str) -> bool {
     match backend {
         "cuda" => has_nvidia(),
@@ -246,32 +251,33 @@ pub fn usable_compute(backend: &str) -> bool {
     }
 }
 
-/// Vybere variantu vypoctu. "auto" se rozhodne podle toho, co je na stroji.
+/// Picks the compute build. "auto" decides by what the machine has.
 pub fn choose_compute(bin: &Path, choice: &str) -> String {
-    let k_dispozici = available_compute_backends(bin);
-    if k_dispozici.is_empty() {
+    let available = available_compute_backends(bin);
+    if available.is_empty() {
         return "vychozi".into();
     }
-    // Stazena slozka jeste neznamena, ze ji tenhle pocitac umi spustit.
+    // A downloaded folder does not mean this computer can run what is in it.
     //
-    // Drive stacilo, ze `bin\cuda` existuje, a volba se prijala. Kdo mel
-    // ulozene `cuda` a v pocitaci kartu AMD, dostal CUDA sestaveni, ktere
-    // zadne zarizeni nenaslo a spocitalo prepis na procesoru — zatimco
-    // nastaveni cely cas tvrdilo, ze bezi na grafice. Kontrola hardwaru byla
-    // jen ve vetvi „automaticky“, tedy presne tam, kde uz je zbytecna.
-    if choice != "auto" && k_dispozici.iter().any(|x| x == choice) && usable_compute(choice) {
+    // It used to be enough that `bin\cuda` existed for the choice to be
+    // accepted. Anybody with `cuda` saved and an AMD card in the machine got a
+    // CUDA build, which found no device and transcribed on the processor —
+    // while the settings went on saying it was running on the graphics card.
+    // The hardware check lived only in the "automatic" branch, which is exactly
+    // where it is not needed.
+    if choice != "auto" && available.iter().any(|x| x == choice) && usable_compute(choice) {
         return choice.to_string();
     }
-    if k_dispozici.iter().any(|x| x == "cuda") && usable_compute("cuda") {
+    if available.iter().any(|x| x == "cuda") && usable_compute("cuda") {
         return "cuda".into();
     }
-    if k_dispozici.iter().any(|x| x == "vulkan") && usable_compute("vulkan") {
+    if available.iter().any(|x| x == "vulkan") && usable_compute("vulkan") {
         return "vulkan".into();
     }
-    if k_dispozici.iter().any(|x| x == "cpu") {
+    if available.iter().any(|x| x == "cpu") {
         return "cpu".into();
     }
-    k_dispozici[0].clone()
+    available[0].clone()
 }
 
 pub fn compute_directory(bin: &Path, compute: &str) -> PathBuf {
@@ -304,12 +310,12 @@ pub struct ToolCheck {
     pub portable: bool,
     pub app_directory: String,
     pub webview2_bundled: bool,
-    /// Ktera varianta se pouzije pri pristim prepisu
+    /// The build the next transcription will use.
     pub compute: String,
     pub available_compute_backends: Vec<String>,
     pub nvidia_driver: bool,
     pub vulkan_driver: bool,
-    /// Modely nalezene ve slozce modelu (bez pripony ggml-)
+    /// The models found in the models folder, without the ggml- prefix.
     pub found_models: Vec<String>,
 
     pub issues: Vec<UserMessage>,
@@ -375,11 +381,11 @@ pub fn check(n: &crate::db::Settings) -> ToolCheck {
             "segmentace.onnx",
         ],
     ));
-    // Poradi je zamerne a je to poradi kvality, ne abecedy. Kdo uz ma stazeny
-    // starsi model, prepisovat ho nemusi — pouzije se, dokud novy nedorazi —
-    // ale jakmile novy na disku je, ma prednost. Cinsky jednojazycny model
-    // zustava uplne posledni; ten je tu jen proto, aby stara instalace nebyla
-    // rozbita.
+    // The order is deliberate and it is quality, not alphabet. Somebody who
+    // already has an older model need not replace it — it is used until a newer
+    // one arrives — but once the newer one is on the disk it takes precedence.
+    // The Chinese single-language model stays last of all; it is here only so
+    // that an old installation is not broken by its disappearance.
     k.embedding_model = na_text(&find_file(
         &models,
         &[
@@ -471,8 +477,8 @@ pub fn resolve_editor_model(n: &crate::db::Settings) -> Option<(String, PathBuf)
         })
 }
 
-/// Vypise, jake prepisovaci modely na disku skutecne jsou - aby uzivatel
-/// v nabidce nevidel volby, ktere si s sebou nevzal.
+/// Lists the transcription models actually on the disk, so the menu does not
+/// offer choices this copy did not bring with it.
 pub fn list_models(models: &Path) -> Vec<String> {
     let mut v: Vec<String> = std::fs::read_dir(models)
         .into_iter()
@@ -881,7 +887,7 @@ pub fn equalizer_peaks(
     Ok(peaks)
 }
 
-/// Vyrez z nahravky - pouziva se pri zkousce vykonu.
+/// A slice of a recording, used by the performance benchmark.
 pub fn clip(
     ffmpeg: &Path,
     input: &Path,
