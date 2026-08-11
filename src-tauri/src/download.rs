@@ -31,11 +31,11 @@ pub struct DownloadComponent {
     pub megabytes: u64,
     /// program | model | speakers | editor
     pub group: String,
-    /// Bez ni prepis vubec nepobezi
+    /// Without it there is no transcription at all.
     pub required: bool,
-    /// Doporuceno prave pro tenhle pocitac
+    /// Recommended for this particular computer.
     pub recommended: bool,
-    /// Uz je stazena
+    /// Already downloaded.
     pub complete: bool,
     /// There is a record that this machine checked where the file came from.
     /// `complete` says a file is there; this says somebody vouched for it.
@@ -64,7 +64,7 @@ enum Source {
 enum Destination {
     /// Rozbalit archiv a vsechny .exe a .dll slozit do jedne slozky
     ProgramsInto(String),
-    /// Ulozit stazeny soubor pod danym jmenem
+    /// Save the downloaded file under the given name.
     AsFile(String),
 }
 
@@ -274,20 +274,22 @@ fn raw_catalog() -> Vec<DownloadComponent> {
             Destination::AsFile("models/editor/gemma-4-12b-q4.gguf".into()),
         ),
         // ---------------------------------------------------------- mluvci
-        // Historie tohohle radku, aby ho nikdo nevracel dozadu:
+        // The history of this line, so that nobody walks it back:
         //
-        // 1. Nejdriv tu byl 3dspeaker ... sv_zh-cn ..., natrenovany jen na
-        //    cinstine. Hlasy v cestine rozlisoval spatne.
-        // 2. Pak CAM++ z VoxCelebu, trenovany na siroke smesi jazyku.
-        // 3. Ted CAM++ „zh_en common advanced“, trenovany na zh i en a na
-        //    radove vetsim poctu mluvcich. Nema s bodem 1 spolecneho nic nez
-        //    jmeno rodiny — ten byl jednojazycny, tenhle neni.
+        // 1. First it was 3dspeaker ... sv_zh-cn ..., trained on Chinese only.
+        //    It told Czech voices apart badly.
+        // 2. Then CAM++ from VoxCeleb, trained on a wide mix of languages.
+        // 3. Now CAM++ "zh_en common advanced", trained on both zh and en and
+        //    on an order of magnitude more speakers. It shares nothing with
+        //    point 1 but the family name — that one was single-language, this
+        //    one is not.
         //
-        // Zmereno na skutecnych nahravkach uzivatele, ne odhadnuto. Cely
-        // rozbor je v docs/history/; ve zkratce, pri vynucenych dvou mluvcich
-        // dal VoxCeleb 65 prepnuti a pomer hlasu 55/45, zatimco tenhle 17
-        // prepnuti a 94/6 — a to same na anglicke i ceske verzi tehoz
-        // rozhovoru. Je pritom o megabajt mensi a stejne rychly.
+        // Measured on the owner's own recordings rather than estimated. The
+        // full comparison is in docs/history/; in short, with two speakers
+        // forced, VoxCeleb gave 65 handovers and a 55/45 split of the voices
+        // while this one gives 17 and 94/6 — the same on the English and the
+        // Czech version of one conversation. It is also a megabyte smaller and
+        // just as fast.
         k(
             "model-hlasy",
             28,
@@ -313,12 +315,12 @@ pub fn catalog(settings: &crate::db::Settings) -> Vec<DownloadComponent> {
             k.origin_verified = origin_verified(settings, &k.id);
             k.recommended = match k.id.as_str() {
                 "ffmpeg" | "vad" => true,
-                // Model se vybira podle toho, jestli je cim pocitat
+                // Which model depends on whether there is anything to compute with.
                 "model-large-q5" => has_nvidia || has_vulkan,
                 "model-turbo" => !(has_nvidia || has_vulkan),
                 "whisper-cuda" => has_nvidia,
                 "whisper-vulkan" => has_vulkan && !has_nvidia,
-                // bez ovladacu grafiky zbyva procesor
+                // With no graphics driver, the processor is what is left.
                 "whisper-cpu" => !has_nvidia && !has_vulkan,
                 "editor-vulkan" => has_vulkan,
                 "editor-cpu" => !has_vulkan,
@@ -334,6 +336,7 @@ pub fn catalog(settings: &crate::db::Settings) -> Vec<DownloadComponent> {
 #[derive(Serialize, Clone)]
 pub struct DownloadProgress {
     pub id: String,
+    /// The stored value, in Czech like the others:
     /// stahuji | rozbaluji | hotovo | chyba | zruseno
     pub phase: String,
     pub downloaded_mb: f64,
@@ -589,7 +592,7 @@ fn list_tree(root: &Path, limit: usize) -> Vec<String> {
 }
 
 /// Picks only the executables and libraries out of the unpacked pile.
-/// Archivy maji ruzne hluboke struktury, tohle je zplosti.
+/// Archives nest to different depths; this flattens them.
 fn collect_programs(source: &Path, destination: &Path) -> Reported<usize> {
     std::fs::create_dir_all(destination)?;
     let mut count = 0;
@@ -754,7 +757,7 @@ pub fn install_component(
         }
     }
 
-    // Starsi buildy whisper.cpp maji main.exe misto whisper-cli.exe
+    // Older whisper.cpp builds have main.exe instead of whisper-cli.exe.
     if let Destination::ProgramsInto(rel) = &component.destination {
         let directory = destination(rel);
         let cli = directory.join("whisper-cli.exe");
@@ -818,7 +821,7 @@ pub fn install_component(
     Ok(())
 }
 
-/// Nainstaluje seznam soucasti za sebou. Bezi ve vlastnim vlakne.
+/// Installs a list of components one after another, on a thread of its own.
 /// Whether a bundle is being installed right now.
 ///
 /// One flag for the whole application, because the thing being protected is
@@ -905,10 +908,10 @@ pub fn install_bundle(
     true
 }
 
-// ---------------------------------------------------------------- prenosna kopie
+// ---------------------------------------------------------------- portable copy
 
-/// Zkopiruje program, nastroje i modely do zvolene slozky a oznaci ji jako
-/// prenosnou. Nahrazuje sestavovaci skript - uzivatel jen vybere flashku.
+/// Copies the program, the tools and the models into a chosen folder and marks
+/// it portable. This replaces a build script — the reader only picks the stick.
 pub fn create_portable_copy(
     app: &AppHandle,
     settings: &crate::db::Settings,
@@ -923,7 +926,7 @@ pub fn create_portable_copy(
     let program = std::env::current_exe()?;
     std::fs::copy(&program, destination.join(&executable))?;
 
-    // WebView2, pokud ho tenhle stroj ma prilozeny
+    // WebView2, if this machine carries a copy of it.
     let wv = tools::app_directory().join("webview2");
     if wv.is_dir() {
         copy_tree(app, &wv, &destination.join("webview2"))?;

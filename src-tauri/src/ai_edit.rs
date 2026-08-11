@@ -331,16 +331,19 @@ fn split_chunks(text: &str) -> Vec<String> {
     chunks
 }
 
-/// Kolik slov predlohy musi v odpovedi zustat, aby to jeste byla uprava.
+/// How much of the original has to survive in the answer for it still to be an
+/// edit.
 ///
-/// Oprava prepisu nechava skoro kazde slovo tam, kde bylo: posune se
-/// interpunkce, zmeni se par prekliknutych slov. Preklad nenechá skoro nic —
-/// jmena a cisla. Ty dva vysledky jsou od sebe tak daleko, ze je jedno cislo
-/// bezpecne oddeli, a prave proto se tim da hlidat, ze model neodpovedel v
-/// jazyce pokynu misto v jazyce vstupu.
+/// Correcting a transcript leaves almost every word where it was: punctuation
+/// moves, a few mistyped words change. A translation leaves almost nothing but
+/// names and numbers. The two outcomes are far enough apart that a single
+/// number separates them safely — which is exactly what makes this a way to
+/// catch a model that answered in the language of the instructions rather than
+/// the language of the input.
 const MIN_KEPT_WORDING: f64 = 0.45;
 
-/// Pod tolik slov uz predloha neunese statistiku a nesoudi se.
+/// Below this many words the original cannot carry the statistic, and no
+/// judgement is made.
 const MIN_WORDS_TO_JUDGE: usize = 20;
 
 /// Podil slov predlohy, ktera se objevila i v odpovedi.
@@ -363,17 +366,17 @@ fn kept_wording(source: &str, edited: &str) -> f64 {
     kept as f64 / source_words.len() as f64
 }
 
-/// Je odpoved upravou predlohy, nebo necim uplne jinym?
+/// Is the answer an edit of the original, or something else entirely?
 fn is_an_edit_of(source: &str, edited: &str) -> bool {
     source.split_whitespace().count() < MIN_WORDS_TO_JUDGE
         || kept_wording(source, edited) >= MIN_KEPT_WORDING
 }
 
-/// Jazyk prepisu pojmenovany v pokynu.
+/// The transcript's language, named in the instructions.
 ///
-/// Abstraktni pravidlo „odpovidej ve stejnem jazyce“ model v pozdejsich
-/// castech dokumentu poustel ze zretele a prepinal se do jazyka, ve kterem je
-/// napsany zbytek pokynu. Konkretni jmeno jazyka drzi mnohem lip.
+/// The abstract rule "answer in the same language" was let go of further down a
+/// long document, and the model switched into the language the rest of the
+/// instructions are written in. A named language holds far better.
 fn language_note(code: &str) -> Option<String> {
     let name = match code
         .split(['-', '_'])

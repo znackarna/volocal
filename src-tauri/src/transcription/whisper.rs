@@ -45,9 +45,9 @@ pub(crate) fn program_help(program: &Path) -> String {
     }
 }
 
-// Vychozi hodnoty samotneho whisper.cpp (examples/cli/cli.cpp). Co se jim
-// rovna, se na prikazovou radku vubec neposila. Entropii mame jinou uz
-// odjakziva — viz `vychozi_prah_entropie` v db.rs.
+// whisper.cpp's own defaults (examples/cli/cli.cpp). Anything equal to them is
+// not put on the command line at all. Our entropy has always been different —
+// see `default_entropy_threshold` in db.rs.
 pub(crate) const WHISPER_NO_SPEECH_THRESHOLD: f64 = 0.6;
 pub(crate) const WHISPER_LOGPROB_THRESHOLD: f64 = -1.0;
 pub(crate) const WHISPER_ENTROPY_THRESHOLD: f64 = 2.4;
@@ -176,7 +176,7 @@ pub(crate) fn start_whisper(
             if supports("--vad-min-silence-duration-ms") {
                 cmd.args(["--vad-min-silence-duration-ms", "500"]);
             }
-            // bez odsazeni VAD ukusuje prvni slabiky
+            // Without the padding, VAD bites off the first syllables.
             if supports("--vad-speech-pad-ms") {
                 cmd.args(["--vad-speech-pad-ms", "250"]);
             }
@@ -200,7 +200,7 @@ pub(crate) fn start_whisper(
     // end regardless.
     task.record_process(recording_id, child);
 
-    // stderr = postup v procentech
+    // stderr carries the progress percentage.
     let app2 = app.clone();
     let id2 = recording_id.to_string();
     let progress_thread = std::thread::spawn(move || {
@@ -225,7 +225,7 @@ pub(crate) fn start_whisper(
         }
     });
 
-    // stdout = segmenty, jak vznikaji
+    // stdout carries the segments as they are made.
     let re_segment =
         Regex::new(r"^\[(\d+):(\d+):(\d+)\.(\d+)\s*-->\s*(\d+):(\d+):(\d+)\.(\d+)\]\s*(.*)$")
             .unwrap();
@@ -272,8 +272,8 @@ pub(crate) fn language_from_json(file: &Path) -> Option<String> {
     json["result"]["language"].as_str().map(|s| s.to_string())
 }
 
-/// Streamovany stdout je hezky pro oko, ale zavazny zdroj dat je JSON -
-/// obsahuje i jistotu jednotlivych tokenu.
+/// The streamed stdout is pleasant to watch, but the JSON is the binding
+/// source: it carries the confidence of each token as well.
 pub(crate) fn load_segments_from_json(file: &Path, recording_id: &str) -> Result<Vec<Segment>> {
     let contents = std::fs::read_to_string(file)?;
     let json: serde_json::Value = serde_json::from_str(&contents)?;
@@ -307,8 +307,8 @@ pub(crate) fn load_segments_from_json(file: &Path, recording_id: &str) -> Result
             continue;
         }
 
-        // prumerna pravdepodobnost tokenu = miru jistoty, kterou v editoru
-        // podtrhneme, aby uzivatel vedel, kam se divat
+        // The average token probability is the confidence the editor
+        // underlines, so the reader knows where to look.
         let confidence = s["tokens"].as_array().map(|t| {
             let values: Vec<f64> = t.iter().filter_map(|x| x["p"].as_f64()).collect();
             if values.is_empty() {

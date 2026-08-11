@@ -47,14 +47,15 @@ pub struct Recording {
     pub title: String,
     pub duration: f64,
     pub created_at: String,
-    /// nova | prepisuje | hotova | chyba
+    /// The stored value, which is Czech and stays that way — every archive on
+    /// disk says one of these: nova | prepisuje | hotova | chyba
     pub status: String,
     pub model: String,
     /// Language code the transcript actually ran in. With automatic
     /// detection, the one Whisper recognised.
     pub language: String,
-    /// Language requested for this recording. Empty = use the app
-    /// aplikace. „auto“ = nechat rozpoznat.
+    /// Language requested for this recording. Empty means the application's
+    /// own setting; "auto" means let Whisper recognise it.
     pub language_choice: String,
     pub error: Option<String>,
     pub segment_count: i64,
@@ -233,42 +234,43 @@ pub struct Settings {
     pub vad_threshold: f64,
     #[serde(alias = "diarizace")]
     pub diarization: bool,
-    /// 0 = urcit automaticky
+    /// 0 means decide automatically.
     #[serde(alias = "pocet_mluvcich")]
     pub speaker_count: i64,
     #[serde(alias = "prah_shluku")]
     pub cluster_threshold: f64,
-    /// Posun okna segmentace jako podil jeho delky. Sherpa ma vychozich 0.1,
-    /// tedy devadesatiprocentni prekryv — nejpresnejsi a nejpomalejsi.
-    /// Vetsi cislo = mene oken = rychleji, za cenu hrubsich hranic.
+    /// How far the segmentation window moves, as a share of its own length.
+    /// Sherpa's default is 0.1 — a ninety per cent overlap, the most accurate
+    /// and the slowest. A larger number means fewer windows and less time, at
+    /// the price of coarser boundaries.
     #[serde(default = "default_segmentation_window_shift", alias = "posun_okna")]
     pub segmentation_window_shift: f64,
     pub beam: i64,
     #[serde(alias = "vlakna")]
     pub threads: i64,
 
-    // ------- ladeni dekodovani
+    // ------- decoding, tuned
     //
-    // Vychozi hodnoty jsou presne ty, se kterymi pracuje whisper.cpp sam.
-    // Kdo se jich nedotkne, dostane stejny vysledek jako driv — proto se
-    // taky nepredavaji na prikazovou radku, dokud se nezmeni.
-    /// Nad tuhle mez pravdepodobnosti se okno prohlasi za ticho. Vys =
-    /// prisnejsi, spolehlive ticho, ale riziko, ze zmizi tiche slovo.
+    // The defaults are exactly the ones whisper.cpp uses on its own, so
+    // anybody who leaves them alone gets what they always got — which is also
+    // why they are not passed on the command line until they are changed.
+    /// Above this probability the window is declared silence. Higher is
+    /// stricter and more reliably silent, at the risk of losing a quiet word.
     #[serde(default = "default_threshold_silence", alias = "prah_ticha")]
     pub threshold_silence: f64,
-    /// Pod tuhle prumernou logaritmickou pravdepodobnost se dekodovani
-    /// povazuje za selhane a zkusi se znovu s vyssi teplotou.
+    /// Below this average log probability the decoding counts as failed and
+    /// is tried again at a higher temperature.
     #[serde(default = "default_threshold_confidence", alias = "prah_jistoty")]
     pub threshold_confidence: f64,
-    /// Kdyz je vystup podezrele jednotvarny, zkusi se usek znovu. Nizsi
-    /// cislo = prisnejsi, casteji opakuje.
+    /// When the output is suspiciously uniform the passage is decoded again.
+    /// A lower number is stricter and retries more often.
     #[serde(default = "default_entropy_threshold", alias = "prah_entropie")]
     pub entropy_threshold: f64,
-    /// Pocatecni teplota vzorkovani. Nula = vzdy nejpravdepodobnejsi slovo.
+    /// The starting sampling temperature. Zero always takes the likeliest word.
     #[serde(default, alias = "teplota")]
     pub temperature: f64,
-    /// O kolik se teplota zvedne pri kazdem dalsim pokusu. Nula fallback
-    /// vypne uplne — zacykleni pak nema jak prerusit.
+    /// How much the temperature rises with each further attempt. Zero turns
+    /// the fallback off entirely, leaving nothing to break a loop.
     #[serde(default = "default_temperature_increment", alias = "teplota_krok")]
     pub temperature_increment: f64,
     /// auto | cuda | vulkan | cpu — which whisper.cpp build to use
@@ -298,9 +300,9 @@ pub struct Settings {
 fn default_compute() -> String {
     "auto".into()
 }
-// Vychozi hodnoty whisper.cpp, opsane z examples/cli/cli.cpp. Entropie je
-// jedina vyjimka: 2.6 misto 2.4, protoze na cestine se model zacykloval
-// castji, nez byla whisperovska mez ochotna zachytit.
+// whisper.cpp's own defaults, copied from examples/cli/cli.cpp. Entropy is the
+// one exception — 2.6 rather than 2.4, because on Czech the model looped more
+// often than whisper's threshold was willing to catch.
 fn default_threshold_silence() -> f64 {
     0.6
 }
@@ -314,9 +316,9 @@ fn default_temperature_increment() -> f64 {
     0.2
 }
 
-/// Kompromis: proti sherpovske vychozi desetine dvojnasobny krok. Na
-/// mluvenem slovu se hranice posunou o desetiny vteriny, coz se ve vete
-/// ztrati, ale segmentace bere zhruba polovicni cas.
+/// A compromise: twice Sherpa's default tenth of a step. On speech the
+/// boundaries move by tenths of a second, which is lost inside a sentence,
+/// and the segmentation takes about half the time.
 fn default_segmentation_window_shift() -> f64 {
     0.2
 }
@@ -339,8 +341,8 @@ fn default_line_height() -> f64 {
 impl Default for Settings {
     fn default() -> Self {
         Self {
-            // V prenosnem rezimu jsou cesty relativni ke slozce programu,
-            // takze je jedno, jake pismeno flaska dostane.
+            // In portable mode the paths are relative to the program's own
+            // folder, so the stick's drive letter does not matter.
             bin_directory: "bin".into(),
             models_directory: "models".into(),
             watch_folder: String::new(),
@@ -352,16 +354,16 @@ impl Default for Settings {
             model: "large-v3".into(),
             editor_model: String::new(),
             language: "auto".into(),
-            // VAD je zapnuta natvrdo: bez ni Whisper na tichu halucinuje
+            // Always on: without it Whisper hallucinates over silence.
             vad: true,
             vad_threshold: 0.5,
             diarization: false,
             speaker_count: 0,
-            // Sherpovska vychozi hodnota je 0.5 a mensi cislo znamena vic
-            // shluku. Na skutecnych nahravkach delala z dvouclenneho rozhovoru
-            // sestnact mluvcich. Na 0.8 klesl pocet prepnuti z 119 na 20 a
-            // pomer hlasu sedl na to, co je v nahravce slyset. Podrobne
-            // v docs/history/.
+            // Sherpa's default is 0.5, and a smaller number means more
+            // clusters. On real recordings it turned a conversation between
+            // two people into sixteen speakers. At 0.8 the number of handovers
+            // fell from 119 to 20 and the share of each voice matched what is
+            // audible. The measurements are in docs/history/.
             cluster_threshold: 0.8,
             segmentation_window_shift: default_segmentation_window_shift(),
             beam: 5,
@@ -1573,8 +1575,8 @@ pub fn rename_speaker(db: &Connection, recording_id: &str, key: &str, name: &str
     Ok(())
 }
 
-/// Diarizace casto rozdeli jednoho cloveka na dva (zmena hlasitosti, kaslani).
-/// Slouceni je proto zakladni operace, ne okrajova funkce.
+/// Diarization often splits one person in two — a change of loudness, a cough.
+/// Merging is therefore a basic operation here, not a fringe one.
 /// Removes a speaker and leaves what they said without a name.
 ///
 /// Not a merge with nobody: a merge moves the blocks to another person, and
@@ -2820,15 +2822,16 @@ mod tests {
     }
 }
 
-/// Jednorazove zvedne prah shlukovani mluvcich na novou vychozi hodnotu.
+/// Raises the speaker clustering threshold to its new default, once.
 ///
-/// Zmena vychozi hodnoty sama o sobe plati jen pro nove instalace — kdo uz
-/// aplikaci spustil, ma v `klice` ulozenou celou strukturu nastaveni vcetne
-/// stareho 0.5, a ten by si sestnact mluvcich nechal navzdy.
+/// Changing a default only reaches new installations. Anybody who has already
+/// started the application has the whole settings structure stored in
+/// `settings`, old 0.5 and all, and would have kept their sixteen speakers for
+/// good.
 ///
-/// Posune se jen hodnota, ktera se rovna byvale vychozi. Kdo si prah vedome
-/// prestavil na neco jineho, si to nechava; jeho volba je novejsi informace
-/// nez nas odhad.
+/// Only a value equal to the former default is moved. Somebody who set the
+/// threshold deliberately keeps what they set: their choice is newer
+/// information than our estimate.
 pub fn raise_cluster_threshold_once(db: &Connection) -> Result<bool> {
     const MARK: &str = "cluster-threshold-version";
     const OLD_DEFAULT: f64 = 0.5;

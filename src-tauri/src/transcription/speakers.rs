@@ -132,25 +132,26 @@ pub(crate) fn diarize(
         .collect())
 }
 
-/// Kolik reci musi uvnitr jedne vety pripadnout na druheho mluvciho, aby se
-/// zmena povazovala za skutecne prevzeti slova a ne za nepresnou hranici.
+/// How much speech inside one sentence has to belong to the second speaker for
+/// the change to count as a real handover rather than an inexact boundary.
 ///
-/// Obe podminky plati zaroven. Samotny pocet slov nestaci: tri kratka slova
-/// jsou pul vteriny, coz zadne prevzeti slova neni. A samotna delka nestaci
-/// taky, protoze jedno slovo pred dlouhou pauzou muze mit vterinu a pul.
+/// Both conditions hold at once. The word count alone is not enough: three
+/// short words are half a second, which is no handover at all. And the length
+/// alone is not enough either, because a single word before a long pause can
+/// last a second and a half.
 ///
-/// Pozor, tohle plati jen *uvnitr* vety. Jednoslovne pritakani v rozhovoru
-/// nebo v telefonatu — „mhm“, „jasne“ — vraci Whisper jako samostatny usek,
-/// a ten touhle cestou vubec neprochazi: useky kratsi nez dve slova dostanou
-/// mluvciho prostym prekryvem a nikdo je nepohlti.
+/// Note that this applies only *inside* a sentence. A one-word acknowledgement
+/// in a conversation or a phone call — "mhm", "jasně" — comes back from Whisper
+/// as a passage of its own, and never travels this path: anything shorter than
+/// two words is given its speaker by plain overlap and nothing swallows it.
 pub(crate) const MIN_TURN_SECONDS: f64 = 1.4;
 pub(crate) const MIN_TURN_WORDS: usize = 3;
 
-/// O kolik slov se smi hranice mluvcich posunout, aby padla na interpunkci.
+/// How far a speaker boundary may move, in words, to land on punctuation.
 ///
-/// Sherpa vraci cas, Whisper vraci slova, a obe hranice jsou nepresne radove
-/// o desetiny vteriny — tedy prave o jedno dve slova. Kdyz uz se veta deli,
-/// at se deli tam, kde ma stejne konec vetny celek.
+/// Sherpa returns a time and Whisper returns words, and both boundaries are
+/// inexact by tenths of a second — which is one or two words. If a sentence is
+/// going to be split, let it split where a clause ends anyway.
 pub(crate) const PUNCTUATION_SNAP: usize = 2;
 
 /// Souvisle sledy slov jednoho mluvciho, jako dvojice prvni a posledni index.
@@ -168,7 +169,7 @@ pub(crate) fn speaker_runs(speakers: &[Option<String>]) -> Vec<(usize, usize)> {
     runs
 }
 
-/// Konci slovo znamenkem, ktere uzavira vetu nebo vetny celek?
+/// Does the word end with a mark that closes a sentence or a clause?
 pub(crate) fn ends_clause(word: &str) -> bool {
     word.trim_end()
         .chars()
@@ -177,11 +178,11 @@ pub(crate) fn ends_clause(word: &str) -> bool {
         .unwrap_or(false)
 }
 
-/// Poradi mluvciho podle cisla v klici.
+/// A speaker's place in the order, by the number in their key.
 ///
-/// Textove razeni by dalo `speaker_1, speaker_10, speaker_2`, takze by
-/// „Mluvci 2“ v prepisu byl ve skutecnosti desaty. Pri deleni po slovech
-/// mluvcich pribyva, takze uz to neni jen teoreticka moznost.
+/// Sorting as text gives `speaker_1, speaker_10, speaker_2`, so "Mluvčí 2" in
+/// the transcript would in fact be the tenth. Splitting by words adds speakers,
+/// so this stopped being theoretical.
 pub(crate) fn order_key(key: &str) -> (i64, String) {
     let number = key
         .rsplit(|z: char| !z.is_ascii_digit())
@@ -191,13 +192,13 @@ pub(crate) fn order_key(key: &str) -> (i64, String) {
     (number, key.to_string())
 }
 
-/// Mluvci, s nimz se dany casovy usek nejvic prekryva.
+/// The speaker a given stretch of time overlaps most.
 pub(crate) fn speaker_for(start: f64, end: f64, turns: &[SpeakerTurn]) -> Option<String> {
     let mut best: Option<(&str, f64)> = None;
     for u in turns {
-        let prekryv = (end.min(u.end) - start.max(u.start)).max(0.0);
-        if prekryv > 0.0 && best.map(|(_, p)| prekryv > p).unwrap_or(true) {
-            best = Some((&u.key, prekryv));
+        let overlap = (end.min(u.end) - start.max(u.start)).max(0.0);
+        if overlap > 0.0 && best.map(|(_, p)| overlap > p).unwrap_or(true) {
+            best = Some((&u.key, overlap));
         }
     }
     best.map(|(k, _)| k.to_string())
