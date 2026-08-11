@@ -22,7 +22,7 @@ the time.
 | [2026-08-08](2026-08-08.md) | 10 | The unnamed interjections get a list of their own … |
 | [2026-08-09](2026-08-09.md) | 4 | The audio the application makes has a folder of its own … |
 | [2026-08-10](2026-08-10.md) | 23 | The change log leaves CLAUDE.md … |
-| [2026-08-11](2026-08-11.md) | 9 | Volocal 1.0.0, and a signing key that is worth something |
+| [2026-08-11](2026-08-11.md) | 10 | Volocal 1.0.0, and a signing key that is worth something |
 
 ## What each day was about
 
@@ -46,4 +46,4 @@ the time.
 
 **[2026-08-10](2026-08-10.md)** — The hardening plan, start to finish. The log moved here; the baseline got its Windows numbers; the security documentation was made to match the code; all 21 Clippy findings fixed and CI now refuses new ones; fifteen downloads pinned and compared against a published digest; four oversized files split by what they do; the webview's access to the disk closed to one file at a time — which corrects an entry written the same morning; the interface's first tests; Vite 5 to 8; and a release candidate that has to install and run before it counts. Then the day kept going: Slobot became Volocal, identifier and all, with a migration that carries the archive over; the header took the drawn wordmark; a nested transaction that broke deleting a folder was found and fixed; and the release path got a script, a version command and documents that no longer promise there is no update check.
 
-**[2026-08-11](2026-08-11.md)** — Volocal 1.0.0. The updater's signing key was replaced with one that has a password, which is free before the first release and impossible after it.
+**[2026-08-11](2026-08-11.md)** — Volocal 1.0.0. By the end of the night an update installed itself end to end — after a release that carried the previous version's installer, and a job object that killed the installer a moment after starting it. The updater's signing key was replaced with one that has a password, which is free before the first release and impossible after it.
