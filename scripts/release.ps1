@@ -31,14 +31,44 @@
   src-tauri\target\release\bundle\nsis\. Point it at the artifact from CI if
   that is the build being released.
 
-.PARAMETER Notes
-  What changed, in the language the readers speak. Shown by the updater before
-  anyone agrees to download.
+.PARAMETER NotesCs
+  What the reader gets, in Czech, for the dialog the application shows before
+  anybody agrees to a download. This is the text that goes into latest.json,
+  which only an installed copy of Volocal ever reads - and its readers are
+  Czech.
+
+  Short noun phrases naming the gain, not sentences describing the commit:
+
+    Zprehledneni nabidky mluvcich          not  Nabidka nad prepisem nabizi
+    Drobna vizualni vylepseni ikon              jmena mluvcich misto "vyse/nize"
+
+  The reader is deciding whether to restart their work for this. What they want
+  is what improves, in the time it takes to read four words. The detail belongs
+  in the English text and in docs\history.
+
+  Lines beginning with "- " become a list in the dialog. Everything else is a
+  paragraph.
+
+.PARAMETER NotesEn
+  The same release in English, for the GitHub release page. Its readers arrive
+  from anywhere and are developers, so nothing on that page is in Czech.
+
+  Here the detail is welcome: this audience wants to know what actually changed
+  and can read a file name. Two texts rather than one translated at either end,
+  because the two audiences have never wanted the same thing.
+
+.PARAMETER Material
+  Prints what happened since the last tag - the commits, and the change log for
+  the days they fall on - and stops. This is what the two texts get written
+  from; it summarises nothing by itself, because a machine summary of commit
+  subjects is exactly how a release ends up announcing "various fixes".
 #>
 param(
   [switch]$Publish,
   [string]$Installer,
-  [string]$Notes = "",
+  [string]$NotesCs = "",
+  [string]$NotesEn = "",
+  [switch]$Material,
   [switch]$SkipChecks,
   # Release without an Authenticode signature. Everybody who downloads it then
   # meets SmartScreen - "Windows protected your PC", More info, Run anyway -
@@ -65,6 +95,43 @@ Set-Location $root
 
 function Step($text) { Write-Host "`n=== $text" -ForegroundColor Cyan }
 function Fail($text) { Write-Host "`n$text" -ForegroundColor Red; exit 1 }
+
+# Everything that happened since the last release, laid out to write the two
+# note texts from. Nothing here decides what is worth mentioning.
+function Show-Material {
+  $last = git describe --tags --abbrev=0 2>$null
+  if ($LASTEXITCODE -or -not $last) {
+    Write-Host "No tag yet - showing the whole history." -ForegroundColor Yellow
+    $range = "HEAD"
+  } else {
+    $range = "$last..HEAD"
+  }
+
+  Step "Commits ($range)"
+  git log --no-merges --format="  %h  %s" $range
+
+  Step "Change log for those days"
+  # The log is one file per day and the commits carry their dates, so the days
+  # that were worked on are the days worth reading back.
+  $days = git log --format="%ad" --date=format:"%Y-%m-%d" $range | Sort-Object -Unique
+  foreach ($day in $days) {
+    $file = "docs\history\$day.md"
+    if (Test-Path $file) {
+      Write-Host "`n--- $file" -ForegroundColor DarkGray
+      Get-Content $file
+    }
+  }
+
+  Write-Host @"
+
+Now write the two texts and publish with both:
+
+  scripts\release.ps1 -Publish -NotesCs "..." -NotesEn "..."
+
+Czech goes to the application's dialog, English to the release page. Lines
+starting with "- " become a list in the dialog.
+"@ -ForegroundColor Green
+}
 
 # The key's password, asked for once and passed on explicitly everywhere.
 #
@@ -117,6 +184,11 @@ $bundle = "src-tauri\target\release\bundle\nsis"
 
 # ---------------------------------------------------------------- first pass
 
+if ($Material) {
+  Show-Material
+  exit 0
+}
+
 if (-not $Publish) {
   if (-not $SkipChecks) {
     Step "Checks"
@@ -149,7 +221,12 @@ Built: $($exe.FullName)
 
 Now sign it with the certificate on the token, and then run:
 
-  scripts\release.ps1 -Publish -Notes "what changed"
+  scripts\release.ps1 -Material
+  scripts\release.ps1 -Publish -NotesCs "..." -NotesEn "..."
+
+The first prints what changed since the last tag; the second wants that written
+up twice, in Czech for the dialog the application shows and in English for the
+release page.
 
 Signing after this point is deliberate: the updater signature is made in the
 second pass, over the file as it will be downloaded.
@@ -158,6 +235,23 @@ second pass, over the file as it will be downloaded.
 }
 
 # ---------------------------------------------------------------- second pass
+
+# Asked for before anything is signed or uploaded. A release without notes is
+# what 1.0.4 was: the application offers a restart for a version it can say
+# nothing about, and the reader agrees to it blind. There is no default here on
+# purpose - "" would pass a check for emptiness and still say nothing.
+if (-not $NotesCs.Trim() -or -not $NotesEn.Trim()) {
+  Fail @"
+Both -NotesCs and -NotesEn are needed.
+
+  scripts\release.ps1 -Material       what changed since the last tag
+  scripts\release.ps1 -Publish -NotesCs "..." -NotesEn "..."
+
+Czech goes into latest.json, which only the application reads, and it shows it
+before anybody agrees to download. English goes on the release page, which
+developers read. Neither audience should meet the other's language.
+"@
+}
 
 if (-not $Installer) {
   $found = Get-ChildItem "$bundle\*.exe" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime | Select-Object -Last 1
@@ -228,7 +322,9 @@ Step "latest.json"
 # be found.
 $latest = [ordered]@{
   version   = $version
-  notes     = $Notes
+  # Czech: this file is fetched by installed copies of Volocal and by nothing
+  # else, and it is shown in the application's own dialog.
+  notes     = $NotesCs
   pub_date  = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
   platforms = [ordered]@{
     "windows-x86_64" = [ordered]@{
@@ -264,7 +360,8 @@ if ($LASTEXITCODE) { Fail "Could not ask GitHub what has been released. Is gh si
 if ($existing -contains $tag) {
   Fail "$tag already exists on GitHub. Move the version on with scripts\version.ps1."
 }
-gh release create $tag --draft --title "Volocal $version" --notes $Notes `
+# English on the page, Czech in the file the page carries.
+gh release create $tag --draft --title "Volocal $version" --notes $NotesEn `
   $exe.FullName "$($exe.FullName).sig" $latestPath
 if ($LASTEXITCODE) { Fail "Creating the release failed." }
 

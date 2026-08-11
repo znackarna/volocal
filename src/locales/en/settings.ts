@@ -23,6 +23,10 @@ export const enSettings: Partial<Record<keyof typeof csSettings, string>> = {
   "settings.about.updateCurrent": "You have the newest version.",
   "settings.about.updateFound": "Version {version} is available.",
   "settings.about.updateInstall": "Download and install",
+  "settings.about.updateNotesTitle": "Version {version}",
+  "settings.about.updateNotesLead": "What changed in it.",
+  "settings.about.updateNotesLater": "Not now",
+  "settings.about.updateNotesReopen": "What's new",
   "settings.about.updateDownloading": "Downloading… {percent} %",
   "settings.about.updateDownloadingUnknown": "Downloading…",
   "settings.about.updateInstalling":

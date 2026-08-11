@@ -555,6 +555,16 @@
 /* A field is the dialog's last block; the footer owns the space above it. */
 .dialog .pole { margin-bottom: 0; }
 .dialog-patka { display: flex; justify-content: flex-end; gap: 8px; margin-top: 22px; }
+/* What is in an update, in the dialog that offers it. No margin of its own:
+   `.dialog h2 + p` owns the gap above, like every other block in a dialog.
+   240 px is about eight items — beyond that the box scrolls, so a talkative
+   release cannot push the footer off the bottom of a laptop screen. */
+.novinky { max-height: 240px; overflow-y: auto; }
+.novinky > * + * { margin-top: 12px; }
+.novinky ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
+/* Full-strength text, unlike `.dialog p`: the sentence above is the framing and
+   may be quiet, but this is the thing the reader opened the dialog to read. */
+.novinky li, .novinky p { color: var(--text); font-size: 14px; line-height: 1.5; }
 /* Two widths: 420 px for a question with a field, 520 px for a column of
    choice cards. 520 is the wider of the two former numbers because the cards
    in the AI dialog carry a badge in a third column (.volba.s-ikonou > .odznak),

@@ -162,6 +162,10 @@ export const csSettings = {
   "settings.about.updateCurrent": "Máte nejnovější verzi.",
   "settings.about.updateFound": "K dispozici je verze {version}.",
   "settings.about.updateInstall": "Stáhnout a nainstalovat",
+  "settings.about.updateNotesTitle": "Verze {version}",
+  "settings.about.updateNotesLead": "Co se v ní změnilo.",
+  "settings.about.updateNotesLater": "Teď ne",
+  "settings.about.updateNotesReopen": "Co je nového",
   "settings.about.updateDownloading": "Stahuji… {percent} %",
   "settings.about.updateDownloadingUnknown": "Stahuji…",
   "settings.about.updateInstalling":
@@ -378,6 +382,14 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
     "Instalátor si aplikaci sám zavře a po dokončení ji znovu spustí. Uživatel nemusí dělat nic.",
   "settings.about.updateFailed":
     "Jediná hláška pro každé selhání kontroly. Technický důvod z Tauri je anglicky a uživateli nic neřekne — jde do konzole, ne na obrazovku.",
+  "settings.about.updateNotesTitle":
+    "Nadpis dialogu, který ukáže, co je v nové verzi. {version} je její číslo, například 1.0.5.",
+  "settings.about.updateNotesLead":
+    "Věta pod tím nadpisem. Pod ní následuje seznam změn, který píše autor vydání — ten je v tom dialogu to podstatné, tahle věta ho jen uvádí.",
+  "settings.about.updateNotesLater":
+    "Tlačítko, kterým se dialog zavře bez instalace. Nabídka platí dál, nic se neztrácí.",
+  "settings.about.updateNotesReopen":
+    "Tlačítko v panelu, které ten dialog otevře znovu, když ho někdo zavřel a chce si text přečíst ještě jednou.",
 
   "settings.appearance.description":
     "Úvodní věta záložky Vzhled. Karta drží jazyk rozhraní, motiv, obě písma, velikost a řádkování; pod nimi je živá ukázka přepisu.",
