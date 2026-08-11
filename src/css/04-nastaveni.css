@@ -832,6 +832,12 @@ button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
   animation: sidebar-section-open 180ms var(--hover-ease);
 }
 .sidebar-section-body > :first-child { margin-top: 0; }
+/* And the same number again where an explanation is followed by the list it
+   explains — the only card that has both. Left flush, the first row's
+   highlight began exactly where the sentence ended, so the gap above the body
+   and the gap inside it disagreed by ten pixels in a card small enough to see
+   both at once. One number, used twice. */
+.sidebar-section-body > .sidebar-empty + * { margin-top: 10px; }
 /* Bottom right of the card, under what it acts on. */
 .sidebar-section-action { display: flex; justify-content: flex-end; margin-top: 10px; }
 @keyframes sidebar-section-open {
