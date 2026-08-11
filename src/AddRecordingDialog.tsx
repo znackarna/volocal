@@ -157,7 +157,7 @@ export default function AddRecordingDialog({
 
   return (
     <div
-      className="prekryv-dialogu"
+      className="dialog-overlay"
       role="presentation"
       onMouseDown={() => {
         if (running) return;
@@ -182,9 +182,9 @@ export default function AddRecordingDialog({
           <>
             <h2 id="add-recording-title">{t("dialogs.addRecording.title")}</h2>
             <p>{t("dialogs.addRecording.prompt")}</p>
-            <div className="volby add-recording-options">
-              <button className="volba s-ikonou" onClick={onLocalFile} autoFocus>
-                <span className="volba-ikona" aria-hidden>
+            <div className="choices add-recording-options">
+              <button className="choice with-icon" onClick={onLocalFile} autoFocus>
+                <span className="choice-icon" aria-hidden>
                   <svg width="19" height="19" viewBox="0 0 20 20" fill="none">
                     <path d="M5 2.5h6l4 4v11H5zM11 2.5v4h4" stroke="currentColor"
                           strokeWidth="1.5" strokeLinejoin="round" />
@@ -196,32 +196,32 @@ export default function AddRecordingDialog({
                           strokeWidth="1.5" strokeLinecap="round" />
                   </svg>
                 </span>
-                <span className="volba-telo">
-                  <span className="volba-nazev">{t("dialogs.addRecording.localFile")}</span>
-                  <span className="drobne">{t("dialogs.addRecording.localFileNote")}</span>
+                <span className="choice-body">
+                  <span className="choice-title">{t("dialogs.addRecording.localFile")}</span>
+                  <span className="small-text">{t("dialogs.addRecording.localFileNote")}</span>
                 </span>
               </button>
-              <button className="volba s-ikonou" onClick={() => setView("online")}>
-                <span className="volba-ikona" aria-hidden>
+              <button className="choice with-icon" onClick={() => setView("online")}>
+                <span className="choice-icon" aria-hidden>
                   <LineIcon name="video" size={19} />
                 </span>
-                <span className="volba-telo">
-                  <span className="volba-nazev">{t("dialogs.addRecording.onlineVideo")}</span>
-                  <span className="drobne">{t("dialogs.addRecording.onlineVideoNote")}</span>
+                <span className="choice-body">
+                  <span className="choice-title">{t("dialogs.addRecording.onlineVideo")}</span>
+                  <span className="small-text">{t("dialogs.addRecording.onlineVideoNote")}</span>
                 </span>
               </button>
-              <button className="volba s-ikonou" onClick={() => setView("microphone")}>
-                <span className="volba-ikona" aria-hidden>
+              <button className="choice with-icon" onClick={() => setView("microphone")}>
+                <span className="choice-icon" aria-hidden>
                   <MicrophoneIcon />
                 </span>
-                <span className="volba-telo">
-                  <span className="volba-nazev">{t("dialogs.addRecording.microphone")}</span>
-                  <span className="drobne">{t("dialogs.addRecording.microphoneNote")}</span>
+                <span className="choice-body">
+                  <span className="choice-title">{t("dialogs.addRecording.microphone")}</span>
+                  <span className="small-text">{t("dialogs.addRecording.microphoneNote")}</span>
                 </span>
               </button>
             </div>
-            <div className="dialog-patka">
-              <button className="tlacitko" onClick={onClose}>{t("common.cancel")}</button>
+            <div className="dialog-footer">
+              <button className="button" onClick={onClose}>{t("common.cancel")}</button>
             </div>
           </>
         ) : view === "microphone" ? (
@@ -249,7 +249,7 @@ export default function AddRecordingDialog({
             <h2 id="add-recording-title">{t("dialogs.addRecording.onlineTitle")}</h2>
             <p>{t("dialogs.addRecording.onlinePrompt")}</p>
 
-            <div className="pole add-recording-url">
+            <div className="field add-recording-url">
               <label htmlFor="online-recording-url">{t("dialogs.addRecording.urlLabel")}</label>
               <input
                 id="online-recording-url"
@@ -265,7 +265,7 @@ export default function AddRecordingDialog({
             </div>
 
             {!running && (
-              <p className="drobne add-recording-note">
+              <p className="small-text add-recording-note">
                 <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden>
                   <circle cx="8" cy="8" r="6.2" stroke="currentColor" strokeWidth="1.35" />
                   <path d="M8 7.1v3.7M8 4.8h.01" stroke="currentColor" strokeWidth="1.55"
@@ -277,10 +277,10 @@ export default function AddRecordingDialog({
 
             {running && progress && (
               <div className="add-recording-progress" role="status" aria-live="polite">
-                <div className="prubeh-lista">
-                  <div className="prubeh-vypln" style={{ width: `${progress.percent}%` }} />
+                <div className="progress-bar">
+                  <div className="progress-fill" style={{ width: `${progress.percent}%` }} />
                 </div>
-                <div className="prubeh-popis">
+                <div className="progress-label">
                   <span>{progress.message}</span>
                   <span>
                     {t("dialogs.addRecording.percent", {
@@ -293,10 +293,10 @@ export default function AddRecordingDialog({
 
             {error && <p className="add-recording-error" role="alert">{error}</p>}
 
-            <div className="dialog-patka">
+            <div className="dialog-footer">
               <button
                 type="button"
-                className="tlacitko"
+                className="button"
                 onClick={() => {
                   if (running) void cancelImport(onClose);
                   else onClose();
@@ -304,7 +304,7 @@ export default function AddRecordingDialog({
               >
                 {t("common.cancel")}
               </button>
-              <button className="tlacitko hlavni" type="submit" disabled={running || !url.trim()}>
+              <button className="button primary" type="submit" disabled={running || !url.trim()}>
                 {running
                   ? t("dialogs.addRecording.submitting")
                   : t("dialogs.addRecording.submit")}
@@ -548,11 +548,11 @@ function MicrophoneView({
 
       <div
         ref={stage}
-        className={`mic-stage ${phase === "recording" && !recorder.suspended ? "bezi" : ""}`}
+        className={`mic-stage ${phase === "recording" && !recorder.suspended ? "running" : ""}`}
       >
         {phase === "preview" || phase === "saving" ? (
           <button
-            className="volba-ikona mic-znak mic-prehrat"
+            className="choice-icon mic-mark mic-play"
             onClick={togglePlayback}
             disabled={phase === "saving"}
             aria-label={playing
@@ -574,16 +574,16 @@ function MicrophoneView({
             )}
           </button>
         ) : (
-          <span className="volba-ikona mic-znak" aria-hidden>
+          <span className="choice-icon mic-mark" aria-hidden>
             <MicrophoneIcon />
           </span>
         )}
-        <div className="mic-udaje">
-          <span className={phase === "denied" ? "mic-stav chyba" : "mic-stav"}>
+        <div className="mic-readout">
+          <span className={phase === "denied" ? "mic-status failed" : "mic-status"}>
             {status}
           </span>
           {(phase === "recording" || phase === "preview" || phase === "saving") && (
-            <span className="mic-cas">
+            <span className="mic-time">
               {(playing || position > 0) &&
                 `${recorderTime(Math.floor(position))} / `}
               {recorderTime(recorder.seconds)}
@@ -593,7 +593,7 @@ function MicrophoneView({
         {/* The spectrum doubles as the take's timeline once it is finished:
             the position dot rides on it and dragging seeks (Jakub's ask — a
             longer take needs to show where in it the playback stands). */}
-        <div className="mic-spektrum-obal">
+        <div className="mic-spectrum-wrap">
           {/* While recording every bar is accent — there is no position yet,
               and the colour says the microphone hears something. Once the take
               is finished the strip is a timeline, so it takes the transport
@@ -601,7 +601,7 @@ function MicrophoneView({
               still ahead of it stays grey. */}
           <Waveform
             values={finished ? takeBars : liveSpectrum}
-            className={`mic-spektrum ${phase === "recording" ? "bezi" : ""}`}
+            className={`mic-spectrum ${phase === "recording" ? "running" : ""}`}
             waveformStyle="bars"
             anchoring="bottom"
             ceiling={0.82}
@@ -621,7 +621,7 @@ function MicrophoneView({
           {(phase === "preview" || phase === "saving") && recorder.seconds > 0 && (
             <input
               type="range"
-              className="posuvnik mic-posuvnik"
+              className="slider mic-slider"
               min={0}
               max={recorder.seconds}
               step={0.1}
@@ -636,27 +636,27 @@ function MicrophoneView({
 
       {error && <p className="add-recording-error" role="alert">{error}</p>}
 
-      <div className="dialog-patka">
+      <div className="dialog-footer">
         {phase === "recording" ? (
           <>
-            <button className="tlacitko tichy" onClick={onClose}>
+            <button className="button quiet" onClick={onClose}>
               {t("dialogs.addRecording.micMinimize")}
             </button>
-            <button className="tlacitko hlavni" onClick={recorder.stop}>
+            <button className="button primary" onClick={recorder.stop}>
               {t("dialogs.addRecording.micStop")}
             </button>
           </>
         ) : phase === "preview" || phase === "saving" ? (
           <>
-            <button className="tlacitko tichy" onClick={recorder.discard}
+            <button className="button quiet" onClick={recorder.discard}
                     disabled={phase === "saving"}>
               {t("dialogs.addRecording.micDiscard")}
             </button>
-            <button className="tlacitko" onClick={() => void save(false)}
+            <button className="button" onClick={() => void save(false)}
                     disabled={phase === "saving"}>
               {t("common.add")}
             </button>
-            <button className="tlacitko hlavni" onClick={() => void save(true)}
+            <button className="button primary" onClick={() => void save(true)}
                     disabled={phase === "saving"}>
               {phase === "saving"
                 ? t("dialogs.addRecording.micSaving")
@@ -665,16 +665,16 @@ function MicrophoneView({
           </>
         ) : (
           <>
-            <button className="tlacitko" onClick={onBack}>{t("common.cancel")}</button>
+            <button className="button" onClick={onBack}>{t("common.cancel")}</button>
             {/* The record dot rather than a red button: red means destructive
                 everywhere else here (Smazat, Odebrat, Včetně přepisů), and a
                 whole red surface on the one action that destroys nothing would
                 spend that meaning. The dot is the same red and the same size
                 as the one the mini recorder pulses with, so the mark that says
                 "this is recording" and the mark that starts it are one idea. */}
-            <button className="tlacitko hlavni mic-start" onClick={recorder.start}
+            <button className="button primary mic-start" onClick={recorder.start}
                     disabled={phase !== "ready"}>
-              <span className="mic-start-tecka" aria-hidden />
+              <span className="mic-start-dot" aria-hidden />
               {t("dialogs.addRecording.micStart")}
             </button>
           </>

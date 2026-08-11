@@ -7,13 +7,13 @@
 
 /* ---------------------------------------------------------------- settings */
 
-.nastaveni { flex: 1; overflow-y: auto; padding: 34px 24px 96px; }
-.nastaveni.nastaveni > * { max-width: 720px; margin-inline: auto; }
-.nastaveni-hlava {
+.settings { flex: 1; overflow-y: auto; padding: 34px 24px 96px; }
+.settings.settings > * { max-width: 720px; margin-inline: auto; }
+.settings-head {
   display: flex; align-items: center; justify-content: space-between;
   gap: 18px; margin-bottom: 18px;
 }
-.nastaveni h1 {
+.settings h1 {
   font-size: 28px; line-height: 1.15; font-weight: 700;
   margin: 0; letter-spacing: -0.025em;
 }
@@ -22,7 +22,7 @@
    changed further down the page, where a pill up in the header is off screen
    and the confirmation might as well not exist. It floats in the corner
    instead, so it is in the same place whatever was just changed. */
-.ulozeno {
+.saved {
   position: fixed; right: 22px; bottom: 22px; z-index: 50;
   display: inline-flex; align-items: center; gap: 6px;
   padding: 6px 13px 6px 10px; border-radius: var(--r-pill);
@@ -34,20 +34,20 @@
   transition: opacity 0.18s ease, transform 0.18s ease;
   pointer-events: none;
 }
-.ulozeno.vidno { opacity: 1; transform: none; }
+.saved.visible { opacity: 1; transform: none; }
 /* The ring drains over however long its owner is shown for; the surface sets
    the duration, the ring only knows how to empty. The dash array is the
    circle's circumference, so the offset runs from nothing to all of it. */
-.odpocet { flex: 0 0 auto; }
-.odpocet-drah { stroke-dasharray: 40.2; stroke-dashoffset: 0; }
+.countdown { flex: 0 0 auto; }
+.countdown-track { stroke-dasharray: 40.2; stroke-dashoffset: 0; }
 @keyframes odpocet {
   from { stroke-dashoffset: 0; }
   to { stroke-dashoffset: 40.2; }
 }
-.ulozeno.vidno .odpocet-drah { animation: odpocet 1.4s linear forwards; }
+.saved.visible .countdown-track { animation: odpocet 1.4s linear forwards; }
 @media (prefers-reduced-motion: reduce) {
-  .ulozeno { transition: opacity 0.18s ease; transform: none; }
-  .odpocet-drah { animation: none; }
+  .saved { transition: opacity 0.18s ease; transform: none; }
+  .countdown-track { animation: none; }
 }
 .settings-tabs {
   display: flex; align-items: center; gap: 4px;
@@ -112,15 +112,15 @@
 .settings-card-about { order: 1; }
 .settings-card-abilities { order: 2; }
 .settings-card-credits { order: 3; }
-.nastaveni section {
+.settings section {
   background: var(--panel); border: 1px solid var(--line);
   border-radius: var(--r-large); padding: 26px 28px;
 }
-.nastaveni h2 {
+.settings h2 {
   margin: 0; font-size: 19px; line-height: 1.25; font-weight: 700;
   letter-spacing: -0.018em;
 }
-.nastaveni code {
+.settings code {
   font-size: 12px; background: var(--muted); padding: 2px 7px;
   border-radius: var(--r-small); word-break: break-all;
 }
@@ -129,12 +129,12 @@
   max-width: 62ch; margin: 8px 0 24px;
   color: var(--text-quiet); font-size: 14px; line-height: 1.55;
 }
-.nastaveni section > h2 + .pole { margin-top: 24px; }
+.settings section > h2 + .field { margin-top: 24px; }
 /* A card whose content follows its heading with no introductory sentence
    between them takes the same 24 px that a field does. Without this the list
    sat on the heading, because `h2` carries no bottom margin of its own — the
    description normally provides the gap. */
-.nastaveni section > h2 + .about-abilities { margin-top: 24px; }
+.settings section > h2 + .about-abilities { margin-top: 24px; }
 .settings-info-note {
   display: flex; align-items: flex-start; gap: 8px;
   margin: 8px 0 0; color: var(--text-quiet);
@@ -155,10 +155,10 @@
 .settings-toggle-title {
   display: block; font-size: 15px; line-height: 1.35; font-weight: 680;
 }
-.pole + .settings-toggle:not(.section) {
+.field + .settings-toggle:not(.section) {
   margin-top: 24px; padding-top: 22px; border-top: 1px solid var(--line);
 }
-.settings-toggle:not(.section) + .pole {
+.settings-toggle:not(.section) + .field {
   margin-top: 24px; padding-top: 22px; border-top: 1px solid var(--line);
 }
 .settings-toggle.separated {
@@ -170,17 +170,17 @@
   border-radius: var(--r-pill);
 }
 .settings-toggle-control:has(input:disabled) { opacity: 0.45; cursor: default; }
-.settings-toggle.section + .pole,
+.settings-toggle.section + .field,
 /* One dependent switch under another — watching a folder, and transcribing
    what it finds. They belong together, so no divider: only the room a control
    needs to stop reading as a second line of the one above it. */
 .settings-toggle:not(.section) + .settings-toggle:not(.section) { margin-top: 20px; }
 /* Choice cards revealed by a section switch sit on the same divider as a
    revealed field, so turning a section on always looks the same. */
-.settings-toggle.section + .volby {
+.settings-toggle.section + .choices {
   margin-top: 24px; padding-top: 22px; border-top: 1px solid var(--line);
 }
-.volby + .settings-info-note.compact { margin-top: 14px; }
+.choices + .settings-info-note.compact { margin-top: 14px; }
 .settings-action-row {
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
   font-size: 13.5px;
@@ -189,15 +189,15 @@
   margin-top: 22px; padding-top: 20px; border-top: 1px solid var(--line);
 }
 .settings-action-row > .settings-info-note { margin: 0; }
-.settings-action-row > .tlacitko { flex: 0 0 auto; }
+.settings-action-row > .button { flex: 0 0 auto; }
 .settings-success { color: var(--success); }
-.pole { margin-bottom: 24px; }
-.nastaveni section > .pole:last-child { margin-bottom: 0; }
-.pole > .drobne {
+.field { margin-bottom: 24px; }
+.settings section > .field:last-child { margin-bottom: 0; }
+.field > .small-text {
   max-width: 62ch; margin: 8px 0 0; line-height: 1.5;
 }
 /* the value beside a slider belongs to the label, not to a sentence */
-.hodnota { font-style: normal; color: var(--text); font-variant-numeric: tabular-nums; }
+.value { font-style: normal; color: var(--text); font-variant-numeric: tabular-nums; }
 
 /* One disclosure pattern for advanced controls and technical diagnostics. */
 .settings-disclosure {
@@ -232,32 +232,32 @@
   border-left: 2px solid var(--line);
   display: flex; flex-direction: column; gap: 2px;
 }
-.settings-disclosure-content > .drobne:first-child { margin-top: 0; }
+.settings-disclosure-content > .small-text:first-child { margin-top: 0; }
 /* A panel inside the disclosure carries its own frame, so the indent's rule
    would be a second border beside the first. The panel stands on its own. */
-.settings-disclosure-content:has(> .kontrola) { padding-left: 0; border-left: 0; }
+.settings-disclosure-content:has(> .check) { padding-left: 0; border-left: 0; }
 /* Below the window's own 1000 px minimum (tauri.conf.json), so this cannot
    fire today. Kept as a net, like the 900 px rule for the header pills, in
    case the minimum ever drops or the interface is opened in a browser.
    560 px: Settings loses its outer padding and the tabs scroll. */
 @media (max-width: 560px) {
-  .nastaveni { padding: 24px 12px 72px; }
-  .nastaveni section { padding: 22px 20px; }
+  .settings { padding: 24px 12px 72px; }
+  .settings section { padding: 22px 20px; }
   .settings-tabs { overflow-x: auto; scrollbar-width: none; }
   .settings-tabs::-webkit-scrollbar { display: none; }
   .settings-toggle, .settings-action-row { gap: 16px; }
-  .radka { flex-wrap: wrap; }
-  .radka input { flex-basis: 100%; }
+  .input-row { flex-wrap: wrap; }
+  .input-row input { flex-basis: 100%; }
 }
 /* The toggle is a <label> too, but inline. Without :not() this rule would
    switch it to block, the track would lose its width and the knob would end
    up inside the text. */
-.pole > label:not(.vypinac) {
+.field > label:not(.switch) {
   display: block; margin-bottom: 8px;
   color: var(--text); font-size: 13.5px; line-height: 1.35; font-weight: 650;
 }
-.pole input[type="text"], .pole input:not([type]), .pole input[type="url"],
-.pole select, .pole input[type="number"] {
+.field input[type="text"], .field input:not([type]), .field input[type="url"],
+.field select, .field input[type="number"] {
   width: 100%; height: 38px;
   border: 1px solid var(--line-field); background: var(--ground);
   border-radius: var(--r-pill); padding: 0 15px; outline: none; font-size: 14px;
@@ -266,16 +266,16 @@
    it is grabbed — so dragging one does not light anything up (Jakub's ask).
    `:focus-visible` further down still gives it a ring on keyboard focus, which
    is the only way to see where the focus stands without a pointer. */
-.pole input:not([type="range"]):focus, .pole select:focus {
+.field input:not([type="range"]):focus, .field select:focus {
   border-color: var(--accent); box-shadow: var(--ring-field);
 }
-.pole input[type="range"] { width: 100%; accent-color: hsl(var(--ds-foreground)); height: auto; }
+.field input[type="range"] { width: 100%; accent-color: hsl(var(--ds-foreground)); height: auto; }
 /* ---------------------------------------------------------------- custom menu
    On Windows the native <select> is painted by the OS: square corners and
    foreign colours. This is its replacement in the design system's language. */
 
-.vyber { position: relative; }
-.vyber-spoust {
+.select { position: relative; }
+.select-trigger {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
   width: 100%; height: 38px; padding: 0 16px;
   border: 1px solid var(--line-field); background: var(--ground);
@@ -284,47 +284,47 @@
   transition: border-color var(--hover-duration) var(--hover-ease),
     background var(--hover-duration) var(--hover-ease);
 }
-.vyber-spoust:hover { border-color: hsl(var(--ds-foreground) / 0.35); }
-.vyber-spoust.otevreno {
+.select-trigger:hover { border-color: hsl(var(--ds-foreground) / 0.35); }
+.select-trigger.expanded {
   border-color: var(--accent); background: var(--panel);
   box-shadow: var(--ring-field);
 }
-.vyber-spoust:disabled { opacity: 0.45; cursor: default; }
-.vyber-hodnota { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.vyber-sipka { flex: 0 0 auto; color: var(--text-quiet); transition: transform 0.15s; }
-.vyber-spoust.otevreno .vyber-sipka { transform: rotate(180deg); }
+.select-trigger:disabled { opacity: 0.45; cursor: default; }
+.select-value { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.select-arrow { flex: 0 0 auto; color: var(--text-quiet); transition: transform 0.15s; }
+.select-trigger.expanded .select-arrow { transform: rotate(180deg); }
 
-.vyber-nabidka {
+.select-menu {
   position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 40;
   background: var(--panel); border: 1px solid var(--line);
   border-radius: var(--r-large); box-shadow: var(--shadow-high);
   padding: 6px; max-height: 320px; overflow-y: auto;
 }
-.vyber-skupina {
+.select-group {
   font-size: 11px; font-weight: 700; text-transform: uppercase;
   letter-spacing: 0.09em; color: var(--text-quiet);
   padding: 10px 12px 5px;
 }
-.vyber-polozka {
+.select-item {
   display: flex; align-items: baseline; gap: 8px; width: 100%;
   padding: 9px 12px; border: 0; background: none; cursor: pointer;
   border-radius: var(--r-card); text-align: left; font-size: 14px;
 }
-.vyber-polozka.zvyrazneno { background: var(--muted); }
-.vyber-polozka.vybrano { font-weight: 600; }
-.vyber-popisek { flex: 1; min-width: 0; }
-.vyber-poznamka { font-size: 12px; color: var(--text-quiet); white-space: nowrap; }
-.vyber-fajfka { flex: 0 0 auto; color: var(--accent); align-self: center; }
+.select-item.highlighted { background: var(--muted); }
+.select-item.picked { font-weight: 600; }
+.select-label { flex: 1; min-width: 0; }
+.select-note { font-size: 12px; color: var(--text-quiet); white-space: nowrap; }
+.select-tick { flex: 0 0 auto; color: var(--accent); align-self: center; }
 
-.radka { display: flex; gap: 8px; }
-.radka input { flex: 1; min-width: 0; }
-.pole .radka > .tlacitko { height: 38px; }
+.input-row { display: flex; gap: 8px; }
+.input-row input { flex: 1; min-width: 0; }
+.field .input-row > .button { height: 38px; }
 
-.prenosna-info {
+.portable-info {
   border-color: var(--accent-line) !important;
   background: var(--accent-light) !important;
 }
-.prenosna-info p { margin: 0 0 8px; }
+.portable-info p { margin: 0 0 8px; }
 
 /* What is installed and where. Three columns — mark, what it is, where it is —
    so the eye can run down either the names or the paths without meeting the
@@ -335,28 +335,28 @@
    the disclosure's own indent. Both are the same kind of thing — a short
    table of facts about where things are — and they should not look like two
    different ideas. */
-.kontrola {
+.check {
   list-style: none; margin: 0; overflow: hidden;
   border: 1px solid var(--line); border-radius: var(--r-card);
   background: var(--subtle); font-size: 13px; padding: 0;
 }
-.kontrola li {
+.check li {
   display: grid; grid-template-columns: 22px minmax(0, 190px) minmax(0, 1fr);
   align-items: center; gap: 12px;
   min-height: 40px; padding: 6px 14px;
 }
-.kontrola li + li { border-top: 1px solid var(--line); }
-.kontrola-znak {
+.check li + li { border-top: 1px solid var(--line); }
+.check-mark {
   display: grid; place-items: center; width: 22px; height: 22px;
   border-radius: 50%; background: hsl(var(--ds-grass) / 0.14); color: var(--success-text);
 }
-.kontrola li.ne .kontrola-znak { background: var(--danger-light); color: var(--danger); }
-.kontrola-nazev { font-weight: 600; line-height: 1.35; }
-.kontrola li.ne .kontrola-nazev { color: var(--danger); }
+.check li.no .check-mark { background: var(--danger-light); color: var(--danger); }
+.check-name { font-weight: 600; line-height: 1.35; }
+.check li.no .check-name { color: var(--danger); }
 /* The end of a path is what identifies the file, so the beginning is what
    gets cut. `direction: rtl` puts the ellipsis there; `bdi` keeps the text
    itself reading left to right. */
-.kontrola-cesta {
+.check-path {
   color: var(--text-quiet); font-size: 12.5px;
   font-family: var(--font-path);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -365,32 +365,32 @@
      name — the one part of a path worth reading. */
   direction: rtl; text-align: left;
 }
-.problemy { color: var(--danger); font-size: 13px; padding-left: 18px; }
+.problems { color: var(--danger); font-size: 13px; padding-left: 18px; }
 
-.zkouska { list-style: none; margin: 14px 0 0; padding: 0; font-size: 13px; }
-.zkouska li {
+.benchmark { list-style: none; margin: 14px 0 0; padding: 0; font-size: 13px; }
+.benchmark li {
   display: flex; justify-content: space-between; gap: 12px;
   padding: 7px 0; border-bottom: 1px solid var(--line); font-weight: 600;
 }
-.zkouska li:last-child { border-bottom: 0; }
-.zkouska li.ano span:last-child { color: var(--success); font-variant-numeric: tabular-nums; }
-.zkouska li.ne span:last-child { color: var(--danger); font-weight: 500; }
+.benchmark li:last-child { border-bottom: 0; }
+.benchmark li.yes span:last-child { color: var(--success); font-variant-numeric: tabular-nums; }
+.benchmark li.no span:last-child { color: var(--danger); font-weight: 500; }
 /* The label used to be `content: " — nejrychlejší"` here, which meant a Czech
    sentence in the English interface — and `i18n:check` cannot see it, because
    it reads TypeScript. The word is in the dictionary now and the component
    renders it; this rule only styles it. */
-.zkouska .nejrychlejsi { color: var(--text-quiet); font-weight: 500; }
+.benchmark .fastest { color: var(--text-quiet); font-weight: 500; }
 
-.nahled-pisma {
+.preview-font {
   border: 1px solid var(--line); border-radius: var(--r-card);
   padding: 18px 20px; background: var(--ground); margin-top: 4px;
 }
-.nahled-pisma p { font-family: var(--font-body); font-size: var(--text-size); line-height: var(--line-height); margin: 0; }
-.nahled-mluvci {
+.preview-font p { font-family: var(--font-body); font-size: var(--text-size); line-height: var(--line-height); margin: 0; }
+.preview-speakers {
   font-size: 11px; font-weight: 700; text-transform: uppercase;
   letter-spacing: 0.09em; color: var(--accent); margin-bottom: 6px;
 }
-.nahled-popisek {
+.preview-label {
   font-size: 13px !important; line-height: 1.6 !important;
   color: var(--text-quiet); margin-top: 14px !important;
   font-family: var(--font) !important;
@@ -398,47 +398,47 @@
 
 /* ---------------------------------------------------------------- wizard */
 
-.pruvodce { flex: 1; overflow-y: auto; padding: 36px 20px 40px; }
-.pruvodce.pruvodce > * { max-width: 620px; margin-inline: auto; }
+.wizard { flex: 1; overflow-y: auto; padding: 36px 20px 40px; }
+.wizard.wizard > * { max-width: 620px; margin-inline: auto; }
 
-.kroky { display: flex; gap: 6px; margin-bottom: 28px; }
-.kroky span { height: 3px; flex: 1; background: var(--line); border-radius: var(--r-pill); transition: background 0.25s; }
-.kroky span.hotovy { background: var(--accent); }
+.steps { display: flex; gap: 6px; margin-bottom: 28px; }
+.steps span { height: 3px; flex: 1; background: var(--line); border-radius: var(--r-pill); transition: background 0.25s; }
+.steps span.finished { background: var(--accent); }
 
-.krok-cislo { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: var(--text-quiet); margin: 0 0 6px; }
-.krok h1 { font-size: 28px; line-height: 1.15; margin: 0 0 8px; letter-spacing: -0.025em; font-weight: 700; }
-.krok-uvod { color: var(--text-quiet); margin: 0 0 22px; max-width: 52ch; font-size: 14px; line-height: 1.55; }
-.krok-zaver { text-align: center; padding-top: 40px; }
-.krok-zaver .krok-uvod, .krok-zaver .drobne { margin-left: auto; margin-right: auto; }
-.krok-zaver .krok-patka { justify-content: center; }
+.step-number { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: var(--text-quiet); margin: 0 0 6px; }
+.step h1 { font-size: 28px; line-height: 1.15; margin: 0 0 8px; letter-spacing: -0.025em; font-weight: 700; }
+.step-intro { color: var(--text-quiet); margin: 0 0 22px; max-width: 52ch; font-size: 14px; line-height: 1.55; }
+.step-outro { text-align: center; padding-top: 40px; }
+.step-outro .step-intro, .step-outro .small-text { margin-left: auto; margin-right: auto; }
+.step-outro .step-footer { justify-content: center; }
 
-.krok-patka {
+.step-footer {
   display: flex; justify-content: space-between; align-items: center; gap: 10px;
   margin-top: 26px; padding-top: 18px; border-top: 1px solid var(--line);
 }
-.krok-patka .tlacitko.hlavni { margin-left: auto; }
+.step-footer .button.primary { margin-left: auto; }
 
-.zjisteno {
+.detected {
   display: grid; grid-template-columns: 1fr 1fr; gap: 1px;
   background: var(--line); border: 1px solid var(--line);
   border-radius: var(--r-large); overflow: hidden; margin-bottom: 14px;
 }
 /* A row, not a stack: the icon names the thing and the two lines of text sit
    beside it, the same way a module tile is built. */
-.zjisteno > div { background: var(--panel); padding: 13px 16px; display: flex; align-items: center; gap: 13px; }
-.zjisteno-telo { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-.zjisteno-popis { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: var(--text-quiet); }
-.zjisteno-hodnota { font-size: 14px; font-weight: 600; }
+.detected > div { background: var(--panel); padding: 13px 16px; display: flex; align-items: center; gap: 13px; }
+.detected-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.detected-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: var(--text-quiet); }
+.detected-value { font-size: 14px; font-weight: 600; }
 
-.volby { display: flex; flex-direction: column; gap: 8px; }
+.choices { display: flex; flex-direction: column; gap: 8px; }
 /* One frame for every row of this kind — a choice card and a status tile
    alike. They carry different content but must read as one family, so the
    padding, the radius and the vertical rhythm live here and nowhere else. */
-.volba, .modul-dlazdice {
+.choice, .module-tile {
   border: 1px solid var(--line); background: var(--panel);
   border-radius: var(--r-large); padding: 12px 14px;
 }
-.volba {
+.choice {
   display: flex; flex-direction: column; gap: 4px; width: 100%;
   text-align: left; cursor: pointer;
   transition: border-color var(--hover-duration) var(--hover-ease),
@@ -452,58 +452,58 @@
    One rule for every choice card in the application — the three sources in
    `Nový přepis`, the transcription models, the acceleration and the
    language-editing tiers, the wizard's quality cards, the AI dialog's modes. */
-.volba:hover,
-.volba:focus-visible { border-color: var(--line-field); box-shadow: var(--shadow); }
-.volba.zvolena { border-color: var(--accent-line); background: var(--accent-light); }
-.volba-hlava { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
-.volba-nazev { font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 8px; }
-.volba-velikost { font-size: 13px; color: var(--text-quiet); white-space: nowrap; font-variant-numeric: tabular-nums; font-weight: 600; }
+.choice:hover,
+.choice:focus-visible { border-color: var(--line-field); box-shadow: var(--shadow); }
+.choice.chosen { border-color: var(--accent-line); background: var(--accent-light); }
+.choice-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.choice-title { font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+.choice-size { font-size: 13px; color: var(--text-quiet); white-space: nowrap; font-variant-numeric: tabular-nums; font-weight: 600; }
 
-.odznak {
+.badge {
   font-style: normal; font-size: 11px; font-weight: 700;
   background: hsl(var(--ds-petrol) / 0.14); color: var(--accent);
   padding: 2px 9px; border-radius: var(--r-pill); letter-spacing: 0.02em;
 }
-.odznak.nutny { background: var(--danger-light); color: var(--danger); }
-.odznak.hotovo { background: hsl(var(--ds-grass) / 0.14); color: var(--success-text); }
+.badge.required { background: var(--danger-light); color: var(--danger); }
+.badge.complete { background: hsl(var(--ds-grass) / 0.14); color: var(--success-text); }
 /* A badge that is the card's action, not its state. The whole card is the
    button, so this must read as something that happens, not as a label. */
-.odznak.akce { background: var(--accent-light); color: var(--accent); }
-.volba.chybi .volba-ikona { background: var(--danger-light); color: var(--danger); }
-.volba.chybi:hover .odznak.akce { background: var(--accent); color: white; }
-.odznak.tichy { background: var(--muted); color: var(--text-quiet); }
+.badge.actions { background: var(--accent-light); color: var(--accent); }
+.choice.missing .choice-icon { background: var(--danger-light); color: var(--danger); }
+.choice.missing:hover .badge.actions { background: var(--accent); color: white; }
+.badge.quiet { background: var(--muted); color: var(--text-quiet); }
 
-.souhrn { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: var(--r-large); overflow: hidden; }
-.souhrn li {
+.summary { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: var(--r-large); overflow: hidden; }
+.summary li {
   display: flex; justify-content: space-between; gap: 12px;
   padding: 10px 16px; background: var(--panel); font-size: 14px; font-weight: 500;
   border-bottom: 1px solid var(--line);
 }
-.souhrn li:last-child { border-bottom: 0; }
-.souhrn li.hotova { color: var(--text-quiet); }
-.souhrn li.hotova span:last-child { color: var(--success); font-weight: 600; }
-.souhrn li.selhala span:last-child { color: var(--danger); }
+.summary li:last-child { border-bottom: 0; }
+.summary li.done { color: var(--text-quiet); }
+.summary li.done span:last-child { color: var(--success); font-weight: 600; }
+.summary li.selhala span:last-child { color: var(--danger); }
 
-.prubeh-velky { margin-bottom: 20px; }
-.prubeh-velky .prubeh-lista { height: 6px; }
-.prubeh-velky .prubeh-popis { font-size: 13px; margin-top: 7px; }
+.progress-large { margin-bottom: 20px; }
+.progress-large .progress-bar { height: 6px; }
+.progress-large .progress-label { font-size: 13px; margin-top: 7px; }
 
-.rucni { margin-bottom: 4px; }
-.rucni > div { margin-bottom: 16px; }
-/* Only the gap under the label. The type comes from `.pruvodce h2` — see the
+.manual { margin-bottom: 4px; }
+.manual > div { margin-bottom: 16px; }
+/* Only the gap under the label. The type comes from `.wizard h2` — see the
    note there; this rule used to restate it and beat it on file order. */
-.rucni h2 { margin: 0 0 8px; }
+.manual h2 { margin: 0 0 8px; }
 
-.soucasti { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-.soucast { border: 1px solid var(--line); background: var(--panel); border-radius: var(--r-card); padding: 12px 15px; }
-.soucast.hotova { background: var(--subtle); }
-.soucast.hotova .soucast-text { color: var(--text-quiet); }
-.soucast label { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: start; cursor: pointer; }
-.soucast.hotova label { cursor: default; }
-.soucast input { margin-top: 3px; accent-color: var(--accent); }
-.soucast-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.soucast-nazev { font-weight: 600; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.soucast-velikost { color: var(--text-quiet); font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.components { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.component { border: 1px solid var(--line); background: var(--panel); border-radius: var(--r-card); padding: 12px 15px; }
+.component.done { background: var(--subtle); }
+.component.done .component-text { color: var(--text-quiet); }
+.component label { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: start; cursor: pointer; }
+.component.done label { cursor: default; }
+.component input { margin-top: 3px; accent-color: var(--accent); }
+.component-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.component-name { font-weight: 600; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.component-size { color: var(--text-quiet); font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .downloaded-mark {
   display: inline-grid; place-items: center;
   width: 22px; height: 22px; border-radius: 50%;
@@ -515,7 +515,7 @@
 
 /* ---------------------------------------------------------------- dialog */
 
-.prekryv-dialogu {
+.dialog-overlay {
   position: fixed; inset: 0; z-index: 60;
   /* A veil is dark in both palettes. It used to be `--ds-foreground / 0.35`,
      which is the *text* colour — dark on the light palette, and near-white on
@@ -553,8 +553,8 @@
 .dialog p { margin: 0; color: var(--text-quiet); line-height: 1.5; }
 .dialog h2 + p { margin-bottom: 18px; }
 /* A field is the dialog's last block; the footer owns the space above it. */
-.dialog .pole { margin-bottom: 0; }
-.dialog-patka { display: flex; justify-content: flex-end; gap: 8px; margin-top: 22px; }
+.dialog .field { margin-bottom: 0; }
+.dialog-footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 22px; }
 /* What is in an update, in the dialog that offers it. No margin of its own:
    `.dialog h2 + p` owns the gap above, like every other block in a dialog.
    240 px is about eight items — beyond that the box scrolls, so a talkative
@@ -582,7 +582,7 @@
    is taller than the type it sits beside, so the rows need the room. */
 .release-notes ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
 .release-notes li { display: flex; align-items: center; gap: 9px; }
-/* The tick from `.kontrola-znak`, at 16 px. There it marks a row of a checklist
+/* The tick from `.check-mark`, at 16 px. There it marks a row of a checklist
    40 px tall; here it stands beside one line of type, and 22 would be a badge
    rather than a mark. Same grass tint, same text colour. */
 .release-notes-mark {
@@ -595,7 +595,7 @@
 .release-notes li, .release-notes p { color: var(--text); font-size: 14px; line-height: 1.5; }
 /* Two widths: 420 px for a question with a field, 520 px for a column of
    choice cards. 520 is the wider of the two former numbers because the cards
-   in the AI dialog carry a badge in a third column (.volba.s-ikonou > .odznak),
+   in the AI dialog carry a badge in a third column (.choice.with-icon > .badge),
    and the narrower dialog took that width out of their descriptions. */
 .ai-edit-dialog, .add-recording-dialog { max-width: 520px; }
 .ai-edit-note {
@@ -604,7 +604,7 @@
 }
 .ai-edit-note-icon { flex: 0 0 auto; margin-top: 1px; color: var(--accent); }
 
-.add-recording-options .drobne { margin: 0; }
+.add-recording-options .small-text { margin: 0; }
 .add-recording-back {
   display: inline-flex; align-items: center; gap: 6px;
   margin: -4px 0 14px; padding: 4px 0;
@@ -614,7 +614,7 @@
 .add-recording-back:hover { color: var(--text); }
 .add-recording-back:disabled { opacity: 0.45; cursor: default; }
 .add-recording-url { margin: 0; }
-.pole.add-recording-url input:disabled { opacity: 0.65; }
+.field.add-recording-url input:disabled { opacity: 0.65; }
 /* ------------------------------------------------- microphone recording */
 /* One surface holds the whole state of the take: the capsule icon, what is
    happening, the clock, and a live level bar. The bar is the honest part —
@@ -626,40 +626,40 @@
   border: 1px solid var(--line); border-radius: var(--r-card);
   background: var(--subtle);
 }
-.mic-stage.bezi .mic-znak {
+.mic-stage.running .mic-mark {
   background: var(--danger-light); color: var(--danger);
   animation: mic-tep 1.6s ease-in-out infinite;
 }
 /* In preview the capsule becomes the take's play button — the same circle,
    now an instruction instead of a picture. */
-button.mic-prehrat {
+button.mic-play {
   border: 0; cursor: pointer;
   background: var(--accent-light); color: var(--accent);
   transition: background var(--hover-duration) var(--hover-ease);
 }
-button.mic-prehrat:hover:not(:disabled) { background: hsl(var(--ds-petrol) / 0.22); }
-button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
+button.mic-play:hover:not(:disabled) { background: hsl(var(--ds-petrol) / 0.22); }
+button.mic-play:disabled { cursor: default; opacity: 0.6; }
 @keyframes mic-tep {
   0%, 100% { box-shadow: 0 0 0 0 hsl(var(--ds-destructive) / 0.25); }
   50% { box-shadow: 0 0 0 6px hsl(var(--ds-destructive) / 0); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .mic-stage.bezi .mic-znak { animation: none; }
+  .mic-stage.running .mic-mark { animation: none; }
 }
-.mic-udaje { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.mic-readout { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 /* One line saying what a control is doing right now. The recorder had the only
    one until the About page grew a check for updates; both say the same kind of
    thing, so they are one rule rather than two that drift apart. The About one
    is stacked under its buttons rather than sitting in a row, so it carries the
    gap the row already provides for the recorder. */
-.mic-stav, .about-stav { font-size: 13.5px; font-weight: 600; }
-.mic-stav.chyba, .about-stav.chyba { color: var(--danger); }
-.about-stav { margin: 12px 0 0; }
-.about-aktualizace { margin-top: 22px; }
-.about-aktualizace-akce { display: flex; gap: 10px; }
+.mic-status, .about-status { font-size: 13.5px; font-weight: 600; }
+.mic-status.failed, .about-status.failed { color: var(--danger); }
+.about-status { margin: 12px 0 0; }
+.about-updates { margin-top: 22px; }
+.about-updates-actions { display: flex; gap: 10px; }
 /* The explanation belongs to the whole block above it, not to one button. */
-.about-aktualizace .settings-section-description { margin: 14px 0 0; }
-.mic-cas {
+.about-updates .settings-section-description { margin: 14px 0 0; }
+.mic-time {
   color: var(--text-quiet); font-size: 13px; font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
@@ -667,24 +667,24 @@ button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
    The same bars the transport pill draws, so the recorder and the player
    speak one language. Quiet while the microphone merely listens; the accent
    arrives with the recording, the same way the pill lights up on play. */
-.mic-spektrum-obal { grid-column: 1 / -1; position: relative; }
+.mic-spectrum-wrap { grid-column: 1 / -1; position: relative; }
 /* No colour transition here, deliberately: the bars are drawn onto a canvas,
    which samples this colour only when it repaints. During a transition the
    drawing takes whatever value the colour happens to hold at that instant, and
    when the spectrum stops updating — exactly when the take ends — the canvas
    keeps that half-way colour for good. The recorder's strip therefore stayed
    accent-blue after stopping. */
-.mic-spektrum {
+.mic-spectrum {
   display: block; height: 38px;
   color: hsl(var(--ds-foreground) / 0.22);
 }
-.mic-spektrum.bezi { color: var(--accent); }
+.mic-spectrum.running { color: var(--accent); }
 /* The take's timeline, laid over the spectrum. The bars are the track, so
-   the control paints only the shared `.posuvnik` thumb, vertically centred
+   the control paints only the shared `.slider` thumb, vertically centred
    on the 38 px strip. */
-.mic-posuvnik { position: absolute; inset: 0; height: 100%; }
-.mic-posuvnik:disabled { cursor: default; }
-.mic-posuvnik::-webkit-slider-runnable-track { background: none; height: 100%; }
+.mic-slider { position: absolute; inset: 0; height: 100%; }
+.mic-slider:disabled { cursor: default; }
+.mic-slider::-webkit-slider-runnable-track { background: none; height: 100%; }
 /* The dot's centre sits exactly on the line the bars grow from, per Jakub.
    The offset is measured, not derived: Chromium places this thumb from its
    own track box: the thumb's *top* lands on the margin, so its centre is
@@ -693,10 +693,10 @@ button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
    screenshot whose blue blob included the thumb's own drop shadow, which
    pulled the reading two pixels down; the shadow is switched off while
    measuring now. Re-measure rather than re-reason if the strip changes. */
-.mic-posuvnik::-webkit-slider-thumb { margin-top: 30px; }
+.mic-slider::-webkit-slider-thumb { margin-top: 30px; }
 /* Room under the strip for the dot's lower half, so the control's own box
    contains it instead of letting it hang over whatever follows. */
-.mic-spektrum-obal { padding-bottom: 7px; }
+.mic-spectrum-wrap { padding-bottom: 7px; }
 
 /* The take minimised into the header — the mini player's sibling. Sized to
    its content rather than the player's fixed width; the live spectrum runs
@@ -704,31 +704,31 @@ button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
    the record mark, pulsing on the same beat as the dialog's capsule. */
 /* Both class names, deliberately: the pill's shared rule later in this file
    sets 290 px at the same single-class specificity, and a plain
-   `.mini-rekorder` loses to it by order — which is exactly what happened,
+   `.mini-recorder` loses to it by order — which is exactly what happened,
    and the recorder rode at the player's width without anyone deciding it. */
-.mini-prehravac.mini-rekorder { width: 200px; }
-.mini-rekorder > .mini-vlny { inset: 0 34px 0 10px; color: hsl(var(--ds-destructive) / 0.3); }
+.mini-player.mini-recorder { width: 200px; }
+.mini-recorder > .mini-waves { inset: 0 34px 0 10px; color: hsl(var(--ds-destructive) / 0.3); }
 /* A waiting take: the dot stands still and dims, the bars are already flat
    (the spectrum hook zeroes while suspended). Movement means recording. */
-.mini-rekorder.pozastaveny .mini-rekorder-tecka { animation: none; opacity: 0.45; }
-.mini-rekorder-tecka {
+.mini-recorder.paused .mini-recorder-dot { animation: none; opacity: 0.45; }
+.mini-recorder-dot {
   width: 10px; height: 10px; margin-left: 12px; flex: 0 0 auto;
   border-radius: 50%; background: var(--danger);
   animation: mic-tep 1.6s ease-in-out infinite;
 }
 @media (prefers-reduced-motion: reduce) {
-  .mini-rekorder-tecka { animation: none; }
+  .mini-recorder-dot { animation: none; }
 }
 
 /* The one place a red dot is not a warning: it is the record mark, and it
    keeps the primary button's own surface. 10 px is the mini recorder's dot,
    so the button and the pill that appears once it is running agree. */
 .mic-start { gap: 9px; }
-.mic-start-tecka {
+.mic-start-dot {
   width: 10px; height: 10px; flex: 0 0 auto; border-radius: 50%;
   background: var(--danger);
 }
-.mic-start:disabled .mic-start-tecka { opacity: 0.5; }
+.mic-start:disabled .mic-start-dot { opacity: 0.5; }
 
 .add-recording-note {
   display: flex; align-items: flex-start; gap: 8px;
@@ -784,7 +784,7 @@ button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
   display: inline-grid; place-items: center;
   min-width: 19px; height: 19px; padding: 0 5px;
   border-radius: var(--r-pill); background: hsl(var(--ds-foreground) / 0.08);
-  /* 11 px, the badge size `.odznak` already uses and the documented
+  /* 11 px, the badge size `.badge` already uses and the documented
      micro-label. 10.5 belonged to the archive calendar's weekday, not here. */
   color: var(--text-quiet); font-size: 11px; font-weight: 700;
   font-variant-numeric: tabular-nums;
@@ -792,7 +792,7 @@ button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
 /* Each section is a card that opens, not a row on a shared sheet. The card is
    what makes the whole width clickable without inventing anything: it has an
    edge, so there is no question where the target ends. */
-.postranni .sidebar-section {
+.sidebar .sidebar-section {
   /* `--r-large`, like every other bordered card on `--panel` in this
      application. `--r-card` is the inner radius here: menu items, list rows,
      the inset data panel. No `overflow: hidden` — the focus ring is an outer
@@ -803,16 +803,16 @@ button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
   transition: border-color var(--hover-duration) var(--hover-ease),
     box-shadow var(--hover-duration) var(--hover-ease);
 }
-.postranni .sidebar-section + .sidebar-section { margin-top: 8px; }
+.sidebar .sidebar-section + .sidebar-section { margin-top: 8px; }
 /* Pickable, exactly as a choice card and an archive row say it — the shared
-   low `--shadow` and `--line-field`. Open is not exempt: `.volba.zvolena` and
-   `.radek.bezi` both keep their lift, and a state that suppressed it would
+   low `--shadow` and `--line-field`. Open is not exempt: `.choice.chosen` and
+   `.row.running` both keep their lift, and a state that suppressed it would
    make this the only surface in the application that does. */
-.postranni .sidebar-section:hover,
-.postranni .sidebar-section:focus-within {
+.sidebar .sidebar-section:hover,
+.sidebar .sidebar-section:focus-within {
   border-color: var(--line-field); box-shadow: var(--shadow);
 }
-.postranni .sidebar-section h2 { margin: 0; line-height: 1.3; }
+.sidebar .sidebar-section h2 { margin: 0; line-height: 1.3; }
 /* The whole card width, because the action moved inside the body and nothing
    competes with it on this row any more. Every arrangement before this one was
    a way around a button that could not contain another button. */
@@ -1012,9 +1012,9 @@ button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
 .speaker-count-choices {
   display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 0 0 14px;
 }
-.speaker-count-choices .tlacitko { min-width: 46px; justify-content: center; }
+.speaker-count-choices .button { min-width: 46px; justify-content: center; }
 /* 34 px and the button surface are not a third field size: this input stands
-   in one flex row with four .tlacitko and behaves as the fifth choice. */
+   in one flex row with four .button and behaves as the fifth choice. */
 .speaker-count-input {
   width: 84px; height: 34px; padding: 0 10px;
   border: 1px solid var(--line-field); border-radius: var(--r-pill);
@@ -1046,10 +1046,10 @@ button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
   padding: 14px 26px 0; background: var(--ground);
   border-top: 1px solid var(--line);
 }
-.ai-output-toolbar .vyber { width: 190px; }
+.ai-output-toolbar .select { width: 190px; }
 /* 36, the height of the tabs beside it — this strip held three different
    heights until every control in it became the same one. */
-.ai-output-toolbar .vyber-spoust { height: 36px; background: var(--panel); font-size: 13px; }
+.ai-output-toolbar .select-trigger { height: 36px; background: var(--panel); font-size: 13px; }
 .ai-preview-text {
   flex: 1 1 auto; min-height: 0; overflow: auto;
   /* No border of its own: the row above it is already on this grey and carries
@@ -1079,39 +1079,39 @@ button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
   flex: 0 0 auto; margin: 0; padding: 14px 22px;
   border-top: 1px solid var(--line);
 }
-.ai-preview-actions .tlacitko.tichy:first-child { margin-right: auto; }
+.ai-preview-actions .button.quiet:first-child { margin-right: auto; }
 
-.tlacitko.nicive {
+.button.destructive {
   background: var(--danger-solid); border-color: var(--danger-solid); color: #fff;
 }
-.tlacitko.nicive:hover { filter: brightness(1.08); background: var(--danger-solid); }
+.button.destructive:hover { filter: brightness(1.08); background: var(--danger-solid); }
 
 /* ---------------------------------------------------------------- drag and drop */
 
-.prekryv-pretazeni {
+.drag-overlay {
   position: fixed; inset: 0; z-index: 50;
   background: hsl(var(--ds-petrol) / 0.12);
   backdrop-filter: blur(2px);
   display: flex; align-items: center; justify-content: center; pointer-events: none;
 }
-.prekryv-obsah {
+.overlay-content {
   background: var(--panel); border: 2px dashed var(--accent);
   /* 22 px: the drop zone's amount, because this is the same dashed panel. */
   border-radius: 22px; padding: 40px 60px; text-align: center;
   box-shadow: var(--shadow-high);
 }
-.prekryv-ikona { font-size: 34px; color: var(--accent); line-height: 1; margin-bottom: 8px; }
-.prekryv-obsah p { margin: 0; font-size: 17px; font-weight: 600; }
+.overlay-icon { font-size: 34px; color: var(--accent); line-height: 1; margin-bottom: 8px; }
+.overlay-content p { margin: 0; font-size: 17px; font-weight: 600; }
 
 /* The panel always stays a right-hand column, at one width. It used to move
    below the text in a narrow window, which meant speakers and notes suddenly
    vanished somewhere below; then it narrowed instead, which is what broke it —
-   see the note on `.detail-telo`. It keeps its 320 px now, and if that is too
+   see the note on `.detail-body`. It keeps its 320 px now, and if that is too
    much on a small screen the user closes it, which is one click and has been
    there all along.
    Only the padding still gives way, and only a little. */
 @media (max-width: 1180px) {
-  .postranni { padding: 18px 14px 60px; }
+  .sidebar { padding: 18px 14px 60px; }
 }
 
 

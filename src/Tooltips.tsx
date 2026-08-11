@@ -150,7 +150,7 @@ export default function Tooltips() {
     /* `aria-hidden`, deliberately: every element this can appear over already
        carries its own accessible name, and announcing the same words a second
        time would be noise rather than help. */
-    <div ref={bubble} className="bublina" role="presentation" aria-hidden>
+    <div ref={bubble} className="bubble" role="presentation" aria-hidden>
       {tip.text}
     </div>
   );

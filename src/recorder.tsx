@@ -418,10 +418,10 @@ export function MiniRecorder({ onOpen }: { onOpen: () => void }) {
   if (phase !== "recording") return null;
 
   return (
-    <div className={`mini-prehravac mini-rekorder ${suspended ? "pozastaveny" : ""}`}>
+    <div className={`mini-player mini-recorder ${suspended ? "paused" : ""}`}>
       <Waveform
         values={values}
-        className="mini-vlny hraje"
+        className="mini-waves playing"
         waveformStyle="bars"
         anchoring="bottom"
         ceiling={0.78}
@@ -430,13 +430,13 @@ export function MiniRecorder({ onOpen }: { onOpen: () => void }) {
         peak={0.95}
         thickness={1.5}
       />
-      <span className="mini-rekorder-tecka" aria-hidden />
-      <button className="mini-popis" onClick={onOpen} title={t("app.recorder.open")}>
+      <span className="mini-recorder-dot" aria-hidden />
+      <button className="mini-label" onClick={onOpen} title={t("app.recorder.open")}>
         {t("app.recorder.label")}
       </button>
-      <span className="mini-cas">{recorderTime(seconds)}</span>
+      <span className="mini-time">{recorderTime(seconds)}</span>
       <button
-        className="mini-zavrit"
+        className="mini-close"
         onClick={() => {
           stop();
           onOpen();

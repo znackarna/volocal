@@ -9,7 +9,7 @@ export default function InfoNote({
   compact?: boolean;
 }) {
   return (
-    <span className={`drobne settings-info-note ${compact ? "compact" : ""}`}>
+    <span className={`small-text settings-info-note ${compact ? "compact" : ""}`}>
       <svg
         className="settings-info-note-icon"
         width="16"

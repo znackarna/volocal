@@ -82,7 +82,7 @@ function CrashScreen({ crash }: { crash: Crash }) {
         <div style={{ marginTop: 22 }}>
           <button
             type="button"
-            className="tlacitko hlavni"
+            className="button primary"
             onClick={() => window.location.reload()}
           >
             {t("app.crash.reload")}

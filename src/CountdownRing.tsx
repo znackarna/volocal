@@ -16,7 +16,7 @@ export default function CountdownRing({
 }) {
   return (
     <svg
-      className={`odpocet ${className}`.trim()}
+      className={`countdown ${className}`.trim()}
       width={size}
       height={size}
       viewBox="0 0 16 16"
@@ -32,7 +32,7 @@ export default function CountdownRing({
         strokeWidth="1.7"
       />
       <circle
-        className="odpocet-drah"
+        className="countdown-track"
         cx="8"
         cy="8"
         r="6.4"

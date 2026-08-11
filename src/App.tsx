@@ -895,7 +895,7 @@ export default function App() {
       // A dialog is the top of the stack; the buttons belong to it, not to the
       // screen underneath. Asking the DOM covers every modal without listing
       // them, which is what keeps the next one from being forgotten here.
-      if (document.querySelector(".prekryv-dialogu")) return;
+      if (document.querySelector(".dialog-overlay")) return;
       const place = trail.current[trailAt.current + step];
       if (!place) return;
       trailAt.current += step;
@@ -1071,19 +1071,19 @@ export default function App() {
   }, [loadAppearance, loadRecordings, loadToolCheck]);
 
   return (
-    <div className={`aplikace ${dragging ? "pretahuje" : ""}`}>
+    <div className={`app ${dragging ? "dragging" : ""}`}>
       {screen !== "detail" && (
-      <header className="lista">
-        <div className="lista-levo">
+      <header className="bar">
+        <div className="bar-left">
         <button
-          className="znacka header-brand-mark"
+          className="mark header-brand-mark"
           onClick={() => {
             setScreen("library");
             loadRecordings();
           }}
         >
           <span
-            className="logotyp"
+            className="logotype"
             aria-label={t("app.name")}
             dangerouslySetInnerHTML={{ __html: mark }}
           />
@@ -1113,7 +1113,7 @@ export default function App() {
             offers to finish for as long as transcription cannot run. */}
         {(screen !== "library" || openFolder !== null) && (
           <button
-            className="tlacitko tichy"
+            className="button quiet"
             onClick={() => {
               if (screen === "wizard") {
                 leaveWizard();
@@ -1145,7 +1145,7 @@ export default function App() {
 
         </div>
 
-        <div className="lista-pravo">
+        <div className="bar-right">
           {/* Sound and recording keep the right edge, beside the actions —
               the same corner of every header, at Jakub's ask. */}
           {player.recordingId && (
@@ -1166,7 +1166,7 @@ export default function App() {
             />
           )}
           {screen !== "settings" && screen !== "wizard" && (
-            <button className="tlacitko tichy" onClick={() => {
+            <button className="button quiet" onClick={() => {
               setAddRecordingView("source");
               setAddRecordingOpen(true);
             }}>
@@ -1178,7 +1178,7 @@ export default function App() {
             </button>
           )}
           <button
-            className={`tlacitko tichy ${blockingIssues.length ? "vystraha" : ""}`}
+            className={`button quiet ${blockingIssues.length ? "danger" : ""}`}
             onClick={() => {
               setScreen("settings");
               loadToolCheck();
@@ -1199,7 +1199,7 @@ export default function App() {
 
       {notice && (
         <div
-          className={`hlaska ${notice.kind}${noticeClosing ? " odchazi" : ""}`}
+          className={`notice ${notice.kind}${noticeClosing ? " leaving" : ""}`}
           role={notice.kind === "error" ? "alert" : "status"}
           /* The ring empties over exactly the time the timer above waits, so
              the number lives here and the stylesheet only draws it. */
@@ -1207,7 +1207,7 @@ export default function App() {
         >
           {/* The ring empties over the seconds the bar has left, so it is
               visible that it will go on its own — and how soon. */}
-          <CountdownRing className="hlaska-odpocet" size={16} />
+          <CountdownRing className="notice-countdown" size={16} />
           <span>{notice.text}</span>
           <button onClick={() => setNoticeClosing(true)}>{t("common.close")}</button>
         </div>
@@ -1572,9 +1572,9 @@ export default function App() {
       <Tooltips />
 
       {dragging && (
-        <div className="prekryv-pretazeni">
-          <div className="prekryv-obsah">
-            <div className="prekryv-ikona">↓</div>
+        <div className="drag-overlay">
+          <div className="overlay-content">
+            <div className="overlay-icon">↓</div>
             {/* What is about to happen, not what usually happens. With
                 automatic transcription off the file only lands in the archive,
                 and promising a transcript there was a plain untruth. */}

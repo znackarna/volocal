@@ -31,7 +31,7 @@ function withSize(width: number, height: number) {
 function open(over: Partial<Parameters<typeof TranscriptContextMenu>[0]> = {}) {
   const onClose = vi.fn();
   render(<TranscriptContextMenu x={100} y={100} items={items} onClose={onClose} {...over} />);
-  return { onClose, surface: document.querySelector(".kontextova-nabidka") as HTMLElement };
+  return { onClose, surface: document.querySelector(".context-menu") as HTMLElement };
 }
 
 describe("TranscriptContextMenu", () => {
@@ -51,7 +51,7 @@ describe("TranscriptContextMenu", () => {
 
   test("an action that undoes work is marked as one", () => {
     open();
-    expect(screen.getByText("Smazat").closest("button")?.className).toBe("varovne");
+    expect(screen.getByText("Smazat").closest("button")?.className).toBe("destructive-item");
     expect(screen.getByText("Kopírovat").closest("button")?.className).toBe("");
   });
 

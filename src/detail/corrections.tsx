@@ -17,7 +17,7 @@ export function MarkedWords({ original, text }: { original: string; text: string
         if (/^\s+$/.test(word)) return <span key={i}>{word}</span>;
         index += 1;
         return changed.has(index) ? (
-          <span key={i} className="opraveno">{word}</span>
+          <span key={i} className="corrected">{word}</span>
         ) : (
           <span key={i}>{word}</span>
         );
@@ -102,8 +102,8 @@ export function UncertainEditor({
   }, []);
 
   return (
-    <div className="nejiste-upravy">
-      <span className="nejiste-cas">{formatTime(segment.start)}</span>
+    <div className="uncertain-actions">
+      <span className="uncertain-time">{formatTime(segment.start)}</span>
       <textarea
         ref={areaRef}
         value={draft}
@@ -244,8 +244,8 @@ export const SegmentRow = memo(function SegmentRow({
 
   if (editing) {
     return (
-      <div className="segment upravuje" id={`segment-${segment.id}`}>
-        <button className="cas-znacka" onClick={() => onSeek(segment.start)}>
+      <div className="segment editing" id={`segment-${segment.id}`}>
+        <button className="time-mark" onClick={() => onSeek(segment.start)}>
           {formatTime(segment.start)}
         </button>
         <textarea
@@ -270,15 +270,15 @@ export const SegmentRow = memo(function SegmentRow({
 
   return (
     <div
-      className={`segment ${active ? "aktivni" : ""} ${uncertain ? "nejisty" : ""} ${
-        foundHere ? "nalezeno" : ""
+      className={`segment ${active ? "current" : ""} ${uncertain ? "uncertain" : ""} ${
+        foundHere ? "found" : ""
       }`}
       id={`segment-${segment.id}`}
       style={color ? { borderLeftColor: color } : undefined}
       onDoubleClick={() => onStartUpravu(segment)}
       onContextMenu={(event) => onContextMenu(segment, event)}
     >
-      <button className="cas-znacka" onClick={() => onSeek(segment.start)}>
+      <button className="time-mark" onClick={() => onSeek(segment.start)}>
         {formatTime(segment.start)}
       </button>
 
@@ -293,9 +293,9 @@ export const SegmentRow = memo(function SegmentRow({
                  A query with a space in it marks nothing — the words are
                  separate elements and a phrase runs across them — but the
                  block still counts as a match and can be travelled to. */
-              className={`slovo ${active && time >= s.time ? "znelo" : ""} ${
-                corrected?.has(wordOrdinals[i]) ? "opraveno" : ""
-              } ${find && plain(s.text).includes(find) ? "nalez" : ""}`}
+              className={`word ${active && time >= s.time ? "sounded" : ""} ${
+                corrected?.has(wordOrdinals[i]) ? "corrected" : ""
+              } ${find && plain(s.text).includes(find) ? "hit" : ""}`}
               onClick={() => onSeek(s.time)}
               /* The context menu reads the moment off the word that was
                  pointed at, so it can play, note or re-transcribe from
@@ -311,12 +311,12 @@ export const SegmentRow = memo(function SegmentRow({
             underlined — a segment edited before the archive kept originals.
             Otherwise it repeats what the marks below the words already say. */}
         {segment.edited && !corrected?.size && (
-          <span className="upraveno-znak" title={t("detail.segment.editedHint")}>✎</span>
+          <span className="edited-mark" title={t("detail.segment.editedHint")}>✎</span>
         )}
       </p>
 
       {uncertain && (
-        <div className="segment-akce">
+        <div className="segment-actions">
           <button title={t("detail.review.markCorrectTitle")}
                   aria-label={t("detail.review.markCorrectLabel")}
                   onClick={() => onConfirm(segment)}>

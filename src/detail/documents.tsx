@@ -136,9 +136,9 @@ export function ExportMenu({
   }, [open]);
 
   return (
-    <div className="ulozit" ref={container}>
+    <div className="save" ref={container}>
       <button
-        className="tlacitko"
+        className="button"
         onClick={() => setOpen((o) => !o)}
         disabled={disabled}
         aria-haspopup="menu"
@@ -150,7 +150,7 @@ export function ExportMenu({
                 strokeLinecap="round" strokeLinejoin="round" />
         </svg>
         {t("detail.export.button")}
-        <svg className="ulozit-sipka" width="12" height="12" viewBox="0 0 24 24"
+        <svg className="save-arrow" width="12" height="12" viewBox="0 0 24 24"
              fill="none" aria-hidden>
           <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2"
                 strokeLinecap="round" strokeLinejoin="round" />
@@ -158,7 +158,7 @@ export function ExportMenu({
       </button>
 
       {open && (
-        <div className="ulozit-seznam" role="menu">
+        <div className="save-list" role="menu">
           <span className="save-menu-group">{t("detail.export.rawGroup")}</span>
           {EXPORT_FORMATS.map((f) => (
             <button
@@ -169,8 +169,8 @@ export function ExportMenu({
                 onChoose(f);
               }}
             >
-              <span className="ulozit-format">{f.toUpperCase()}</span>
-              <span className="ulozit-popis">{t(FORMAT_DESCRIPTIONS[f])}</span>
+              <span className="save-format">{f.toUpperCase()}</span>
+              <span className="save-label">{t(FORMAT_DESCRIPTIONS[f])}</span>
             </button>
           ))}
           {hasAiDocument && (
@@ -185,8 +185,8 @@ export function ExportMenu({
                     onChooseAi(format);
                   }}
                 >
-                  <span className="ulozit-format">{format.toUpperCase()}</span>
-                  <span className="ulozit-popis">{t(FORMAT_DESCRIPTIONS[format])}</span>
+                  <span className="save-format">{format.toUpperCase()}</span>
+                  <span className="save-label">{t(FORMAT_DESCRIPTIONS[format])}</span>
                 </button>
               ))}
             </>
@@ -242,8 +242,8 @@ export function DocumentSaveMenu({
   }, [open]);
 
   return (
-    <div className="ulozit" ref={container}>
-      <button className="tlacitko hlavni" onClick={toggleMenu}
+    <div className="save" ref={container}>
+      <button className="button primary" onClick={toggleMenu}
               disabled={disabled} aria-haspopup="menu" aria-expanded={open}>
         <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden>
           <path d="M8 2v8M4.6 6.8 8 10.2l3.4-3.4M2.5 12.5h11"
@@ -251,7 +251,7 @@ export function DocumentSaveMenu({
                 strokeLinejoin="round" />
         </svg>
         {t("common.save")}
-        <svg className="ulozit-sipka" width="12" height="12" viewBox="0 0 24 24"
+        <svg className="save-arrow" width="12" height="12" viewBox="0 0 24 24"
              fill="none" aria-hidden>
           <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2"
                 strokeLinecap="round" strokeLinejoin="round" />
@@ -259,7 +259,7 @@ export function DocumentSaveMenu({
       </button>
       {open && (
         <div
-          className={`ulozit-seznam document-save-menu${openAbove ? " opens-above" : ""}`}
+          className={`save-list document-save-menu${openAbove ? " opens-above" : ""}`}
           role="menu"
         >
           {(["txt", "md"] as const).map((format) => (
@@ -267,8 +267,8 @@ export function DocumentSaveMenu({
               setOpen(false);
               onChoose(format);
             }}>
-              <span className="ulozit-format">{format.toUpperCase()}</span>
-              <span className="ulozit-popis">{t(FORMAT_DESCRIPTIONS[format])}</span>
+              <span className="save-format">{format.toUpperCase()}</span>
+              <span className="save-label">{t(FORMAT_DESCRIPTIONS[format])}</span>
             </button>
           ))}
         </div>

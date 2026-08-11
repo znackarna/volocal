@@ -101,10 +101,10 @@ export default function Select({ value, items, onChange, description, disabled }
   let lastGroup: string | undefined;
 
   return (
-    <div className="vyber" ref={containerRef}>
+    <div className="select" ref={containerRef}>
       <button
         type="button"
-        className={`vyber-spoust ${isOpen ? "otevreno" : ""}`}
+        className={`select-trigger ${isOpen ? "expanded" : ""}`}
         onClick={() => (isOpen ? setIsOpen(false) : openMenu())}
         onKeyDown={handleKeyDown}
         disabled={disabled}
@@ -112,36 +112,36 @@ export default function Select({ value, items, onChange, description, disabled }
         aria-expanded={isOpen}
         aria-label={description}
       >
-        <span className="vyber-hodnota">{selected?.label ?? "—"}</span>
-        <svg className="vyber-sipka" width="10" height="6" viewBox="0 0 10 6" aria-hidden>
+        <span className="select-value">{selected?.label ?? "—"}</span>
+        <svg className="select-arrow" width="10" height="6" viewBox="0 0 10 6" aria-hidden>
           <path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.6"
                 strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </button>
 
       {isOpen && (
-        <div className="vyber-nabidka" role="listbox" id={id} ref={listRef} tabIndex={-1}>
+        <div className="select-menu" role="listbox" id={id} ref={listRef} tabIndex={-1}>
           {items.map((p, i) => {
             const newGroup = p.group && p.group !== lastGroup;
             lastGroup = p.group;
             return (
               <div key={p.value}>
-                {newGroup && <div className="vyber-skupina">{p.group}</div>}
+                {newGroup && <div className="select-group">{p.group}</div>}
                 <button
                   type="button"
                   data-i={i}
                   role="option"
                   aria-selected={p.value === value}
-                  className={`vyber-polozka ${i === highlightedIndex ? "zvyrazneno" : ""} ${
-                    p.value === value ? "vybrano" : ""
+                  className={`select-item ${i === highlightedIndex ? "highlighted" : ""} ${
+                    p.value === value ? "picked" : ""
                   }`}
                   onMouseEnter={() => setHighlightedIndex(i)}
                   onClick={() => select(i)}
                 >
-                  <span className="vyber-popisek">{p.label}</span>
-                  {p.note && <span className="vyber-poznamka">{p.note}</span>}
+                  <span className="select-label">{p.label}</span>
+                  {p.note && <span className="select-note">{p.note}</span>}
                   {p.value === value && (
-                    <svg className="vyber-fajfka" width="12" height="10" viewBox="0 0 12 10" aria-hidden>
+                    <svg className="select-tick" width="12" height="10" viewBox="0 0 12 10" aria-hidden>
                       <path d="M1 5l3.5 3.5L11 1.5" fill="none" stroke="currentColor" strokeWidth="1.8"
                             strokeLinecap="round" strokeLinejoin="round" />
                     </svg>

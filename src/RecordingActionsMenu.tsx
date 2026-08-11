@@ -150,7 +150,7 @@ const Icons = {
 
 function MenuIcon({ path }: { path: string }) {
   return (
-    <svg className="nabidka-ikona" width="20" height="20" viewBox="0 0 24 24"
+    <svg className="menu-icon" width="20" height="20" viewBox="0 0 24 24"
          fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"
          strokeLinejoin="round" aria-hidden>
       {path.split(" M").map((segment, index) => (
@@ -201,8 +201,8 @@ export function ActionMenu({
   }, [open]);
 
   return (
-    <div className={`nabidka-akci ${className}`.trim()} ref={container}>
-      <button className="ikona-tlacitko" onClick={() => setOpen((value) => !value)}
+    <div className={`action-menu ${className}`.trim()} ref={container}>
+      <button className="icon-button" onClick={() => setOpen((value) => !value)}
               aria-haspopup="menu" aria-expanded={open}
               aria-label={t("dialogs.recordingMenu.more")}>
         <svg width="16" height="4" viewBox="0 0 16 4" aria-hidden>
@@ -212,9 +212,9 @@ export function ActionMenu({
         </svg>
       </button>
       {open && (
-        <div className="nabidka-akci-seznam" role="menu">
+        <div className="action-menu-list" role="menu">
           {submenu && (
-            <button className="nabidka-zpet" onClick={() => setSubmenu(null)}>
+            <button className="menu-back" onClick={() => setSubmenu(null)}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
                 <path d="M15 5l-7 7 7 7" stroke="currentColor" strokeWidth="2"
                       strokeLinecap="round" strokeLinejoin="round" />
@@ -223,7 +223,7 @@ export function ActionMenu({
             </button>
           )}
           {(submenu?.children ?? items).map((item) => (
-            <button key={item.label} role="menuitem" className={item.warning ? "varovne" : ""}
+            <button key={item.label} role="menuitem" className={item.warning ? "destructive-item" : ""}
                     onClick={() => {
                       if (item.children) {
                         setSubmenu(item);
@@ -233,9 +233,9 @@ export function ActionMenu({
                       item.action?.();
                     }}>
               {item.icon && <MenuIcon path={item.icon} />}
-              <span className="nabidka-popisek">{item.label}</span>
+              <span className="menu-label">{item.label}</span>
               {item.children && (
-                <svg className="nabidka-sipka" width="14" height="14" viewBox="0 0 24 24"
+                <svg className="menu-arrow" width="14" height="14" viewBox="0 0 24 24"
                      fill="none" aria-hidden>
                   <path d="M9 5l7 7-7 7" stroke="currentColor" strokeWidth="2"
                         strokeLinecap="round" strokeLinejoin="round" />

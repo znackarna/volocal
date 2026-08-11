@@ -63,7 +63,7 @@ function ReleaseNotes({
   const dialog = useDialog<HTMLDivElement>(onClose);
 
   return (
-    <div className="prekryv-dialogu" onMouseDown={onClose}>
+    <div className="dialog-overlay" onMouseDown={onClose}>
       <div
         ref={dialog}
         className="dialog release-notes-dialog"
@@ -98,11 +98,11 @@ function ReleaseNotes({
             )
           )}
         </div>
-        <div className="dialog-patka">
-          <button className="tlacitko" onClick={onClose} autoFocus>
+        <div className="dialog-footer">
+          <button className="button" onClick={onClose} autoFocus>
             {t("settings.about.updateNotesLater")}
           </button>
-          <button className="tlacitko hlavni" onClick={onInstall}>
+          <button className="button primary" onClick={onInstall}>
             {t("settings.about.updateInstall")}
           </button>
         </div>
@@ -218,7 +218,7 @@ export function UpdateCheck({
 
 
   return (
-    <div className="about-aktualizace">
+    <div className="about-updates">
       {reading && state.at === "found" && (
         <ReleaseNotes
           version={state.version}
@@ -228,8 +228,8 @@ export function UpdateCheck({
         />
       )}
 
-      <div className="about-aktualizace-akce">
-        <button className="tlacitko" onClick={look} disabled={busy}>
+      <div className="about-updates-actions">
+        <button className="button" onClick={look} disabled={busy}>
           {state.at === "checking"
             ? t("settings.about.updateChecking")
             : t("settings.about.updateCheck")}
@@ -238,26 +238,26 @@ export function UpdateCheck({
           /* Closing the dialog is not the same as being done with it: somebody
              who reads it, thinks about it and comes back should not have to ask
              the server again to see the same three lines. */
-          <button className="tlacitko" onClick={() => setReading(true)}>
+          <button className="button" onClick={() => setReading(true)}>
             {t("settings.about.updateNotesReopen")}
           </button>
         )}
         {state.at === "found" && (
-          <button className="tlacitko hlavni" onClick={install}>
+          <button className="button primary" onClick={install}>
             {t("settings.about.updateInstall")}
           </button>
         )}
       </div>
 
       {state.at === "downloading" && (
-        <p className="about-stav">
+        <p className="about-status">
           {state.percent === null
             ? t("settings.about.updateDownloadingUnknown")
             : t("settings.about.updateDownloading", { percent: state.percent })}
         </p>
       )}
       {state.at === "installing" && (
-        <p className="about-stav">{t("settings.about.updateInstalling")}</p>
+        <p className="about-status">{t("settings.about.updateInstalling")}</p>
       )}
 
       <InfoNote>{t("settings.about.updateNote")}</InfoNote>

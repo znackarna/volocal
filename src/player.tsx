@@ -976,10 +976,10 @@ export function MiniPlayer({
   const ratio = duration > 0 ? Math.min(1, time / duration) : 0;
 
   return (
-    <div className={`mini-prehravac ${compact ? "kompaktni" : ""}`}>
+    <div className={`mini-player ${compact ? "dense" : ""}`}>
       <AudioBars compact={compact} />
       <button
-        className="mini-prehrat"
+        className="mini-play"
         onClick={togglePlayback}
         disabled={isPreparing}
         aria-label={
@@ -990,10 +990,10 @@ export function MiniPlayer({
               : t("app.player.play")
         }
       >
-        <svg className="mini-prstenec" width="30" height="30" viewBox="0 0 30 30" aria-hidden>
-          <circle className="mini-drazka" cx="15" cy="15" r={R} />
+        <svg className="mini-ring" width="30" height="30" viewBox="0 0 30 30" aria-hidden>
+          <circle className="mini-track" cx="15" cy="15" r={R} />
           <circle
-            className="mini-postup"
+            className="mini-progress"
             cx="15"
             cy="15"
             r={R}
@@ -1013,11 +1013,11 @@ export function MiniPlayer({
         )}
       </button>
 
-      <button className="mini-popis" onClick={onOpen} title={t("app.player.openTranscript")}>
+      <button className="mini-label" onClick={onOpen} title={t("app.player.openTranscript")}>
         {title}
       </button>
 
-      <span className={`mini-cas ${sourceMissing ? "varovne" : ""}`}>
+      <span className={`mini-time ${sourceMissing ? "destructive-item" : ""}`}>
         {sourceMissing
           ? t("app.player.sourceMissing")
           : isPreparing
@@ -1025,7 +1025,7 @@ export function MiniPlayer({
             : formatTime(time)}
       </span>
 
-      <button className="mini-zavrit" onClick={close} aria-label={t("app.player.stop")}>
+      <button className="mini-close" onClick={close} aria-label={t("app.player.stop")}>
         {/* Stejná kresebná velikost jako u přehrát — menší glyf by
             opticky odskočil od okraje, i když má stejnou plochu. */}
         <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden>
@@ -1069,7 +1069,7 @@ function AudioBars({ compact = false }: { compact?: boolean }) {
   return (
     <Waveform
       values={values}
-      className={`mini-vlny ${isPlaying ? "hraje" : ""}`}
+      className={`mini-waves ${isPlaying ? "playing" : ""}`}
       waveformStyle="bars"
       anchoring="bottom"
       ceiling={0.78}

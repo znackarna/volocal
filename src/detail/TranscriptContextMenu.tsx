@@ -74,13 +74,13 @@ export function TranscriptContextMenu({
 
   return (
     <div
-      className="kontextova-nabidka"
+      className="context-menu"
       style={{ left: placed.left, top: placed.top }}
       ref={surface}
     >
-      <div className="nabidka-akci-seznam" role="menu">
+      <div className="action-menu-list" role="menu">
         {submenu && (
-          <button className="nabidka-zpet" onClick={() => setSubmenu(null)}>
+          <button className="menu-back" onClick={() => setSubmenu(null)}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
               <path d="M15 5l-7 7 7 7" stroke="currentColor" strokeWidth="2"
                     strokeLinecap="round" strokeLinejoin="round" />
@@ -92,7 +92,7 @@ export function TranscriptContextMenu({
           <button
             key={item.label}
             role="menuitem"
-            className={item.warning ? "varovne" : ""}
+            className={item.warning ? "destructive-item" : ""}
             onClick={() => {
               if (item.children) {
                 setSubmenu(item);
@@ -102,14 +102,14 @@ export function TranscriptContextMenu({
               item.action?.();
             }}
           >
-            <svg className="nabidka-ikona" width="16" height="16" viewBox="0 0 24 24"
+            <svg className="menu-icon" width="16" height="16" viewBox="0 0 24 24"
                  fill="none" aria-hidden style={item.color ? { color: item.color } : undefined}>
               <path d={item.icon} stroke="currentColor" strokeWidth="1.7"
                     strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-            <span className="nabidka-popisek">{item.label}</span>
+            <span className="menu-label">{item.label}</span>
             {item.children && (
-              <svg className="nabidka-sipka" width="14" height="14" viewBox="0 0 24 24"
+              <svg className="menu-arrow" width="14" height="14" viewBox="0 0 24 24"
                    fill="none" aria-hidden>
                 <path d="M9 5l7 7-7 7" stroke="currentColor" strokeWidth="2"
                       strokeLinecap="round" strokeLinejoin="round" />

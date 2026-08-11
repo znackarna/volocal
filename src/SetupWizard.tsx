@@ -109,7 +109,7 @@ function DownloadedMark() {
  */
 function ManualSelectionButton({ label, onClick }: { label: string; onClick: () => void }) {
   return (
-    <button className="tlacitko tichy" onClick={onClick}>
+    <button className="button quiet" onClick={onClick}>
       <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden>
         <path
           d="M2 4.5h3.2M8.8 4.5H14M2 11.5h6.2M11.8 11.5H14"
@@ -376,22 +376,22 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
   };
 
   return (
-    <main className="pruvodce">
+    <main className="wizard">
       {step < 5 && (
-        <div className="kroky" aria-hidden>
+        <div className="steps" aria-hidden>
           {[0, 1, 2, 3, 4].map((i) => (
-            <span key={i} className={i <= step ? "hotovy" : ""} />
+            <span key={i} className={i <= step ? "finished" : ""} />
           ))}
         </div>
       )}
 
       {error && step !== 5 && (
-        <div className="upozorneni">
+        <div className="warning">
           <div>
             <strong>{t("wizard.download.failedTitle")}</strong>
-            <p className="drobne">{error}</p>
+            <p className="small-text">{error}</p>
           </div>
-          <button className="tlacitko" onClick={() => setError(null)}>
+          <button className="button" onClick={() => setError(null)}>
             {t("wizard.download.dismissError")}
           </button>
         </div>
@@ -399,19 +399,19 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
 
       {/* ------------------------------------------------ 0. uvítání */}
       {step === 0 && (
-        <div className="krok">
-          <p className="krok-cislo">{t("wizard.nav.stepCounter", { step: 1, total: 5 })}</p>
+        <div className="step">
+          <p className="step-number">{t("wizard.nav.stepCounter", { step: 1, total: 5 })}</p>
           <h1>{t(required ? "wizard.welcome.titleFirstRun" : "wizard.welcome.titleAddModels")}</h1>
-          <p className="krok-uvod">{t("wizard.welcome.intro")}</p>
+          <p className="step-intro">{t("wizard.welcome.intro")}</p>
 
-          <div className="zjisteno">
+          <div className="detected">
             <div>
-              <span className="volba-ikona" aria-hidden>
+              <span className="choice-icon" aria-hidden>
                 <LineIcon name="compute" />
               </span>
-              <div className="zjisteno-telo">
-                <span className="zjisteno-popis">{t("wizard.welcome.configurationLabel")}</span>
-                <span className="zjisteno-hodnota">
+              <div className="detected-body">
+                <span className="detected-label">{t("wizard.welcome.configurationLabel")}</span>
+                <span className="detected-value">
                   {check?.nvidia_driver
                     ? t("wizard.welcome.gpuNvidia")
                     : check?.vulkan_driver
@@ -421,12 +421,12 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
               </div>
             </div>
             <div>
-              <span className="volba-ikona" aria-hidden>
+              <span className="choice-icon" aria-hidden>
                 <LineIcon name="transcription" />
               </span>
-              <div className="zjisteno-telo">
-                <span className="zjisteno-popis">{t("wizard.welcome.transcriptionLabel")}</span>
-                <span className="zjisteno-hodnota">
+              <div className="detected-body">
+                <span className="detected-label">{t("wizard.welcome.transcriptionLabel")}</span>
+                <span className="detected-value">
                   {usesGpu ? t("wizard.welcome.onGpu") : t("wizard.welcome.onCpu")}
                 </span>
               </div>
@@ -435,9 +435,9 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
 
           <InfoNote>{t("wizard.welcome.note")}</InfoNote>
 
-          <div className="krok-patka">
+          <div className="step-footer">
             {!required && (
-              <button className="tlacitko tichy" onClick={onBack}>
+              <button className="button quiet" onClick={onBack}>
                 {t("common.back")}
               </button>
             )}
@@ -445,7 +445,7 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
               label={t("wizard.manual.switchToManual")}
               onClick={chooseByHand}
             />
-            <button className="tlacitko hlavni" onClick={() => setStep(1)}>
+            <button className="button primary" onClick={() => setStep(1)}>
               {t("common.continue")}
             </button>
           </div>
@@ -454,38 +454,38 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
 
       {/* ------------------------------------------------ 1. kvalita */}
       {step === 1 && (
-        <div className="krok">
-          <p className="krok-cislo">{t("wizard.nav.stepCounter", { step: 2, total: 5 })}</p>
+        <div className="step">
+          <p className="step-number">{t("wizard.nav.stepCounter", { step: 2, total: 5 })}</p>
           <h1>{t("wizard.quality.title")}</h1>
-          <p className="krok-uvod">
+          <p className="step-intro">
             {usesGpu ? t("wizard.quality.introGpu") : t("wizard.quality.introCpu")}
           </p>
 
-          <div className="volby">
+          <div className="choices">
             {(["fastest", "balanced", "best"] as Quality[]).map((k) => {
               const p = items.find((x) => x.id === MODELS[k].component);
               const recommended = usesGpu ? "balanced" : "fastest";
               return (
                 <button
                   key={k}
-                  className={`volba ${quality === k ? "zvolena" : ""}`}
+                  className={`choice ${quality === k ? "chosen" : ""}`}
                   onClick={() => setQuality(k)}
                 >
-                  <span className="volba-hlava">
-                    <span className="volba-nazev">
+                  <span className="choice-head">
+                    <span className="choice-title">
                       {t(MODELS[k].name)}
                       {k === recommended && (
-                        <em className="odznak">{t("wizard.download.recommendedBadge")}</em>
+                        <em className="badge">{t("wizard.download.recommendedBadge")}</em>
                       )}
                       {p?.complete && (
-                        <em className="odznak">{t("wizard.download.downloadedBadge")}</em>
+                        <em className="badge">{t("wizard.download.downloadedBadge")}</em>
                       )}
                     </span>
-                    <span className="volba-velikost">
+                    <span className="choice-size">
                       {dataSize(p?.complete ? 0 : p?.megabytes ?? 0)}
                     </span>
                   </span>
-                  <span className="drobne">
+                  <span className="small-text">
                     {t(MODELS[k].summary, {
                       duration: approximateMinutes(estimatedMinutes(k, usesGpu)),
                     })}
@@ -495,15 +495,15 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
             })}
           </div>
 
-          <div className="krok-patka">
-            <button className="tlacitko tichy" onClick={() => setStep(0)}>
+          <div className="step-footer">
+            <button className="button quiet" onClick={() => setStep(0)}>
               {t("common.back")}
             </button>
             <ManualSelectionButton
               label={t("wizard.manual.switchToManual")}
               onClick={chooseByHand}
             />
-            <button className="tlacitko hlavni" onClick={() => setStep(2)}>
+            <button className="button primary" onClick={() => setStep(2)}>
               {t("common.continue")}
             </button>
           </div>
@@ -512,30 +512,30 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
 
       {/* ------------------------------------------------ 2. mluvčí */}
       {step === 2 && (
-        <div className="krok">
-          <p className="krok-cislo">{t("wizard.nav.stepCounter", { step: 3, total: 5 })}</p>
+        <div className="step">
+          <p className="step-number">{t("wizard.nav.stepCounter", { step: 3, total: 5 })}</p>
           <h1>{t("wizard.speakers.title")}</h1>
-          <p className="krok-uvod">{t("wizard.speakers.intro")}</p>
+          <p className="step-intro">{t("wizard.speakers.intro")}</p>
 
-          <div className="volby">
+          <div className="choices">
             <button
-              className={`volba ${!wantsSpeakers ? "zvolena" : ""}`}
+              className={`choice ${!wantsSpeakers ? "chosen" : ""}`}
               onClick={() => setWantsSpeakers(false)}
             >
-              <span className="volba-hlava">
-                <span className="volba-nazev">{t("wizard.speakers.singleName")}</span>
-                <span className="volba-velikost">{dataSize(0)}</span>
+              <span className="choice-head">
+                <span className="choice-title">{t("wizard.speakers.singleName")}</span>
+                <span className="choice-size">{dataSize(0)}</span>
               </span>
-              <span className="drobne">{t("wizard.speakers.singleDescription")}</span>
+              <span className="small-text">{t("wizard.speakers.singleDescription")}</span>
             </button>
 
             <button
-              className={`volba ${wantsSpeakers ? "zvolena" : ""}`}
+              className={`choice ${wantsSpeakers ? "chosen" : ""}`}
               onClick={() => setWantsSpeakers(true)}
             >
-              <span className="volba-hlava">
-                <span className="volba-nazev">{t("wizard.speakers.multipleName")}</span>
-                <span className="volba-velikost">
+              <span className="choice-head">
+                <span className="choice-title">{t("wizard.speakers.multipleName")}</span>
+                <span className="choice-size">
                   {dataSize(
                     DIARIZATION_COMPONENTS.reduce((a, id) => {
                       const p = items.find((x) => x.id === id);
@@ -544,19 +544,19 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
                   )}
                 </span>
               </span>
-              <span className="drobne">{t("wizard.speakers.multipleDescription")}</span>
+              <span className="small-text">{t("wizard.speakers.multipleDescription")}</span>
             </button>
           </div>
 
-          <div className="krok-patka">
-            <button className="tlacitko tichy" onClick={() => setStep(1)}>
+          <div className="step-footer">
+            <button className="button quiet" onClick={() => setStep(1)}>
               {t("common.back")}
             </button>
             <ManualSelectionButton
               label={t("wizard.manual.switchToManual")}
               onClick={chooseByHand}
             />
-            <button className="tlacitko hlavni" onClick={() => setStep(3)}>
+            <button className="button primary" onClick={() => setStep(3)}>
               {t("common.continue")}
             </button>
           </div>
@@ -565,44 +565,44 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
 
       {/* ------------------------------------------ 3. optional language editing */}
       {step === 3 && (
-        <div className="krok">
-          <p className="krok-cislo">{t("wizard.nav.stepCounter", { step: 4, total: 5 })}</p>
+        <div className="step">
+          <p className="step-number">{t("wizard.nav.stepCounter", { step: 4, total: 5 })}</p>
           <h1>{t("wizard.editor.title")}</h1>
-          <p className="krok-uvod">{t("wizard.editor.intro")}</p>
+          <p className="step-intro">{t("wizard.editor.intro")}</p>
 
-          <div className="volby">
+          <div className="choices">
             {(["light", "balanced", "best"] as const).map((editorQuality) => {
               const choice = EDITOR_MODELS[editorQuality];
               const component = items.find((item) => item.id === choice.component);
               return (
                 <button
                   key={editorQuality}
-                  className={`volba ${editingQuality === editorQuality ? "zvolena" : ""}`}
+                  className={`choice ${editingQuality === editorQuality ? "chosen" : ""}`}
                   onClick={() => setEditingQuality(editorQuality)}
                   aria-pressed={editingQuality === editorQuality}
                 >
-                  <span className="volba-hlava">
-                    <span className="volba-nazev">
+                  <span className="choice-head">
+                    <span className="choice-title">
                       {t(choice.name)}
                       {editorQuality === "balanced" && (
-                        <em className="odznak">{t("wizard.download.recommendedBadge")}</em>
+                        <em className="badge">{t("wizard.download.recommendedBadge")}</em>
                       )}
                       {component?.complete && (
-                        <em className="odznak">{t("wizard.download.downloadedBadge")}</em>
+                        <em className="badge">{t("wizard.download.downloadedBadge")}</em>
                       )}
                     </span>
-                    <span className="volba-velikost">
+                    <span className="choice-size">
                       {dataSize(component?.complete ? 0 : component?.megabytes ?? 0)}
                     </span>
                   </span>
-                  <span className="drobne">{t(choice.description)}</span>
+                  <span className="small-text">{t(choice.description)}</span>
                 </button>
               );
             })}
           </div>
 
-          <div className="krok-patka">
-            <button className="tlacitko tichy" onClick={() => setStep(2)}>
+          <div className="step-footer">
+            <button className="button quiet" onClick={() => setStep(2)}>
               {t("common.back")}
             </button>
             <ManualSelectionButton
@@ -610,7 +610,7 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
               onClick={chooseByHand}
             />
             <button
-              className="tlacitko tichy"
+              className="button quiet"
               onClick={() => {
                 setEditingQuality("off");
                 setStep(4);
@@ -618,7 +618,7 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
             >
               {t("wizard.editor.skip")}
             </button>
-            <button className="tlacitko hlavni" onClick={() => setStep(4)}>
+            <button className="button primary" onClick={() => setStep(4)}>
               {t("common.continue")}
             </button>
           </div>
@@ -627,12 +627,12 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
 
       {/* ------------------------------------------------ 4. summary and download */}
       {step === 4 && (
-        <div className="krok">
-          <p className="krok-cislo">{t("wizard.nav.stepCounter", { step: 5, total: 5 })}</p>
+        <div className="step">
+          <p className="step-number">{t("wizard.nav.stepCounter", { step: 5, total: 5 })}</p>
           <h1>{t(running ? "wizard.download.runningTitle" : "wizard.download.reviewTitle")}</h1>
 
           {!running && (
-            <p className="krok-uvod">
+            <p className="step-intro">
               {tPlural("wizard.download.summary", selected.length, {
                 size: dataSize(totalMb),
               })}
@@ -641,10 +641,10 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
 
           {running ? (
             <>
-              <div className="prubeh-velky">
-                <div className="prubeh-lista">
+              <div className="progress-large">
+                <div className="progress-bar">
                   <div
-                    className="prubeh-vypln"
+                    className="progress-fill"
                     style={{
                       width: `${
                         ((complete + (currentProgress ? currentProgress.percent / 100 : 0)) /
@@ -654,7 +654,7 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
                     }}
                   />
                 </div>
-                <div className="prubeh-popis">
+                <div className="progress-label">
                   <span>
                     {currentProgress?.phase === "extracting"
                       ? t("wizard.download.extracting", { name: currentName })
@@ -668,7 +668,7 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
                   </span>
                 </div>
                 {currentProgress && currentProgress.total_mb > 0 && (
-                  <p className="drobne">
+                  <p className="small-text">
                     {t("wizard.download.megabytesProgress", {
                       downloaded: currentProgress.downloaded_mb.toFixed(0),
                       total: currentProgress.total_mb.toFixed(0),
@@ -677,14 +677,14 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
                 )}
               </div>
 
-              <ul className="souhrn">
+              <ul className="summary">
                 {selected.map((id) => {
                   const p = items.find((x) => x.id === id);
                   const s = progress[id]?.phase;
                   return (
-                    <li key={id} className={s === "complete" ? "hotova" : ""}>
+                    <li key={id} className={s === "complete" ? "done" : ""}>
                       <span>{p ? tDynamic(p.name_code, p.id) : id}</span>
-                      <span className="drobne">
+                      <span className="small-text">
                         {s === "complete"
                           ? t("wizard.download.statusDone")
                           : s === "error"
@@ -698,8 +698,8 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
                 })}
               </ul>
 
-              <div className="krok-patka">
-                <button className="tlacitko" onClick={() => api.cancelDownload()}>
+              <div className="step-footer">
+                <button className="button" onClick={() => api.cancelDownload()}>
                   {t("common.stop")}
                 </button>
               </div>
@@ -720,27 +720,27 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
                   }
                 />
               ) : (
-                <ul className="souhrn">
+                <ul className="summary">
                   {selected.map((id) => {
                     const p = items.find((x) => x.id === id);
                     return (
                       <li key={id}>
                         <span>{p ? tDynamic(p.name_code, p.id) : id}</span>
-                        <span className="drobne">{dataSize(p?.megabytes ?? 0)}</span>
+                        <span className="small-text">{dataSize(p?.megabytes ?? 0)}</span>
                       </li>
                     );
                   })}
                   {selected.length === 0 && (
                     <li>
-                      <span className="drobne">{t("wizard.download.nothingNeeded")}</span>
+                      <span className="small-text">{t("wizard.download.nothingNeeded")}</span>
                     </li>
                   )}
                 </ul>
               )}
 
-              <div className="krok-patka">
+              <div className="step-footer">
                 <button
-                  className="tlacitko tichy"
+                  className="button quiet"
                   onClick={() => missingModule ? onBack() : setStep(manualFrom ?? 3)}
                 >
                   {t("common.back")}
@@ -754,7 +754,7 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
                 />
                 {selected.length === 0 ? (
                   <button
-                    className="tlacitko hlavni"
+                    className="button primary"
                     onClick={async () => {
                       // Nothing was selected because everything is already on
                       // the disk, so nothing is unfinished.
@@ -765,7 +765,7 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
                     {t("wizard.download.startTranscribing")}
                   </button>
                 ) : (
-                  <button className="tlacitko hlavni" onClick={start}>
+                  <button className="button primary" onClick={start}>
                     {t("wizard.download.downloadWithSize", { size: dataSize(totalMb) })}
                   </button>
                 )}
@@ -777,19 +777,19 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
 
       {/* ------------------------------------------------ 5. conclusion */}
       {step === 5 && (
-        <div className={`krok ${failedIds.length === 0 ? "krok-zaver" : ""}`}>
+        <div className={`step ${failedIds.length === 0 ? "step-outro" : ""}`}>
           {failedIds.length === 0 ? (
             <>
               <h1>{t("common.done")}</h1>
-              <p className="krok-uvod">{t("wizard.done.introReady")}</p>
-              <p className="drobne">
+              <p className="step-intro">{t("wizard.done.introReady")}</p>
+              <p className="small-text">
                 {tabHint[0]}
                 {/* i18n-ignore: the key is labelled F3 on every keyboard */}
                 <strong>F3</strong>
                 {tabHint[1] ?? ""}
               </p>
-              <div className="krok-patka">
-                <button className="tlacitko hlavni" onClick={onComplete}>
+              <div className="step-footer">
+                <button className="button primary" onClick={onComplete}>
                   {t("common.close")}
                 </button>
               </div>
@@ -797,26 +797,26 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
           ) : (
             <>
               <h1>{t(canTranscribe ? "wizard.done.almostTitle" : "wizard.done.failedTitle")}</h1>
-              <p className="krok-uvod">
+              <p className="step-intro">
                 {canTranscribe ? t("wizard.done.partialIntro") : t("wizard.done.missingIntro")}
               </p>
 
-              <ul className="souhrn">
+              <ul className="summary">
                 {failedIds.map((id) => (
                   <li key={id} className="selhala">
                     <span>{itemName(id)}</span>
-                    <span className="drobne">
+                    <span className="small-text">
                       {progress[id]?.message ? progressMessage(progress[id].message!) : ""}
                     </span>
                   </li>
                 ))}
               </ul>
 
-              {canTranscribe && <p className="drobne">{t("wizard.done.addLater")}</p>}
+              {canTranscribe && <p className="small-text">{t("wizard.done.addLater")}</p>}
 
-              <div className="krok-patka">
+              <div className="step-footer">
                 <button
-                  className="tlacitko tichy"
+                  className="button quiet"
                   onClick={() => {
                     setProgress({});
                     setStep(4);
@@ -825,13 +825,13 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
                   {t("wizard.done.backToSelection")}
                 </button>
                 <button
-                  className={`tlacitko ${canTranscribe ? "" : "hlavni"}`}
+                  className={`button ${canTranscribe ? "" : "primary"}`}
                   onClick={retry}
                 >
                   {t("common.retry")}
                 </button>
                 {canTranscribe && (
-                  <button className="tlacitko hlavni" onClick={onComplete}>
+                  <button className="button primary" onClick={onComplete}>
                     {t("wizard.done.continueAnyway")}
                   </button>
                 )}
@@ -863,15 +863,15 @@ function ManualSelection({
     ["editor", "wizard.manual.groupEditor"],
   ];
   return (
-    <div className="rucni">
+    <div className="manual">
       {groups.map(([key, titleKey]) => (
         <div key={key}>
           <h2>{t(titleKey)}</h2>
-          <ul className="soucasti">
+          <ul className="components">
             {items
               .filter((p) => p.group === key)
               .map((p) => (
-                <li key={p.id} className={`soucast ${p.complete ? "hotova" : ""}`}>
+                <li key={p.id} className={`component ${p.complete ? "done" : ""}`}>
                   <label>
                     <input
                       type="checkbox"
@@ -879,11 +879,11 @@ function ManualSelection({
                       disabled={p.complete}
                       onChange={() => onToggle(p.id)}
                     />
-                    <span className="soucast-text">
-                      <span className="soucast-nazev">{tDynamic(p.name_code, p.id)}</span>
-                      <span className="drobne">{tDynamic(p.description_code, "")}</span>
+                    <span className="component-text">
+                      <span className="component-name">{tDynamic(p.name_code, p.id)}</span>
+                      <span className="small-text">{tDynamic(p.description_code, "")}</span>
                     </span>
-                    <span className="soucast-velikost">
+                    <span className="component-size">
                       {p.complete ? <DownloadedMark /> : dataSize(p.megabytes)}
                     </span>
                   </label>

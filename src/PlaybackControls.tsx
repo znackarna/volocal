@@ -170,7 +170,7 @@ function AudioBackdrop({
 
   return (
     <span
-      className={`vlnky ${isPlaying ? "hraje" : ""}`}
+      className={`waves ${isPlaying ? "playing" : ""}`}
       style={{ left: `${geometry.timelineLeft}px`, width: `${geometry.timelineWidth}px` }}
       aria-hidden
     >
@@ -198,15 +198,15 @@ function PlayButton({
   const { t } = useI18n();
   return (
     <button
-      className="prehrat"
+      className="play"
       onClick={onClick}
       aria-label={isPlaying ? t("player.transport.pause") : t("player.transport.play")}
     >
-      <svg className="prehrat-prstenec" viewBox="0 0 44 44" aria-hidden>
-        <circle className="prehrat-drazka" cx="22" cy="22" r="20" />
+      <svg className="play-ring" viewBox="0 0 44 44" aria-hidden>
+        <circle className="play-track" cx="22" cy="22" r="20" />
         <circle
           ref={ring}
-          className="prehrat-postup"
+          className="play-progress"
           cx="22"
           cy="22"
           r="20"
@@ -214,7 +214,7 @@ function PlayButton({
           strokeDashoffset={RING_CIRCUMFERENCE * (1 - ratio)}
         />
       </svg>
-      <span className="prehrat-znak">
+      <span className="play-mark">
         {/* Drawn glyphs rather than font characters: the triangle U+25B6 has
             asymmetric side bearings and sits off-centre inside the ring. */}
         {isPlaying ? (
@@ -277,7 +277,7 @@ function Timeline({
 
   return (
     <div
-      className="osa-obal"
+      className="axis-wrap"
       ref={container}
       onMouseMove={(e) => {
         const r = e.currentTarget.getBoundingClientRect();
@@ -288,7 +288,7 @@ function Timeline({
     >
       <input
         ref={input}
-        className="posuvnik"
+        className="slider"
         type="range"
         min={0}
         max={Math.max(duration, 0.1)}
@@ -299,7 +299,7 @@ function Timeline({
         onChange={(e) => onSeek(Number(e.target.value))}
       />
       {preview && duration > 0 && (
-        <span className="posuvnik-nahled" style={{ left: `${preview.x}px` }}>
+        <span className="slider-preview" style={{ left: `${preview.x}px` }}>
           {formatTime(preview.time)}
         </span>
       )}
@@ -423,7 +423,7 @@ export default function PlaybackControls({
   }, [isPlaying]);
 
   return (
-    <div className="prehravac" ref={track}>
+    <div className="player" ref={track}>
       {/* The backdrop underlies the whole strip; it is not a row item. */}
       <AudioBackdrop
         waveform={waveform}
@@ -444,18 +444,18 @@ export default function PlaybackControls({
         container={centerLine}
       />
 
-      <span className="cas">
+      <span className="time">
         {t("player.timeline.position", {
           current: formatTime(time),
           total: formatTime(duration),
         })}
       </span>
 
-      <div className="rychlosti">
+      <div className="speeds">
         {PLAYBACK_RATES.map((r) => (
           <button
             key={r}
-            className={`tlacitko drobne-tl ${player.rate === r ? "aktivni" : ""}`}
+            className={`button button-small ${player.rate === r ? "current" : ""}`}
             onClick={() => player.setRate(r)}
           >
             {t("player.speed.rate", { value: formatNumber(r) })}
@@ -464,7 +464,7 @@ export default function PlaybackControls({
       </div>
 
       {trailingControl && (
-        <div className="prehravac-konec">
+        <div className="player-end">
           {trailingControl}
         </div>
       )}

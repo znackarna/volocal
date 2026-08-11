@@ -34,7 +34,7 @@ export function SettingsToggle({
           : <strong className="settings-toggle-title">{title}</strong>)}
         <InfoNote compact={!heading}>{description}</InfoNote>
       </div>
-      <label className="vypinac settings-toggle-control" title={label}>
+      <label className="switch settings-toggle-control" title={label}>
         <input
           type="checkbox"
           checked={checked}
@@ -42,7 +42,7 @@ export function SettingsToggle({
           onChange={(event) => onChange(event.target.checked)}
           aria-label={label}
         />
-        <span className="vypinac-drazka" aria-hidden />
+        <span className="switch-track" aria-hidden />
       </label>
     </div>
   );

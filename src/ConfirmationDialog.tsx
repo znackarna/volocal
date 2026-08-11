@@ -55,7 +55,7 @@ export default function ConfirmationDialog({
   if (!query) return null;
 
   return (
-    <div className="prekryv-dialogu" onMouseDown={onZavri}>
+    <div className="dialog-overlay" onMouseDown={onZavri}>
       <div
         ref={dialog}
         className="dialog"
@@ -66,13 +66,13 @@ export default function ConfirmationDialog({
       >
         <h2 id="dialog-nadpis">{query.nadpis}</h2>
         <p>{query.text}</p>
-        <div className="dialog-patka">
-          <button className="tlacitko" onClick={onZavri} autoFocus>
+        <div className="dialog-footer">
+          <button className="button" onClick={onZavri} autoFocus>
             {t("common.cancel")}
           </button>
           {query.alternative && (
             <button
-              className="tlacitko"
+              className="button"
               onClick={() => {
                 void run(query.alternative?.action);
               }}
@@ -81,7 +81,7 @@ export default function ConfirmationDialog({
             </button>
           )}
           <button
-            className={`tlacitko ${query.nicive ? "nicive" : "hlavni"}`}
+            className={`button ${query.nicive ? "destructive" : "primary"}`}
             onClick={() => {
               void run(query.action);
             }}

@@ -48,7 +48,7 @@ export default function SpeakerCountDialog({
 
   if (naming) {
     return (
-      <div className="prekryv-dialogu" onMouseDown={onCancel}>
+      <div className="dialog-overlay" onMouseDown={onCancel}>
         <div
           ref={dialog}
           className="dialog"
@@ -60,7 +60,7 @@ export default function SpeakerCountDialog({
           <h2>{t("dialogs.speakers.namesTitle")}</h2>
           <p>{t("dialogs.speakers.namesIntro")}</p>
 
-          <div className="pole speaker-names">
+          <div className="field speaker-names">
             {Array.from({ length: choice }, (_, i) => (
               <input
                 key={i}
@@ -80,11 +80,11 @@ export default function SpeakerCountDialog({
 
           <InfoNote>{t("dialogs.speakers.namesNote")}</InfoNote>
 
-          <div className="dialog-patka">
-            <button className="tlacitko tichy" onClick={() => setNaming(false)}>
+          <div className="dialog-footer">
+            <button className="button quiet" onClick={() => setNaming(false)}>
               {t("common.back")}
             </button>
-            <button className="tlacitko hlavni" onClick={() => onConfirm(choice, written)}>
+            <button className="button primary" onClick={() => onConfirm(choice, written)}>
               {t("dialogs.speakers.confirm")}
             </button>
           </div>
@@ -94,7 +94,7 @@ export default function SpeakerCountDialog({
   }
 
   return (
-    <div className="prekryv-dialogu" onMouseDown={onCancel}>
+    <div className="dialog-overlay" onMouseDown={onCancel}>
       <div
         ref={dialog}
         className="dialog speaker-count-dialog"
@@ -115,7 +115,7 @@ export default function SpeakerCountDialog({
             <button
               key={value}
               type="button"
-              className={`tlacitko ${choice === value ? "aktivni" : ""}`}
+              className={`button ${choice === value ? "current" : ""}`}
               aria-pressed={choice === value}
               onClick={() => setChoice(value)}
             >
@@ -137,20 +137,20 @@ export default function SpeakerCountDialog({
           />
         </div>
 
-        <p className="drobne">{t("dialogs.speakers.note")}</p>
+        <p className="small-text">{t("dialogs.speakers.note")}</p>
 
-        <div className="dialog-patka">
-          <button className="tlacitko tichy" onClick={onCancel}>
+        <div className="dialog-footer">
+          <button className="button quiet" onClick={onCancel}>
             {t("common.cancel")}
           </button>
           {/* Not knowing is a real answer, and the honest one for a recording
               whose participants the user has not heard yet. */}
-          <button className="tlacitko tichy" onClick={() => onConfirm(null, [])}>
+          <button className="button quiet" onClick={() => onConfirm(null, [])}>
             {t("dialogs.speakers.unknown")}
           </button>
           {/* Not knowing how many there are means not knowing how many name
               fields to draw, so that answer skips the second step entirely. */}
-          <button className="tlacitko hlavni" onClick={() => setNaming(true)}>
+          <button className="button primary" onClick={() => setNaming(true)}>
             {t("common.continue")}
           </button>
         </div>

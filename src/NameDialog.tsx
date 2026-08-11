@@ -53,7 +53,7 @@ export default function NameDialog({
   };
 
   return (
-    <div className="prekryv-dialogu" onMouseDown={onClose}>
+    <div className="dialog-overlay" onMouseDown={onClose}>
       <div
         ref={dialog}
         className="dialog"
@@ -65,7 +65,7 @@ export default function NameDialog({
         <h2 id="name-dialog-title">{title}</h2>
         <p>{text}</p>
 
-        <div className="pole folder-dialog-field">
+        <div className="field folder-dialog-field">
           <label htmlFor="name-dialog-field">{label}</label>
           <input
             id="name-dialog-field"
@@ -82,11 +82,11 @@ export default function NameDialog({
           />
         </div>
 
-        <div className="dialog-patka">
-          <button className="tlacitko" onClick={onClose}>
+        <div className="dialog-footer">
+          <button className="button" onClick={onClose}>
             {t("common.cancel")}
           </button>
-          <button className="tlacitko hlavni" onClick={submit} disabled={!trimmed}>
+          <button className="button primary" onClick={submit} disabled={!trimmed}>
             {submitLabel}
           </button>
         </div>

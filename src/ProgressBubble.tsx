@@ -59,8 +59,8 @@ export default function ProgressBubble({
           <span>{description}</span>
           <span>{t("detail.progress.percent", { value: Math.round(safePercent) })}</span>
         </div>
-        <div className="prubeh-lista">
-          <div className="prubeh-vypln" style={{ width: `${safePercent}%` }} />
+        <div className="progress-bar">
+          <div className="progress-fill" style={{ width: `${safePercent}%` }} />
         </div>
       </div>
       {onCancel && (

@@ -42,7 +42,7 @@ export function readOpenSections(): SidebarOpenSections {
  */
 export function PlayMark() {
   return (
-    <span className="radek-prehrat" aria-hidden>
+    <span className="row-play" aria-hidden>
       <svg width="9" height="9" viewBox="0 0 10 10">
         <path d="M2.5 1.5 L8.5 5 L2.5 8.5 Z" fill="currentColor" />
       </svg>

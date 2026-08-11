@@ -598,7 +598,7 @@ export default function Library({
   return (
     <main
       ref={scrollContentRef}
-      className="knihovna"
+      className="library"
       onScroll={(event) => {
         const position = event.currentTarget.scrollTop;
         const scrolled = position > 2;
@@ -666,7 +666,7 @@ export default function Library({
           job; a 388 px hero standing in front of it is how somebody leaves the
           setup and never finds the way back. It is also the way back. */}
       {issues.length > 0 && (
-        <div className="upozorneni">
+        <div className="warning">
           <div>
             <strong>{t("library.issues.title")}</strong>
             <ul>
@@ -675,13 +675,13 @@ export default function Library({
               ))}
             </ul>
           </div>
-          <button className="tlacitko hlavni" onClick={onFinishSetup}>
+          <button className="button primary" onClick={onFinishSetup}>
             {t("library.issues.finish")}
           </button>
         </div>
       )}
 
-      <div className={`archive-sticky ${listScrolled ? "zasunute" : ""}`.trim()}>
+      <div className={`archive-sticky ${listScrolled ? "collapsed" : ""}`.trim()}>
         <LibraryDropZone
           onAdd={onAdd}
           automatic={automatic}
@@ -689,8 +689,8 @@ export default function Library({
           compact={dropZoneCompact}
           blocked={issues.length > 0}
         />
-        <div className="knihovna-lista">
-          <div className="hledani">
+        <div className="library-bar">
+          <div className="search">
             <input
               type="search"
               placeholder={t("library.search.placeholder")}
@@ -798,7 +798,7 @@ export default function Library({
       {visibleResults !== null ? (
         <SearchResults results={visibleResults} onOpen={onOpen} />
       ) : visibleRecordings.length > 0 ? (
-        <ul className={`seznam ${view === "compact" ? "compact" : ""}`}>
+        <ul className={`list ${view === "compact" ? "compact" : ""}`}>
           {visibleRecordings.map((n) => (
             <Row
               key={n.id}
@@ -856,7 +856,7 @@ export default function Library({
             </button>
           </div>
           {folders.length > 0 ? (
-            <ul className={`seznam folder-list ${view === "compact" ? "compact" : ""}`}>
+            <ul className={`list folder-list ${view === "compact" ? "compact" : ""}`}>
               {folders.map((folder) => (
                 <FolderRow
                   key={folder.id}
@@ -874,7 +874,7 @@ export default function Library({
       )}
 
       {running.length > 1 && (
-        <p className="poznamka">
+        <p className="note">
           {t("library.notice.concurrent", { count: running.length })}
         </p>
       )}
@@ -1015,14 +1015,14 @@ function WatchFolderNotice({
         </span>
         <div className="watch-folder-actions">
           <button
-            className="tlacitko"
+            className="button"
             onClick={() => onAdd(selectedFiles)}
             disabled={running || selectedFiles.length === 0}
           >
             {t("common.add")}
           </button>
           <button
-            className="tlacitko hlavni"
+            className="button primary"
             onClick={() => onTranscribe(selectedFiles)}
             disabled={running || selectedFiles.length === 0 || transcriptionDisabled}
             title={
@@ -1075,7 +1075,7 @@ function LibraryDropZone({
           </p>
         </div>
         <div className="archive-drop-zone-actions">
-          <button className="tlacitko hlavni" onClick={onAdd}>
+          <button className="button primary" onClick={onAdd}>
             <svg width="15" height="15" viewBox="0 0 15 15" aria-hidden>
               <path d="M7.5 2v11M2 7.5h11" fill="none" stroke="currentColor"
                     strokeWidth="1.5" strokeLinecap="round" />
@@ -1083,7 +1083,7 @@ function LibraryDropZone({
             {t("library.dropZone.add")}
           </button>
           <label
-            className="vypinac archive-automatic-toggle"
+            className="switch archive-automatic-toggle"
             title={t("library.dropZone.automatic.hint")}
           >
             <input
@@ -1091,8 +1091,8 @@ function LibraryDropZone({
               checked={automatic}
               onChange={(event) => onAutomatic(event.target.checked)}
             />
-            <span className="vypinac-drazka" aria-hidden />
-            <span className="vypinac-popis">{t("library.dropZone.automatic.label")}</span>
+            <span className="switch-track" aria-hidden />
+            <span className="switch-label">{t("library.dropZone.automatic.label")}</span>
           </label>
         </div>
       </div>
@@ -1117,14 +1117,14 @@ function FolderRow({
   const { t } = useI18n();
   const formats = useFormats();
   return (
-    <li className="radek folder-row">
-      <button className="radek-hlavni" onClick={onOpen}>
+    <li className="row folder-row">
+      <button className="row-main" onClick={onOpen}>
         <span className="folder-mark" aria-hidden>
           <LineIcon name="folder" size={26} />
         </span>
-        <span className="radek-text">
-          <span className="radek-nazev">
-            <span className="radek-jmeno">{folder.name}</span>
+        <span className="row-text">
+          <span className="row-title">
+            <span className="row-name">{folder.name}</span>
           </span>
           <span className="recording-metadata">
             <RecordingMetadataItem
@@ -1145,8 +1145,8 @@ function FolderRow({
       {/* The same pair a transcript card ends in: the plain action, then the
           three dots. A folder will collect more actions over time and they
           belong in that menu rather than as more buttons on the row. */}
-      <div className="radek-akce">
-        <button className="tlacitko" onClick={onOpen}>
+      <div className="row-actions">
+        <button className="button" onClick={onOpen}>
           {t("common.open")}
         </button>
         <ActionMenu
@@ -1215,7 +1215,7 @@ function Row({
   }, [liveSegments.length]);
 
   return (
-    <li className={`radek ${running || aiRunning ? "bezi" : ""}`}>
+    <li className={`row ${running || aiRunning ? "running" : ""}`}>
       {/* Renaming happens in the shared dialog, the same one a folder is
           named in. The field used to sit in the row itself, which meant a
           card in two shapes and a name that could be lost to a stray click. */}
@@ -1234,17 +1234,17 @@ function Row({
         }}
       />
       <button
-        className="radek-hlavni"
+        className="row-main"
         onClick={onOpen}
         disabled={running && !liveSegments.length}
       >
         <RecordingCalendar value={recording.created_at} />
-        <span className="radek-text">
-          <span className="radek-nazev">
-            <span className="radek-status-icon" aria-hidden>
-              <span className={`znak ${recording.status}`} />
+        <span className="row-text">
+          <span className="row-title">
+            <span className="row-status-icon" aria-hidden>
+              <span className={`status-mark ${recording.status}`} />
             </span>
-            <span className="radek-jmeno">{shownName(recording)}</span>
+            <span className="row-name">{shownName(recording)}</span>
           </span>
           <span className="recording-metadata">
             <RecordingMetadataItem
@@ -1288,25 +1288,25 @@ function Row({
         </span>
       </button>
 
-      <div className="radek-akce">
+      <div className="row-actions">
         {running ? (
-          <button className="tlacitko" onClick={onCancel}>
+          <button className="button" onClick={onCancel}>
             {t("common.cancel")}
           </button>
         ) : (
           <>
             {recording.status === "nova" && (
-              <button className="tlacitko" onClick={onTranscription}>
+              <button className="button" onClick={onTranscription}>
                 {t("library.card.transcribe")}
               </button>
             )}
             {recording.status === "chyba" && (
-              <button className="tlacitko" onClick={onTranscription}>
+              <button className="button" onClick={onTranscription}>
                 {t("common.retry")}
               </button>
             )}
             {recording.status === "hotova" && (
-              <button className="tlacitko" onClick={onOpen}>
+              <button className="button" onClick={onOpen}>
                 {t("common.open")}
               </button>
             )}
@@ -1328,11 +1328,11 @@ function Row({
       </div>
 
       {running && (
-        <div className="prubeh">
-          <div className="prubeh-lista">
-            <div className="prubeh-vypln" style={{ width: `${progress?.percent ?? 0}%` }} />
+        <div className="progress">
+          <div className="progress-bar">
+            <div className="progress-fill" style={{ width: `${progress?.percent ?? 0}%` }} />
           </div>
-          <div className="prubeh-popis">
+          <div className="progress-label">
             <span>
               {(progress && progressMessage(progress.description)) ||
                 (phaseKey && t(phaseKey)) ||
@@ -1342,7 +1342,7 @@ function Row({
           </div>
 
           {last.length > 0 && (
-            <div className="zivy-text">
+            <div className="live-text">
               {last.map((s, i) => (
                 <p key={`${s.start}-${i}`}>{s.text}</p>
               ))}
@@ -1353,11 +1353,11 @@ function Row({
       )}
 
       {aiRunning && (
-        <div className="prubeh prubeh-ai" aria-live="polite">
-          <div className="prubeh-lista">
-            <div className="prubeh-vypln" style={{ width: `${aiProgress.percent}%` }} />
+        <div className="progress progress-ai" aria-live="polite">
+          <div className="progress-bar">
+            <div className="progress-fill" style={{ width: `${aiProgress.percent}%` }} />
           </div>
-          <div className="prubeh-popis">
+          <div className="progress-label">
             <span>
               {progressMessage(aiProgress.description) || t("library.card.aiEditing")}
             </span>
@@ -1403,17 +1403,17 @@ function SearchResults({
 }) {
   const { t } = useI18n();
   if (results.length === 0) {
-    return <p className="prazdny-vysledek">{t("library.empty.results")}</p>;
+    return <p className="empty-result">{t("library.empty.results")}</p>;
   }
   return (
-    <ul className="vysledky">
+    <ul className="results">
       {results.map((v) => (
         <li key={v.segment_id}>
           <button onClick={() => onOpen(v.recording_id, v.start)}>
-            <span className="vysledek-kde">
+            <span className="result-where">
               {t("library.search.location", { title: v.title, time: formatTime(v.start) })}
             </span>
-            <span className="vysledek-text">{highlight(v.text)}</span>
+            <span className="result-text">{highlight(v.text)}</span>
           </button>
         </li>
       ))}

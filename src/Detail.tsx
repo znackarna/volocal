@@ -833,7 +833,7 @@ export default function Detail({
         ),
         onAControl:
           target?.closest("button, a[href], select, summary, [role='button'], [tabindex]") != null,
-        dialogOpen: document.querySelector(".prekryv-dialogu") != null,
+        dialogOpen: document.querySelector(".dialog-overlay") != null,
       });
       if (!response) return;
       if (response.preventDefault) e.preventDefault();
@@ -1528,15 +1528,15 @@ export default function Detail({
 
   return (
     <main className="detail">
-      <div className="detail-hlavicka">
-        <div ref={headerLeftRef} className="detail-hlavicka-levo">
-          <span className="detail-znacka header-brand-mark" aria-hidden>
+      <div className="detail-header">
+        <div ref={headerLeftRef} className="detail-header-left">
+          <span className="detail-mark header-brand-mark" aria-hidden>
             <span
-              className="logotyp"
+              className="logotype"
               dangerouslySetInnerHTML={{ __html: mark }}
             />
           </span>
-          <button className="tlacitko tichy detail-back-button" onClick={onBack}>
+          <button className="button quiet detail-back-button" onClick={onBack}>
             <svg width="14" height="12" viewBox="0 0 14 12" aria-hidden>
               <path d="M6 1L1 6l5 5M1 6h12" fill="none" stroke="currentColor"
                     strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
@@ -1559,9 +1559,9 @@ export default function Detail({
           />
           {(
             <>
-              <h1 className="detail-nazev">
-                <span className={`znak detail-status ${status}`} aria-hidden />
-                <span className="detail-jmeno">{title || fileName(path)}</span>
+              <h1 className="detail-title">
+                <span className={`status-mark detail-status ${status}`} aria-hidden />
+                <span className="detail-name">{title || fileName(path)}</span>
               </h1>
               {!running && !diarizing && (
                 <RecordingActionsMenu
@@ -1603,7 +1603,7 @@ export default function Detail({
             </>
           )}
         </div>
-        <div className="detail-akce">
+        <div className="detail-actions">
           {/* Detail replaces the application header, so its right-edge pills
               must reappear here: the mini player whenever a different
               recording than this one is playing — the full player covers only
@@ -1620,7 +1620,7 @@ export default function Detail({
           )}
           <MiniRecorder onOpen={onOpenRecorder} />
           <button
-            className={`tlacitko ai-edit-button ${aiDocument ? "ready" : ""}`}
+            className={`button ai-edit-button ${aiDocument ? "ready" : ""}`}
             onClick={openAiAction}
             disabled={segments.length === 0 || running || aiRunning}
             title={aiDocument?.stale ? t("detail.header.staleHint") : undefined}
@@ -1642,7 +1642,7 @@ export default function Detail({
             onChooseAi={saveAiExport}
           />
           <button
-            className="ikona-tlacitko header-icon-button"
+            className="icon-button header-icon-button"
             onClick={onNew}
             aria-label={t("detail.header.newTranscript")}
             title={t("detail.header.newTranscript")}
@@ -1653,7 +1653,7 @@ export default function Detail({
             </svg>
           </button>
           <button
-            className="ikona-tlacitko header-icon-button"
+            className="icon-button header-icon-button"
             onClick={onSettings}
             aria-label={t("common.settings")}
             title={t("common.settings")}
@@ -1705,23 +1705,23 @@ export default function Detail({
         /* The strip only states the situation. The call to action stands in
            the middle of the empty transcript area — where the text will be —
            so the fact and the button are not said twice. */
-        <div className="prehravac prehravac-vyzva">
+        <div className="player player-prompt">
           <InfoNote compact>{t("detail.empty.notTranscribed")}</InfoNote>
         </div>
       ) : status === "chyba" && segments.length === 0 && !sourceMissing ? (
         /* A transcription that failed or was interrupted. Without a way out
            from here, the only route back would be the library. */
-        <div className="prehravac prehravac-vyzva">
+        <div className="player player-prompt">
           <span>{error || t("detail.empty.failed")}</span>
-          <button className="tlacitko hlavni" onClick={startTranscription}>
+          <button className="button primary" onClick={startTranscription}>
             {t("common.retry")}
           </button>
         </div>
       ) : sourceMissing ? (
         /* The transcript stays usable without audio; it just cannot be played. */
-        <div className="prehravac prehravac-chybi">
+        <div className="player player-missing">
           <span>{t("detail.source.missing")}</span>
-          <button className="tlacitko" onClick={locateSourceFile}>
+          <button className="button" onClick={locateSourceFile}>
             {t("detail.source.locate")}
           </button>
         </div>
@@ -1741,7 +1741,7 @@ export default function Detail({
                 rather than of playback — and without a target of its own the
                 find bar existed only for whoever knew Ctrl+F. */}
             <button
-              className="ikona-tlacitko"
+              className="icon-button"
               onClick={() => {
                 if (finding) closeFind();
                 else {
@@ -1760,7 +1760,7 @@ export default function Detail({
               </svg>
             </button>
             <button
-              className="ikona-tlacitko"
+              className="icon-button"
               onClick={togglePanel}
               aria-pressed={panelOpen}
               aria-label={panelOpen ? t("detail.player.hidePanel") : t("detail.player.showPanel")}
@@ -1785,8 +1785,8 @@ export default function Detail({
       {/* Nobody discovers the shortcuts otherwise, and Tab is the most useful
           thing this screen does. */}
       {segments.length > 0 && tipsVisible && (
-        <div className="zkratky">
-          <span className="zkratky-nadpis">{t("detail.tips.title")}</span>
+        <div className="shortcuts">
+          <span className="shortcuts-title">{t("detail.tips.title")}</span>
           {/* A shortcut is a key and what it does, not a sentence: the key name
               sits in <kbd> and the action beside it. */}
           <span><kbd>{t("detail.tips.spaceKey")}</kbd> {t("detail.tips.spaceAction")}</span>
@@ -1794,11 +1794,11 @@ export default function Detail({
           <span>
             <kbd>{t("detail.tips.doubleClickKey")}</kbd> {t("detail.tips.doubleClickAction")}
           </span>
-          <span className="zkratka-duraz">
+          <span className="shortcut-emphasis">
             <kbd>{t("detail.tips.tabKey")}</kbd> {t("detail.tips.tabAction")}
           </span>
           <button
-            className="zkratky-skryt"
+            className="shortcuts-hide"
             onClick={hideTips}
             aria-label={t("detail.tips.hide")}
             title={t("detail.tips.hideHint")}
@@ -1814,9 +1814,9 @@ export default function Detail({
       {/* Over the reading column, not in the header — that bar already
           overflows at 1180 px with both pills up — and not permanently, since
           this is wanted now and then rather than always. */}
-      <div className={`detail-telo ${panelOpen ? "" : "bez-panelu"}`}>
+      <div className={`detail-body ${panelOpen ? "" : "no-panel"}`}>
       {finding && (
-        <div className="hledani-prepisu">
+        <div className="search-transcript">
           <input
             ref={findRef}
             value={findQuery}
@@ -1832,7 +1832,7 @@ export default function Detail({
               }
             }}
           />
-          <span className="hledani-pocet">
+          <span className="search-count">
             {findNeedle.length < 2
               ? ""
               : t("detail.find.count", {
@@ -1871,14 +1871,14 @@ export default function Detail({
         </div>
       )}
 
-        <div className="prepis" ref={listRef}>
+        <div className="transcript" ref={listRef}>
 
           {running && segments.length === 0 && (
             /* No placeholder while the first words are still on their way —
                the progress bubble already says what is happening, and a serif
                `Příprava…` sitting where the transcript will be read as part
                of it. The area simply stays empty until text arrives. */
-            <div className="zivy-prepis">
+            <div className="live-transcript">
               {liveSegments.map((s, i) => (
                 <p key={i}>{s.text}</p>
               ))}
@@ -1892,7 +1892,7 @@ export default function Detail({
             return (
               <div key={s.id}>
                 {newSpeakers && m && (
-                  <div className="mluvci-hlavicka" style={{ color: m.color }}>
+                  <div className="speaker-header" style={{ color: m.color }}>
                     {m.name}
                   </div>
                 )}
@@ -1924,23 +1924,23 @@ export default function Detail({
               /* The empty area names what it is for and offers the one action
                  that fills it. A missing source falls through to the plain
                  line: a file that is gone cannot be transcribed. */
-              <div className="prepis-prazdny">
-                <span className="prepis-prazdny-znak" aria-hidden>
+              <div className="transcript-empty">
+                <span className="transcript-empty-mark" aria-hidden>
                   <LineIcon name="transcription" />
                 </span>
                 <h2>{t("detail.empty.heading")}</h2>
-                <button className="tlacitko hlavni" onClick={startTranscription}>
+                <button className="button primary" onClick={startTranscription}>
                   {t("detail.empty.transcribe")}
                 </button>
               </div>
             ) : (
-              <p className="drobne">{t("detail.empty.noTranscript")}</p>
+              <p className="small-text">{t("detail.empty.noTranscript")}</p>
             )
           )}
         </div>
 
         {panelOpen && (
-        <aside className="postranni" aria-label={t("detail.sidebar.label")}>
+        <aside className="sidebar" aria-label={t("detail.sidebar.label")}>
           {/* One page, three lists. Each section keeps its own open state, so
               a reader who never names speakers can fold that section away and
               still see notes and uncertain places at the same time. */}
@@ -1987,12 +1987,12 @@ export default function Detail({
           >
             {speakers.length > 0 ? (
               <>
-                <ul className="mluvci-seznam">
+                <ul className="speaker-list">
                   {speakers.map((speaker) => (
                     <li key={speaker.key}>
                       <button
                         type="button"
-                        className="mluvci-ukazka"
+                        className="speaker-sample"
                         style={{ background: speaker.color }}
                         title={t("detail.speakers.playSample")}
                         aria-label={t("detail.speakers.playSample")}
@@ -2027,7 +2027,7 @@ export default function Detail({
                         }}
                         spellCheck={false}
                       />
-                      <span className="mluvci-podil">
+                      <span className="speaker-share">
                         {Math.round((speakerShare.get(speaker.key) ?? 0) * 100)} %
                       </span>
                       <button
@@ -2056,11 +2056,11 @@ export default function Detail({
                         <LineIcon name="remove" size={15} />
                       </button>
                       {naming === speaker.key && namePool.length > 0 && (
-                        <div className="mluvci-jmena">
+                        <div className="speaker-name-chips">
                           {namePool.map((name) => (
                             <button
                               key={name}
-                              className="hlas-volba"
+                              className="voice-choice"
                               style={{ color: speaker.color, borderColor: speaker.color }}
                               /* Keeps the field focused, so the chips are still
                                  mounted when the click lands. */
@@ -2076,7 +2076,7 @@ export default function Detail({
                   ))}
                 </ul>
                 {speakers.length > 1 && (
-                  <div className="mluvci-napoveda">
+                  <div className="speaker-hint">
                     <InfoNote>{t("detail.speakers.nameHint")}</InfoNote>
                   </div>
                 )}
@@ -2097,7 +2097,7 @@ export default function Detail({
               onToggle={() => toggleSection("unassigned")}
             >
               <p className="sidebar-empty">{t("detail.unassigned.hint")}</p>
-              <ul className="neprirazene">
+              <ul className="unassigned">
                 {unassignedSegments.map((s) => {
                   /* Only the two neighbours, not every voice in the recording.
                      A gap between two blocks of one person is already filled
@@ -2114,20 +2114,20 @@ export default function Detail({
                   return (
                     <li key={s.id}>
                       <button
-                        className={`vsuvka ${s.start <= time && time < s.end ? "aktivni" : ""}`}
+                        className={`interjection ${s.start <= time && time < s.end ? "current" : ""}`}
                         onClick={() => hear(s)}
                         title={t("detail.unassigned.hearTitle")}
                       >
                         <PlayMark />
-                        <span className="nejiste-cas">{formatTime(s.start)}</span>
-                        <span className="nejisty-text">{s.text}</span>
+                        <span className="uncertain-time">{formatTime(s.start)}</span>
+                        <span className="uncertain-text">{s.text}</span>
                       </button>
-                      <div className="neprirazene-hlasy">
+                      <div className="unassigned-voices">
                         {choices.map((voice) =>
                           voice ? (
                             <button
                               key={voice.key}
-                              className="hlas-volba"
+                              className="voice-choice"
                               style={{
                                 color: speakerByKey.get(voice.key)?.color,
                                 borderColor: speakerByKey.get(voice.key)?.color,
@@ -2154,7 +2154,7 @@ export default function Detail({
             onToggle={() => toggleSection("review")}
           >
             {uncertainSegments.length > 0 ? (
-              <ul className="nejista-mista">
+              <ul className="uncertain-places">
                 {uncertainSegments.map((uncertain) => (
                   <li key={uncertain.id}>
                     {editingUncertain === uncertain.id ? (
@@ -2171,12 +2171,12 @@ export default function Detail({
                         <button onClick={() => hear(uncertain)}
                                 onDoubleClick={() => setEditingUncertain(uncertain.id)}
                                 title={t("detail.review.editHint")}
-                                className={uncertain.start <= time && time < uncertain.end ? "aktivni" : ""}>
+                                className={uncertain.start <= time && time < uncertain.end ? "current" : ""}>
                           <PlayMark />
-                          <span className="nejiste-cas">{formatTime(uncertain.start)}</span>
-                          <span className="nejisty-text">{uncertain.text}</span>
+                          <span className="uncertain-time">{formatTime(uncertain.start)}</span>
+                          <span className="uncertain-text">{uncertain.text}</span>
                         </button>
-                        <button className="odklepnout" title={t("detail.review.markCorrectTitle")}
+                        <button className="confirm" title={t("detail.review.markCorrectTitle")}
                                 aria-label={t("detail.review.markCorrectLabel")}
                                 onClick={() => confirm(uncertain)}>
                           <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden>
@@ -2202,7 +2202,7 @@ export default function Detail({
             onToggle={() => toggleSection("edits")}
           >
             {editedSegments.length > 0 ? (
-              <ul className="opravy">
+              <ul className="corrections">
                 {editedSegments.map((segment) => {
                   const change = describeEdit(segment.original, segment.text);
                   if (!change) return null;
@@ -2212,15 +2212,15 @@ export default function Detail({
                         onClick={() => hear(segment)}
                         title={t("detail.edits.seekTitle")}
                         className={
-                          segment.start <= time && time < segment.end ? "aktivni" : ""
+                          segment.start <= time && time < segment.end ? "current" : ""
                         }
                       >
                         <PlayMark />
-                        <span className="oprava-cas">{formatTime(segment.start)}</span>
-                        <span className="oprava-zmena">
-                          <span className="oprava-pred">{change.before}</span>
-                          <span className="oprava-sipka" aria-hidden>→</span>
-                          <span className="oprava-po">
+                        <span className="correction-time">{formatTime(segment.start)}</span>
+                        <span className="correction-change">
+                          <span className="correction-before">{change.before}</span>
+                          <span className="correction-arrow" aria-hidden>→</span>
+                          <span className="correction-after">
                             {/* One word changed: the row is already only that
                                 word, so underlining it would say nothing. Both
                                 versions whole: the reader would otherwise have
@@ -2485,18 +2485,18 @@ export default function Detail({
       )}
 
       {aiDialog === "missing" && (
-        <div className="prekryv-dialogu" role="presentation" onMouseDown={() => setAiDialog(null)}>
+        <div className="dialog-overlay" role="presentation" onMouseDown={() => setAiDialog(null)}>
           <div ref={missingDialog} className="dialog" role="dialog" aria-modal="true"
                aria-labelledby="ai-missing-title"
                onMouseDown={(event) => event.stopPropagation()}>
             <h2 id="ai-missing-title">{t("detail.ai.missingTitle")}</h2>
             <p>{t("detail.ai.missingText")}</p>
-            <div className="dialog-patka">
-              <button className="tlacitko tichy" onClick={() => setAiDialog(null)}>
+            <div className="dialog-footer">
+              <button className="button quiet" onClick={() => setAiDialog(null)}>
                 {t("common.close")}
               </button>
               <button
-                className="tlacitko hlavni"
+                className="button primary"
                 onClick={() => onToModule(
                   aiModel.includes("12b")
                     ? "editor-model-best"
@@ -2513,49 +2513,49 @@ export default function Detail({
       )}
 
       {aiDialog === "configure" && (
-        <div className="prekryv-dialogu" role="presentation" onMouseDown={() => setAiDialog(null)}>
+        <div className="dialog-overlay" role="presentation" onMouseDown={() => setAiDialog(null)}>
           <div ref={configureDialog} className="dialog ai-edit-dialog" role="dialog" aria-modal="true"
                aria-labelledby="ai-configure-title" onMouseDown={(event) => event.stopPropagation()}>
             <h2 id="ai-configure-title">{t("detail.ai.configureTitle")}</h2>
             <p>{t("detail.ai.configureText")}</p>
-            <div className="volby ai-edit-modes">
-              <button className={`volba s-ikonou ${aiMode === "faithful" ? "zvolena" : ""}`}
+            <div className="choices ai-edit-modes">
+              <button className={`choice with-icon ${aiMode === "faithful" ? "chosen" : ""}`}
                       onClick={() => setAiMode("faithful")}>
-                <span className="volba-ikona" aria-hidden>
+                <span className="choice-icon" aria-hidden>
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
                        stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"
                        strokeLinejoin="round">
                     <path d="M6 3.5h8l4 4V20.5H6z M14 3.5v4h4 M8.7 14l2.1 2.1 4.6-5" />
                   </svg>
                 </span>
-                <span className="volba-telo">
-                  <span className="volba-nazev">{t("detail.ai.modeFaithful")}</span>
-                  <span className="drobne">{t("detail.ai.modeFaithfulDescription")}</span>
+                <span className="choice-body">
+                  <span className="choice-title">{t("detail.ai.modeFaithful")}</span>
+                  <span className="small-text">{t("detail.ai.modeFaithfulDescription")}</span>
                 </span>
-                <em className="odznak">{t("detail.ai.recommended")}</em>
+                <em className="badge">{t("detail.ai.recommended")}</em>
               </button>
-              <button className={`volba s-ikonou ${aiMode === "clean" ? "zvolena" : ""}`}
+              <button className={`choice with-icon ${aiMode === "clean" ? "chosen" : ""}`}
                       onClick={() => setAiMode("clean")}>
-                <span className="volba-ikona" aria-hidden>
+                <span className="choice-icon" aria-hidden>
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
                        stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"
                        strokeLinejoin="round">
                     <path d="M12 5.5c-1-2.4-4.7-2-4.7.8v.5A3.3 3.3 0 0 0 5.5 12c-1.4 2.2.1 5 2.6 5.1.4 2.7 3.9 2.5 3.9.1V5.5Z M12 5.5c1-2.4 4.7-2 4.7.8v.5a3.3 3.3 0 0 1 1.8 5.2c1.4 2.2-.1 5-2.6 5.1-.4 2.7-3.9 2.5-3.9.1 M8.2 9.1c1.2 0 2.1.7 2.1 1.8 M15.8 9.1c-1.2 0-2.1.7-2.1 1.8 M8.1 17.1c.1-1.5.9-2.5 2.2-2.8 M15.9 17.1c-.1-1.5-.9-2.5-2.2-2.8" />
                   </svg>
                 </span>
-                <span className="volba-telo">
-                  <span className="volba-nazev">{t("detail.ai.modeClean")}</span>
-                  <span className="drobne">{t("detail.ai.modeCleanDescription")}</span>
+                <span className="choice-body">
+                  <span className="choice-title">{t("detail.ai.modeClean")}</span>
+                  <span className="small-text">{t("detail.ai.modeCleanDescription")}</span>
                 </span>
               </button>
-              <button className={`volba s-ikonou ${aiMode === "speakers" ? "zvolena" : ""} ${speakersReady ? "" : "chybi"}`}
+              <button className={`choice with-icon ${aiMode === "speakers" ? "chosen" : ""} ${speakersReady ? "" : "missing"}`}
                       onClick={() => setAiMode("speakers")}>
-                <span className="volba-ikona" aria-hidden>
+                <span className="choice-icon" aria-hidden>
                   <LineIcon name="speakers" />
                 </span>
-                <span className="volba-telo">
-                  <span className="volba-nazev">{t("detail.ai.modeSpeakers")}</span>
-                  <span className="drobne">
+                <span className="choice-body">
+                  <span className="choice-title">{t("detail.ai.modeSpeakers")}</span>
+                  <span className="small-text">
                     {t(
                       !speakersReady
                         ? "detail.ai.modeSpeakersMissing"
@@ -2565,13 +2565,13 @@ export default function Detail({
                     )}
                   </span>
                 </span>
-                {!speakersReady && <em className="odznak akce">{t("common.download")}</em>}
+                {!speakersReady && <em className="badge actions">{t("common.download")}</em>}
                 {speakersReady && speakers.length > 0 && (
-                  <em className="odznak hotovo">{t("detail.ai.speakersDoneBadge")}</em>
+                  <em className="badge complete">{t("detail.ai.speakersDoneBadge")}</em>
                 )}
               </button>
             </div>
-            <p className="drobne ai-edit-note">
+            <p className="small-text ai-edit-note">
               <svg className="ai-edit-note-icon" width="16" height="16" viewBox="0 0 16 16"
                    fill="none" aria-hidden>
                 <circle cx="8" cy="8" r="6.2" stroke="currentColor" strokeWidth="1.35" />
@@ -2580,11 +2580,11 @@ export default function Detail({
               </svg>
               <span>{t("detail.ai.configureNote")}</span>
             </p>
-            <div className="dialog-patka">
-              <button className="tlacitko tichy" onClick={() => setAiDialog(null)}>
+            <div className="dialog-footer">
+              <button className="button quiet" onClick={() => setAiDialog(null)}>
                 {t("common.cancel")}
               </button>
-              <button className="tlacitko hlavni" onClick={startAiEdit}>
+              <button className="button primary" onClick={startAiEdit}>
                 {t(aiMode === "speakers"
                   ? !speakersReady
                     ? "common.download"
@@ -2599,7 +2599,7 @@ export default function Detail({
       )}
 
       {aiDialog === "preview" && aiDocument && (
-        <div className="prekryv-dialogu" role="presentation" onMouseDown={() => setAiDialog(null)}>
+        <div className="dialog-overlay" role="presentation" onMouseDown={() => setAiDialog(null)}>
           <div ref={previewDialog} className="dialog ai-preview-dialog" role="dialog" aria-modal="true"
                aria-labelledby="ai-preview-title" onMouseDown={(event) => event.stopPropagation()}>
             <div className="ai-preview-header">
@@ -2607,7 +2607,7 @@ export default function Detail({
                 <h2 id="ai-preview-title">{t("detail.preview.title")}</h2>
                 <p>{t("detail.preview.subtitle")}</p>
               </div>
-              <button className="ikona-tlacitko" onClick={() => setAiDialog(null)}
+              <button className="icon-button" onClick={() => setAiDialog(null)}
                       aria-label={t("detail.preview.closeLabel")} title={t("common.close")}>
                 <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden>
                   <path d="M3 3l10 10M13 3 3 13" fill="none" stroke="currentColor"
@@ -2731,7 +2731,7 @@ export default function Detail({
                     lower-casing a label is not a translation. */}
                 <h3>{t(SUMMARY_LENGTH_KEYS[summaryLength].heading)}</h3>
                 <p>{t("detail.summary.emptyText")}</p>
-                <button className="tlacitko hlavni"
+                <button className="button primary"
                         onClick={() => startAiOutput("summary", summaryLength)}>
                   {t("detail.summary.create")}
                 </button>
@@ -2744,7 +2744,7 @@ export default function Detail({
                 </span>
                 <h3>{t("detail.translation.emptyTitle")}</h3>
                 <p>{t("detail.translation.emptyText")}</p>
-                <button className="tlacitko hlavni"
+                <button className="button primary"
                         onClick={() => startAiOutput("translation", translationLanguage)}>
                   {t("detail.translation.create")}
                 </button>
@@ -2754,9 +2754,9 @@ export default function Detail({
             {(previewTab === "improved" || previewTab === "original"
               || (previewTab === "summary" && summaryOutput)
               || (previewTab === "translation" && translationOutput)) && (
-              <div className="dialog-patka ai-preview-actions">
+              <div className="dialog-footer ai-preview-actions">
                 {previewTab === "improved" && (
-                  <button className="tlacitko tichy vystraha" onClick={async () => {
+                  <button className="button quiet danger" onClick={async () => {
                     await api.deleteAiDocument(id);
                     setAiDocument(null);
                     setAiOutputs([]);
@@ -2767,7 +2767,7 @@ export default function Detail({
                   </button>
                 )}
                 {previewTab === "improved" && (
-                  <button className="tlacitko tichy" onClick={() => {
+                  <button className="button quiet" onClick={() => {
                     setAiMode(aiDocument.mode === "clean" ? "clean" : "faithful");
                     setAiDialog("configure");
                   }}>
@@ -2776,20 +2776,20 @@ export default function Detail({
                   </button>
                 )}
                 {previewTab === "summary" && summaryOutput && (
-                  <button className="tlacitko tichy"
+                  <button className="button quiet"
                           onClick={() => startAiOutput("summary", summaryLength)}>
                     <RegenerateIcon />
                     {t("detail.preview.regenerateSummary")}
                   </button>
                 )}
                 {previewTab === "translation" && translationOutput && (
-                  <button className="tlacitko tichy"
+                  <button className="button quiet"
                           onClick={() => startAiOutput("translation", translationLanguage)}>
                     <RegenerateIcon />
                     {t("detail.preview.regenerateTranslation")}
                   </button>
                 )}
-                <button className="tlacitko" onClick={copyPreviewText}
+                <button className="button" onClick={copyPreviewText}
                         disabled={!previewText.trim()}>
                   <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden>
                     <rect x="5.2" y="5.2" width="8.3" height="8.3" rx="1.6"
@@ -2807,17 +2807,17 @@ export default function Detail({
       )}
 
       {dictionarySuggestion && (
-        <div className="nabidka">
+        <div className="menu">
           <span>
             {t("detail.dictionary.prompt", {
               from: dictionarySuggestion.z,
               to: dictionarySuggestion.na,
             })}
           </span>
-          <button className="tlacitko" onClick={confirmDictionary}>
+          <button className="button" onClick={confirmDictionary}>
             {t("detail.dictionary.confirm")}
           </button>
-          <button className="tlacitko tichy" onClick={() => setDictionarySuggestion(null)}>
+          <button className="button quiet" onClick={() => setDictionarySuggestion(null)}>
             {t("detail.dictionary.decline")}
           </button>
         </div>

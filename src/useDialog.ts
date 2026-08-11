@@ -97,7 +97,7 @@ if (typeof document !== "undefined") {
     "focusin",
     (event) => {
       const target = event.target as HTMLElement | null;
-      if (target && !target.closest(".prekryv-dialogu")) outside = target;
+      if (target && !target.closest(".dialog-overlay")) outside = target;
     },
     true
   );

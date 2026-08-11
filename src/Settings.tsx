@@ -194,15 +194,15 @@ function ModuleTile({
   const { t } = useI18n();
   const badge = STATUS_BADGES[status];
   return (
-    <div className={`modul-dlazdice ${status}`}>
-      <span className="volba-ikona" aria-hidden>
+    <div className={`module-tile ${status}`}>
+      <span className="choice-icon" aria-hidden>
         <LineIcon name={icon} />
       </span>
-      <span className="modul-popis">
-        <span className="modul-nazev">{title}</span>
-        <span className="modul-hodnota">{value}</span>
+      <span className="module-description">
+        <span className="module-title">{title}</span>
+        <span className="module-value">{value}</span>
       </span>
-      <em className={`odznak ${badge.className}`}>{t(badge.labelKey)}</em>
+      <em className={`badge ${badge.className}`}>{t(badge.labelKey)}</em>
     </div>
   );
 }
@@ -494,7 +494,7 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
     [n, save]
   );
 
-  if (!n) return <main className="nastaveni"><p>{t("common.loading")}</p></main>;
+  if (!n) return <main className="settings"><p>{t("common.loading")}</p></main>;
 
   const missingRequired = check?.issues ?? [];
   const downloadedBackends = check?.available_compute_backends ?? [];
@@ -512,13 +512,13 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
     !!n && n.compute !== "auto" && downloadedBackends.length > 0 && !downloadedBackends.includes(n.compute);
 
   return (
-    <main className="nastaveni">
-      <div className="nastaveni-hlava">
+    <main className="settings">
+      <div className="settings-head">
         <h1>{t("settings.title")}</h1>
         {/* A pill with a ring that empties as the pill's own time runs out.
             The message and its lifetime are then the same object, so nothing
             vanishes without having shown that it was about to. */}
-        <span className={`ulozeno ${saved ? "vidno" : ""}`} aria-live="polite">
+        <span className={`saved ${saved ? "visible" : ""}`} aria-live="polite">
           <CountdownRing />
           {t("common.saved")}
         </span>
@@ -554,14 +554,14 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
       >
 
       {activeTab === "files" && check?.portable && (
-        <section className="prenosna-info settings-card-portable">
+        <section className="portable-info settings-card-portable">
           <h2>{t("settings.portable.title")}</h2>
           <p>
             <Filled message={t("settings.portable.description")} name="directory">
               <code>{check.app_directory}</code>
             </Filled>
           </p>
-          <p className="drobne">
+          <p className="small-text">
             <Filled
               message={t(
                 check.webview2_bundled
@@ -583,7 +583,7 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
         <p className="settings-section-description">
           {t("settings.modules.description")}
         </p>
-        <div className="moduly-mrizka">
+        <div className="module-grid">
           <ModuleTile
             icon={MODULE_ICONS.model}
             title={t("settings.modules.model")}
@@ -627,14 +627,14 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
 
         <div className="settings-action-row separated">
           {missingRequired.length > 0 ? (
-            <span className="varovne-radek">
+            <span className="warning-row">
               {tPlural("settings.modules.missingRequired", missingRequired.length)}
             </span>
           ) : (
             <InfoNote compact>{t("settings.modules.complete")}</InfoNote>
           )}
           <button
-            className={`tlacitko ${missingRequired.length > 0 ? "hlavni" : ""}`}
+            className={`button ${missingRequired.length > 0 ? "primary" : ""}`}
             onClick={() => onToModule()}
           >
             {missingRequired.length > 0
@@ -686,26 +686,26 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
 
         {hasEditor && !!n.editor_model && (
           <>
-            <div className="volby volby-modelu">
+            <div className="choices model-choices">
               {availableEditorChoices.map((choice) => (
                 <button
                   key={choice.model}
-                  className={`volba s-ikonou ${n.editor_model === choice.model ? "zvolena" : ""}`}
+                  className={`choice with-icon ${n.editor_model === choice.model ? "chosen" : ""}`}
                   onClick={() => {
                     localStorage.setItem("last-editor-model", choice.model);
                     save({ ...n, editor_model: choice.model });
                   }}
                   aria-pressed={n.editor_model === choice.model}
                 >
-                  <span className="volba-ikona" aria-hidden>
+                  <span className="choice-icon" aria-hidden>
                     <EditorMark model={choice.model} />
                   </span>
-                  <span className="volba-telo">
-                    <span className="volba-nazev">{t(choice.titleKey)}</span>
-                    <span className="drobne">{t(choice.descriptionKey)}</span>
+                  <span className="choice-body">
+                    <span className="choice-title">{t(choice.titleKey)}</span>
+                    <span className="small-text">{t(choice.descriptionKey)}</span>
                   </span>
                   {n.editor_model === choice.model && (
-                    <em className="odznak">{t("settings.badge.inUse")}</em>
+                    <em className="badge">{t("settings.badge.inUse")}</em>
                   )}
                 </button>
               ))}
@@ -715,9 +715,9 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
         )}
 
         {!hasEditor && (
-          <div className="pole-vyzva">
+          <div className="field-prompt">
             <span>{t("settings.editor.missing")}</span>
-            <button className="tlacitko" onClick={() => onToModule("editor-model-balanced")}>
+            <button className="button" onClick={() => onToModule("editor-model-balanced")}>
               {t("common.download")}
             </button>
           </div>
@@ -730,13 +730,13 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
           {t("settings.performance.description")}
         </p>
 
-        <div className="pole">
+        <div className="field">
           <label>{t("settings.performance.compute")}</label>
           {/* The same choice cards as the models above. A backend is a thing
               you pick once and want to see the consequence of, which a
               collapsed dropdown cannot show — least of all which of them are
               even on this machine. */}
-          <div className="volby volby-modelu">
+          <div className="choices model-choices">
             {computeChoices.map((choice) => {
               const missing =
                 choice.value !== "auto" && !downloadedBackends.includes(choice.value);
@@ -747,7 +747,7 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
               return (
                 <button
                   key={choice.value}
-                  className={`volba s-ikonou ${chosen ? "zvolena" : ""} ${missing ? "chybi" : ""}`}
+                  className={`choice with-icon ${chosen ? "chosen" : ""} ${missing ? "missing" : ""}`}
                   onClick={() =>
                     missing
                       ? onToModule(COMPUTE_MODULES[choice.value])
@@ -759,19 +759,19 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
                       not what tells them apart — that is the name and the
                       sentence under it (Jakub's call after seeing four sets
                       side by side). */}
-                  <span className="volba-ikona" aria-hidden>
+                  <span className="choice-icon" aria-hidden>
                     <LineIcon name="compute" />
                   </span>
-                  <span className="volba-telo">
-                    <span className="volba-nazev">{labels.compute(choice.value)}</span>
-                    <span className="drobne">
+                  <span className="choice-body">
+                    <span className="choice-title">{labels.compute(choice.value)}</span>
+                    <span className="small-text">
                       {t(missing ? "settings.performance.notDownloaded" : choice.descriptionKey)}
                     </span>
                   </span>
                   {missing ? (
-                    <em className="odznak akce">{t("common.download")}</em>
+                    <em className="badge actions">{t("common.download")}</em>
                   ) : chosen ? (
-                    <em className="odznak">{t("settings.badge.inUse")}</em>
+                    <em className="badge">{t("settings.badge.inUse")}</em>
                   ) : null}
                 </button>
               );
@@ -782,9 +782,9 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
           )}
         </div>
 
-        <div className="pole">
+        <div className="field">
           <label>
-            {t("settings.performance.threads")} <em className="hodnota">
+            {t("settings.performance.threads")} <em className="value">
               {n.threads === 0
                 ? t("settings.performance.threadsAuto")
                 : formatNumber(n.threads)}
@@ -802,7 +802,7 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
 
         <div className="settings-action-row separated">
           <InfoNote compact>{t("settings.performance.benchmarkNote")}</InfoNote>
-          <button className="tlacitko" onClick={benchmarkVykon} disabled={benchmarking}>
+          <button className="button" onClick={benchmarkVykon} disabled={benchmarking}>
             {benchmarking
               ? t("settings.performance.benchmarking")
               : t("settings.performance.benchmark")}
@@ -810,13 +810,13 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
         </div>
 
         {benchmark && (
-          <ul className="zkouska">
+          <ul className="benchmark">
             {benchmark.map((v, index) => (
-              <li key={v.compute} className={v.error ? "ne" : "ano"}>
+              <li key={v.compute} className={v.error ? "no" : "yes"}>
                 <span>
                   {labels.compute(v.compute)}
                   {index === 0 && !v.error && (
-                    <span className="nejrychlejsi">
+                    <span className="fastest">
                       {" — "}
                       {t("settings.performance.fastest")}
                     </span>
@@ -852,31 +852,31 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
             : "settings.files.locationsDescription")}
         </p>
 
-        <div className="pole">
+        <div className="field">
           <label>{t("settings.files.binDirectory")}</label>
-          <div className="radka">
+          <div className="input-row">
             <input
               value={n.bin_directory}
               onChange={(e) => setN({ ...n, bin_directory: e.target.value })}
               onBlur={() => save(n)}
               onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
             />
-            <button className="tlacitko" onClick={() => selectDirectory("bin_directory")}>
+            <button className="button" onClick={() => selectDirectory("bin_directory")}>
               {t("settings.files.choose")}
             </button>
           </div>
         </div>
 
-        <div className="pole">
+        <div className="field">
           <label>{t("settings.files.modelsDirectory")}</label>
-          <div className="radka">
+          <div className="input-row">
             <input
               value={n.models_directory}
               onChange={(e) => setN({ ...n, models_directory: e.target.value })}
               onBlur={() => save(n)}
               onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
             />
-            <button className="tlacitko" onClick={() => selectDirectory("models_directory")}>
+            <button className="button" onClick={() => selectDirectory("models_directory")}>
               {t("settings.files.choose")}
             </button>
           </div>
@@ -888,13 +888,13 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
         <h2>{t("settings.tab.dictionary")}</h2>
         <p className="settings-section-description">{t("settings.dictionary.description")}</p>
 
-        <div className="pole">
+        <div className="field">
           <label htmlFor="dictionary-find">{t("settings.dictionary.newEntry")}</label>
           {/* One row, like every other field in Settings that ends in an
               action. The two halves say what they are through their
               placeholders; a second visible label above one of two boxes on
               the same line reads as two separate fields. */}
-          <div className="radka dictionary-row">
+          <div className="input-row dictionary-row">
             <input
               id="dictionary-find"
               value={entryFind}
@@ -915,7 +915,7 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
               }}
             />
             <button
-              className="tlacitko hlavni"
+              className="button primary"
               onClick={() => void addEntry()}
               disabled={!entryFind.trim() || !entryReplace.trim()}
             >
@@ -980,7 +980,7 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
               </ul>
             </>
           ) : (
-            <p className="drobne">{t("settings.dictionary.empty")}</p>
+            <p className="small-text">{t("settings.dictionary.empty")}</p>
           )}
         </div>
       </section>}
@@ -991,7 +991,7 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
           {t("settings.appearance.description")}
         </p>
 
-        <div className="pole">
+        <div className="field">
           <label>{t("settings.language.title")}</label>
           <Select
             value={language}
@@ -1005,7 +1005,7 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
           <InfoNote>{t("settings.language.description")}</InfoNote>
         </div>
 
-        <div className="pole">
+        <div className="field">
           <label>{t("settings.appearance.theme")}</label>
           <Select
             value={themeChoice(n.theme)}
@@ -1017,7 +1017,7 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
           />
         </div>
 
-        <div className="pole">
+        <div className="field">
           <label>{t("settings.appearance.fontUi")}</label>
           <Select
             value={n.font_ui}
@@ -1028,7 +1028,7 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
           />
         </div>
 
-        <div className="pole">
+        <div className="field">
           <label>{t("settings.appearance.fontText")}</label>
           <Select
             value={n.font_text}
@@ -1052,9 +1052,9 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
           />
         </div>
 
-        <div className="pole">
+        <div className="field">
           <label>
-            {t("settings.appearance.fontSize")} <em className="hodnota">
+            {t("settings.appearance.fontSize")} <em className="value">
               {t("settings.appearance.fontSizeValue", {
                 value: formatNumber(n.transcript_font_size, {
                   minimumFractionDigits: 1,
@@ -1073,9 +1073,9 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
           />
         </div>
 
-        <div className="pole">
+        <div className="field">
           <label>
-            {t("settings.appearance.lineHeight")} <em className="hodnota">
+            {t("settings.appearance.lineHeight")} <em className="value">
               {formatNumber(n.transcript_line_height, {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
@@ -1092,10 +1092,10 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
           />
         </div>
 
-        <div className="nahled-pisma">
-          <div className="nahled-mluvci">{t("settings.appearance.previewSpeaker")}</div>
+        <div className="preview-font">
+          <div className="preview-speakers">{t("settings.appearance.previewSpeaker")}</div>
           <p>{t("settings.appearance.previewText")}</p>
-          <p className="nahled-popisek">{t("settings.appearance.previewDiacritics")}</p>
+          <p className="preview-label">{t("settings.appearance.previewDiacritics")}</p>
         </div>
       </section>}
 
@@ -1105,43 +1105,43 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
           {t("settings.transcription.description")}
         </p>
 
-        <div className="pole">
+        <div className="field">
           <label>{t("settings.transcription.model")}</label>
           {/* Karty místo rozbalovací nabídky: modely se od sebe liší tím,
               co dělají s časem a přesností, a to se v jednom řádku neřekne. */}
-          <div className="volby volby-modelu">
+          <div className="choices model-choices">
             {(check?.found_models.length
               ? [...check.found_models].sort(byModelOrder)
               : [n.model]
             ).map((m) => (
               <button
                 key={m}
-                className={`volba s-ikonou ${n.model === m ? "zvolena" : ""}`}
+                className={`choice with-icon ${n.model === m ? "chosen" : ""}`}
                 onClick={() => save({ ...n, model: m })}
                 aria-pressed={n.model === m}
               >
-                <span className="volba-ikona" aria-hidden>
+                <span className="choice-icon" aria-hidden>
                   <ModelMark id={m} />
                 </span>
-                <span className="volba-telo">
-                  <span className="volba-nazev">{labels.model(m)}</span>
-                  <span className="drobne">
+                <span className="choice-body">
+                  <span className="choice-title">{labels.model(m)}</span>
+                  <span className="small-text">
                     {labels.modelDescription(m, t("settings.transcription.modelDescription"))}
                   </span>
                 </span>
                 {/* Outside the text block, so it lands on the right edge like
                     the status pill on a module tile rather than drifting with
                     the length of the model's name. */}
-                {n.model === m && <em className="odznak">{t("settings.badge.inUse")}</em>}
+                {n.model === m && <em className="badge">{t("settings.badge.inUse")}</em>}
               </button>
             ))}
           </div>
           <InfoNote>{t("settings.transcription.modelNote")}</InfoNote>
         </div>
 
-        <div className="pole">
+        <div className="field">
           <label>
-            {t("settings.transcription.beam")} <em className="hodnota">
+            {t("settings.transcription.beam")} <em className="value">
               {formatNumber(n.beam)}
             </em>
           </label>
@@ -1165,7 +1165,7 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
         <h2>{t("settings.speech.title")}</h2>
         <p className="settings-section-description">{t("settings.speech.description")}</p>
 
-        <div className="pole">
+        <div className="field">
           <label>{t("settings.transcription.language")}</label>
           <Select
             value={n.language}
@@ -1192,21 +1192,21 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
           {t("settings.files.watchDescription")}
         </p>
 
-        <div className="pole">
+        <div className="field">
           <label>{t("settings.files.watchDirectory")}</label>
-          <div className="radka">
+          <div className="input-row">
             <input
               value={n.watch_folder}
               readOnly
               placeholder={t("settings.files.watchPlaceholder")}
               aria-label={t("settings.files.watchTitle")}
             />
-            <button className="tlacitko" onClick={() => selectDirectory("watch_folder")}>
+            <button className="button" onClick={() => selectDirectory("watch_folder")}>
               {t("settings.files.choose")}
             </button>
             {n.watch_folder && (
               <button
-                className="tlacitko tichy"
+                className="button quiet"
                 onClick={() => save({ ...n, watch_folder: "", watch_folder_enabled: false })}
               >
                 {t("settings.files.watchRemove")}
@@ -1247,21 +1247,21 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
           {t("settings.recordings.description")}
         </p>
 
-        <div className="pole">
+        <div className="field">
           <label>{t("settings.recordings.directory")}</label>
-          <div className="radka">
+          <div className="input-row">
             <input
               value={n.recording_folder}
               readOnly
               placeholder={t("settings.recordings.defaultPlace")}
               aria-label={t("settings.recordings.directory")}
             />
-            <button className="tlacitko" onClick={() => selectDirectory("recording_folder")}>
+            <button className="button" onClick={() => selectDirectory("recording_folder")}>
               {t("settings.files.choose")}
             </button>
             {n.recording_folder && (
               <button
-                className="tlacitko tichy"
+                className="button quiet"
                 onClick={() => save({ ...n, recording_folder: "" })}
               >
                 {t("settings.recordings.reset")}
@@ -1295,7 +1295,7 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
         />
 
         {n.diarization && (
-          <div className="pole">
+          <div className="field">
             <label>{t("settings.speakers.count")}</label>
             <input
               type="number"
@@ -1309,7 +1309,7 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
         )}
 
         {n.diarization && (
-          <div className="pole">
+          <div className="field">
             <label>{t("settings.speakers.shift")}</label>
             <Select
               value={String(n.segmentation_window_shift)}
@@ -1333,7 +1333,7 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
         )}
 
         {check && check.issues_diarization.length > 0 && n.diarization && (
-          <ul className="problemy">
+          <ul className="problems">
             {check.issues_diarization.map((p, i) => (
               <li key={i}>{userMessage(p)}</li>
             ))}
@@ -1361,7 +1361,7 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
                 ? t("settings.portable.copyingFile", { file: copiedFile })
                 : t("settings.portable.copyHint")}
             </InfoNote>
-            <button className="tlacitko" onClick={udelejKopii} disabled={copying}>
+            <button className="button" onClick={udelejKopii} disabled={copying}>
               {copying
                 ? t("settings.portable.copying")
                 : t("settings.portable.copyAction")}
@@ -1369,7 +1369,7 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
           </div>
 
           {copyComplete !== null && (
-            <p className="drobne settings-success" role="status">
+            <p className="small-text settings-success" role="status">
               {t("settings.portable.copied", {
                 size: formats.dataSize(copyComplete * 1024),
               })}
@@ -1495,11 +1495,11 @@ function About({
         <p className="settings-section-description">{t("settings.about.description")}</p>
 
         <dl className="about-panel">
-          <div className="about-radek">
+          <div className="about-row">
             <dt>{t("settings.about.version")}</dt>
             <dd>{version || "—"}</dd>
           </div>
-          <div className="about-radek">
+          <div className="about-row">
             <dt>{t("settings.about.author")}</dt>
             {/* i18n-ignore: a company name, and it mirrors src-tauri/Cargo.toml */}
             <dd>značkárna s.r.o.</dd>
@@ -1539,7 +1539,7 @@ function About({
             <p className="about-group-label">{t(group.label)}</p>
             <dl className="about-panel">
               {group.items.map(([name, licence]) => (
-                <div className="about-radek" key={name}>
+                <div className="about-row" key={name}>
                   <dt>{name}</dt>
                   <dd>{licence}</dd>
                 </div>
@@ -1630,22 +1630,22 @@ function Backups({ onError }: { onError: (message: string) => void }) {
           the pair as a loose monospace line with nothing naming it — it is a
           row like the others now, and clicking it opens the folder, which is
           the only reason anyone reads a path at all. */}
-      <dl className="zaloha-prehled">
-        <div className="zaloha-radek">
+      <dl className="backup-summary">
+        <div className="backup-row">
           <dt>{t("settings.backups.latest")}</dt>
           <dd>{status?.latest || t("settings.backups.none")}</dd>
         </div>
-        <div className="zaloha-radek">
+        <div className="backup-row">
           <dt>{t("settings.backups.count")}</dt>
           <dd>{formatNumber(status?.count ?? 0)}</dd>
         </div>
         {status?.directory && (
-          <div className="zaloha-radek">
+          <div className="backup-row">
             <dt>{t("settings.backups.directory")}</dt>
             <dd>
               <button
                 type="button"
-                className="zaloha-cesta"
+                className="backup-path"
                 title={t("settings.backups.reveal")}
                 onClick={() => {
                   void revealItemInDir(status.directory).catch((e) => onError(userMessage(e)));
@@ -1660,7 +1660,7 @@ function Backups({ onError }: { onError: (message: string) => void }) {
 
       <div className="settings-action-row separated">
         <InfoNote compact>{t("settings.backups.note")}</InfoNote>
-        <button className="tlacitko" onClick={backUpNow} disabled={running}>
+        <button className="button" onClick={backUpNow} disabled={running}>
           {running ? t("settings.backups.running") : t("settings.backups.action")}
         </button>
       </div>
@@ -1753,16 +1753,16 @@ function DecodingSettings({
       title={t("settings.decoding.title")}
       badge={
         isCustom ? (
-          <span className="odznak tichy">{t("settings.decoding.modified")}</span>
+          <span className="badge quiet">{t("settings.decoding.modified")}</span>
         ) : undefined
       }
     >
-          <p className="drobne">{t("settings.decoding.note")}</p>
+          <p className="small-text">{t("settings.decoding.note")}</p>
 
           {fields.map((p) => (
-            <div className="pole" key={p.key}>
+            <div className="field" key={p.key}>
               <label>
-                {t(p.labelKey)} <em className="hodnota">{formatNumber(n[p.key])}</em>
+                {t(p.labelKey)} <em className="value">{formatNumber(n[p.key])}</em>
               </label>
               <input
                 type="range"
@@ -1772,12 +1772,12 @@ function DecodingSettings({
                 value={n[p.key]}
                 onChange={(e) => save({ ...n, [p.key]: Number(e.target.value) })}
               />
-              <p className="drobne">{t(p.descriptionKey)}</p>
+              <p className="small-text">{t(p.descriptionKey)}</p>
             </div>
           ))}
 
           <button
-            className="tlacitko"
+            className="button"
             disabled={!isCustom}
             onClick={() => save({ ...n, ...DEFAULT_DECODING })}
           >
@@ -1803,12 +1803,12 @@ function ToolDiagnostics({ k }: { k: ToolCheck }) {
   ];
   return (
     <SettingsDisclosure title={t("settings.diagnostics.title")}>
-      <ul className="kontrola">
+      <ul className="check">
         {rows.map(([id, titleKey, path]) => (
-          <li key={id} className={path ? "ano" : "ne"}>
+          <li key={id} className={path ? "yes" : "no"}>
             {/* The same circular mark the manual download list uses for a
                 component that is already on the machine. */}
-            <span className="kontrola-znak" aria-hidden>
+            <span className="check-mark" aria-hidden>
               <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
                 {path ? (
                   <path d="M3 7.2 5.7 10 11 4.5" stroke="currentColor" strokeWidth="1.8"
@@ -1819,10 +1819,10 @@ function ToolDiagnostics({ k }: { k: ToolCheck }) {
                 )}
               </svg>
             </span>
-            <span className="kontrola-nazev">{titleKey ? t(titleKey) : id}</span>
+            <span className="check-name">{titleKey ? t(titleKey) : id}</span>
             {/* The whole path is in the tooltip: the line shows its end, which
                 is the part that says which file this actually is. */}
-            <span className="kontrola-cesta" title={path ?? undefined}>
+            <span className="check-path" title={path ?? undefined}>
               {path ?? t("settings.diagnostics.notFound")}
             </span>
           </li>
