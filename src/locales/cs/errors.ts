@@ -82,6 +82,8 @@ export const csErrors = {
   "errors.microphone.convert_failed": "Záznam se nepodařilo převést do zvukového souboru.",
 
   // Playback.
+  "errors.update.install_failed":
+    "Aktualizaci se nepodařilo připravit k instalaci. Zkuste to prosím znovu.",
   "errors.playback.ffmpeg_missing":
     "Chybí ffmpeg, takže nejde připravit přesné přehrávání MP3.",
   "errors.playback.source_missing": "Zvukový soubor už na svém místě není.",

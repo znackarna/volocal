@@ -64,6 +64,8 @@ export const api = {
     invoke<void>("update_recording_note", { id, time, text, done }),
   deleteRecordingNote: (id: string) => invoke<void>("delete_recording_note", { id }),
   fileExists: (path: string) => invoke<boolean>("file_exists", { path }),
+  /** Lets the updater's installer survive this process exiting. */
+  letTheInstallerOut: () => invoke<void>("let_the_installer_out"),
   playbackSource: (id: string) => invoke<string>("playback_source", { id }),
   changeRecordingPath: (id: string, path: string) =>
     invoke<void>("change_recording_path", { id, path }),
