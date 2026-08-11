@@ -369,6 +369,6 @@ Write-Host @"
 
 Draft release $tag created with three assets.
 
-Check the page, then publish it. Until you do, `releases/latest/download/latest.json`
+Check the page, then publish it. Until you do, releases/latest/download/latest.json
 still points at the release before this one and nobody is offered anything.
 "@ -ForegroundColor Green
