@@ -393,100 +393,262 @@ pub struct SearchResult {
 
 // ---------------------------------------------------------------- schema
 
+/// Tables and columns this archive may still be carrying in Czech, and what
+/// each is called now. Order matters only in that a table is renamed before its
+/// columns are, because the column statements name the new table.
+const RENAMED: &[(&str, &[(&str, &str)])] = &[
+    (
+        "nahravky recordings",
+        &[
+            ("cesta", "path"),
+            ("nazev", "name"),
+            ("delka", "duration"),
+            ("vytvoreno", "created_at"),
+            ("stav", "status"),
+            ("chyba", "error"),
+            ("slozka", "folder_id"),
+        ],
+    ),
+    (
+        "slozky folders",
+        &[("nazev", "name"), ("vytvoreno", "created_at")],
+    ),
+    (
+        "segmenty segments",
+        &[
+            ("nahravka_id", "recording_id"),
+            ("poradi", "position"),
+            ("zacatek", "start_time"),
+            ("konec", "end_time"),
+            ("mluvci", "speakers"),
+            ("jistota", "confidence"),
+            ("upraveno", "edited"),
+            ("slova", "words"),
+            ("overeno", "verified"),
+            ("puvodni", "original"),
+        ],
+    ),
+    (
+        "mluvci speakers",
+        &[
+            ("klic", "key"),
+            ("nahravka_id", "recording_id"),
+            ("jmeno", "name"),
+            ("barva", "color"),
+        ],
+    ),
+    (
+        "poznamky notes",
+        &[
+            ("nahravka_id", "recording_id"),
+            ("cas", "time"),
+            ("hotovo", "done"),
+            ("vytvoreno", "created_at"),
+        ],
+    ),
+    (
+        "slovnik dictionary",
+        &[
+            ("hledat", "search"),
+            ("nahradit", "replacement"),
+            ("napoveda", "prompt"),
+        ],
+    ),
+    (
+        "krivky waveforms",
+        &[
+            ("nahravka_id", "recording_id"),
+            ("body", "points"),
+            ("na_sekundu", "per_second"),
+        ],
+    ),
+    ("klice settings", &[("klic", "key"), ("hodnota", "value")]),
+];
+
+/// Whether this archive still has a table by that name.
+fn has_table(db: &Connection, name: &str) -> Result<bool> {
+    let found: i64 = db.query_row(
+        "SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = ?1",
+        params![name],
+        |r| r.get(0),
+    )?;
+    Ok(found > 0)
+}
+
+/// Puts the schema into English, once, in an archive written before 1.0.5.
+///
+/// This runs before the `CREATE TABLE IF NOT EXISTS` batch and has to: those
+/// statements name the English tables, so an archive left in Czech would end up
+/// with both — the reader's recordings in one set and an empty set beside them,
+/// and the application reading the empty one.
+///
+/// `PRAGMA foreign_keys` must be on before a rename, and cannot be changed
+/// inside a transaction, so it is set first. With it off, SQLite renames the
+/// table and leaves every `REFERENCES nahravky(id)` in the other tables pointing
+/// at a name that no longer exists.
+///
+/// The full-text index is dropped rather than renamed: `ALTER TABLE RENAME
+/// COLUMN` does not work on a virtual table, and its `nahravka_id` column is
+/// named in every search. It is rebuilt from the segments below, so searching an
+/// old transcript keeps working — the index is derived data and nothing in it is
+/// the reader's.
+fn rename_schema_to_english(db: &Connection, path: &std::path::Path) -> Result<()> {
+    if !has_table(db, "nahravky")? {
+        return Ok(());
+    }
+
+    // A copy first. Renaming a table cannot be undone by opening the file with
+    // an older build - that build looks for `nahravky` and makes an empty one.
+    // This is the only migration in the archive's history that the previous
+    // version cannot read afterwards, so it is the only one that leaves a way
+    // back. `VACUUM INTO` rather than a file copy: the write-ahead log may hold
+    // the last session's work, and copying the main file alone would leave it
+    // out of the very backup taken to protect it.
+    let copy = path.with_file_name("whisp-before-english.db");
+    if !copy.exists() {
+        match db.execute("VACUUM INTO ?1", params![copy.to_string_lossy()]) {
+            Ok(_) => crate::note!("archive: copied to {} before the rename", copy.display()),
+            // Worth saying and not worth stopping for: the rename itself is
+            // transactional, and refusing to open the archive because a spare
+            // copy could not be written would be the worse outcome.
+            Err(error) => crate::note!("archive: the copy before the rename failed: {error}"),
+        }
+    }
+
+    db.execute_batch("PRAGMA foreign_keys = ON;")?;
+    let tx = db.unchecked_transaction()?;
+
+    for (names, columns) in RENAMED {
+        let (from, to) = names.split_once(' ').expect("a pair");
+        if !has_table(db, from)? {
+            continue;
+        }
+        db.execute_batch(&format!("ALTER TABLE {from} RENAME TO {to};"))?;
+        for (old, new) in *columns {
+            db.execute_batch(&format!("ALTER TABLE {to} RENAME COLUMN {old} TO {new};"))?;
+        }
+    }
+
+    db.execute_batch(
+        "DROP INDEX IF EXISTS idx_segmenty_nahravka;
+         DROP INDEX IF EXISTS idx_poznamky_nahravka;
+         DROP TABLE IF EXISTS segmenty_fts;",
+    )?;
+    tx.commit()?;
+    Ok(())
+}
+
+/// Fills the rebuilt full-text index from the transcripts already in the
+/// archive. Runs after the schema batch, which is what creates the empty index.
+fn refill_search_index(db: &Connection) -> Result<()> {
+    let indexed: i64 = db.query_row("SELECT count(*) FROM segments_fts", [], |r| r.get(0))?;
+    let stored: i64 = db.query_row("SELECT count(*) FROM segments", [], |r| r.get(0))?;
+    if indexed > 0 || stored == 0 {
+        return Ok(());
+    }
+    db.execute_batch(
+        "INSERT INTO segments_fts (text, segment_id, recording_id)
+         SELECT text, id, recording_id FROM segments;",
+    )?;
+    crate::note!("archive: rebuilt the search index over {stored} segments");
+    Ok(())
+}
+
 pub fn open(path: &std::path::Path) -> Result<Connection> {
     let db = Connection::open(path)?;
+    rename_schema_to_english(&db, path)?;
     db.execute_batch(
         r#"
         PRAGMA journal_mode = WAL;
         PRAGMA foreign_keys = ON;
 
-        CREATE TABLE IF NOT EXISTS nahravky (
+        CREATE TABLE IF NOT EXISTS recordings (
             id           TEXT PRIMARY KEY,
-            cesta        TEXT NOT NULL,
-            nazev        TEXT NOT NULL,
-            delka        REAL NOT NULL DEFAULT 0,
-            vytvoreno    TEXT NOT NULL,
-            stav         TEXT NOT NULL DEFAULT 'nova',
+            path        TEXT NOT NULL,
+            name        TEXT NOT NULL,
+            duration        REAL NOT NULL DEFAULT 0,
+            created_at    TEXT NOT NULL,
+            status         TEXT NOT NULL DEFAULT 'nova',
             model        TEXT NOT NULL DEFAULT '',
-            chyba        TEXT,
+            error        TEXT,
             -- Which folder holds the recording; NULL is the archive's root.
             -- ON DELETE SET NULL is what makes "delete the folder, keep the
             -- recordings" atomic instead of a loop that can half-finish.
-            slozka       TEXT REFERENCES slozky(id) ON DELETE SET NULL
+            folder_id       TEXT REFERENCES folders(id) ON DELETE SET NULL
         );
 
-        CREATE TABLE IF NOT EXISTS slozky (
+        CREATE TABLE IF NOT EXISTS folders (
             id           TEXT PRIMARY KEY,
-            nazev        TEXT NOT NULL,
-            vytvoreno    TEXT NOT NULL
+            name        TEXT NOT NULL,
+            created_at    TEXT NOT NULL
         );
 
-        CREATE TABLE IF NOT EXISTS segmenty (
+        CREATE TABLE IF NOT EXISTS segments (
             id           TEXT PRIMARY KEY,
-            nahravka_id  TEXT NOT NULL REFERENCES nahravky(id) ON DELETE CASCADE,
-            poradi       INTEGER NOT NULL,
-            zacatek      REAL NOT NULL,
-            konec        REAL NOT NULL,
+            recording_id  TEXT NOT NULL REFERENCES recordings(id) ON DELETE CASCADE,
+            position       INTEGER NOT NULL,
+            start_time      REAL NOT NULL,
+            end_time        REAL NOT NULL,
             text         TEXT NOT NULL,
-            mluvci       TEXT,
-            jistota      REAL,
-            upraveno     INTEGER NOT NULL DEFAULT 0,
-            slova        TEXT,
-            overeno      INTEGER NOT NULL DEFAULT 0,
-            puvodni      TEXT
+            speakers       TEXT,
+            confidence      REAL,
+            edited     INTEGER NOT NULL DEFAULT 0,
+            words        TEXT,
+            verified      INTEGER NOT NULL DEFAULT 0,
+            original      TEXT
         );
-        CREATE INDEX IF NOT EXISTS idx_segmenty_nahravka ON segmenty(nahravka_id, poradi);
+        CREATE INDEX IF NOT EXISTS idx_segments_recording ON segments(recording_id, position);
 
-        CREATE TABLE IF NOT EXISTS mluvci (
-            klic         TEXT NOT NULL,
-            nahravka_id  TEXT NOT NULL REFERENCES nahravky(id) ON DELETE CASCADE,
-            jmeno        TEXT NOT NULL,
-            barva        TEXT NOT NULL,
-            PRIMARY KEY (klic, nahravka_id)
+        CREATE TABLE IF NOT EXISTS speakers (
+            key         TEXT NOT NULL,
+            recording_id  TEXT NOT NULL REFERENCES recordings(id) ON DELETE CASCADE,
+            name        TEXT NOT NULL,
+            color        TEXT NOT NULL,
+            PRIMARY KEY (key, recording_id)
         );
 
-        CREATE TABLE IF NOT EXISTS poznamky (
+        CREATE TABLE IF NOT EXISTS notes (
             id           TEXT PRIMARY KEY,
-            nahravka_id  TEXT NOT NULL REFERENCES nahravky(id) ON DELETE CASCADE,
-            cas          REAL NOT NULL DEFAULT 0,
+            recording_id  TEXT NOT NULL REFERENCES recordings(id) ON DELETE CASCADE,
+            time          REAL NOT NULL DEFAULT 0,
             text         TEXT NOT NULL,
-            hotovo       INTEGER NOT NULL DEFAULT 0,
-            vytvoreno    TEXT NOT NULL,
-            -- Whether `cas` means anything. The column cannot be made nullable
+            done       INTEGER NOT NULL DEFAULT 0,
+            created_at    TEXT NOT NULL,
+            -- Whether `time` means anything. The column cannot be made nullable
             -- without rebuilding the table, and zero is a real position in a
             -- recording, so the flag carries the distinction instead.
             pinned       INTEGER NOT NULL DEFAULT 1
         );
-        CREATE INDEX IF NOT EXISTS idx_poznamky_nahravka
-            ON poznamky(nahravka_id, cas, vytvoreno);
+        CREATE INDEX IF NOT EXISTS idx_notes_recording
+            ON notes(recording_id, time, created_at);
 
-        -- `napoveda` is dead: the entry used to be handed to Whisper before
+        -- `prompt` is dead: the entry used to be handed to Whisper before
         -- transcription, which only ever conditioned the first window. The
         -- column stays so a fresh archive has the same shape as an old one,
         -- and because SQLite cannot drop a column without rebuilding the table.
-        CREATE TABLE IF NOT EXISTS slovnik (
+        CREATE TABLE IF NOT EXISTS dictionary (
             id           TEXT PRIMARY KEY,
-            hledat       TEXT NOT NULL,
-            nahradit     TEXT NOT NULL,
-            napoveda     INTEGER NOT NULL DEFAULT 1
+            search       TEXT NOT NULL,
+            replacement     TEXT NOT NULL,
+            prompt     INTEGER NOT NULL DEFAULT 1
         );
 
-        CREATE TABLE IF NOT EXISTS krivky (
-            nahravka_id  TEXT PRIMARY KEY REFERENCES nahravky(id) ON DELETE CASCADE,
-            body         BLOB NOT NULL,
-            na_sekundu   REAL NOT NULL DEFAULT 12,
+        CREATE TABLE IF NOT EXISTS waveforms (
+            recording_id  TEXT PRIMARY KEY REFERENCES recordings(id) ON DELETE CASCADE,
+            points         BLOB NOT NULL,
+            per_second   REAL NOT NULL DEFAULT 12,
             equalizer    BLOB NOT NULL DEFAULT X'',
             equalizer_points_per_second REAL NOT NULL DEFAULT 10,
             equalizer_band_count INTEGER NOT NULL DEFAULT 24
         );
 
-        CREATE TABLE IF NOT EXISTS klice (
-            klic         TEXT PRIMARY KEY,
-            hodnota      TEXT NOT NULL
+        CREATE TABLE IF NOT EXISTS settings (
+            key         TEXT PRIMARY KEY,
+            value      TEXT NOT NULL
         );
 
         CREATE TABLE IF NOT EXISTS ai_documents (
-            recording_id  TEXT PRIMARY KEY REFERENCES nahravky(id) ON DELETE CASCADE,
+            recording_id  TEXT PRIMARY KEY REFERENCES recordings(id) ON DELETE CASCADE,
             source_hash   TEXT NOT NULL,
             model         TEXT NOT NULL,
             mode          TEXT NOT NULL,
@@ -526,15 +688,19 @@ pub fn open(path: &std::path::Path) -> Result<Connection> {
             observed_at   TEXT NOT NULL
         );
 
-        CREATE VIRTUAL TABLE IF NOT EXISTS segmenty_fts USING fts5(
+        CREATE VIRTUAL TABLE IF NOT EXISTS segments_fts USING fts5(
             text,
             segment_id   UNINDEXED,
-            nahravka_id  UNINDEXED,
+            recording_id  UNINDEXED,
             tokenize = 'unicode61 remove_diacritics 2'
         );
         "#,
     )?;
     migrate_legacy_schema(&db);
+    // After the batch, which is what creates the empty index the rename left.
+    if let Err(error) = refill_search_index(&db) {
+        crate::note!("archive: the search index could not be rebuilt: {error}");
+    }
     enable_language_detection(&db);
     Ok(db)
 }
@@ -670,43 +836,43 @@ fn migrate_legacy_schema(db: &Connection) {
     // fresh databases; an existing one needs the column added, and SQLite
     // cannot add a column with a REFERENCES clause that has an action, so the
     // clause is plain here — `delete_folder` clears the column itself.
-    let _ = db.execute("ALTER TABLE nahravky ADD COLUMN slozka TEXT", []);
-    let _ = db.execute("ALTER TABLE segmenty ADD COLUMN slova TEXT", []);
+    let _ = db.execute("ALTER TABLE recordings ADD COLUMN folder_id TEXT", []);
+    let _ = db.execute("ALTER TABLE segments ADD COLUMN words TEXT", []);
     let _ = db.execute(
-        "ALTER TABLE segmenty ADD COLUMN overeno INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE segments ADD COLUMN verified INTEGER NOT NULL DEFAULT 0",
         [],
     );
     // What the machine wrote, kept the first time a human rewrites a segment.
     // Segments edited before this column existed keep NULL: the original is
     // simply not knowable for them, and guessing one would be worse.
-    let _ = db.execute("ALTER TABLE segmenty ADD COLUMN puvodni TEXT", []);
+    let _ = db.execute("ALTER TABLE segments ADD COLUMN original TEXT", []);
     let _ = db.execute(
-        "ALTER TABLE nahravky ADD COLUMN jazyk TEXT NOT NULL DEFAULT ''",
+        "ALTER TABLE recordings ADD COLUMN jazyk TEXT NOT NULL DEFAULT ''",
         [],
     );
     let _ = db.execute(
-        "ALTER TABLE nahravky ADD COLUMN jazyk_volba TEXT NOT NULL DEFAULT ''",
+        "ALTER TABLE recordings ADD COLUMN jazyk_volba TEXT NOT NULL DEFAULT ''",
         [],
     );
     let _ = db.execute(
-        "ALTER TABLE krivky ADD COLUMN na_sekundu REAL NOT NULL DEFAULT 12",
+        "ALTER TABLE waveforms ADD COLUMN per_second REAL NOT NULL DEFAULT 12",
         [],
     );
     let _ = db.execute(
-        "ALTER TABLE krivky ADD COLUMN equalizer BLOB NOT NULL DEFAULT X''",
+        "ALTER TABLE waveforms ADD COLUMN equalizer BLOB NOT NULL DEFAULT X''",
         [],
     );
     let _ = db.execute(
-        "ALTER TABLE krivky ADD COLUMN equalizer_points_per_second REAL NOT NULL DEFAULT 10",
+        "ALTER TABLE waveforms ADD COLUMN equalizer_points_per_second REAL NOT NULL DEFAULT 10",
         [],
     );
     let _ = db.execute(
-        "ALTER TABLE krivky ADD COLUMN equalizer_band_count INTEGER NOT NULL DEFAULT 24",
+        "ALTER TABLE waveforms ADD COLUMN equalizer_band_count INTEGER NOT NULL DEFAULT 24",
         [],
     );
     // Notes written before this existed all had a position, so they stay pinned.
     let _ = db.execute(
-        "ALTER TABLE poznamky ADD COLUMN pinned INTEGER NOT NULL DEFAULT 1",
+        "ALTER TABLE notes ADD COLUMN pinned INTEGER NOT NULL DEFAULT 1",
         [],
     );
 }
@@ -718,7 +884,7 @@ fn migrate_legacy_schema(db: &Connection) {
 fn enable_language_detection(db: &Connection) {
     let complete: Option<String> = db
         .query_row(
-            "SELECT hodnota FROM klice WHERE klic = 'jazyk-rozpoznavani'",
+            "SELECT value FROM settings WHERE key = 'jazyk-rozpoznavani'",
             [],
             |r| r.get(0),
         )
@@ -731,7 +897,7 @@ fn enable_language_detection(db: &Connection) {
         let _ = save_settings(db, &n);
     }
     let _ = db.execute(
-        "INSERT OR REPLACE INTO klice (klic, hodnota) VALUES ('jazyk-rozpoznavani', 'ano')",
+        "INSERT OR REPLACE INTO settings (key, value) VALUES ('jazyk-rozpoznavani', 'ano')",
         [],
     );
 }
@@ -741,7 +907,7 @@ fn enable_language_detection(db: &Connection) {
 pub fn load_settings(db: &Connection) -> Result<Settings> {
     let json: Option<String> = db
         .query_row(
-            "SELECT hodnota FROM klice WHERE klic = 'nastaveni'",
+            "SELECT value FROM settings WHERE key = 'nastaveni'",
             [],
             |r| r.get(0),
         )
@@ -757,8 +923,8 @@ pub fn load_settings(db: &Connection) -> Result<Settings> {
                 // choices out of `nastaveni-poskozeno`.
                 crate::note!("settings: unreadable, keeping a copy: {error}");
                 let _ = db.execute(
-                    "INSERT INTO klice (klic, hodnota) VALUES ('nastaveni-poskozeno', ?1)
-                     ON CONFLICT(klic) DO UPDATE SET hodnota = excluded.hodnota",
+                    "INSERT INTO settings (key, value) VALUES ('nastaveni-poskozeno', ?1)
+                     ON CONFLICT(key) DO UPDATE SET value = excluded.value",
                     params![j],
                 );
                 Ok(Settings::default())
@@ -770,8 +936,8 @@ pub fn load_settings(db: &Connection) -> Result<Settings> {
 
 pub fn save_settings(db: &Connection, settings: &Settings) -> Result<()> {
     db.execute(
-        "INSERT INTO klice (klic, hodnota) VALUES ('nastaveni', ?1)
-         ON CONFLICT(klic) DO UPDATE SET hodnota = excluded.hodnota",
+        "INSERT INTO settings (key, value) VALUES ('nastaveni', ?1)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value",
         params![serde_json::to_string(settings)?],
     )?;
     Ok(())
@@ -781,7 +947,7 @@ pub fn save_settings(db: &Connection, settings: &Settings) -> Result<()> {
 
 pub fn insert_recording(db: &Connection, recording: &Recording) -> Result<()> {
     db.execute(
-        "INSERT INTO nahravky (id, cesta, nazev, delka, vytvoreno, stav, model, chyba)
+        "INSERT INTO recordings (id, path, name, duration, created_at, status, model, error)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
         params![
             recording.id,
@@ -799,7 +965,7 @@ pub fn insert_recording(db: &Connection, recording: &Recording) -> Result<()> {
 
 pub fn recording_path_exists(db: &Connection, path: &str) -> Result<bool> {
     Ok(db.query_row(
-        "SELECT EXISTS(SELECT 1 FROM nahravky WHERE cesta = ?1)",
+        "SELECT EXISTS(SELECT 1 FROM recordings WHERE path = ?1)",
         params![path],
         |row| row.get(0),
     )?)
@@ -864,7 +1030,7 @@ pub fn watch_file_is_stable(db: &Connection, path: &str, fingerprint: &str) -> R
 
 pub fn set_status(db: &Connection, id: &str, status: &str, error: Option<&str>) -> Result<()> {
     db.execute(
-        "UPDATE nahravky SET stav = ?2, chyba = ?3 WHERE id = ?1",
+        "UPDATE recordings SET status = ?2, error = ?3 WHERE id = ?1",
         params![id, status, error],
     )?;
     Ok(())
@@ -896,13 +1062,13 @@ pub fn recover_interrupted(db: &Connection) -> Result<usize> {
     // failure is how a forty-minute transcript that went fine comes back as
     // an error.
     db.execute(
-        "UPDATE nahravky SET stav = 'hotova', chyba = NULL
-         WHERE stav = 'prepisuje'
-           AND EXISTS (SELECT 1 FROM segmenty WHERE nahravka_id = nahravky.id)",
+        "UPDATE recordings SET status = 'hotova', error = NULL
+         WHERE status = 'prepisuje'
+           AND EXISTS (SELECT 1 FROM segments WHERE recording_id = recordings.id)",
         [],
     )?;
     let count = db.execute(
-        "UPDATE nahravky SET stav = 'chyba', chyba = ?1 WHERE stav = 'prepisuje'",
+        "UPDATE recordings SET status = 'chyba', error = ?1 WHERE status = 'prepisuje'",
         params![UserMessage::new("transcription.interrupted").to_stored()],
     )?;
     commit(tx)?;
@@ -914,7 +1080,7 @@ pub fn rename_recording(db: &Connection, id: &str, title: &str) -> Result<()> {
         return Ok(());
     }
     db.execute(
-        "UPDATE nahravky SET nazev = ?2 WHERE id = ?1",
+        "UPDATE recordings SET name = ?2 WHERE id = ?1",
         params![id, title],
     )?;
     Ok(())
@@ -922,7 +1088,7 @@ pub fn rename_recording(db: &Connection, id: &str, title: &str) -> Result<()> {
 
 pub fn set_model(db: &Connection, id: &str, model: &str) -> Result<()> {
     db.execute(
-        "UPDATE nahravky SET model = ?2 WHERE id = ?1",
+        "UPDATE recordings SET model = ?2 WHERE id = ?1",
         params![id, model],
     )?;
     Ok(())
@@ -931,7 +1097,7 @@ pub fn set_model(db: &Connection, id: &str, model: &str) -> Result<()> {
 /// Language the user requested for one particular recording.
 pub fn set_language_choice(db: &Connection, id: &str, language: &str) -> Result<()> {
     db.execute(
-        "UPDATE nahravky SET jazyk_volba = ?2 WHERE id = ?1",
+        "UPDATE recordings SET jazyk_volba = ?2 WHERE id = ?1",
         params![id, language],
     )?;
     Ok(())
@@ -939,7 +1105,7 @@ pub fn set_language_choice(db: &Connection, id: &str, language: &str) -> Result<
 
 pub fn set_language(db: &Connection, id: &str, language: &str) -> Result<()> {
     db.execute(
-        "UPDATE nahravky SET jazyk = ?2 WHERE id = ?1",
+        "UPDATE recordings SET jazyk = ?2 WHERE id = ?1",
         params![id, language],
     )?;
     Ok(())
@@ -963,13 +1129,13 @@ fn recording_from_row(r: &rusqlite::Row) -> rusqlite::Result<Recording> {
 }
 
 const RECORDING_SELECT_SQL: &str =
-    "SELECT n.id, n.cesta, n.nazev, n.delka, n.vytvoreno, n.stav, n.model, n.chyba,
-        (SELECT COUNT(*) FROM segmenty s WHERE s.nahravka_id = n.id), n.jazyk, n.jazyk_volba,
-        n.slozka
-     FROM nahravky n";
+    "SELECT n.id, n.path, n.name, n.duration, n.created_at, n.status, n.model, n.error,
+        (SELECT COUNT(*) FROM segments s WHERE s.recording_id = n.id), n.jazyk, n.jazyk_volba,
+        n.folder_id
+     FROM recordings n";
 
 pub fn list_recordings(db: &Connection) -> Result<Vec<Recording>> {
-    let sql = format!("{RECORDING_SELECT_SQL} ORDER BY n.vytvoreno DESC");
+    let sql = format!("{RECORDING_SELECT_SQL} ORDER BY n.created_at DESC");
     let mut st = db.prepare(&sql)?;
     let rows = st.query_map([], recording_from_row)?;
     Ok(rows.filter_map(|r| r.ok()).collect())
@@ -979,10 +1145,10 @@ pub fn list_recordings(db: &Connection) -> Result<Vec<Recording>> {
 /// one-time layout migration.
 pub fn completed_recording_ids_with_segments(db: &Connection) -> Result<Vec<String>> {
     let mut statement = db.prepare(
-        "SELECT n.id FROM nahravky n
-         WHERE n.stav = 'hotova'
-           AND EXISTS (SELECT 1 FROM segmenty s WHERE s.nahravka_id = n.id)
-         ORDER BY n.vytvoreno",
+        "SELECT n.id FROM recordings n
+         WHERE n.status = 'hotova'
+           AND EXISTS (SELECT 1 FROM segments s WHERE s.recording_id = n.id)
+         ORDER BY n.created_at",
     )?;
     let rows = statement.query_map([], |row| row.get(0))?;
     Ok(rows.filter_map(|row| row.ok()).collect())
@@ -991,15 +1157,15 @@ pub fn completed_recording_ids_with_segments(db: &Connection) -> Result<Vec<Stri
 /// Small version and migration markers stored beside the application
 /// settings. The legacy table name is kept for database compatibility.
 pub fn metadata_value(db: &Connection, key: &str) -> Result<Option<String>> {
-    let mut statement = db.prepare("SELECT hodnota FROM klice WHERE klic = ?1")?;
+    let mut statement = db.prepare("SELECT value FROM settings WHERE key = ?1")?;
     let mut rows = statement.query(params![key])?;
     Ok(rows.next()?.map(|row| row.get(0)).transpose()?)
 }
 
 pub fn save_metadata_value(db: &Connection, key: &str, value: &str) -> Result<()> {
     db.execute(
-        "INSERT INTO klice (klic, hodnota) VALUES (?1, ?2)
-         ON CONFLICT(klic) DO UPDATE SET hodnota = excluded.hodnota",
+        "INSERT INTO settings (key, value) VALUES (?1, ?2)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value",
         params![key, value],
     )?;
     Ok(())
@@ -1012,10 +1178,10 @@ pub fn recording(db: &Connection, id: &str) -> Result<Recording> {
 
 pub fn delete_recording(db: &Connection, id: &str) -> Result<()> {
     db.execute(
-        "DELETE FROM segmenty_fts WHERE nahravka_id = ?1",
+        "DELETE FROM segments_fts WHERE recording_id = ?1",
         params![id],
     )?;
-    db.execute("DELETE FROM nahravky WHERE id = ?1", params![id])?;
+    db.execute("DELETE FROM recordings WHERE id = ?1", params![id])?;
     Ok(())
 }
 
@@ -1023,11 +1189,11 @@ pub fn delete_recording(db: &Connection, id: &str) -> Result<()> {
 
 pub fn folders(db: &Connection) -> Result<Vec<Folder>> {
     let mut statement = db.prepare(
-        "SELECT s.id, s.nazev, s.vytvoreno,
-                (SELECT COUNT(*) FROM nahravky n WHERE n.slozka = s.id),
-                (SELECT COALESCE(SUM(n.delka), 0) FROM nahravky n WHERE n.slozka = s.id)
-         FROM slozky s
-         ORDER BY s.nazev COLLATE NOCASE",
+        "SELECT s.id, s.name, s.created_at,
+                (SELECT COUNT(*) FROM recordings n WHERE n.folder_id = s.id),
+                (SELECT COALESCE(SUM(n.duration), 0) FROM recordings n WHERE n.folder_id = s.id)
+         FROM folders s
+         ORDER BY s.name COLLATE NOCASE",
     )?;
     let rows = statement.query_map([], |row| {
         Ok(Folder {
@@ -1045,7 +1211,7 @@ pub fn create_folder(db: &Connection, name: &str) -> Result<Folder> {
     let id = uuid::Uuid::new_v4().to_string();
     let created = chrono::Local::now().to_rfc3339();
     db.execute(
-        "INSERT INTO slozky (id, nazev, vytvoreno) VALUES (?1, ?2, ?3)",
+        "INSERT INTO folders (id, name, created_at) VALUES (?1, ?2, ?3)",
         params![id, name, created],
     )?;
     Ok(Folder {
@@ -1059,7 +1225,7 @@ pub fn create_folder(db: &Connection, name: &str) -> Result<Folder> {
 
 pub fn rename_folder(db: &Connection, id: &str, name: &str) -> Result<()> {
     db.execute(
-        "UPDATE slozky SET nazev = ?2 WHERE id = ?1",
+        "UPDATE folders SET name = ?2 WHERE id = ?1",
         params![id, name],
     )?;
     Ok(())
@@ -1072,7 +1238,7 @@ pub fn move_to_folder(db: &Connection, ids: &[String], folder: Option<&str>) -> 
     let tx = transaction_unless_in_one(db)?;
     for id in ids {
         db.execute(
-            "UPDATE nahravky SET slozka = ?2 WHERE id = ?1",
+            "UPDATE recordings SET folder_id = ?2 WHERE id = ?1",
             params![id, folder],
         )?;
     }
@@ -1080,7 +1246,7 @@ pub fn move_to_folder(db: &Connection, ids: &[String], folder: Option<&str>) -> 
 }
 
 pub fn folder_recording_ids(db: &Connection, folder: &str) -> Result<Vec<String>> {
-    let mut statement = db.prepare("SELECT id FROM nahravky WHERE slozka = ?1")?;
+    let mut statement = db.prepare("SELECT id FROM recordings WHERE folder_id = ?1")?;
     let rows = statement.query_map(params![folder], |row| row.get(0))?;
     // Every id matters: the caller deletes exactly this list and then the
     // folder itself, so a dropped row is a recording orphaned in a folder
@@ -1098,10 +1264,10 @@ pub fn delete_folder(db: &Connection, id: &str) -> Result<()> {
     // gone but its recordings still point at it is unreachable from the UI.
     let tx = transaction_unless_in_one(db)?;
     db.execute(
-        "UPDATE nahravky SET slozka = NULL WHERE slozka = ?1",
+        "UPDATE recordings SET folder_id = NULL WHERE folder_id = ?1",
         params![id],
     )?;
-    db.execute("DELETE FROM slozky WHERE id = ?1", params![id])?;
+    db.execute("DELETE FROM folders WHERE id = ?1", params![id])?;
     commit(tx)
 }
 
@@ -1112,9 +1278,9 @@ pub fn recording_notes(db: &Connection, recording_id: &str) -> Result<Vec<Record
     // written; the ones tied to a moment follow it. Mixing them by time would
     // bury a general remark somewhere in the middle of the recording.
     let mut statement = db.prepare(
-        "SELECT id, nahravka_id, cas, text, hotovo, vytvoreno, pinned
-         FROM poznamky WHERE nahravka_id = ?1
-         ORDER BY pinned, CASE WHEN pinned = 1 THEN cas END, vytvoreno",
+        "SELECT id, recording_id, time, text, done, created_at, pinned
+         FROM notes WHERE recording_id = ?1
+         ORDER BY pinned, CASE WHEN pinned = 1 THEN time END, created_at",
     )?;
     let rows = statement.query_map(params![recording_id], |row| {
         let pinned = row.get::<_, i64>(6)? != 0;
@@ -1132,7 +1298,7 @@ pub fn recording_notes(db: &Connection, recording_id: &str) -> Result<Vec<Record
 
 pub fn insert_recording_note(db: &Connection, note: &RecordingNote) -> Result<()> {
     db.execute(
-        "INSERT INTO poznamky (id, nahravka_id, cas, text, hotovo, vytvoreno, pinned)
+        "INSERT INTO notes (id, recording_id, time, text, done, created_at, pinned)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
         params![
             note.id,
@@ -1155,7 +1321,7 @@ pub fn update_recording_note(
     done: bool,
 ) -> Result<()> {
     db.execute(
-        "UPDATE poznamky SET cas = ?1, text = ?2, hotovo = ?3, pinned = ?4 WHERE id = ?5",
+        "UPDATE notes SET time = ?1, text = ?2, done = ?3, pinned = ?4 WHERE id = ?5",
         params![
             time.unwrap_or(0.0),
             text,
@@ -1168,7 +1334,7 @@ pub fn update_recording_note(
 }
 
 pub fn delete_recording_note(db: &Connection, id: &str) -> Result<()> {
-    db.execute("DELETE FROM poznamky WHERE id = ?1", params![id])?;
+    db.execute("DELETE FROM notes WHERE id = ?1", params![id])?;
     Ok(())
 }
 
@@ -1176,11 +1342,11 @@ pub fn delete_recording_note(db: &Connection, id: &str) -> Result<()> {
 
 pub fn delete_segments(db: &Connection, recording_id: &str) -> Result<()> {
     db.execute(
-        "DELETE FROM segmenty WHERE nahravka_id = ?1",
+        "DELETE FROM segments WHERE recording_id = ?1",
         params![recording_id],
     )?;
     db.execute(
-        "DELETE FROM segmenty_fts WHERE nahravka_id = ?1",
+        "DELETE FROM segments_fts WHERE recording_id = ?1",
         params![recording_id],
     )?;
     Ok(())
@@ -1195,13 +1361,13 @@ pub fn insert_segment(db: &Connection, s: &Segment) -> Result<()> {
     // shows only the segments whose original is known. The pencil marks
     // survived, so it read as a rendering fault rather than as deletion.
     db.execute(
-        "INSERT INTO segmenty (id, nahravka_id, poradi, zacatek, konec, text, mluvci, jistota, upraveno, slova, overeno, puvodni)
+        "INSERT INTO segments (id, recording_id, position, start_time, end_time, text, speakers, confidence, edited, words, verified, original)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
         params![s.id, s.recording_id, s.order, s.start, s.end, s.text, s.speakers,
                 s.confidence, s.edited as i64, s.words, s.verified as i64, s.original],
     )?;
     db.execute(
-        "INSERT INTO segmenty_fts (text, segment_id, nahravka_id) VALUES (?1, ?2, ?3)",
+        "INSERT INTO segments_fts (text, segment_id, recording_id) VALUES (?1, ?2, ?3)",
         params![s.text, s.id, s.recording_id],
     )?;
     Ok(())
@@ -1209,8 +1375,8 @@ pub fn insert_segment(db: &Connection, s: &Segment) -> Result<()> {
 
 pub fn segments(db: &Connection, recording_id: &str) -> Result<Vec<Segment>> {
     let mut st = db.prepare(
-        "SELECT id, nahravka_id, poradi, zacatek, konec, text, mluvci, jistota, upraveno, slova, overeno, puvodni
-         FROM segmenty WHERE nahravka_id = ?1 ORDER BY poradi",
+        "SELECT id, recording_id, position, start_time, end_time, text, speakers, confidence, edited, words, verified, original
+         FROM segments WHERE recording_id = ?1 ORDER BY position",
     )?;
     let rows = st.query_map(params![recording_id], |r| {
         Ok(Segment {
@@ -1248,13 +1414,13 @@ pub fn update_segment(db: &Connection, id: &str, text: &str) -> Result<()> {
     // comparison is always against the transcript, not against the previous
     // attempt at fixing it.
     db.execute(
-        "UPDATE segmenty SET puvodni = COALESCE(puvodni, text), text = ?2,
-                upraveno = 1, overeno = 1, slova = NULL
+        "UPDATE segments SET original = COALESCE(original, text), text = ?2,
+                edited = 1, verified = 1, words = NULL
          WHERE id = ?1",
         params![id, text],
     )?;
     db.execute(
-        "UPDATE segmenty_fts SET text = ?2 WHERE segment_id = ?1",
+        "UPDATE segments_fts SET text = ?2 WHERE segment_id = ?1",
         params![id, text],
     )?;
     Ok(())
@@ -1263,11 +1429,11 @@ pub fn update_segment(db: &Connection, id: &str, text: &str) -> Result<()> {
 /// A moved or renamed file. The transcript stays; only the path changes.
 pub fn set_path(db: &Connection, id: &str, path: &str, duration: f64) -> Result<()> {
     db.execute(
-        "UPDATE nahravky SET cesta = ?2, delka = ?3 WHERE id = ?1",
+        "UPDATE recordings SET path = ?2, duration = ?3 WHERE id = ?1",
         params![id, path, duration],
     )?;
     // The waveform belonged to the old file.
-    db.execute("DELETE FROM krivky WHERE nahravka_id = ?1", params![id])?;
+    db.execute("DELETE FROM waveforms WHERE recording_id = ?1", params![id])?;
     Ok(())
 }
 
@@ -1277,9 +1443,9 @@ pub fn set_path(db: &Connection, id: &str, path: &str, duration: f64) -> Result<
 /// recordings compact.
 pub fn waveform(db: &Connection, recording_id: &str) -> Option<WaveformData> {
     db.query_row(
-        "SELECT body, na_sekundu, equalizer,
+        "SELECT points, per_second, equalizer,
                 equalizer_points_per_second, equalizer_band_count
-         FROM krivky WHERE nahravka_id = ?1",
+         FROM waveforms WHERE recording_id = ?1",
         params![recording_id],
         |r| {
             Ok(WaveformData {
@@ -1296,13 +1462,13 @@ pub fn waveform(db: &Connection, recording_id: &str) -> Option<WaveformData> {
 
 pub fn save_waveform(db: &Connection, recording_id: &str, data: &WaveformData) -> Result<()> {
     db.execute(
-        "INSERT INTO krivky (
-            nahravka_id, body, na_sekundu, equalizer,
+        "INSERT INTO waveforms (
+            recording_id, points, per_second, equalizer,
             equalizer_points_per_second, equalizer_band_count
          ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)
-         ON CONFLICT(nahravka_id) DO UPDATE SET
-             body = excluded.body,
-             na_sekundu = excluded.na_sekundu,
+         ON CONFLICT(recording_id) DO UPDATE SET
+             points = excluded.points,
+             per_second = excluded.per_second,
              equalizer = excluded.equalizer,
              equalizer_points_per_second = excluded.equalizer_points_per_second,
              equalizer_band_count = excluded.equalizer_band_count",
@@ -1323,11 +1489,11 @@ pub fn save_waveform(db: &Connection, recording_id: &str, data: &WaveformData) -
 /// must not clear the uncertainty marker.
 pub fn save_segment_text(db: &Connection, id: &str, text: &str, words: Option<&str>) -> Result<()> {
     db.execute(
-        "UPDATE segmenty SET text = ?2, slova = ?3 WHERE id = ?1",
+        "UPDATE segments SET text = ?2, words = ?3 WHERE id = ?1",
         params![id, text, words],
     )?;
     db.execute(
-        "UPDATE segmenty_fts SET text = ?2 WHERE segment_id = ?1",
+        "UPDATE segments_fts SET text = ?2 WHERE segment_id = ?1",
         params![id, text],
     )?;
     Ok(())
@@ -1336,7 +1502,7 @@ pub fn save_segment_text(db: &Connection, id: &str, text: &str, words: Option<&s
 /// Signs off a low-confidence segment as correct.
 pub fn mark_verified(db: &Connection, id: &str, verified: bool) -> Result<()> {
     db.execute(
-        "UPDATE segmenty SET overeno = ?2 WHERE id = ?1",
+        "UPDATE segments SET verified = ?2 WHERE id = ?1",
         params![id, verified as i64],
     )?;
     Ok(())
@@ -1344,7 +1510,7 @@ pub fn mark_verified(db: &Connection, id: &str, verified: bool) -> Result<()> {
 
 pub fn set_segment_speaker(db: &Connection, id: &str, speakers: Option<&str>) -> Result<()> {
     db.execute(
-        "UPDATE segmenty SET mluvci = ?2 WHERE id = ?1",
+        "UPDATE segments SET speakers = ?2 WHERE id = ?1",
         params![id, speakers],
     )?;
     Ok(())
@@ -1359,8 +1525,8 @@ pub const COLORS: [&str; 8] = [
 
 pub fn insert_speaker(db: &Connection, speaker: &Speaker) -> Result<()> {
     db.execute(
-        "INSERT INTO mluvci (klic, nahravka_id, jmeno, barva) VALUES (?1, ?2, ?3, ?4)
-         ON CONFLICT(klic, nahravka_id) DO NOTHING",
+        "INSERT INTO speakers (key, recording_id, name, color) VALUES (?1, ?2, ?3, ?4)
+         ON CONFLICT(key, recording_id) DO NOTHING",
         params![
             speaker.key,
             speaker.recording_id,
@@ -1374,11 +1540,11 @@ pub fn insert_speaker(db: &Connection, speaker: &Speaker) -> Result<()> {
 /// Before re-running diarization, the previous split is discarded.
 pub fn delete_speakers(db: &Connection, recording_id: &str) -> Result<()> {
     db.execute(
-        "DELETE FROM mluvci WHERE nahravka_id = ?1",
+        "DELETE FROM speakers WHERE recording_id = ?1",
         params![recording_id],
     )?;
     db.execute(
-        "UPDATE segmenty SET mluvci = NULL WHERE nahravka_id = ?1",
+        "UPDATE segments SET speakers = NULL WHERE recording_id = ?1",
         params![recording_id],
     )?;
     Ok(())
@@ -1386,7 +1552,7 @@ pub fn delete_speakers(db: &Connection, recording_id: &str) -> Result<()> {
 
 pub fn speakers(db: &Connection, recording_id: &str) -> Result<Vec<Speaker>> {
     let mut st = db.prepare(
-        "SELECT klic, nahravka_id, jmeno, barva FROM mluvci WHERE nahravka_id = ?1 ORDER BY klic",
+        "SELECT key, recording_id, name, color FROM speakers WHERE recording_id = ?1 ORDER BY key",
     )?;
     let rows = st.query_map(params![recording_id], |r| {
         Ok(Speaker {
@@ -1401,7 +1567,7 @@ pub fn speakers(db: &Connection, recording_id: &str) -> Result<Vec<Speaker>> {
 
 pub fn rename_speaker(db: &Connection, recording_id: &str, key: &str, name: &str) -> Result<()> {
     db.execute(
-        "UPDATE mluvci SET jmeno = ?3 WHERE nahravka_id = ?1 AND klic = ?2",
+        "UPDATE speakers SET name = ?3 WHERE recording_id = ?1 AND key = ?2",
         params![recording_id, key, name],
     )?;
     Ok(())
@@ -1422,11 +1588,11 @@ pub fn delete_speaker(db: &Connection, recording_id: &str, key: &str) -> Result<
     // point at them would leave those blocks naming somebody who is gone.
     let tx = transaction_unless_in_one(db)?;
     db.execute(
-        "UPDATE segmenty SET mluvci = NULL WHERE nahravka_id = ?1 AND mluvci = ?2",
+        "UPDATE segments SET speakers = NULL WHERE recording_id = ?1 AND speakers = ?2",
         params![recording_id, key],
     )?;
     db.execute(
-        "DELETE FROM mluvci WHERE nahravka_id = ?1 AND klic = ?2",
+        "DELETE FROM speakers WHERE recording_id = ?1 AND key = ?2",
         params![recording_id, key],
     )?;
     commit(tx)
@@ -1439,11 +1605,11 @@ pub fn merge_speakers(
     to_key: &str,
 ) -> Result<()> {
     db.execute(
-        "UPDATE segmenty SET mluvci = ?3 WHERE nahravka_id = ?1 AND mluvci = ?2",
+        "UPDATE segments SET speakers = ?3 WHERE recording_id = ?1 AND speakers = ?2",
         params![recording_id, from_key, to_key],
     )?;
     db.execute(
-        "DELETE FROM mluvci WHERE nahravka_id = ?1 AND klic = ?2",
+        "DELETE FROM speakers WHERE recording_id = ?1 AND key = ?2",
         params![recording_id, from_key],
     )?;
     Ok(())
@@ -1453,7 +1619,7 @@ pub fn merge_speakers(
 
 pub fn dictionary(db: &Connection) -> Result<Vec<DictionaryEntry>> {
     // `napoveda` is not read any more; see the note on the table above.
-    let mut st = db.prepare("SELECT id, hledat, nahradit FROM slovnik ORDER BY hledat")?;
+    let mut st = db.prepare("SELECT id, search, replacement FROM dictionary ORDER BY search")?;
     let rows = st.query_map([], |r| {
         Ok(DictionaryEntry {
             id: r.get(0)?,
@@ -1466,7 +1632,7 @@ pub fn dictionary(db: &Connection) -> Result<Vec<DictionaryEntry>> {
 
 pub fn add_dictionary_entry(db: &Connection, entry: &DictionaryEntry) -> Result<()> {
     db.execute(
-        "INSERT INTO slovnik (id, hledat, nahradit) VALUES (?1, ?2, ?3)",
+        "INSERT INTO dictionary (id, search, replacement) VALUES (?1, ?2, ?3)",
         params![entry.id, entry.find, entry.replace],
     )?;
     Ok(())
@@ -1479,14 +1645,14 @@ pub fn add_dictionary_entry(db: &Connection, entry: &DictionaryEntry) -> Result<
 /// fixing a typo.
 pub fn update_dictionary_entry(db: &Connection, entry: &DictionaryEntry) -> Result<()> {
     db.execute(
-        "UPDATE slovnik SET hledat = ?2, nahradit = ?3 WHERE id = ?1",
+        "UPDATE dictionary SET search = ?2, replacement = ?3 WHERE id = ?1",
         params![entry.id, entry.find, entry.replace],
     )?;
     Ok(())
 }
 
 pub fn delete_dictionary_entry(db: &Connection, id: &str) -> Result<()> {
-    db.execute("DELETE FROM slovnik WHERE id = ?1", params![id])?;
+    db.execute("DELETE FROM dictionary WHERE id = ?1", params![id])?;
     Ok(())
 }
 
@@ -1502,12 +1668,12 @@ pub fn search(db: &Connection, query: &str) -> Result<Vec<SearchResult>> {
     let safe = format!("\"{}\"*", trimmed_query.replace('"', ""));
 
     let mut st = db.prepare(
-        "SELECT f.nahravka_id, n.nazev, f.segment_id, s.zacatek,
-                snippet(segmenty_fts, 0, '<<', '>>', '…', 12)
-         FROM segmenty_fts f
-         JOIN segmenty s ON s.id = f.segment_id
-         JOIN nahravky n ON n.id = f.nahravka_id
-         WHERE segmenty_fts MATCH ?1
+        "SELECT f.recording_id, n.name, f.segment_id, s.start_time,
+                snippet(segments_fts, 0, '<<', '>>', '…', 12)
+         FROM segments_fts f
+         JOIN segments s ON s.id = f.segment_id
+         JOIN recordings n ON n.id = f.recording_id
+         WHERE segments_fts MATCH ?1
          ORDER BY rank
          LIMIT 100",
     )?;
@@ -1710,7 +1876,7 @@ mod cluster_threshold_migration_tests {
     fn archive() -> Connection {
         let db = Connection::open_in_memory().unwrap();
         db.execute(
-            "CREATE TABLE klice (klic TEXT PRIMARY KEY, hodnota TEXT)",
+            "CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT)",
             [],
         )
         .unwrap();
@@ -1756,10 +1922,10 @@ mod cluster_threshold_migration_tests {
 mod tests {
     use super::{
         ai_outputs, align_word_timestamps, create_folder, delete_folder, delete_recording,
-        delete_recording_note, delete_segments, delete_speaker, folder_recording_ids, folders,
-        insert_recording_note, insert_segment, insert_speaker, load_settings,
-        migrate_legacy_schema, move_to_folder, recording_notes, recover_interrupted,
-        save_ai_document, save_ai_output, segments, speakers, update_recording_note,
+        delete_recording_note, delete_segments, delete_speaker, dictionary, folder_recording_ids,
+        folders, has_table, insert_recording_note, insert_segment, insert_speaker, load_settings,
+        migrate_legacy_schema, move_to_folder, open, recording_notes, recover_interrupted,
+        save_ai_document, save_ai_output, search, segments, speakers, update_recording_note,
         watch_file_imported, watch_file_is_stable, waveform, AiDocument, AiOutput, RecordingNote,
         Segment, Speaker, WaveformData,
     };
@@ -1846,14 +2012,211 @@ mod tests {
         );
     }
 
-    /// Enough of `mluvci` to delete a row from it. The real table has a foreign
-    /// key into `nahravky`, which these tests do not create.
-    const SPEAKER_SCHEMA: &str = "CREATE TABLE mluvci (
-           klic         TEXT NOT NULL,
-           nahravka_id  TEXT NOT NULL,
-           jmeno        TEXT NOT NULL,
-           barva        TEXT NOT NULL,
-           PRIMARY KEY (klic, nahravka_id)
+    // ------------------------------------------ the schema stopped being Czech
+
+    /// A database file of its own, removed when the test ends.
+    ///
+    /// The rest of these tests are happy in memory; this one is not, because
+    /// what it checks is what happens the *second* time a file is opened.
+    /// Written here rather than by taking a dependency for three tests.
+    struct TempDb(std::path::PathBuf);
+
+    impl TempDb {
+        fn new(tag: &str) -> Self {
+            static NEXT: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+            let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            let path = std::env::temp_dir().join(format!("volocal-{tag}-{n}.db"));
+            let _ = std::fs::remove_file(&path);
+            Self(path)
+        }
+    }
+
+    impl Drop for TempDb {
+        fn drop(&mut self) {
+            // WAL leaves two more files beside the one that was asked for.
+            for suffix in ["", "-wal", "-shm"] {
+                let mut name = self.0.clone().into_os_string();
+                name.push(suffix);
+                let _ = std::fs::remove_file(std::path::PathBuf::from(name));
+            }
+        }
+    }
+
+    /// An archive as 1.0.4 wrote it, with one recording, one segment, one
+    /// speaker, one note and one row in the search index.
+    ///
+    /// Written out in full rather than built from the current schema, because
+    /// the point is to be the shape that is on the reader's disk today — a
+    /// fixture derived from the code under test would follow it wherever it
+    /// goes and prove nothing.
+    fn czech_archive(path: &std::path::Path) -> Connection {
+        let db = Connection::open(path).unwrap();
+        db.execute_batch(
+            "PRAGMA foreign_keys = ON;
+             CREATE TABLE slozky (id TEXT PRIMARY KEY, nazev TEXT NOT NULL, vytvoreno TEXT NOT NULL);
+             CREATE TABLE nahravky (
+                 id TEXT PRIMARY KEY, cesta TEXT NOT NULL, nazev TEXT NOT NULL,
+                 delka REAL NOT NULL DEFAULT 0, vytvoreno TEXT NOT NULL,
+                 stav TEXT NOT NULL DEFAULT 'nova', model TEXT NOT NULL DEFAULT '',
+                 chyba TEXT,
+                 slozka TEXT REFERENCES slozky(id) ON DELETE SET NULL);
+             CREATE TABLE segmenty (
+                 id TEXT PRIMARY KEY,
+                 nahravka_id TEXT NOT NULL REFERENCES nahravky(id) ON DELETE CASCADE,
+                 poradi INTEGER NOT NULL, zacatek REAL NOT NULL, konec REAL NOT NULL,
+                 text TEXT NOT NULL, mluvci TEXT, jistota REAL,
+                 upraveno INTEGER NOT NULL DEFAULT 0, slova TEXT,
+                 overeno INTEGER NOT NULL DEFAULT 0, puvodni TEXT);
+             CREATE INDEX idx_segmenty_nahravka ON segmenty(nahravka_id, poradi);
+             CREATE TABLE mluvci (
+                 klic TEXT NOT NULL,
+                 nahravka_id TEXT NOT NULL REFERENCES nahravky(id) ON DELETE CASCADE,
+                 jmeno TEXT NOT NULL, barva TEXT NOT NULL,
+                 PRIMARY KEY (klic, nahravka_id));
+             CREATE TABLE poznamky (
+                 id TEXT PRIMARY KEY,
+                 nahravka_id TEXT NOT NULL REFERENCES nahravky(id) ON DELETE CASCADE,
+                 cas REAL NOT NULL DEFAULT 0, text TEXT NOT NULL,
+                 hotovo INTEGER NOT NULL DEFAULT 0, vytvoreno TEXT NOT NULL,
+                 pinned INTEGER NOT NULL DEFAULT 1);
+             CREATE INDEX idx_poznamky_nahravka ON poznamky(nahravka_id, cas, vytvoreno);
+             CREATE TABLE slovnik (id TEXT PRIMARY KEY, hledat TEXT NOT NULL,
+                 nahradit TEXT NOT NULL, napoveda INTEGER NOT NULL DEFAULT 1);
+             CREATE TABLE krivky (
+                 nahravka_id TEXT PRIMARY KEY REFERENCES nahravky(id) ON DELETE CASCADE,
+                 body BLOB NOT NULL, na_sekundu REAL NOT NULL DEFAULT 12,
+                 equalizer BLOB NOT NULL DEFAULT X'',
+                 equalizer_points_per_second REAL NOT NULL DEFAULT 10,
+                 equalizer_band_count INTEGER NOT NULL DEFAULT 24);
+             CREATE TABLE klice (klic TEXT PRIMARY KEY, hodnota TEXT NOT NULL);
+             CREATE VIRTUAL TABLE segmenty_fts USING fts5(
+                 text, segment_id UNINDEXED, nahravka_id UNINDEXED,
+                 tokenize = 'unicode61 remove_diacritics 2');
+
+             INSERT INTO slozky VALUES ('f1', 'Rozhovory', '2026-08-01');
+             INSERT INTO nahravky VALUES
+                 ('r1', 'C:\\zvuk.mp3', 'Janka', 2704.0, '2026-08-01', 'hotova', 'large-v3', NULL, 'f1');
+             INSERT INTO segmenty VALUES
+                 ('s1', 'r1', 0, 2347.34, 2350.0, 'když nastal ten okamžik', 'speaker_0',
+                  0.91, 0, NULL, 0, NULL);
+             INSERT INTO mluvci VALUES ('speaker_0', 'r1', 'Janka Bílá', '#1f6feb');
+             INSERT INTO poznamky VALUES ('p1', 'r1', 12.5, 'ověřit jméno', 0, '2026-08-02', 1);
+             INSERT INTO slovnik VALUES ('d1', 'volokal', 'Volocal', 1);
+             INSERT INTO klice VALUES ('jazyk-rozpoznavani', 'ano');
+             INSERT INTO segmenty_fts VALUES ('když nastal ten okamžik', 's1', 'r1');",
+        )
+        .unwrap();
+        db
+    }
+
+    /// What is in an archive is what has to come out of it. Every table, and
+    /// the two things a rename is most likely to lose on the way: the foreign
+    /// keys, which SQLite only rewrites when they are switched on, and the
+    /// full-text index, which cannot be renamed at all and is rebuilt instead.
+    #[test]
+    fn an_archive_written_in_czech_opens_with_everything_in_it() {
+        let temp = TempDb::new("archive");
+        let path = temp.0.clone();
+        drop(czech_archive(&path));
+
+        let db = open(&path).unwrap();
+
+        let (name, status, folder_id): (String, String, Option<String>) = db
+            .query_row(
+                "SELECT name, status, folder_id FROM recordings WHERE id = 'r1'",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+            )
+            .unwrap();
+        assert_eq!(name, "Janka");
+        assert_eq!(status, "hotova", "the stored value is not a name and stays");
+        assert_eq!(folder_id.as_deref(), Some("f1"));
+
+        let segment = segments(&db, "r1").unwrap();
+        assert_eq!(segment.len(), 1);
+        assert_eq!(segment[0].text, "když nastal ten okamžik");
+        assert_eq!(segment[0].start, 2347.34);
+        assert_eq!(segment[0].speakers.as_deref(), Some("speaker_0"));
+        assert_eq!(segment[0].confidence, Some(0.91));
+
+        let speaker = speakers(&db, "r1").unwrap();
+        assert_eq!(speaker[0].name, "Janka Bílá");
+        assert_eq!(speaker[0].color, "#1f6feb");
+
+        let note = recording_notes(&db, "r1").unwrap();
+        assert_eq!(note[0].text, "ověřit jméno");
+
+        let entries = dictionary(&db).unwrap();
+        assert_eq!(entries[0].replace, "Volocal");
+
+        // Searching an old transcript still finds it: the index was dropped
+        // with the schema and refilled from the segments.
+        let hits = search(&db, "okamžik").unwrap();
+        assert_eq!(hits.len(), 1, "the search index was rebuilt");
+        assert_eq!(hits[0].recording_id, "r1");
+
+        // The reference survived the rename, which it only does when foreign
+        // keys are on while the table is renamed.
+        db.execute("DELETE FROM recordings WHERE id = 'r1'", [])
+            .unwrap();
+        assert!(
+            segments(&db, "r1").unwrap().is_empty(),
+            "ON DELETE CASCADE still holds"
+        );
+
+        // And the way back exists: a copy of the archive as it was, which an
+        // older build can still read.
+        let copy = path.with_file_name("whisp-before-english.db");
+        assert!(copy.exists(), "a copy was left before the rename");
+        let old = Connection::open(&copy).unwrap();
+        let kept: String = old
+            .query_row("SELECT nazev FROM nahravky WHERE id = 'r1'", [], |r| {
+                r.get(0)
+            })
+            .unwrap();
+        assert_eq!(
+            kept, "Janka",
+            "and it is still the Czech schema, with the data in it"
+        );
+        drop(old);
+        let _ = std::fs::remove_file(&copy);
+    }
+
+    /// Opening it twice must not try to rename anything the second time.
+    #[test]
+    fn the_rename_happens_once_and_the_second_open_is_ordinary() {
+        let temp = TempDb::new("archive");
+        let path = temp.0.clone();
+        drop(czech_archive(&path));
+        drop(open(&path).unwrap());
+
+        let db = open(&path).unwrap();
+        assert_eq!(segments(&db, "r1").unwrap().len(), 1);
+        assert!(!has_table(&db, "nahravky").unwrap());
+        let indexed: i64 = db
+            .query_row("SELECT count(*) FROM segments_fts", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(indexed, 1, "and the index is not filled a second time");
+    }
+
+    /// A fresh archive has nothing to rename and must not be slowed or touched.
+    #[test]
+    fn a_new_archive_is_created_in_english_with_no_rename() {
+        let temp = TempDb::new("archive");
+        let path = temp.0.clone();
+        let db = open(&path).unwrap();
+        assert!(has_table(&db, "recordings").unwrap());
+        assert!(!has_table(&db, "nahravky").unwrap());
+    }
+
+    /// Enough of `speakers` to delete a row from it. The real table has a foreign
+    /// key into `recordings`, which these tests do not create.
+    const SPEAKER_SCHEMA: &str = "CREATE TABLE speakers (
+           key         TEXT NOT NULL,
+           recording_id  TEXT NOT NULL,
+           name        TEXT NOT NULL,
+           color        TEXT NOT NULL,
+           PRIMARY KEY (key, recording_id)
          );";
 
     /// Removing a speaker takes the name off their passages and touches nothing
@@ -1933,31 +2296,31 @@ mod tests {
     /// The two columns `segments()` selects beyond the obvious ones. Kept
     /// beside the tests rather than reaching for the real `open()`, which
     /// would bring the whole schema and eleven migrations with it.
-    const SEGMENT_SCHEMA: &str = "CREATE TABLE segmenty (
+    const SEGMENT_SCHEMA: &str = "CREATE TABLE segments (
            id           TEXT PRIMARY KEY,
-           nahravka_id  TEXT NOT NULL,
-           poradi       INTEGER NOT NULL,
-           zacatek      REAL NOT NULL,
-           konec        REAL NOT NULL,
+           recording_id  TEXT NOT NULL,
+           position       INTEGER NOT NULL,
+           start_time      REAL NOT NULL,
+           end_time        REAL NOT NULL,
            text         TEXT NOT NULL,
-           mluvci       TEXT,
-           jistota      REAL,
-           upraveno     INTEGER NOT NULL DEFAULT 0,
-           slova        TEXT,
-           overeno      INTEGER NOT NULL DEFAULT 0,
-           puvodni      TEXT
+           speakers       TEXT,
+           confidence      REAL,
+           edited     INTEGER NOT NULL DEFAULT 0,
+           words        TEXT,
+           verified      INTEGER NOT NULL DEFAULT 0,
+           original      TEXT
          );
-         CREATE VIRTUAL TABLE segmenty_fts USING fts5(
-           text, segment_id UNINDEXED, nahravka_id UNINDEXED
+         CREATE VIRTUAL TABLE segments_fts USING fts5(
+           text, segment_id UNINDEXED, recording_id UNINDEXED
          );";
 
     // ------------------------------------------------ the archive tells the truth
 
     /// Enough of `nahravky` for the two statements `recover_interrupted` runs.
-    const RECORDING_SCHEMA: &str = "CREATE TABLE nahravky (
+    const RECORDING_SCHEMA: &str = "CREATE TABLE recordings (
            id    TEXT PRIMARY KEY,
-           stav  TEXT NOT NULL,
-           chyba TEXT
+           status  TEXT NOT NULL,
+           error TEXT
          );";
 
     fn interrupted_archive() -> Connection {
@@ -1969,7 +2332,7 @@ mod tests {
 
     fn status_of(db: &Connection, id: &str) -> String {
         db.query_row(
-            "SELECT stav FROM nahravky WHERE id = ?1",
+            "SELECT status FROM recordings WHERE id = ?1",
             params![id],
             |r| r.get(0),
         )
@@ -1983,7 +2346,7 @@ mod tests {
         // and the status. The segments are there, so the work is done.
         let db = interrupted_archive();
         db.execute(
-            "INSERT INTO nahravky (id, stav) VALUES ('done', 'prepisuje')",
+            "INSERT INTO recordings (id, status) VALUES ('done', 'prepisuje')",
             [],
         )
         .unwrap();
@@ -1995,7 +2358,7 @@ mod tests {
 
         assert_eq!(status_of(&db, "done"), "hotova");
         let error: Option<String> = db
-            .query_row("SELECT chyba FROM nahravky WHERE id = 'done'", [], |r| {
+            .query_row("SELECT error FROM recordings WHERE id = 'done'", [], |r| {
                 r.get(0)
             })
             .unwrap();
@@ -2006,7 +2369,7 @@ mod tests {
     fn a_run_that_never_wrote_anything_is_still_a_failure() {
         let db = interrupted_archive();
         db.execute(
-            "INSERT INTO nahravky (id, stav) VALUES ('empty', 'prepisuje')",
+            "INSERT INTO recordings (id, status) VALUES ('empty', 'prepisuje')",
             [],
         )
         .unwrap();
@@ -2028,7 +2391,7 @@ mod tests {
         let good = segment(0.0, 1.0, "[]");
         insert_segment(&db, &good).unwrap();
         db.execute(
-            "INSERT INTO segmenty (id, nahravka_id, poradi, zacatek, konec, text, upraveno, overeno)
+            "INSERT INTO segments (id, recording_id, position, start_time, end_time, text, edited, verified)
              VALUES ('broken', 'nahravka', 'not a number', 1.0, 2.0, 'text', 0, 0)",
             [],
         )
@@ -2043,10 +2406,10 @@ mod tests {
     #[test]
     fn unreadable_settings_are_kept_rather_than_overwritten() {
         let db = Connection::open_in_memory().unwrap();
-        db.execute_batch("CREATE TABLE klice (klic TEXT PRIMARY KEY, hodnota TEXT);")
+        db.execute_batch("CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT);")
             .unwrap();
         db.execute(
-            "INSERT INTO klice (klic, hodnota) VALUES ('nastaveni', ?1)",
+            "INSERT INTO settings (key, value) VALUES ('nastaveni', ?1)",
             params!["{ this is not json"],
         )
         .unwrap();
@@ -2058,7 +2421,7 @@ mod tests {
         // ...but the text the person's choices were in survives.
         let kept: String = db
             .query_row(
-                "SELECT hodnota FROM klice WHERE klic = 'nastaveni-poskozeno'",
+                "SELECT value FROM settings WHERE key = 'nastaveni-poskozeno'",
                 [],
                 |r| r.get(0),
             )
@@ -2137,17 +2500,17 @@ mod tests {
         let db = Connection::open_in_memory().unwrap();
         db.execute_batch(
             "PRAGMA foreign_keys = ON;
-             CREATE TABLE nahravky (id TEXT PRIMARY KEY);
-             CREATE TABLE poznamky (
+             CREATE TABLE recordings (id TEXT PRIMARY KEY);
+             CREATE TABLE notes (
                id TEXT PRIMARY KEY,
-               nahravka_id TEXT NOT NULL REFERENCES nahravky(id) ON DELETE CASCADE,
-               cas REAL NOT NULL DEFAULT 0,
+               recording_id TEXT NOT NULL REFERENCES recordings(id) ON DELETE CASCADE,
+               time REAL NOT NULL DEFAULT 0,
                text TEXT NOT NULL,
-               hotovo INTEGER NOT NULL DEFAULT 0,
-               vytvoreno TEXT NOT NULL,
+               done INTEGER NOT NULL DEFAULT 0,
+               created_at TEXT NOT NULL,
                pinned INTEGER NOT NULL DEFAULT 1
              );
-             INSERT INTO nahravky (id) VALUES ('recording');",
+             INSERT INTO recordings (id) VALUES ('recording');",
         )
         .unwrap();
 
@@ -2181,17 +2544,17 @@ mod tests {
     fn notes_without_a_position_are_listed_first() {
         let db = Connection::open_in_memory().unwrap();
         db.execute_batch(
-            "CREATE TABLE nahravky (id TEXT PRIMARY KEY);
-             CREATE TABLE poznamky (
+            "CREATE TABLE recordings (id TEXT PRIMARY KEY);
+             CREATE TABLE notes (
                id TEXT PRIMARY KEY,
-               nahravka_id TEXT NOT NULL,
-               cas REAL NOT NULL DEFAULT 0,
+               recording_id TEXT NOT NULL,
+               time REAL NOT NULL DEFAULT 0,
                text TEXT NOT NULL,
-               hotovo INTEGER NOT NULL DEFAULT 0,
-               vytvoreno TEXT NOT NULL,
+               done INTEGER NOT NULL DEFAULT 0,
+               created_at TEXT NOT NULL,
                pinned INTEGER NOT NULL DEFAULT 1
              );
-             INSERT INTO nahravky (id) VALUES ('recording');",
+             INSERT INTO recordings (id) VALUES ('recording');",
         )
         .unwrap();
 
@@ -2225,16 +2588,16 @@ mod tests {
     fn migrates_waveform_density_in_legacy_database() {
         let db = Connection::open_in_memory().unwrap();
         db.execute_batch(
-            "CREATE TABLE krivky (
-                nahravka_id TEXT PRIMARY KEY,
-                body TEXT NOT NULL
+            "CREATE TABLE waveforms (
+                recording_id TEXT PRIMARY KEY,
+                points TEXT NOT NULL
             );",
         )
         .unwrap();
 
         migrate_legacy_schema(&db);
         db.execute(
-            "INSERT INTO krivky (nahravka_id, body) VALUES (?1, ?2)",
+            "INSERT INTO waveforms (recording_id, points) VALUES (?1, ?2)",
             params!["recording", vec![10_u8, 20_u8, 30_u8]],
         )
         .unwrap();
@@ -2256,9 +2619,9 @@ mod tests {
         let db = Connection::open_in_memory().unwrap();
         db.execute_batch(
             "PRAGMA foreign_keys = ON;
-             CREATE TABLE nahravky (id TEXT PRIMARY KEY);
+             CREATE TABLE recordings (id TEXT PRIMARY KEY);
              CREATE TABLE ai_documents (
-               recording_id TEXT PRIMARY KEY REFERENCES nahravky(id) ON DELETE CASCADE,
+               recording_id TEXT PRIMARY KEY REFERENCES recordings(id) ON DELETE CASCADE,
                source_hash TEXT NOT NULL, model TEXT NOT NULL, mode TEXT NOT NULL,
                text TEXT NOT NULL, updated_at TEXT NOT NULL
              );
@@ -2268,7 +2631,7 @@ mod tests {
                model TEXT NOT NULL, text TEXT NOT NULL, updated_at TEXT NOT NULL,
                PRIMARY KEY (recording_id, kind, variant)
              );
-             INSERT INTO nahravky (id) VALUES ('recording');",
+             INSERT INTO recordings (id) VALUES ('recording');",
         )
         .unwrap();
         let mut document = AiDocument {
@@ -2305,14 +2668,14 @@ mod tests {
     fn archive_with_folders() -> Connection {
         let db = Connection::open_in_memory().unwrap();
         db.execute_batch(
-            "CREATE TABLE slozky (
-                 id TEXT PRIMARY KEY, nazev TEXT NOT NULL, vytvoreno TEXT NOT NULL);
-             CREATE TABLE nahravky (
-                 id TEXT PRIMARY KEY, cesta TEXT NOT NULL, nazev TEXT NOT NULL,
-                 delka REAL NOT NULL DEFAULT 0, vytvoreno TEXT NOT NULL,
-                 stav TEXT NOT NULL DEFAULT 'nova', model TEXT NOT NULL DEFAULT '',
-                 chyba TEXT, slozka TEXT REFERENCES slozky(id) ON DELETE SET NULL);
-             CREATE TABLE segmenty_fts (nahravka_id TEXT);",
+            "CREATE TABLE folders (
+                 id TEXT PRIMARY KEY, name TEXT NOT NULL, created_at TEXT NOT NULL);
+             CREATE TABLE recordings (
+                 id TEXT PRIMARY KEY, path TEXT NOT NULL, name TEXT NOT NULL,
+                 duration REAL NOT NULL DEFAULT 0, created_at TEXT NOT NULL,
+                 status TEXT NOT NULL DEFAULT 'nova', model TEXT NOT NULL DEFAULT '',
+                 error TEXT, folder_id TEXT REFERENCES folders(id) ON DELETE SET NULL);
+             CREATE TABLE segments_fts (recording_id TEXT);",
         )
         .unwrap();
         db
@@ -2320,7 +2683,7 @@ mod tests {
 
     fn recording_in(db: &Connection, id: &str, seconds: f64, folder: Option<&str>) {
         db.execute(
-            "INSERT INTO nahravky (id, cesta, nazev, delka, vytvoreno, slozka)
+            "INSERT INTO recordings (id, path, name, duration, created_at, folder_id)
              VALUES (?1, ?1, ?1, ?2, '2026-08-05 10:00:00', ?3)",
             params![id, seconds, folder],
         )
@@ -2352,9 +2715,11 @@ mod tests {
         assert!(folders(&db).unwrap().is_empty());
         // The recording is still there, and no longer points at anything.
         let held: Option<String> = db
-            .query_row("SELECT slozka FROM nahravky WHERE id = 'a'", [], |row| {
-                row.get(0)
-            })
+            .query_row(
+                "SELECT folder_id FROM recordings WHERE id = 'a'",
+                [],
+                |row| row.get(0),
+            )
             .unwrap();
         assert_eq!(held, None);
     }
@@ -2399,7 +2764,7 @@ mod tests {
 
             assert!(folders(&db).unwrap().is_empty());
             let left: i64 = db
-                .query_row("SELECT COUNT(*) FROM nahravky", [], |row| row.get(0))
+                .query_row("SELECT COUNT(*) FROM recordings", [], |row| row.get(0))
                 .unwrap();
             assert_eq!(left, 0);
         }
@@ -2438,16 +2803,16 @@ mod tests {
         let db = Connection::open_in_memory().unwrap();
         // The shape before folders existed: no `slozka` anywhere.
         db.execute_batch(
-            "CREATE TABLE nahravky (
-                 id TEXT PRIMARY KEY, cesta TEXT NOT NULL, nazev TEXT NOT NULL,
-                 delka REAL NOT NULL DEFAULT 0, vytvoreno TEXT NOT NULL);",
+            "CREATE TABLE recordings (
+                 id TEXT PRIMARY KEY, path TEXT NOT NULL, name TEXT NOT NULL,
+                 duration REAL NOT NULL DEFAULT 0, created_at TEXT NOT NULL);",
         )
         .unwrap();
 
         migrate_legacy_schema(&db);
 
         db.execute(
-            "INSERT INTO nahravky (id, cesta, nazev, vytvoreno, slozka)
+            "INSERT INTO recordings (id, path, name, created_at, folder_id)
              VALUES ('a', 'a', 'a', '2026-08-05', NULL)",
             [],
         )

@@ -817,20 +817,20 @@ mod sentence_block_tests {
         let mut connection = rusqlite::Connection::open_in_memory().unwrap();
         connection
             .execute_batch(
-                "CREATE TABLE nahravky (
-                    id TEXT PRIMARY KEY, stav TEXT NOT NULL, vytvoreno TEXT NOT NULL
+                "CREATE TABLE recordings (
+                    id TEXT PRIMARY KEY, status TEXT NOT NULL, created_at TEXT NOT NULL
                  );
-                 CREATE TABLE segmenty (
-                    id TEXT PRIMARY KEY, nahravka_id TEXT NOT NULL, poradi INTEGER NOT NULL,
-                    zacatek REAL NOT NULL, konec REAL NOT NULL, text TEXT NOT NULL,
-                    mluvci TEXT, jistota REAL, upraveno INTEGER NOT NULL DEFAULT 0,
-                    slova TEXT, overeno INTEGER NOT NULL DEFAULT 0, puvodni TEXT
+                 CREATE TABLE segments (
+                    id TEXT PRIMARY KEY, recording_id TEXT NOT NULL, position INTEGER NOT NULL,
+                    start_time REAL NOT NULL, end_time REAL NOT NULL, text TEXT NOT NULL,
+                    speakers TEXT, confidence REAL, edited INTEGER NOT NULL DEFAULT 0,
+                    words TEXT, verified INTEGER NOT NULL DEFAULT 0, original TEXT
                  );
-                 CREATE VIRTUAL TABLE segmenty_fts USING fts5(
-                    text, segment_id UNINDEXED, nahravka_id UNINDEXED
+                 CREATE VIRTUAL TABLE segments_fts USING fts5(
+                    text, segment_id UNINDEXED, recording_id UNINDEXED
                  );
-                 CREATE TABLE klice (klic TEXT PRIMARY KEY, hodnota TEXT NOT NULL);
-                 INSERT INTO nahravky (id, stav, vytvoreno)
+                 CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+                 INSERT INTO recordings (id, status, created_at)
                  VALUES ('recording', 'hotova', '2026-08-02 00:00:00');",
             )
             .unwrap();
