@@ -134,9 +134,15 @@ const Icons = {
   folder: LINE_ICONS.folder,
   /* The same drawer with a plus in it, and with an arrow lifting out of it.
      A submenu of folder names needs its two actions to read as actions
-     without leaving the folder's own shape behind. */
-  folderNew: `${LINE_ICONS.folder} M12 11.5v5 M9.5 14h5`,
-  folderOut: `${LINE_ICONS.folder} M12 16.5v-5 M9.5 14l2.5-2.5 2.5 2.5`,
+     without leaving the folder's own shape behind.
+
+     Both marks are centred on 13.25, not 14: the drawer's inside runs from the
+     tab line at 7.5 to the bottom edge at 19, and the old 14 left 6.5 above and
+     5 below — the plus visibly sat on the floor. The two are moved together
+     because they appear one under the other in the same submenu, where a
+     three-quarter difference in height reads as a mistake. */
+  folderNew: `${LINE_ICONS.folder} M12 10.75v5 M9.5 13.25h5`,
+  folderOut: `${LINE_ICONS.folder} M12 15.75v-5 M9.5 13.25l2.5-2.5 2.5 2.5`,
   /* A note over a tray: the audio itself, saved out of the archive. */
   exportAudio:
     "M8.5 17.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z M11 15V5l7 2v8 M18 15a2.5 2.5 0 1 1-5 0 M4 20h16",
