@@ -693,22 +693,58 @@ function check(strict = false) {
     for (const key of unused) console.log(`  ${key}`);
   }
 
-  // Two keys with the same text are usually one key that got copied. Harmless
-  // in Czech, but the translator pays for each one twice and they can drift.
+  // Two keys with the same Czech text are usually one key that got copied.
+  //
+  // Listing all of them was worse than not checking. Seventy-nine came up every
+  // single run — Czech plural forms that are identical on purpose, one question
+  // asked from two screens, and words that merely met by accident, all in one
+  // heap. A warning that is always there is not a warning, and it made the real
+  // one invisible.
+  //
+  // The real one is drift: the same Czech sentence translated two different
+  // ways, or translated in one place and forgotten in the other. That is a
+  // defect a reader can see — the same button worded differently depending on
+  // where they opened it — and it cannot happen without somebody having edited
+  // one and not the other.
   const byValue = new Map();
   for (const [key, value] of Object.entries(source.entries)) {
     if (value.length < 4) continue;
     byValue.set(value, [...(byValue.get(value) ?? []), key]);
   }
-  const duplicates = [...byValue.entries()].filter(([, list]) => list.length > 1);
-  if (duplicates.length) {
-    warnings.push(`${duplicates.length} textů pod více klíči`);
-    console.log(`\nStejný text pod více klíči (${duplicates.length}):`);
-    for (const [value, list] of duplicates) {
-      console.log(`  "${value.slice(0, 48)}${value.length > 48 ? "…" : ""}"`);
-      console.log(`      ${list.join(", ")}`);
+  const shared = [...byValue.entries()].filter(([, list]) => list.length > 1);
+  const drifted = [];
+  for (const language of languages()) {
+    const target = load(language);
+    for (const [value, list] of shared) {
+      // A plural form is one key in several shapes and shares its wording on
+      // purpose; the target language chooses between them, not us.
+      if (list.every((key) => pluralBase(key)) && new Set(list.map(pluralBase)).size === 1) {
+        continue;
+      }
+      const answers = new Map();
+      for (const key of list) {
+        answers.set(target.entries[key] ?? null, [
+          ...(answers.get(target.entries[key] ?? null) ?? []),
+          key,
+        ]);
+      }
+      if (answers.size > 1) drifted.push({ language, value, answers });
     }
   }
+  if (drifted.length) {
+    warnings.push(`${drifted.length} textů přeložených nejednotně`);
+    console.log(`\nJeden český text, víc překladů (${drifted.length}):`);
+    for (const { language, value, answers } of drifted) {
+      console.log(`  ${language}  "${value.slice(0, 48)}${value.length > 48 ? "…" : ""}"`);
+      for (const [answer, keys] of answers) {
+        console.log(`      ${answer === null ? "— nepřeloženo —" : `"${answer}"`}`);
+        console.log(`          ${keys.join(", ")}`);
+      }
+    }
+  }
+  // Said as a number, not a list: it is worth knowing how much text is shared,
+  // and worth nothing to read the same eighty lines every time.
+  console.log(`\n${shared.length} českých textů leží pod víc klíči (bez rozporu v překladu)`);
 
   for (const language of languages()) {
     const target = load(language);
