@@ -97,7 +97,7 @@ function AudioBackdrop({
           color = styles.color;
           // The accent lives in a custom property, so it survives a change of
           // theme without anything here knowing about it.
-          playedColor = styles.getPropertyValue("--akcent").trim() || color;
+          playedColor = styles.getPropertyValue("--accent").trim() || color;
           colorReadAt = now;
         }
         const barCount = Math.max(

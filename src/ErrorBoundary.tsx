@@ -44,18 +44,18 @@ function CrashScreen({ crash }: { crash: Crash }) {
         alignItems: "center",
         justifyContent: "center",
         padding: "40px 26px",
-        background: "var(--pozadi)",
+        background: "var(--ground)",
         color: "var(--text)",
-        font: "14px/1.55 var(--pismo)",
+        font: "14px/1.55 var(--font)",
       }}
     >
       <div style={{ width: "100%", maxWidth: 560 }}>
         <h1 style={{ margin: 0, fontSize: 19, fontWeight: 700, letterSpacing: "-0.01em" }}>
           {t("app.crash.title")}
         </h1>
-        <p style={{ margin: "4px 0 0", color: "var(--text-tichy)" }}>{t("app.crash.text")}</p>
+        <p style={{ margin: "4px 0 0", color: "var(--text-quiet)" }}>{t("app.crash.text")}</p>
 
-        <p style={{ margin: "18px 0 8px", fontSize: 13, color: "var(--text-tichy)" }}>
+        <p style={{ margin: "18px 0 8px", fontSize: 13, color: "var(--text-quiet)" }}>
           {t("app.crash.detailLabel")}
         </p>
         {/* Selectable on purpose: this text is the whole point of the screen,
@@ -70,10 +70,10 @@ function CrashScreen({ crash }: { crash: Crash }) {
             wordBreak: "break-word",
             userSelect: "text",
             background: "var(--panel)",
-            border: "1px solid var(--linka)",
-            borderRadius: "var(--r-karta)",
+            border: "1px solid var(--line)",
+            borderRadius: "var(--r-card)",
             font: "12px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace",
-            color: "var(--text-tichy)",
+            color: "var(--text-quiet)",
           }}
         >
           {report}

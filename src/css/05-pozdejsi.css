@@ -33,10 +33,10 @@
   border: 0; background: none;
   /* These rows are menu items, not pills: a list you run down picking one, the
      same gesture as the action menus. So they take the menu item's shape —
-     `--r-karta` and 12 px of side padding, exactly `.nabidka-akci-seznam
+     `--r-card` and 12 px of side padding, exactly `.nabidka-akci-seznam
      button`. A full pill was tried and is wrong: a lozenge reads as one
      standalone control, and these are a column of siblings. */
-  padding: 6px 12px; border-radius: var(--r-karta);
+  padding: 6px 12px; border-radius: var(--r-card);
 }
 /* The surrounding row paints the highlight now; a second one inside it would
    only show up as a rectangle within a rectangle. */
@@ -48,17 +48,17 @@
 .neprirazene .vsuvka.aktivni { background: none; }
 .nejiste-cas,
 .oprava-cas {
-  font-size: 12px; font-weight: 600; color: var(--text-tichy);
+  font-size: 12px; font-weight: 600; color: var(--text-quiet);
   font-variant-numeric: tabular-nums;
 }
 /* Quiet at rest, accent once the row is pointed at or sounding — the mark is
    there to say the row plays, not to compete with the words. */
 .radek-prehrat {
-  display: grid; place-items: center; color: var(--text-tichy);
+  display: grid; place-items: center; color: var(--text-quiet);
   transition: color var(--hover-duration) var(--hover-ease);
 }
 li:hover > button > .radek-prehrat,
-button.aktivni > .radek-prehrat { color: var(--akcent); }
+button.aktivni > .radek-prehrat { color: var(--accent); }
 .nejisty-text {
   font-size: 13px; color: var(--text); line-height: 1.45;
   /* two lines are enough to recognise the spot; the rest is in the editor */
@@ -67,11 +67,11 @@ button.aktivni > .radek-prehrat { color: var(--akcent); }
 }
 .nejista-mista button.aktivni .nejiste-cas,
 .neprirazene .vsuvka.aktivni .nejiste-cas,
-.opravy button.aktivni .oprava-cas { color: var(--akcent); }
+.opravy button.aktivni .oprava-cas { color: var(--accent); }
 /* Being edited, the row keeps the time in the same column; only the text
    becomes a field. The field is the application's own — the same one the
    transcript opens on a double-click, and the same one a note is written in:
-   `--r-maly` corners, a one-pixel border in the accent, the focus ring every
+   `--r-small` corners, a one-pixel border in the accent, the focus ring every
    other field in this interface wears. Nothing here invents a shape. */
 .nejiste-upravy {
   display: grid; grid-template-columns: auto 1fr; align-items: start; gap: 9px;
@@ -82,11 +82,11 @@ button.aktivni > .radek-prehrat { color: var(--akcent); }
 .nejiste-upravy > .nejiste-cas { padding-top: 8px; }
 .nejiste-upravy textarea {
   width: 100%; min-width: 0; padding: 7px 10px;
-  border: 1px solid var(--akcent); border-radius: var(--r-maly);
+  border: 1px solid var(--accent); border-radius: var(--r-small);
   background: var(--panel); color: var(--text);
   font: inherit; font-size: 13px; line-height: 1.45;
   outline: none; resize: none; overflow: hidden;
-  box-shadow: var(--prstenec-pole);
+  box-shadow: var(--ring-field);
 }
 
 /* A correction reads as a small sentence: what was there, an arrow, what is
@@ -99,8 +99,8 @@ button.aktivni > .radek-prehrat { color: var(--akcent); }
   overflow: hidden;
   font-size: 13px; line-height: 1.45;
 }
-.oprava-pred { color: var(--text-tichy); }
-.oprava-sipka { margin: 0 6px; color: var(--text-tichy); }
+.oprava-pred { color: var(--text-quiet); }
+.oprava-sipka { margin: 0 6px; color: var(--text-quiet); }
 .oprava-po { color: var(--text); }
 
 /* ------------------------------------------------------- mini player */
@@ -111,7 +111,7 @@ button.aktivni > .radek-prehrat { color: var(--akcent); }
   height: 36px; padding: 0 2px 0 3px;
   /* Same colour as the app surface, so the pill reads as a cut-out in the
      surface rather than an element stuck on top of it. */
-  background: var(--pozadi); border-radius: var(--r-pilulka);
+  background: var(--ground); border-radius: var(--r-pill);
   width: 290px;
 }
 /* Without :not() this rule would beat `flex` on the title: it comes earlier
@@ -129,10 +129,10 @@ button.aktivni > .radek-prehrat { color: var(--akcent); }
   fill: none; stroke: hsl(var(--ds-foreground) / 0.15); stroke-width: 2;
 }
 .mini-postup {
-  fill: none; stroke: var(--akcent); stroke-width: 2; stroke-linecap: round;
+  fill: none; stroke: var(--accent); stroke-width: 2; stroke-linecap: round;
   transition: stroke-dashoffset 0.1s linear;
 }
-.mini-prehrat:hover { color: var(--akcent); }
+.mini-prehrat:hover { color: var(--accent); }
 
 .mini-popis {
   flex: 1 1 auto; min-width: 0;
@@ -142,14 +142,14 @@ button.aktivni > .radek-prehrat { color: var(--akcent); }
 }
 .mini-cas {
   margin-right: 0;
-  font-size: 11.5px; font-weight: 600; color: var(--text-tichy);
+  font-size: 11.5px; font-weight: 600; color: var(--text-quiet);
   font-variant-numeric: tabular-nums; flex: 0 0 auto;
 }
 /* 30 px, not 32: the compact pill's 83 px width is arithmetic built on two
    30 px buttons, and resizing this one moves a measured layout. */
 .mini-zavrit {
   width: 30px; height: 30px; border-radius: 50%;
-  color: var(--text-tichy);
+  color: var(--text-quiet);
 }
 .mini-zavrit:hover { background: hsl(var(--ds-foreground) / 0.10); color: var(--text); }
 
@@ -211,7 +211,7 @@ button.aktivni > .radek-prehrat { color: var(--akcent); }
   inset: 11px 32px 11px 33px;
   color: hsl(var(--ds-foreground) / 0.32);
 }
-.mini-prehravac.kompaktni > .mini-vlny.hraje { color: var(--akcent); }
+.mini-prehravac.kompaktni > .mini-vlny.hraje { color: var(--accent); }
 @media (prefers-reduced-motion: reduce) {
   .mini-prehravac:not(.mini-rekorder),
   .mini-prehravac:not(.mini-rekorder) > * { transition: none; }
@@ -241,7 +241,7 @@ button.aktivni > .radek-prehrat { color: var(--akcent); }
   display: grid; place-items: center;
   width: 26px; height: 26px; padding: 0;
   border: 0; background: none; cursor: pointer;
-  border-radius: var(--r-karta); color: var(--text-tichy);
+  border-radius: var(--r-card); color: var(--text-quiet);
 }
 /* Inside a highlighted segment grey on blue would be invisible, hence a
    layer derived from the text colour works on both grounds. */
@@ -249,7 +249,7 @@ button.aktivni > .radek-prehrat { color: var(--akcent); }
   background: hsl(var(--ds-foreground) / 0.10);
   color: var(--text);
 }
-.segment-akce button:first-child:hover { color: var(--akcent); }
+.segment-akce button:first-child:hover { color: var(--accent); }
 
 /* The row is the item, so the row is what lights up — the tick belongs to it
    and used to sit outside the highlight, which made a hovered row look cut
@@ -257,21 +257,21 @@ button.aktivni > .radek-prehrat { color: var(--akcent); }
 .nejista-mista li,
 .opravy li {
   display: flex; align-items: center; gap: 2px;
-  border-radius: var(--r-karta);
+  border-radius: var(--r-card);
   transition: background var(--hover-duration) var(--hover-ease);
 }
 .nejista-mista li { padding-right: 4px; }
-/* `--pozadi` — the transcript's own ground, the same faintly blue grey. On a
-   white card it is one step, not the two `--tlumene` takes: that token is a
-   hover on `--pozadi` itself, so used here it lands darker than everything
+/* `--ground` — the transcript's own ground, the same faintly blue grey. On a
+   white card it is one step, not the two `--muted` takes: that token is a
+   hover on `--ground` itself, so used here it lands darker than everything
    around it and reads as a filled cell rather than a row being pointed at.
-   What is sounding keeps the heavier `--tlumene`. */
+   What is sounding keeps the heavier `--muted`. */
 .nejista-mista li:hover,
 .opravy li:hover,
-.neprirazene li:hover { background: var(--pozadi); }
+.neprirazene li:hover { background: var(--ground); }
 .nejista-mista li:has(> button.aktivni),
 .opravy li:has(> button.aktivni),
-.neprirazene li:has(.vsuvka.aktivni) { background: var(--tlumene); }
+.neprirazene li:has(.vsuvka.aktivni) { background: var(--muted); }
 .nejista-mista li > button:first-child,
 .opravy li > button:first-child { flex: 1 1 auto; min-width: 0; }
 .nejista-mista .odklepnout {
@@ -284,15 +284,15 @@ button.aktivni > .radek-prehrat { color: var(--akcent); }
   flex: 0 0 auto; display: grid; place-items: center;
   width: 28px; height: 28px; padding: 0;
   border: 0; background: none; cursor: pointer;
-  border-radius: 50%; color: var(--text-tichy);
+  border-radius: 50%; color: var(--text-quiet);
 }
 /* On its own the tick was a bare glyph, and its hover surface at 10 % white
    was invisible on a row that is already tinted. It takes the accent pair the
    rest of the application uses for a circular icon surface, which also says
    what the click does: mark this spot correct. */
 .nejista-mista .odklepnout:hover {
-  background: var(--akcent-svetly);
-  color: var(--akcent);
+  background: var(--accent-light);
+  color: var(--accent);
 }
 
 /* ------------------------------------------------------- modules in settings */
@@ -301,15 +301,15 @@ button.aktivni > .radek-prehrat { color: var(--akcent); }
 .moduly-mrizka { display: grid; gap: 8px; }
 .modul-dlazdice { display: flex; align-items: center; gap: 13px; }
 .modul-dlazdice.hotovo .volba-ikona {
-  background: hsl(var(--ds-grass) / 0.14); color: var(--uspech-text);
+  background: hsl(var(--ds-grass) / 0.14); color: var(--success-text);
 }
 .modul-dlazdice.chybi .volba-ikona {
-  background: var(--vystraha-svetla); color: var(--vystraha);
+  background: var(--danger-light); color: var(--danger);
 }
 .modul-nazev {
   font-size: 11px; font-weight: 700;
   letter-spacing: 0.09em; text-transform: uppercase;
-  color: var(--text-tichy);
+  color: var(--text-quiet);
 }
 /* The same size and weight as a choice card's name. One point apart is not a
    distinction anyone reads as meaningful — it just looks unresolved. */
@@ -318,7 +318,7 @@ button.aktivni > .radek-prehrat { color: var(--akcent); }
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
-.varovne-radek { color: var(--vystraha); }
+.varovne-radek { color: var(--danger); }
 
 /* --------------------------------------------------- model choice cards */
 .volby-modelu { display: grid; gap: 8px; }
@@ -331,9 +331,9 @@ button.aktivni > .radek-prehrat { color: var(--akcent); }
 .volba-ikona {
   display: grid; place-items: center; flex: 0 0 auto;
   width: 38px; height: 38px; border-radius: 50%;
-  background: var(--tlumene); color: var(--text-tichy);
+  background: var(--muted); color: var(--text-quiet);
 }
-.volba.zvolena .volba-ikona { background: hsl(var(--ds-petrol) / 0.14); color: var(--akcent); }
+.volba.zvolena .volba-ikona { background: hsl(var(--ds-petrol) / 0.14); color: var(--accent); }
 /* The text block is the same in both: two lines, three points apart. */
 .volba-telo, .modul-popis {
   display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1 1 auto;
@@ -364,11 +364,11 @@ button.aktivni > .radek-prehrat { color: var(--akcent); }
 .posuvnik-nahled {
   position: absolute; bottom: calc(50% + 14px); z-index: 30;
   transform: translateX(-50%);
-  padding: 4px 9px; border-radius: var(--r-pilulka);
-  background: hsl(var(--ds-foreground)); color: var(--pozadi);
+  padding: 4px 9px; border-radius: var(--r-pill);
+  background: hsl(var(--ds-foreground)); color: var(--ground);
   font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums;
   white-space: nowrap; pointer-events: none;
-  box-shadow: var(--stin-vysoky);
+  box-shadow: var(--shadow-high);
 }
 /* the tip pointing at the spot on the axis */
 .posuvnik-nahled::after {
@@ -380,16 +380,16 @@ button.aktivni > .radek-prehrat { color: var(--akcent); }
 
 /* the source file has gone from disk */
 .prehravac-chybi { justify-content: space-between; gap: 16px; }
-.prehravac-chybi > span { font-size: 13.5px; color: var(--text-tichy); }
-.mini-cas.varovne { color: var(--vystraha); }
+.prehravac-chybi > span { font-size: 13.5px; color: var(--text-quiet); }
+.mini-cas.varovne { color: var(--danger); }
 
 /* call to action under a settings field */
 .pole-vyzva {
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
   margin-top: 8px; padding: 10px 12px;
-  background: var(--vystraha-svetla); border-radius: var(--r-karta);
+  background: var(--danger-light); border-radius: var(--r-card);
 }
-.pole-vyzva > span { font-size: 13px; color: var(--vystraha); }
+.pole-vyzva > span { font-size: 13px; color: var(--danger); }
 
 /* Nothing may clip the time bubble, hence no `overflow: hidden` here —
    the waveform stays inside because it is absolutely positioned. */
@@ -430,8 +430,8 @@ button.aktivni > .radek-prehrat { color: var(--akcent); }
    rather than two that drift. */
 .zaloha-prehled, .about-panel {
   margin: 0; overflow: hidden;
-  border: 1px solid var(--linka); border-radius: var(--r-karta);
-  background: var(--jemne); font-size: 13px;
+  border: 1px solid var(--line); border-radius: var(--r-card);
+  background: var(--subtle); font-size: 13px;
 }
 .zaloha-radek, .about-radek {
   display: grid; grid-template-columns: auto minmax(0, 1fr);
@@ -439,8 +439,8 @@ button.aktivni > .radek-prehrat { color: var(--akcent); }
   min-height: 40px; padding: 6px 14px;
 }
 .zaloha-radek + .zaloha-radek,
-.about-radek + .about-radek { border-top: 1px solid var(--linka); }
-.zaloha-radek dt, .about-radek dt { color: var(--text-tichy); white-space: nowrap; }
+.about-radek + .about-radek { border-top: 1px solid var(--line); }
+.zaloha-radek dt, .about-radek dt { color: var(--text-quiet); white-space: nowrap; }
 .zaloha-radek dd, .about-radek dd {
   min-width: 0; margin: 0;
   font-weight: 600; text-align: right; font-variant-numeric: tabular-nums;
@@ -457,13 +457,13 @@ button.aktivni > .radek-prehrat { color: var(--akcent); }
 }
 .about-mark {
   display: grid; place-items: center; width: 30px; height: 30px;
-  border-radius: 50%; background: var(--akcent-svetly); color: var(--akcent);
+  border-radius: 50%; background: var(--accent-light); color: var(--accent);
 }
 .about-group + .about-group { margin-top: 22px; }
 .about-group-label {
   margin: 0 0 8px;
   font-size: 11px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.09em; color: var(--text-tichy);
+  letter-spacing: 0.09em; color: var(--text-quiet);
 }
 
 /* ------------------------------------------------------------- folders */
@@ -482,20 +482,20 @@ button.aktivni > .radek-prehrat { color: var(--akcent); }
    notes. The two never share a screen, so one colour can mean "not chrome"
    in both places without a second token. */
 .folder-row {
-  background: var(--listek); border-color: var(--listek-linka);
+  background: var(--note); border-color: var(--note-line);
 }
-.folder-row:hover, .folder-row:focus-within { border-color: var(--listek-linka); background: var(--listek); }
+.folder-row:hover, .folder-row:focus-within { border-color: var(--note-line); background: var(--note); }
 /* A folder block is a transcript block with the drawer where the calendar
    stands: the same height, the same title, the same distance down to what is
    written under it. The mark is a circle rather than a card, so it does not
    fill the slot — the slot's own height is what keeps the two rows equal, and
    the mark is centred in it. Its width matches the calendar's, so the text
    column starts on the same pixel in both. */
-.folder-row .radek-hlavni { min-height: var(--radek-znacka); }
+.folder-row .radek-hlavni { min-height: var(--row-thumb); }
 .folder-mark {
   display: grid; place-items: center; width: 48px; height: 48px;
   flex: 0 0 auto; border-radius: 50%;
-  background: var(--listek-pole); color: var(--text-tichy);
+  background: var(--note-field); color: var(--text-quiet);
 }
 .seznam.compact .folder-mark { width: 38px; height: 38px; }
 .seznam.compact .folder-mark svg { width: 21px; height: 21px; }
@@ -515,7 +515,7 @@ button.aktivni > .radek-prehrat { color: var(--akcent); }
   display: grid; flex: 0 0 auto; place-items: center;
   width: 30px; height: 30px; padding: 0;
   border: 0; border-radius: 50%; cursor: pointer;
-  background: var(--tlumene); color: var(--text-tichy);
+  background: var(--muted); color: var(--text-quiet);
   transition: background var(--hover-duration) var(--hover-ease),
     color var(--hover-duration) var(--hover-ease);
 }
@@ -529,7 +529,7 @@ button.aktivni > .radek-prehrat { color: var(--akcent); }
 }
 .folder-crumb-back-arrow { opacity: 0; }
 .folder-crumb-back:hover,
-.folder-crumb-back:focus-visible { background: var(--akcent-svetly); color: var(--akcent); }
+.folder-crumb-back:focus-visible { background: var(--accent-light); color: var(--accent); }
 .folder-crumb-back:hover .folder-crumb-back-folder,
 .folder-crumb-back:focus-visible .folder-crumb-back-folder { opacity: 0; }
 .folder-crumb-back:hover .folder-crumb-back-arrow,
@@ -547,7 +547,7 @@ button.aktivni > .radek-prehrat { color: var(--akcent); }
 
 /* a recording with no transcript */
 .prehravac-vyzva { justify-content: space-between; gap: 16px; }
-.prehravac-vyzva > span { font-size: 13.5px; color: var(--text-tichy); }
+.prehravac-vyzva > span { font-size: 13.5px; color: var(--text-quiet); }
 
 /* The untranscribed transcript area: what this space is for, and the one
    action that fills it. Same visual language as the summary/translation
@@ -562,19 +562,19 @@ button.aktivni > .radek-prehrat { color: var(--akcent); }
 .prepis-prazdny-znak {
   display: grid; place-items: center; width: 44px; height: 44px;
   margin-bottom: 14px; border-radius: 50%;
-  background: var(--akcent-svetly); color: var(--akcent);
+  background: var(--accent-light); color: var(--accent);
 }
 .prepis-prazdny h2 { margin: 0 0 18px; font-size: 16px; font-weight: 680; }
 
 /* ------------------------------------------------------- save as */
 .ulozit { position: relative; }
 .ulozit > .tlacitko { gap: 7px; }
-.ulozit-sipka { color: var(--text-tichy); margin-left: 2px; }
+.ulozit-sipka { color: var(--text-quiet); margin-left: 2px; }
 .ulozit-seznam {
   position: absolute; top: calc(100% + 6px); right: 0; z-index: 40;
   min-width: 210px; padding: 6px;
-  background: var(--panel); border: 1px solid var(--linka);
-  border-radius: var(--r-velky); box-shadow: var(--stin-vysoky);
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--r-large); box-shadow: var(--shadow-high);
   display: flex; flex-direction: column;
 }
 .document-save-menu.opens-above {
@@ -583,22 +583,22 @@ button.aktivni > .radek-prehrat { color: var(--akcent); }
 .save-menu-group {
   display: block; padding: 9px 12px 5px;
   font-size: 11px; font-weight: 700; letter-spacing: 0.09em;
-  text-transform: uppercase; color: var(--text-tichy);
+  text-transform: uppercase; color: var(--text-quiet);
 }
-.save-menu-group:not(:first-child) { margin-top: 4px; border-top: 1px solid var(--linka); }
+.save-menu-group:not(:first-child) { margin-top: 4px; border-top: 1px solid var(--line); }
 .ulozit-seznam button {
   display: grid; grid-template-columns: 46px 1fr; align-items: baseline;
   gap: 10px; width: 100%; text-align: left; cursor: pointer;
   border: 0; background: none; padding: 8px 12px;
-  border-radius: var(--r-karta);
+  border-radius: var(--r-card);
 }
-.ulozit-seznam button:hover { background: var(--tlumene); }
+.ulozit-seznam button:hover { background: var(--muted); }
 .ulozit-format {
   font-size: 12px; font-weight: 700; letter-spacing: 0.04em;
   color: var(--text);
 }
 .ulozit-popis {
-  font-size: 13px; color: var(--text-tichy);
+  font-size: 13px; color: var(--text-quiet);
   white-space: nowrap;
 }
 
@@ -609,17 +609,17 @@ button.aktivni > .radek-prehrat { color: var(--akcent); }
    folder this is. `bdi` keeps the text itself reading left to right. */
 .zaloha-cesta {
   max-width: 100%; padding: 4px 8px; margin: -4px -8px -4px 0;
-  border: 0; border-radius: var(--r-pilulka); background: transparent;
-  color: var(--text-tichy); cursor: pointer;
-  font-family: var(--pismo-cesty);
+  border: 0; border-radius: var(--r-pill); background: transparent;
+  color: var(--text-quiet); cursor: pointer;
+  font-family: var(--font-path);
   font-size: 12px; font-weight: inherit;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   direction: rtl;
   transition: background var(--hover-duration) var(--hover-ease),
     color var(--hover-duration) var(--hover-ease);
 }
-.zaloha-cesta:hover { background: var(--tlumene); color: var(--text); }
-.zaloha-cesta:focus-visible { outline: none; box-shadow: var(--prstenec); }
+.zaloha-cesta:hover { background: var(--muted); color: var(--text); }
+.zaloha-cesta:focus-visible { outline: none; box-shadow: var(--ring); }
 
 /* Mluvci v sidebaru: ukazka hlasu, jmeno, podil casu.
    Radek je „prehraj – pojmenuj – kolik toho namluvil“, tedy presne ten
@@ -651,7 +651,7 @@ button.aktivni > .radek-prehrat { color: var(--akcent); }
 }
 .mluvci-ukazka:focus-visible {
   outline: none;
-  box-shadow: var(--prstenec);
+  box-shadow: var(--ring);
 }
 .mluvci-podil {
   flex: 0 0 auto;
@@ -659,7 +659,7 @@ button.aktivni > .radek-prehrat { color: var(--akcent); }
   text-align: right;
   font-size: 12px;
   font-variant-numeric: tabular-nums;
-  color: var(--text-tichy);
+  color: var(--text-quiet);
 }
 /* 14, not 8: the system's 8 px is for a note about the one field above it, and
    this one is about the whole list of speakers. */
@@ -695,13 +695,13 @@ button.aktivni > .radek-prehrat { color: var(--akcent); }
 .pole:has(> .dictionary-row) > label { margin-bottom: 14px; }
 .dictionary-row > .tlacitko { justify-self: end; height: 38px; }
 .dictionary-arrow {
-  color: var(--text-tichy); font-size: 15px; text-align: center;
+  color: var(--text-quiet); font-size: 15px; text-align: center;
 }
 .dictionary-row-actions {
   display: flex; align-items: center; justify-content: flex-end;
 }
 .dictionary-saved {
-  margin-top: 24px; padding-top: 22px; border-top: 1px solid var(--linka);
+  margin-top: 24px; padding-top: 22px; border-top: 1px solid var(--line);
 }
 /* Saved rows are edited in place, exactly like speaker names: no box until
    the pointer or the keyboard arrives. The two halves keep the widths of the
@@ -710,13 +710,13 @@ button.aktivni > .radek-prehrat { color: var(--akcent); }
 .dictionary-list li { padding: 3px 0; }
 .dictionary-list input {
   min-width: 0; padding: 6px 11px;
-  border: 1px solid transparent; border-radius: var(--r-pilulka);
+  border: 1px solid transparent; border-radius: var(--r-pill);
   background: transparent; color: var(--text); font: inherit; font-size: 13.5px;
 }
-.dictionary-list input:hover { border-color: var(--linka); }
+.dictionary-list input:hover { border-color: var(--line); }
 .dictionary-list input:focus {
-  border-color: var(--akcent); outline: none;
-  background: var(--pozadi); box-shadow: var(--prstenec-pole);
+  border-color: var(--accent); outline: none;
+  background: var(--ground); box-shadow: var(--ring-field);
 }
 /* Header on the row grid, so a label cannot drift away from its column. The
    12 px on the first two cells is the input's own padding plus its border:
@@ -728,8 +728,8 @@ button.aktivni > .radek-prehrat { color: var(--akcent); }
   display: grid;
   grid-template-columns: minmax(0, 1fr) 14px minmax(0, 1fr) 28px;
   align-items: baseline; gap: 10px;
-  margin: 0 0 9px; padding-bottom: 8px; border-bottom: 1px solid var(--linka);
-  color: var(--text-tichy); font-size: 12px; font-weight: 600;
+  margin: 0 0 9px; padding-bottom: 8px; border-bottom: 1px solid var(--line);
+  color: var(--text-quiet); font-size: 12px; font-weight: 600;
 }
 .dictionary-head > span:first-child,
 .dictionary-head > span:nth-child(3) { padding-left: 12px; }
@@ -739,11 +739,11 @@ button.aktivni > .radek-prehrat { color: var(--akcent); }
 .dictionary-remove {
   display: grid; place-items: center; width: 28px; height: 28px;
   border: 0; border-radius: 50%; background: transparent;
-  color: var(--text-tichy); cursor: pointer;
+  color: var(--text-quiet); cursor: pointer;
   transition: background var(--hover-duration) var(--hover-ease),
     color var(--hover-duration) var(--hover-ease);
 }
-.dictionary-remove:hover { background: var(--vystraha-svetla); color: var(--vystraha); }
+.dictionary-remove:hover { background: var(--danger-light); color: var(--danger); }
 /* Below the window's own 1000 px minimum (tauri.conf.json), so this cannot
    fire today. Kept as a net, like the 900 px rule for the header pills, in
    case the minimum ever drops or the interface is opened in a browser.
@@ -766,9 +766,9 @@ button.aktivni > .radek-prehrat { color: var(--akcent); }
 .bublina {
   position: fixed; left: 0; top: 0; z-index: 200; visibility: hidden;
   max-width: 288px; padding: 7px 11px;
-  border: 1px solid var(--linka); border-radius: var(--r-karta);
+  border: 1px solid var(--line); border-radius: var(--r-card);
   background: var(--panel); color: var(--text);
-  box-shadow: var(--stin-vysoky);
+  box-shadow: var(--shadow-high);
   font-size: 12.5px; font-weight: 500; line-height: 1.4;
   /* A hint about a control must never stand between the pointer and it. */
   pointer-events: none;
@@ -805,7 +805,7 @@ button.aktivni > .radek-prehrat { color: var(--akcent); }
   display: flex; flex-direction: column; gap: 2px;
   /* Matches the 6 px the row button puts above the text, so the highlight sits
      evenly around the pair rather than hugging the chips. */
-  padding-bottom: 6px; border-radius: var(--r-karta);
+  padding-bottom: 6px; border-radius: var(--r-card);
   transition: background var(--hover-duration) var(--hover-ease);
 }
 /* Flush with the time, not indented under the text. Lining them up with the
@@ -813,7 +813,7 @@ button.aktivni > .radek-prehrat { color: var(--akcent); }
    chip, on a row that has two of them and a name of unknown length. */
 .neprirazene-hlasy { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 12px; }
 .hlas-volba {
-  border: 1px solid; border-radius: var(--r-pilulka); background: transparent;
+  border: 1px solid; border-radius: var(--r-pill); background: transparent;
   padding: 2px 9px; font: inherit; font-size: 12px; font-weight: 600;
   cursor: pointer; opacity: 0.85;
   /* A long name gives way rather than pushing its neighbour out of the panel. */
@@ -822,4 +822,4 @@ button.aktivni > .radek-prehrat { color: var(--akcent); }
   transition: background var(--hover-duration) var(--hover-ease),
     opacity var(--hover-duration) var(--hover-ease);
 }
-.hlas-volba:hover { background: var(--tlumene); opacity: 1; }
+.hlas-volba:hover { background: var(--muted); opacity: 1; }

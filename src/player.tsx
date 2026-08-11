@@ -904,7 +904,7 @@ export function Waveform({
         const now = performance.now();
         if (!accent.current.value || now - accent.current.readAt > 500) {
           accent.current = {
-            value: getComputedStyle(c).getPropertyValue("--akcent").trim(),
+            value: getComputedStyle(c).getPropertyValue("--accent").trim(),
             readAt: now,
           };
         }

@@ -26,20 +26,20 @@
   --ds-amber: 32 59% 44%;
   --ds-grass: 101 51% 46%;
 
-  --pozadi: hsl(var(--ds-background));
+  --ground: hsl(var(--ds-background));
   --panel: hsl(var(--ds-card));
   --text: hsl(var(--ds-foreground));
-  --text-tichy: hsl(var(--ds-muted-foreground));
-  --linka: hsl(var(--ds-border));
-  --linka-pole: hsl(var(--ds-input));
-  --tlumene: hsl(var(--ds-accent));
-  --jemne: hsl(var(--ds-foreground) / 0.02);
-  --akcent: hsl(var(--ds-petrol));
-  --akcent-svetly: hsl(var(--ds-petrol) / 0.08);
-  --akcent-linka: hsl(var(--ds-petrol) / 0.25);
-  --vystraha: hsl(var(--ds-destructive));
-  --vystraha-svetla: hsl(var(--ds-destructive) / 0.08);
-  --uspech: hsl(var(--ds-grass));
+  --text-quiet: hsl(var(--ds-muted-foreground));
+  --line: hsl(var(--ds-border));
+  --line-field: hsl(var(--ds-input));
+  --muted: hsl(var(--ds-accent));
+  --subtle: hsl(var(--ds-foreground) / 0.02);
+  --accent: hsl(var(--ds-petrol));
+  --accent-light: hsl(var(--ds-petrol) / 0.08);
+  --accent-line: hsl(var(--ds-petrol) / 0.25);
+  --danger: hsl(var(--ds-destructive));
+  --danger-light: hsl(var(--ds-destructive) / 0.08);
+  --success: hsl(var(--ds-grass));
 
   /* Three colours that carry text, where the brand value is tuned for the
      opposite job — being read *against* a neutral surface rather than under
@@ -48,53 +48,53 @@
      only where that pair actually occurs. The brand tokens above do not move,
      so nothing that merely borrows the colour changes with them.
 
-     --akcent-plny   white on a filled accent bar: 4.47 : 1 light and
+     --accent-solid   white on a filled accent bar: 4.47 : 1 light and
        3.29 : 1 dark, where the accent is lightened so it can be read as text.
        One value for both palettes, 4.76 : 1 — a filled bar has the same job
        whatever is behind it.
-     --vystraha-plna white on a filled red surface: 3.69 / 3.50 before.
+     --danger-solid white on a filled red surface: 3.69 / 3.50 before.
        44 % rather than 46 so the brightness(1.08) hover still clears 4.5
        (4.53 light, 4.82 dark) instead of falling to 4.19.
-     --uspech-text   grass written on the grass/0.14 tint it always sits on:
+     --success-text   grass written on the grass/0.14 tint it always sits on:
        2.36 : 1 in the light palette. The tint is unchanged, only the ink —
        5.26 : 1 on a panel, 4.84 : 1 on the page background. The dark palette
        already clears it at 4.93 and keeps its own value. */
-  --akcent-plny: hsl(218 100% 53%);
-  --vystraha-plna: hsl(6 91% 44%);
-  --uspech-text: hsl(101 51% 29%);
-  --zvyrazneni: hsl(var(--ds-amber) / 0.22);
+  --accent-solid: hsl(218 100% 53%);
+  --danger-solid: hsl(6 91% 44%);
+  --success-text: hsl(101 51% 29%);
+  --highlight: hsl(var(--ds-amber) / 0.22);
   /* Notes are the one surface that is not part of the neutral chrome. Paper
      yellow says "written by hand" at a glance, without a label. */
-  --listek: hsl(46 88% 92%);
-  --listek-linka: hsl(44 52% 78%);
-  --listek-pole: hsl(48 70% 97%);
-  --prstenec: 0 0 0 2px hsl(var(--ds-ring) / 0.4);
-  --prstenec-pole: 0 0 0 3px hsl(var(--ds-petrol) / 0.16);
+  --note: hsl(46 88% 92%);
+  --note-line: hsl(44 52% 78%);
+  --note-field: hsl(48 70% 97%);
+  --ring: 0 0 0 2px hsl(var(--ds-ring) / 0.4);
+  --ring-field: 0 0 0 3px hsl(var(--ds-petrol) / 0.16);
   --hover-duration: 0.22s;
   --hover-ease: ease;
   --app-footer-height: 30px;
 
   /* The veil behind a dialog. Dark in both palettes on purpose — see
      `.prekryv-dialogu`. */
-  --zaves: hsl(240 7% 11% / 0.35);
-  --stin: 0 1px 4px hsl(var(--ds-foreground) / 0.08);
-  --stin-vysoky: 0 12px 32px hsl(var(--ds-foreground) / 0.14), 0 2px 8px hsl(var(--ds-foreground) / 0.06);
+  --scrim: hsl(240 7% 11% / 0.35);
+  --shadow: 0 1px 4px hsl(var(--ds-foreground) / 0.08);
+  --shadow-high: 0 12px 32px hsl(var(--ds-foreground) / 0.14), 0 2px 8px hsl(var(--ds-foreground) / 0.06);
 
   /* Shapes: pills for controls, soft corners for surfaces */
-  --r-pilulka: 999px;
-  --r-karta: 12px;
-  --r-velky: 16px;
-  --r-maly: 8px;
+  --r-pill: 999px;
+  --r-card: 12px;
+  --r-large: 16px;
+  --r-small: 8px;
 
   /* Overwritten from Settings at runtime; this is only the default. */
-  --pismo: "Geist Variable", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
-  --pismo-text: "Literata Variable", Georgia, "Times New Roman", serif;
+  --font: "Geist Variable", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Literata Variable", Georgia, "Times New Roman", serif;
   /* Paths and other fixed-pitch values. Not written from Settings — it was
      used through a fallback in two places and defined nowhere, so the two
      could have drifted apart without anything noticing. */
-  --pismo-cesty: ui-monospace, "Cascadia Mono", "Consolas", monospace;
-  --velikost-textu: 17.5px;
-  --radkovani: 1.72;
+  --font-path: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+  --text-size: 17.5px;
+  --line-height: 1.72;
 }
 
 /* The dark palette. Which one applies is decided in JavaScript and written to
@@ -118,22 +118,22 @@
   --ds-amber: 33 60% 55%;
   --ds-grass: 101 45% 52%;
 
-  --jemne: hsl(var(--ds-foreground) / 0.04);
+  --subtle: hsl(var(--ds-foreground) / 0.04);
   /* Same idea in the dark theme: warm enough to read as paper, dim enough
      not to glare beside the neutral panels. */
-  --listek: hsl(46 16% 19%);
-  --listek-linka: hsl(46 14% 31%);
-  --listek-pole: hsl(46 12% 15%);
-  --akcent-svetly: hsl(var(--ds-petrol) / 0.14);
-  /* `--akcent-plny` is deliberately the same in both palettes; the other two
+  --note: hsl(46 16% 19%);
+  --note-line: hsl(46 14% 31%);
+  --note-field: hsl(46 12% 15%);
+  --accent-light: hsl(var(--ds-petrol) / 0.14);
+  /* `--accent-solid` is deliberately the same in both palettes; the other two
      follow their own palette's hue and saturation. Grass at 52 % already
      reads 4.93 : 1 on its own tint here, so it keeps the brand value. */
-  --vystraha-plna: hsl(6 80% 44%);
-  --uspech-text: hsl(var(--ds-grass));
-  --zvyrazneni: hsl(var(--ds-amber) / 0.28);
-  --zaves: rgb(0 0 0 / 0.55);
-  --stin: 0 1px 4px rgb(0 0 0 / 0.3);
-  --stin-vysoky: 0 12px 32px rgb(0 0 0 / 0.45), 0 2px 8px rgb(0 0 0 / 0.3);
+  --danger-solid: hsl(6 80% 44%);
+  --success-text: hsl(var(--ds-grass));
+  --highlight: hsl(var(--ds-amber) / 0.28);
+  --scrim: rgb(0 0 0 / 0.55);
+  --shadow: 0 1px 4px rgb(0 0 0 / 0.3);
+  --shadow-high: 0 12px 32px rgb(0 0 0 / 0.45), 0 2px 8px rgb(0 0 0 / 0.3);
 }
 
 * { box-sizing: border-box; }
@@ -147,7 +147,7 @@
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
   background: hsl(var(--ds-foreground) / 0.2);
-  border-radius: var(--r-pilulka);
+  border-radius: var(--r-pill);
   /* a transparent border insets the thumb without narrowing the track */
   border: 3px solid transparent;
   background-clip: content-box;
@@ -157,8 +157,8 @@
 html, body, #root { height: 100%; margin: 0; }
 
 body {
-  font-family: var(--pismo);
-  background: var(--pozadi);
+  font-family: var(--font);
+  background: var(--ground);
   color: var(--text);
   font-size: 14px;
   line-height: 1.5;
@@ -166,7 +166,7 @@ body {
 }
 
 button, input, select, textarea { font: inherit; color: inherit; }
-:focus-visible { outline: none; box-shadow: var(--prstenec); }
+:focus-visible { outline: none; box-shadow: var(--ring); }
 
 .aplikace { display: flex; flex-direction: column; height: 100%; }
 
@@ -200,7 +200,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
    below jumped. */
 .lista {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  height: 57px; padding: 0 18px; border-bottom: 1px solid var(--linka);
+  height: 57px; padding: 0 18px; border-bottom: 1px solid var(--line);
   background: var(--panel); flex: 0 0 auto;
 }
 .header-brand-mark {
@@ -209,7 +209,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 }
 .znacka {
   background: none; border: 0; cursor: pointer;
-  border-radius: var(--r-pilulka);
+  border-radius: var(--r-pill);
 }
 /* The mark is an upright isometric cube; 24 px suits it in the bar. */
 .logotyp { display: block; }
@@ -243,8 +243,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .app-status-footer {
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
   height: var(--app-footer-height); padding: 0 20px; flex: 0 0 auto;
-  border-top: 1px solid var(--linka); background: var(--panel);
-  color: var(--text-tichy); font-size: 11.5px; font-weight: 600;
+  border-top: 1px solid var(--line); background: var(--panel);
+  color: var(--text-quiet); font-size: 11.5px; font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 .app-status-footer-group {
@@ -263,30 +263,30 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .tlacitko {
   display: inline-flex; align-items: center; gap: 6px;
   height: 34px; padding: 0 15px;
-  border: 1px solid var(--linka-pole); background: var(--panel);
-  border-radius: var(--r-pilulka);
+  border: 1px solid var(--line-field); background: var(--panel);
+  border-radius: var(--r-pill);
   font-size: 13.5px; font-weight: 600; line-height: 1;
   cursor: pointer; white-space: nowrap;
   transition: background var(--hover-duration) var(--hover-ease),
     border-color var(--hover-duration) var(--hover-ease),
     color var(--hover-duration) var(--hover-ease);
 }
-.tlacitko:not(:disabled):hover { background: var(--tlumene); }
+.tlacitko:not(:disabled):hover { background: var(--muted); }
 .tlacitko.hlavni {
-  background: var(--text); border-color: var(--text); color: var(--pozadi);
+  background: var(--text); border-color: var(--text); color: var(--ground);
 }
 .tlacitko.hlavni:not(:disabled):hover {
-  background: var(--text); border-color: var(--text); color: var(--pozadi);
+  background: var(--text); border-color: var(--text); color: var(--ground);
   filter: brightness(1.25);
 }
 .tlacitko.tichy {
-  border-color: transparent; background: transparent; color: var(--text-tichy);
+  border-color: transparent; background: transparent; color: var(--text-quiet);
 }
-.tlacitko.tichy:not(:disabled):hover { background: var(--tlumene); color: var(--text); }
-.tlacitko.vystraha { color: var(--vystraha); }
-.tlacitko.aktivni { background: var(--text); border-color: var(--text); color: var(--pozadi); }
+.tlacitko.tichy:not(:disabled):hover { background: var(--muted); color: var(--text); }
+.tlacitko.vystraha { color: var(--danger); }
+.tlacitko.aktivni { background: var(--text); border-color: var(--text); color: var(--ground); }
 .tlacitko.aktivni:not(:disabled):hover {
-  background: var(--text); border-color: var(--text); color: var(--pozadi);
+  background: var(--text); border-color: var(--text); color: var(--ground);
 }
 .tlacitko.drobne-tl { height: 24px; padding: 0 10px; font-size: 12px; }
 .tlacitko:disabled { opacity: 0.45; cursor: default; }
@@ -305,11 +305,11 @@ button, input, select, textarea { font: inherit; color: inherit; }
   --notice-life: 5s;
   display: flex; justify-content: space-between; gap: 16px; align-items: center;
   padding: 10px 18px; color: #fff; font-weight: 500;
-  max-height: 120px; overflow: hidden; background: var(--akcent-plny);
+  max-height: 120px; overflow: hidden; background: var(--accent-solid);
   transform-origin: top;
   animation: notice-enter 0.32s ease-out both;
 }
-.hlaska.error { background: var(--vystraha-plna); }
+.hlaska.error { background: var(--danger-solid); }
 /* The text takes the room the ring does not, so the close button keeps the
    right edge and the ring the left. */
 .hlaska > span { flex: 1 1 auto; }
@@ -330,7 +330,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
    bar to read. Black/0.18 takes the same three composites to 6.51, 7.04 and
    7.39. The bar's own colour is untouched; only the veil changed sign. */
 .hlaska button {
-  background: rgb(0 0 0 / 0.18); border: 0; border-radius: var(--r-pilulka);
+  background: rgb(0 0 0 / 0.18); border: 0; border-radius: var(--r-pill);
   padding: 5px 13px; cursor: pointer; color: #fff; font-weight: 600; font-size: 13px;
 }
 @keyframes notice-enter {

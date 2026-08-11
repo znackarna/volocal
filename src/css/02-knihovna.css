@@ -26,7 +26,7 @@
 .knihovna.knihovna > .archive-sticky {
   position: sticky; top: 0; z-index: 20;
   width: 100%; max-width: none; margin-inline: 0;
-  background: var(--pozadi);
+  background: var(--ground);
 }
 .archive-sticky > * { width: 100%; max-width: 900px; margin-inline: auto; }
 /* Two layers, not one: the blur is stronger and shorter next to the block and
@@ -52,7 +52,7 @@
   -webkit-backdrop-filter: blur(3px);
   /* The colour fade is what carries the effect where `backdrop-filter` is not
      available; on its own it already reads as the list dissolving upward. */
-  background: linear-gradient(to bottom, var(--pozadi) 0%, transparent 100%);
+  background: linear-gradient(to bottom, var(--ground) 0%, transparent 100%);
   mask-image: linear-gradient(to bottom, #000 0%, #000 15%, transparent 100%);
   -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 15%, transparent 100%);
 }
@@ -76,20 +76,20 @@
 .upozorneni {
   display: flex; gap: 16px; align-items: flex-start; justify-content: space-between;
   border: 1px solid hsl(var(--ds-destructive) / 0.25);
-  background: var(--vystraha-svetla);
-  border-radius: var(--r-velky); padding: 15px 18px; margin-bottom: 20px;
+  background: var(--danger-light);
+  border-radius: var(--r-large); padding: 15px 18px; margin-bottom: 20px;
 }
 /* Standing above the hero rather than inside the list, the notice is the first
    thing under the application bar and needs the hero's own inset — 40 px. It
    keeps its 20 px below, which is what separates it from the hero's 40. */
 .knihovna > .upozorneni { margin-top: 40px; }
 .upozorneni strong { font-weight: 700; }
-.upozorneni ul { margin: 6px 0 0; padding-left: 18px; color: var(--text-tichy); }
+.upozorneni ul { margin: 6px 0 0; padding-left: 18px; color: var(--text-quiet); }
 
 .watch-folder-notice {
   padding: 18px; margin-bottom: 18px;
-  border: 1px solid var(--linka); border-radius: var(--r-velky);
-  background: var(--panel); box-shadow: var(--stin);
+  border: 1px solid var(--line); border-radius: var(--r-large);
+  background: var(--panel); box-shadow: var(--shadow);
 }
 .watch-folder-header {
   display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px;
@@ -97,27 +97,27 @@
 }
 .watch-folder-icon {
   display: grid; place-items: center; width: 34px; height: 34px;
-  border-radius: 50%; background: var(--akcent-svetly); color: var(--akcent);
+  border-radius: 50%; background: var(--accent-light); color: var(--accent);
 }
 .watch-folder-copy { min-width: 0; }
 .watch-folder-copy > strong { display: block; font-size: 15px; line-height: 1.35; }
-.watch-folder-copy > p { margin: 3px 0 0; color: var(--text-tichy); font-size: 13.5px; }
+.watch-folder-copy > p { margin: 3px 0 0; color: var(--text-quiet); font-size: 13.5px; }
 .watch-folder-file-panel {
   margin-top: 16px; overflow: hidden;
-  border: 1px solid var(--linka); border-radius: var(--r-karta);
-  background: var(--pozadi);
+  border: 1px solid var(--line); border-radius: var(--r-card);
+  background: var(--ground);
 }
 .watch-folder-file-header {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   min-height: 38px; padding: 0 12px;
-  border-bottom: 1px solid var(--linka); background: var(--jemne);
+  border-bottom: 1px solid var(--line); background: var(--subtle);
 }
 .watch-folder-file-header > strong {
   font-size: 11px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.09em; color: var(--text-tichy);
+  letter-spacing: 0.09em; color: var(--text-quiet);
 }
 .watch-folder-select-all {
-  padding: 4px 0; border: 0; background: transparent; color: var(--akcent);
+  padding: 4px 0; border: 0; background: transparent; color: var(--accent);
   cursor: pointer; font-size: 12.5px; font-weight: 650;
 }
 .watch-folder-select-all:hover { text-decoration: underline; text-underline-offset: 3px; }
@@ -126,7 +126,7 @@
   max-height: 188px; overflow-y: auto;
   list-style: none; margin: 0; padding: 0;
 }
-.watch-folder-files li + li { border-top: 1px solid var(--linka); }
+.watch-folder-files li + li { border-top: 1px solid var(--line); }
 /* The row is the label plus its dismiss button; the label takes what is left
    after the button, so a long file name ellipsizes rather than pushing it out. */
 /* The surface belongs to the row, not to the label inside it — otherwise the
@@ -142,11 +142,11 @@
   flex: 0 0 auto; display: grid; place-items: center;
   width: 28px; height: 28px; margin-right: 8px; padding: 0;
   border: 0; border-radius: 50%; background: transparent;
-  color: var(--text-tichy); cursor: pointer;
+  color: var(--text-quiet); cursor: pointer;
   transition: background var(--hover-duration) var(--hover-ease),
     color var(--hover-duration) var(--hover-ease);
 }
-.watch-folder-dismiss:hover { background: var(--vystraha-svetla); color: var(--vystraha); }
+.watch-folder-dismiss:hover { background: var(--danger-light); color: var(--danger); }
 .watch-folder-dismiss:disabled { cursor: default; }
 .watch-folder-file {
   position: relative; display: flex; align-items: center; gap: 10px;
@@ -156,24 +156,24 @@
 .watch-folder-files li {
   transition: background var(--hover-duration) var(--hover-ease);
 }
-.watch-folder-files li:hover { background: var(--tlumene); }
+.watch-folder-files li:hover { background: var(--muted); }
 .watch-folder-file input {
   position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none;
 }
 .watch-folder-checkbox {
-  /* 5 px, not --r-maly: on an 18 px box 8 would be nearly a circle, and a
+  /* 5 px, not --r-small: on an 18 px box 8 would be nearly a circle, and a
      circle is what this application uses for a radio, not a checkbox. */
   display: grid; place-items: center; width: 18px; height: 18px; flex: 0 0 auto;
-  border: 1px solid var(--linka-pole); border-radius: 5px;
+  border: 1px solid var(--line-field); border-radius: 5px;
   background: var(--panel); color: transparent;
   transition: background var(--hover-duration) var(--hover-ease),
     border-color var(--hover-duration) var(--hover-ease),
     color var(--hover-duration) var(--hover-ease);
 }
 .watch-folder-file input:checked + .watch-folder-checkbox {
-  border-color: var(--akcent); background: var(--akcent); color: #fff;
+  border-color: var(--accent); background: var(--accent); color: #fff;
 }
-.watch-folder-file input:focus-visible + .watch-folder-checkbox { box-shadow: var(--prstenec-pole); }
+.watch-folder-file input:focus-visible + .watch-folder-checkbox { box-shadow: var(--ring-field); }
 .watch-folder-file input:disabled ~ * { opacity: 0.55; }
 .watch-folder-file-name {
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -188,9 +188,9 @@
 }
 .watch-folder-footer {
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
-  margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--linka);
+  margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line);
 }
-.watch-folder-selection { color: var(--text-tichy); font-size: 12.5px; }
+.watch-folder-selection { color: var(--text-quiet); font-size: 12.5px; }
 .watch-folder-actions { display: flex; gap: 8px; }
 /* Below the window's own 1000 px minimum (tauri.conf.json), so this cannot
    fire today. Kept as a net, like the 900 px rule for the header pills, in
@@ -206,7 +206,7 @@
     grid-template-columns: minmax(220px, 360px) 138px 160px minmax(64px, 1fr);
   position: relative; z-index: 10;
   align-items: center; justify-content: start; gap: 12px; margin-bottom: 0; padding: 8px 0 18px;
-  background: var(--pozadi);
+  background: var(--ground);
 }
 .knihovna-lista .hledani { min-width: 0; margin-bottom: 0; }
 .archive-filter-select { position: relative; min-width: 0; }
@@ -217,7 +217,7 @@
 .archive-filter-icon {
   position: absolute; left: 13px; top: 50%; z-index: 2;
   display: grid; place-items: center; transform: translateY(-50%);
-  color: var(--text-tichy); pointer-events: none;
+  color: var(--text-quiet); pointer-events: none;
 }
 .archive-filter-select .vyber-nabidka { min-width: 100%; }
 /* 40 px is not a second size for this control: 32px buttons + 2×3 px padding
@@ -225,7 +225,7 @@
    the toolbar. The same pill inside a dialog stays 36 px. */
 .archive-view-toggle {
   height: 40px; padding: 3px;
-  border: 1px solid var(--linka); background: var(--tlumene);
+  border: 1px solid var(--line); background: var(--muted);
   justify-self: end;
 }
 .archive-view-toggle button { width: 32px; height: 32px; min-height: 32px; padding: 0; }
@@ -233,8 +233,8 @@
 .archive-calendar-popover {
   position: absolute; top: calc(100% + 6px); left: 0; z-index: 50;
   width: 292px; padding: 14px;
-  border: 1px solid var(--linka); border-radius: var(--r-velky);
-  background: var(--panel); box-shadow: var(--stin-vysoky);
+  border: 1px solid var(--line); border-radius: var(--r-large);
+  background: var(--panel); box-shadow: var(--shadow-high);
   animation: calendar-open 0.12s ease-out;
 }
 @keyframes calendar-open {
@@ -252,11 +252,11 @@
 .archive-calendar-nav {
   display: grid; place-items: center; width: 32px; height: 32px; padding: 0;
   border: 1px solid transparent; border-radius: 50%;
-  background: transparent; color: var(--text-tichy); cursor: pointer;
+  background: transparent; color: var(--text-quiet); cursor: pointer;
   transition: background var(--hover-duration) var(--hover-ease),
     color var(--hover-duration) var(--hover-ease);
 }
-.archive-calendar-nav:hover { background: var(--tlumene); color: var(--text); }
+.archive-calendar-nav:hover { background: var(--muted); color: var(--text); }
 .archive-calendar-weekdays,
 .archive-calendar-days {
   display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px;
@@ -264,7 +264,7 @@
 .archive-calendar-weekdays { margin-bottom: 5px; }
 .archive-calendar-weekdays span {
   display: grid; place-items: center; height: 24px;
-  color: var(--text-tichy); font-size: 10.5px; font-weight: 700;
+  color: var(--text-quiet); font-size: 10.5px; font-weight: 700;
   text-transform: uppercase; letter-spacing: 0.04em;
 }
 .archive-calendar-day,
@@ -278,20 +278,20 @@
     border-color var(--hover-duration) var(--hover-ease),
     color var(--hover-duration) var(--hover-ease);
 }
-.archive-calendar-day:hover { background: var(--tlumene); }
+.archive-calendar-day:hover { background: var(--muted); }
 .archive-calendar-day.today:not(.selected) {
-  border-color: var(--akcent-linka); color: var(--akcent); font-weight: 700;
+  border-color: var(--accent-line); color: var(--accent); font-weight: 700;
 }
 .archive-calendar-day.selected,
 .archive-calendar-day.selected:hover {
-  border-color: var(--akcent); background: var(--akcent); color: #fff;
+  border-color: var(--accent); background: var(--accent); color: #fff;
   font-weight: 700;
 }
 @media (prefers-reduced-motion: reduce) {
   .archive-calendar-popover { animation: none; }
 }
 .archive-filter-empty {
-  margin: 22px auto 0; color: var(--text-tichy); text-align: center;
+  margin: 22px auto 0; color: var(--text-quiet); text-align: center;
 }
 /* Below the window's own 1000 px minimum (tauri.conf.json), so this cannot
    fire today. Kept as a net, like the 900 px rule for the header pills, in
@@ -315,21 +315,21 @@
 .vypinac input { position: absolute; opacity: 0; width: 0; height: 0; }
 .vypinac-drazka {
   position: relative; width: 36px; height: 20px; flex: 0 0 auto;
-  background: var(--linka-pole); border-radius: var(--r-pilulka);
+  background: var(--line-field); border-radius: var(--r-pill);
   transition: background 0.18s ease;
 }
 .vypinac-drazka::after {
   content: ""; position: absolute; top: 2px; left: 2px;
   width: 16px; height: 16px; border-radius: 50%;
-  /* Black rather than --stin: this is a white knob lifted off its own track,
+  /* Black rather than --shadow: this is a white knob lifted off its own track,
      the one shadow that must not follow the palette. 25 % at a 3 px blur. */
   background: #fff; box-shadow: 0 1px 3px rgb(0 0 0 / 0.25);
   transition: transform 0.18s ease;
 }
-.vypinac input:checked + .vypinac-drazka { background: var(--akcent); }
+.vypinac input:checked + .vypinac-drazka { background: var(--accent); }
 .vypinac input:checked + .vypinac-drazka::after { transform: translateX(16px); }
-.vypinac input:focus-visible + .vypinac-drazka { box-shadow: var(--prstenec); }
-.vypinac-popis { font-size: 13px; font-weight: 600; color: var(--text-tichy); white-space: nowrap; }
+.vypinac input:focus-visible + .vypinac-drazka { box-shadow: var(--ring); }
+.vypinac-popis { font-size: 13px; font-weight: 600; color: var(--text-quiet); white-space: nowrap; }
 .vypinac input:checked ~ .vypinac-popis { color: var(--text); }
 
 /* stands in for the player while transcription runs */
@@ -337,18 +337,18 @@
 .hledani { margin-bottom: 18px; }
 .hledani input {
   width: 100%; height: 40px;
-  border: 1px solid var(--linka-pole); background: var(--panel);
-  border-radius: var(--r-pilulka); padding: 0 18px; outline: none;
+  border: 1px solid var(--line-field); background: var(--panel);
+  border-radius: var(--r-pill); padding: 0 18px; outline: none;
   font-size: 14px;
 }
-.hledani input:focus { border-color: var(--akcent); box-shadow: var(--prstenec-pole); }
+.hledani input:focus { border-color: var(--accent); box-shadow: var(--ring-field); }
 
 /* 12 px between cards, not 8: at 85 px tall with a border of their own they
    need the room to read as separate blocks rather than as one ruled table.
    The compact list keeps a tighter 8 px — density is what it is for. */
 .seznam { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
 .seznam.compact { gap: 8px; }
-.seznam.compact .radek { padding: 8px 12px 8px 8px; border-radius: var(--r-karta); }
+.seznam.compact .radek { padding: 8px 12px 8px 8px; border-radius: var(--r-card); }
 .seznam.compact .radek-hlavni { align-items: center; gap: 10px; }
 /* 6 px against the roomy tile's 7: the same proportion on a 38 x 38 px mark.
    Both are commented where `.recording-calendar` is defined. */
@@ -398,8 +398,8 @@
 }
 
 .radek {
-  border: 1px solid var(--linka); background: var(--panel);
-  border-radius: var(--r-velky); padding: 14px 16px;
+  border: 1px solid var(--line); background: var(--panel);
+  border-radius: var(--r-large); padding: 14px 16px;
   display: grid; grid-template-columns: 1fr auto; gap: 8px;
   /* The rename input is taller than the title. Without a transition the row
      would jolt on every switch. */
@@ -409,8 +409,8 @@
 }
 .radek-text { transition: none; }
 .radek:hover,
-.radek:focus-within { border-color: var(--linka-pole); box-shadow: var(--stin); }
-.radek.bezi { border-color: var(--akcent-linka); background: var(--akcent-svetly); }
+.radek:focus-within { border-color: var(--line-field); box-shadow: var(--shadow); }
+.radek.bezi { border-color: var(--accent-line); background: var(--accent-light); }
 
 /* The calendar occupies the card's left edge; the status dot now belongs to
    the title itself, where it also appears on transcript Detail. */
@@ -425,41 +425,41 @@
 /* The offset puts the dot on the optical centre of the first title line. */
 .znak {
   width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto;
-  background: var(--text-tichy); margin-top: 7px;
+  background: var(--text-quiet); margin-top: 7px;
 }
-.znak.hotova { background: var(--uspech); }
-.znak.prepisuje { background: var(--akcent); box-shadow: 0 0 0 4px hsl(var(--ds-petrol) / 0.2); animation: puls 1.6s ease-in-out infinite; }
-.znak.chyba { background: var(--vystraha); }
-.znak.nova { background: transparent; border: 1.5px solid var(--linka-pole); }
+.znak.hotova { background: var(--success); }
+.znak.prepisuje { background: var(--accent); box-shadow: 0 0 0 4px hsl(var(--ds-petrol) / 0.2); animation: puls 1.6s ease-in-out infinite; }
+.znak.chyba { background: var(--danger); }
+.znak.nova { background: transparent; border: 1.5px solid var(--line-field); }
 @keyframes puls { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
 /* The height of whatever stands at a row's left edge — the calendar on a
    transcript, the drawer on a folder. It is what makes a row 85 px, so the
    two kinds of block are the same height by construction rather than by two
    numbers that happen to agree today. */
-.seznam { --radek-znacka: 55px; }
-.seznam.compact { --radek-znacka: 38px; }
+.seznam { --row-thumb: 55px; }
+.seznam.compact { --row-thumb: 38px; }
 .recording-calendar {
   position: relative; overflow: hidden;
   display: flex; flex-direction: column; align-items: center;
   /* 7 px, and 6 on the compact tile above: the radius is proportional to a
      48 x 55 px tile, the same reasoning as the archive calendar popover. */
-  width: 48px; height: var(--radek-znacka); flex: 0 0 auto;
-  border: 1px solid var(--linka-pole); border-radius: 7px;
+  width: 48px; height: var(--row-thumb); flex: 0 0 auto;
+  border: 1px solid var(--line-field); border-radius: 7px;
   background: var(--panel); color: var(--text);
-  box-shadow: var(--stin);
+  box-shadow: var(--shadow);
   transition: box-shadow var(--hover-duration) var(--hover-ease);
 }
 .recording-calendar-month {
   width: 100%; padding: 4px 0 3px;
-  background: var(--tlumene); color: var(--text-tichy); text-align: center;
+  background: var(--muted); color: var(--text-quiet); text-align: center;
   font-size: 9px; font-weight: 700; line-height: 1;
   letter-spacing: 0.08em;
   transition: background var(--hover-duration) var(--hover-ease),
     color var(--hover-duration) var(--hover-ease);
 }
 .radek:hover .recording-calendar-month,
-.radek:focus-within .recording-calendar-month { background: var(--akcent); color: #fff; }
+.radek:focus-within .recording-calendar-month { background: var(--accent); color: #fff; }
 .radek:hover .recording-calendar,
 .radek:focus-within .recording-calendar { box-shadow: none; }
 .recording-calendar-day {
@@ -467,7 +467,7 @@
   font-variant-numeric: tabular-nums;
 }
 .recording-calendar-year {
-  margin-top: 2px; color: var(--text-tichy);
+  margin-top: 2px; color: var(--text-quiet);
   font-size: 8.5px; font-weight: 650; line-height: 1;
   font-variant-numeric: tabular-nums;
 }
@@ -487,7 +487,7 @@
 .recording-metadata {
   display: flex; align-items: center; flex-wrap: wrap;
   gap: 5px 13px; margin-top: 3px;
-  color: var(--text-tichy); font-size: 12.5px;
+  color: var(--text-quiet); font-size: 12.5px;
   font-variant-numeric: tabular-nums;
 }
 .seznam:not(.compact) .recording-metadata { margin-top: 5px; }
@@ -496,7 +496,7 @@
   min-width: 0; line-height: 1.25; font-weight: 500;
 }
 .recording-metadata-item > svg { flex: 0 0 auto; opacity: 0.72; }
-.recording-metadata-item.error { color: var(--vystraha); }
+.recording-metadata-item.error { color: var(--danger); }
 /* Buttons centred in the block, not pinned to the top. */
 .radek-akce { display: flex; gap: 4px; align-items: center; }
 
@@ -504,65 +504,65 @@
 .nabidka-akci-seznam {
   position: absolute; top: calc(100% + 6px); right: 0; z-index: 40;
   min-width: 190px; padding: 6px;
-  background: var(--panel); border: 1px solid var(--linka);
-  border-radius: var(--r-velky); box-shadow: var(--stin-vysoky);
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--r-large); box-shadow: var(--shadow-high);
   display: flex; flex-direction: column;
 }
 .nabidka-akci-seznam button {
   display: flex; align-items: center; gap: 10px;
   border: 0; background: none; cursor: pointer; text-align: left;
-  padding: 8px 12px; border-radius: var(--r-karta);
+  padding: 8px 12px; border-radius: var(--r-card);
   font-size: 13.5px; font-weight: 500; white-space: nowrap;
 }
-.nabidka-ikona { color: var(--text-tichy); flex: 0 0 auto; }
+.nabidka-ikona { color: var(--text-quiet); flex: 0 0 auto; }
 .nabidka-akci-seznam button:hover .nabidka-ikona { color: var(--text); }
 .nabidka-akci-seznam button.varovne .nabidka-ikona { color: inherit; }
 /* the second level has no icons; indentation aligns its text with the level above */
 .nabidka-akci-seznam button:not(:has(.nabidka-ikona)):not(.nabidka-zpet) {
   padding-left: 42px;
 }
-.nabidka-akci-seznam button:hover { background: var(--tlumene); }
+.nabidka-akci-seznam button:hover { background: var(--muted); }
 /* The label takes the remaining space so the arrow always meets the right edge
    and it is obvious at a glance that the item leads somewhere. */
 .nabidka-popisek { flex: 1 1 auto; }
-.nabidka-sipka { color: var(--text-tichy); flex: 0 0 auto; margin-left: 18px; }
+.nabidka-sipka { color: var(--text-quiet); flex: 0 0 auto; margin-left: 18px; }
 .nabidka-akci-seznam button:hover .nabidka-sipka { color: var(--text); }
 .nabidka-zpet {
   display: flex; align-items: center; gap: 6px;
-  color: var(--text-tichy);
+  color: var(--text-quiet);
   /* The divider is its own line under the button, not the button's bottom border —
      that would force square corners and the hover highlight would be boxy. */
   position: relative; margin-bottom: 7px;
 }
 .nabidka-zpet::after {
   content: ""; position: absolute; left: 6px; right: 6px; bottom: -4px;
-  height: 1px; background: var(--linka);
+  height: 1px; background: var(--line);
 }
-.nabidka-akci-seznam button.varovne { color: var(--vystraha); }
-.nabidka-akci-seznam button.varovne:hover { background: var(--vystraha-svetla); }
+.nabidka-akci-seznam button.varovne { color: var(--danger); }
+.nabidka-akci-seznam button.varovne:hover { background: var(--danger-light); }
 
 .prubeh { grid-column: 1 / -1; margin-top: 10px; }
 .prubeh-lista {
-  height: 5px; border-radius: var(--r-pilulka); overflow: hidden;
+  height: 5px; border-radius: var(--r-pill); overflow: hidden;
   /* derived from the text colour, not a fixed grey, or it vanishes on a tinted ground */
   background: hsl(var(--ds-foreground) / 0.12);
 }
-.prubeh-vypln { height: 100%; background: var(--akcent); border-radius: var(--r-pilulka); transition: width 0.4s ease; }
+.prubeh-vypln { height: 100%; background: var(--accent); border-radius: var(--r-pill); transition: width 0.4s ease; }
 .prubeh-popis {
   display: flex; justify-content: space-between; margin-top: 5px;
-  font-size: 12px; font-weight: 600; color: var(--text-tichy);
+  font-size: 12px; font-weight: 600; color: var(--text-quiet);
   font-variant-numeric: tabular-nums;
 }
 .prubeh-ai { margin-top: 8px; }
 .prubeh-ai .prubeh-vypln {
-  background: linear-gradient(90deg, var(--akcent), hsl(var(--ds-petrol) / 0.65));
+  background: linear-gradient(90deg, var(--accent), hsl(var(--ds-petrol) / 0.65));
 }
 
 .zivy-text {
   margin-top: 10px; padding: 10px 14px;
-  background: var(--panel); border-radius: var(--r-karta);
+  background: var(--panel); border-radius: var(--r-card);
   max-height: 110px; overflow: hidden;
-  font-family: var(--pismo-text); color: var(--text-tichy); font-size: 14px;
+  font-family: var(--font-body); color: var(--text-quiet); font-size: 14px;
   -webkit-mask-image: linear-gradient(to bottom, transparent, #000 40%);
   mask-image: linear-gradient(to bottom, transparent, #000 40%);
 }
@@ -581,7 +581,7 @@
      one alone but this one against the block it introduces: the hero is a
      dashed panel over 460 px tall, so 24 px above it read as a seam rather
      than as a margin. The compact state keeps its own 20/16. */
-  padding: 40px 0 28px; background: var(--pozadi);
+  padding: 40px 0 28px; background: var(--ground);
   transition: padding 0.18s ease;
 }
   .archive-drop-zone-surface {
@@ -589,10 +589,10 @@
     grid-template-areas: "mark" "copy" "actions";
   justify-items: center; align-items: center; gap: 14px;
   text-align: center;
-  /* 22 px, not --r-velky: a 320 px dashed panel, the largest surface in the
+  /* 22 px, not --r-large: a 320 px dashed panel, the largest surface in the
      window. The drag overlay repeats the amount so the two read as one. */
-  border: 1.5px dashed var(--linka-pole); border-radius: 22px;
-  min-height: 320px; padding: 56px 32px 52px; background: var(--jemne);
+  border: 1.5px dashed var(--line-field); border-radius: 22px;
+  min-height: 320px; padding: 56px 32px 52px; background: var(--subtle);
   transition: min-height 0.18s ease, padding 0.18s ease, border-radius 0.18s ease,
     background 0.18s ease, box-shadow 0.18s ease;
 }
@@ -607,7 +607,7 @@
   letter-spacing: -0.02em; transition: font-size 0.18s ease;
 }
 .archive-drop-zone-copy p {
-  color: var(--text-tichy); margin: 8px 0 0; max-width: 44ch;
+  color: var(--text-quiet); margin: 8px 0 0; max-width: 44ch;
   max-height: 44px; overflow: hidden; opacity: 1;
   transition: max-height 0.16s ease, opacity 0.12s ease, margin 0.16s ease;
 }
@@ -619,7 +619,7 @@
     position: absolute; right: 24px; bottom: 20px;
   }
   .archive-automatic-toggle .vypinac-popis {
-    order: 1; color: var(--text-tichy); font-size: 12.5px; font-weight: 600;
+    order: 1; color: var(--text-quiet); font-size: 12.5px; font-weight: 600;
   }
   .archive-automatic-toggle .vypinac-drazka { order: 2; }
   .archive-drop-zone.compact { padding: 20px 0 16px; }
@@ -650,20 +650,20 @@
   .archive-drop-zone-copy h1,
   .archive-drop-zone-copy p { transition: none; }
 }
-.drobne { font-size: 13px; color: var(--text-tichy); }
-.poznamka { font-size: 13px; color: var(--text-tichy); margin-top: 20px; }
+.drobne { font-size: 13px; color: var(--text-quiet); }
+.poznamka { font-size: 13px; color: var(--text-quiet); margin-top: 20px; }
 
 .vysledky { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .vysledky button {
   width: 100%; text-align: left; background: var(--panel);
-  border: 1px solid var(--linka); border-radius: var(--r-karta);
+  border: 1px solid var(--line); border-radius: var(--r-card);
   padding: 11px 14px; cursor: pointer; display: flex; flex-direction: column; gap: 2px;
 }
-.vysledky button:hover { border-color: var(--akcent-linka); background: var(--akcent-svetly); }
-.vysledek-kde { font-size: 12px; font-weight: 600; color: var(--text-tichy); font-variant-numeric: tabular-nums; }
-.vysledek-text { font-family: var(--pismo-text); font-size: 15px; }
-/* 4 px, not --r-maly: an inline highlight is about 20 px tall, and 8 would
+.vysledky button:hover { border-color: var(--accent-line); background: var(--accent-light); }
+.vysledek-kde { font-size: 12px; font-weight: 600; color: var(--text-quiet); font-variant-numeric: tabular-nums; }
+.vysledek-text { font-family: var(--font-body); font-size: 15px; }
+/* 4 px, not --r-small: an inline highlight is about 20 px tall, and 8 would
    round it into a pill. Same amount as `.slovo`, which is the same idea. */
-mark { background: var(--zvyrazneni); color: inherit; padding: 0 2px; border-radius: 4px; }
-.prazdny-vysledek { color: var(--text-tichy); }
+mark { background: var(--highlight); color: inherit; padding: 0 2px; border-radius: 4px; }
+.prazdny-vysledek { color: var(--text-quiet); }
 

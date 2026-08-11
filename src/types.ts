@@ -245,10 +245,10 @@ export function applyFonts(
   n: Pick<Settings, "font_ui" | "font_text" | "transcript_font_size" | "transcript_line_height">
 ) {
   const k = document.documentElement.style;
-  k.setProperty("--pismo", FONTS[n.font_ui]?.stack ?? FONTS.geist.stack);
-  k.setProperty("--pismo-text", FONTS[n.font_text]?.stack ?? FONTS.literata.stack);
-  k.setProperty("--velikost-textu", `${n.transcript_font_size || 17.5}px`);
-  k.setProperty("--radkovani", String(n.transcript_line_height || 1.72));
+  k.setProperty("--font", FONTS[n.font_ui]?.stack ?? FONTS.geist.stack);
+  k.setProperty("--font-body", FONTS[n.font_text]?.stack ?? FONTS.literata.stack);
+  k.setProperty("--text-size", `${n.transcript_font_size || 17.5}px`);
+  k.setProperty("--line-height", String(n.transcript_line_height || 1.72));
 }
 
 export interface ToolCheck {

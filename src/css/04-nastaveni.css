@@ -25,10 +25,10 @@
 .ulozeno {
   position: fixed; right: 22px; bottom: 22px; z-index: 50;
   display: inline-flex; align-items: center; gap: 6px;
-  padding: 6px 13px 6px 10px; border-radius: var(--r-pilulka);
-  background: hsl(var(--ds-grass) / 0.14); color: var(--uspech-text);
+  padding: 6px 13px 6px 10px; border-radius: var(--r-pill);
+  background: hsl(var(--ds-grass) / 0.14); color: var(--success-text);
   border: 1px solid hsl(var(--ds-grass) / 0.3);
-  box-shadow: var(--stin-vysoky);
+  box-shadow: var(--shadow-high);
   font-size: 12.5px; font-weight: 700;
   opacity: 0; transform: translateY(6px);
   transition: opacity 0.18s ease, transform 0.18s ease;
@@ -63,8 +63,8 @@
 .ai-output-options button {
   position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 7px;
   height: 36px; padding: 0 14px;
-  border: 0; border-radius: var(--r-pilulka); background: transparent;
-  color: var(--text-tichy); cursor: pointer;
+  border: 0; border-radius: var(--r-pill); background: transparent;
+  color: var(--text-quiet); cursor: pointer;
   font: inherit; font-size: 13.5px; font-weight: 650; white-space: nowrap;
   transition: background var(--hover-duration) var(--hover-ease),
     color var(--hover-duration) var(--hover-ease),
@@ -75,20 +75,20 @@
    On grey: raised in white. Settings' page, and the strip that sits on the
    document inside the preview dialog. */
 .settings-tabs button:hover,
-.ai-output-options button:hover { background: var(--tlumene); color: var(--text); }
+.ai-output-options button:hover { background: var(--muted); color: var(--text); }
 .settings-tabs button.active,
 .ai-output-options button.active {
-  background: var(--panel); color: var(--text); box-shadow: var(--stin);
+  background: var(--panel); color: var(--text); box-shadow: var(--shadow);
 }
 /* On white: filled dark, which is the same rule taken to its end — the chosen
    one is the ground's opposite. It is also what the playback speeds do, on
-   white, for the same job: one of a row, chosen. `--tlumene` was tried and is
+   white, for the same job: one of a row, chosen. `--muted` was tried and is
    an 8 % step off white, too little to mark anything. */
-.ai-document-tabs button:hover { background: var(--tlumene); color: var(--text); }
-.ai-document-tabs button.active { background: var(--text); color: var(--pozadi); }
+.ai-document-tabs button:hover { background: var(--muted); color: var(--text); }
+.ai-document-tabs button.active { background: var(--text); color: var(--ground); }
 .settings-tab-alert {
   width: 7px; height: 7px; flex: 0 0 auto; border-radius: 50%;
-  background: var(--vystraha);
+  background: var(--danger);
 }
 .settings-panels {
   display: flex; flex-direction: column; gap: 16px;
@@ -113,21 +113,21 @@
 .settings-card-abilities { order: 2; }
 .settings-card-credits { order: 3; }
 .nastaveni section {
-  background: var(--panel); border: 1px solid var(--linka);
-  border-radius: var(--r-velky); padding: 26px 28px;
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--r-large); padding: 26px 28px;
 }
 .nastaveni h2 {
   margin: 0; font-size: 19px; line-height: 1.25; font-weight: 700;
   letter-spacing: -0.018em;
 }
 .nastaveni code {
-  font-size: 12px; background: var(--tlumene); padding: 2px 7px;
-  border-radius: var(--r-maly); word-break: break-all;
+  font-size: 12px; background: var(--muted); padding: 2px 7px;
+  border-radius: var(--r-small); word-break: break-all;
 }
 
 .settings-section-description {
   max-width: 62ch; margin: 8px 0 24px;
-  color: var(--text-tichy); font-size: 14px; line-height: 1.55;
+  color: var(--text-quiet); font-size: 14px; line-height: 1.55;
 }
 .nastaveni section > h2 + .pole { margin-top: 24px; }
 /* A card whose content follows its heading with no introductory sentence
@@ -137,11 +137,11 @@
 .nastaveni section > h2 + .about-abilities { margin-top: 24px; }
 .settings-info-note {
   display: flex; align-items: flex-start; gap: 8px;
-  margin: 8px 0 0; color: var(--text-tichy);
+  margin: 8px 0 0; color: var(--text-quiet);
   font-size: 13.5px; line-height: 1.5;
 }
 .settings-info-note.compact { margin: 0; }
-.settings-info-note-icon { flex: 0 0 auto; margin-top: 2px; color: var(--akcent); }
+.settings-info-note-icon { flex: 0 0 auto; margin-top: 2px; color: var(--accent); }
 .settings-toggle {
   display: flex; align-items: center; justify-content: space-between;
   gap: 32px;
@@ -156,18 +156,18 @@
   display: block; font-size: 15px; line-height: 1.35; font-weight: 680;
 }
 .pole + .settings-toggle:not(.section) {
-  margin-top: 24px; padding-top: 22px; border-top: 1px solid var(--linka);
+  margin-top: 24px; padding-top: 22px; border-top: 1px solid var(--line);
 }
 .settings-toggle:not(.section) + .pole {
-  margin-top: 24px; padding-top: 22px; border-top: 1px solid var(--linka);
+  margin-top: 24px; padding-top: 22px; border-top: 1px solid var(--line);
 }
 .settings-toggle.separated {
   margin: 22px 0 0; padding: 20px 0 0;
-  border-top: 1px solid var(--linka);
+  border-top: 1px solid var(--line);
 }
 .settings-toggle-control {
   margin: 0 -7px 0 0; padding: 7px;
-  border-radius: var(--r-pilulka);
+  border-radius: var(--r-pill);
 }
 .settings-toggle-control:has(input:disabled) { opacity: 0.45; cursor: default; }
 .settings-toggle.section + .pole,
@@ -178,7 +178,7 @@
 /* Choice cards revealed by a section switch sit on the same divider as a
    revealed field, so turning a section on always looks the same. */
 .settings-toggle.section + .volby {
-  margin-top: 24px; padding-top: 22px; border-top: 1px solid var(--linka);
+  margin-top: 24px; padding-top: 22px; border-top: 1px solid var(--line);
 }
 .volby + .settings-info-note.compact { margin-top: 14px; }
 .settings-action-row {
@@ -186,11 +186,11 @@
   font-size: 13.5px;
 }
 .settings-action-row.separated {
-  margin-top: 22px; padding-top: 20px; border-top: 1px solid var(--linka);
+  margin-top: 22px; padding-top: 20px; border-top: 1px solid var(--line);
 }
 .settings-action-row > .settings-info-note { margin: 0; }
 .settings-action-row > .tlacitko { flex: 0 0 auto; }
-.settings-success { color: var(--uspech); }
+.settings-success { color: var(--success); }
 .pole { margin-bottom: 24px; }
 .nastaveni section > .pole:last-child { margin-bottom: 0; }
 .pole > .drobne {
@@ -201,7 +201,7 @@
 
 /* One disclosure pattern for advanced controls and technical diagnostics. */
 .settings-disclosure {
-  margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--linka);
+  margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line);
 }
 /* A divider needs the same room on both sides, or the block between two of
    them is not in the middle of what the eye reads as one block. The disclosure
@@ -217,11 +217,11 @@
   display: flex; align-items: center; gap: 8px;
   padding: 6px 0; border: 0; background: none; cursor: pointer;
   list-style: none;
-  font: inherit; font-size: 13.5px; font-weight: 600; color: var(--text-tichy);
+  font: inherit; font-size: 13.5px; font-weight: 600; color: var(--text-quiet);
 }
 .settings-disclosure > summary::-webkit-details-marker { display: none; }
 .settings-disclosure > summary:hover { color: var(--text); }
-.settings-disclosure > summary:focus-visible { box-shadow: var(--prstenec); border-radius: var(--r-maly); }
+.settings-disclosure > summary:focus-visible { box-shadow: var(--ring); border-radius: var(--r-small); }
 .settings-disclosure-chevron {
   display: grid; place-items: center; line-height: 0;
   transition: transform 0.16s ease;
@@ -229,7 +229,7 @@
 .settings-disclosure[open] .settings-disclosure-chevron { transform: rotate(90deg); }
 .settings-disclosure-content {
   margin-top: 8px; padding-left: 16px;
-  border-left: 2px solid var(--linka);
+  border-left: 2px solid var(--line);
   display: flex; flex-direction: column; gap: 2px;
 }
 .settings-disclosure-content > .drobne:first-child { margin-top: 0; }
@@ -259,15 +259,15 @@
 .pole input[type="text"], .pole input:not([type]), .pole input[type="url"],
 .pole select, .pole input[type="number"] {
   width: 100%; height: 38px;
-  border: 1px solid var(--linka-pole); background: var(--pozadi);
-  border-radius: var(--r-pilulka); padding: 0 15px; outline: none; font-size: 14px;
+  border: 1px solid var(--line-field); background: var(--ground);
+  border-radius: var(--r-pill); padding: 0 15px; outline: none; font-size: 14px;
 }
 /* A field lights up when it is being filled in. A slider is not filled in,
    it is grabbed — so dragging one does not light anything up (Jakub's ask).
    `:focus-visible` further down still gives it a ring on keyboard focus, which
    is the only way to see where the focus stands without a pointer. */
 .pole input:not([type="range"]):focus, .pole select:focus {
-  border-color: var(--akcent); box-shadow: var(--prstenec-pole);
+  border-color: var(--accent); box-shadow: var(--ring-field);
 }
 .pole input[type="range"] { width: 100%; accent-color: hsl(var(--ds-foreground)); height: auto; }
 /* ---------------------------------------------------------------- custom menu
@@ -278,51 +278,51 @@
 .vyber-spoust {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
   width: 100%; height: 38px; padding: 0 16px;
-  border: 1px solid var(--linka-pole); background: var(--pozadi);
-  border-radius: var(--r-pilulka); cursor: pointer;
+  border: 1px solid var(--line-field); background: var(--ground);
+  border-radius: var(--r-pill); cursor: pointer;
   font-size: 14px; text-align: left;
   transition: border-color var(--hover-duration) var(--hover-ease),
     background var(--hover-duration) var(--hover-ease);
 }
 .vyber-spoust:hover { border-color: hsl(var(--ds-foreground) / 0.35); }
 .vyber-spoust.otevreno {
-  border-color: var(--akcent); background: var(--panel);
-  box-shadow: var(--prstenec-pole);
+  border-color: var(--accent); background: var(--panel);
+  box-shadow: var(--ring-field);
 }
 .vyber-spoust:disabled { opacity: 0.45; cursor: default; }
 .vyber-hodnota { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.vyber-sipka { flex: 0 0 auto; color: var(--text-tichy); transition: transform 0.15s; }
+.vyber-sipka { flex: 0 0 auto; color: var(--text-quiet); transition: transform 0.15s; }
 .vyber-spoust.otevreno .vyber-sipka { transform: rotate(180deg); }
 
 .vyber-nabidka {
   position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 40;
-  background: var(--panel); border: 1px solid var(--linka);
-  border-radius: var(--r-velky); box-shadow: var(--stin-vysoky);
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--r-large); box-shadow: var(--shadow-high);
   padding: 6px; max-height: 320px; overflow-y: auto;
 }
 .vyber-skupina {
   font-size: 11px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.09em; color: var(--text-tichy);
+  letter-spacing: 0.09em; color: var(--text-quiet);
   padding: 10px 12px 5px;
 }
 .vyber-polozka {
   display: flex; align-items: baseline; gap: 8px; width: 100%;
   padding: 9px 12px; border: 0; background: none; cursor: pointer;
-  border-radius: var(--r-karta); text-align: left; font-size: 14px;
+  border-radius: var(--r-card); text-align: left; font-size: 14px;
 }
-.vyber-polozka.zvyrazneno { background: var(--tlumene); }
+.vyber-polozka.zvyrazneno { background: var(--muted); }
 .vyber-polozka.vybrano { font-weight: 600; }
 .vyber-popisek { flex: 1; min-width: 0; }
-.vyber-poznamka { font-size: 12px; color: var(--text-tichy); white-space: nowrap; }
-.vyber-fajfka { flex: 0 0 auto; color: var(--akcent); align-self: center; }
+.vyber-poznamka { font-size: 12px; color: var(--text-quiet); white-space: nowrap; }
+.vyber-fajfka { flex: 0 0 auto; color: var(--accent); align-self: center; }
 
 .radka { display: flex; gap: 8px; }
 .radka input { flex: 1; min-width: 0; }
 .pole .radka > .tlacitko { height: 38px; }
 
 .prenosna-info {
-  border-color: var(--akcent-linka) !important;
-  background: var(--akcent-svetly) !important;
+  border-color: var(--accent-line) !important;
+  background: var(--accent-light) !important;
 }
 .prenosna-info p { margin: 0 0 8px; }
 
@@ -337,63 +337,63 @@
    different ideas. */
 .kontrola {
   list-style: none; margin: 0; overflow: hidden;
-  border: 1px solid var(--linka); border-radius: var(--r-karta);
-  background: var(--jemne); font-size: 13px; padding: 0;
+  border: 1px solid var(--line); border-radius: var(--r-card);
+  background: var(--subtle); font-size: 13px; padding: 0;
 }
 .kontrola li {
   display: grid; grid-template-columns: 22px minmax(0, 190px) minmax(0, 1fr);
   align-items: center; gap: 12px;
   min-height: 40px; padding: 6px 14px;
 }
-.kontrola li + li { border-top: 1px solid var(--linka); }
+.kontrola li + li { border-top: 1px solid var(--line); }
 .kontrola-znak {
   display: grid; place-items: center; width: 22px; height: 22px;
-  border-radius: 50%; background: hsl(var(--ds-grass) / 0.14); color: var(--uspech-text);
+  border-radius: 50%; background: hsl(var(--ds-grass) / 0.14); color: var(--success-text);
 }
-.kontrola li.ne .kontrola-znak { background: var(--vystraha-svetla); color: var(--vystraha); }
+.kontrola li.ne .kontrola-znak { background: var(--danger-light); color: var(--danger); }
 .kontrola-nazev { font-weight: 600; line-height: 1.35; }
-.kontrola li.ne .kontrola-nazev { color: var(--vystraha); }
+.kontrola li.ne .kontrola-nazev { color: var(--danger); }
 /* The end of a path is what identifies the file, so the beginning is what
    gets cut. `direction: rtl` puts the ellipsis there; `bdi` keeps the text
    itself reading left to right. */
 .kontrola-cesta {
-  color: var(--text-tichy); font-size: 12.5px;
-  font-family: var(--pismo-cesty);
+  color: var(--text-quiet); font-size: 12.5px;
+  font-family: var(--font-path);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   /* No `unicode-bidi: plaintext` here: it re-derives the direction from the
      text and moves the ellipsis back to the end, which cuts off the file
      name — the one part of a path worth reading. */
   direction: rtl; text-align: left;
 }
-.problemy { color: var(--vystraha); font-size: 13px; padding-left: 18px; }
+.problemy { color: var(--danger); font-size: 13px; padding-left: 18px; }
 
 .zkouska { list-style: none; margin: 14px 0 0; padding: 0; font-size: 13px; }
 .zkouska li {
   display: flex; justify-content: space-between; gap: 12px;
-  padding: 7px 0; border-bottom: 1px solid var(--linka); font-weight: 600;
+  padding: 7px 0; border-bottom: 1px solid var(--line); font-weight: 600;
 }
 .zkouska li:last-child { border-bottom: 0; }
-.zkouska li.ano span:last-child { color: var(--uspech); font-variant-numeric: tabular-nums; }
-.zkouska li.ne span:last-child { color: var(--vystraha); font-weight: 500; }
+.zkouska li.ano span:last-child { color: var(--success); font-variant-numeric: tabular-nums; }
+.zkouska li.ne span:last-child { color: var(--danger); font-weight: 500; }
 /* The label used to be `content: " — nejrychlejší"` here, which meant a Czech
    sentence in the English interface — and `i18n:check` cannot see it, because
    it reads TypeScript. The word is in the dictionary now and the component
    renders it; this rule only styles it. */
-.zkouska .nejrychlejsi { color: var(--text-tichy); font-weight: 500; }
+.zkouska .nejrychlejsi { color: var(--text-quiet); font-weight: 500; }
 
 .nahled-pisma {
-  border: 1px solid var(--linka); border-radius: var(--r-karta);
-  padding: 18px 20px; background: var(--pozadi); margin-top: 4px;
+  border: 1px solid var(--line); border-radius: var(--r-card);
+  padding: 18px 20px; background: var(--ground); margin-top: 4px;
 }
-.nahled-pisma p { font-family: var(--pismo-text); font-size: var(--velikost-textu); line-height: var(--radkovani); margin: 0; }
+.nahled-pisma p { font-family: var(--font-body); font-size: var(--text-size); line-height: var(--line-height); margin: 0; }
 .nahled-mluvci {
   font-size: 11px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.09em; color: var(--akcent); margin-bottom: 6px;
+  letter-spacing: 0.09em; color: var(--accent); margin-bottom: 6px;
 }
 .nahled-popisek {
   font-size: 13px !important; line-height: 1.6 !important;
-  color: var(--text-tichy); margin-top: 14px !important;
-  font-family: var(--pismo) !important;
+  color: var(--text-quiet); margin-top: 14px !important;
+  font-family: var(--font) !important;
 }
 
 /* ---------------------------------------------------------------- wizard */
@@ -402,32 +402,32 @@
 .pruvodce.pruvodce > * { max-width: 620px; margin-inline: auto; }
 
 .kroky { display: flex; gap: 6px; margin-bottom: 28px; }
-.kroky span { height: 3px; flex: 1; background: var(--linka); border-radius: var(--r-pilulka); transition: background 0.25s; }
-.kroky span.hotovy { background: var(--akcent); }
+.kroky span { height: 3px; flex: 1; background: var(--line); border-radius: var(--r-pill); transition: background 0.25s; }
+.kroky span.hotovy { background: var(--accent); }
 
-.krok-cislo { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: var(--text-tichy); margin: 0 0 6px; }
+.krok-cislo { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: var(--text-quiet); margin: 0 0 6px; }
 .krok h1 { font-size: 28px; line-height: 1.15; margin: 0 0 8px; letter-spacing: -0.025em; font-weight: 700; }
-.krok-uvod { color: var(--text-tichy); margin: 0 0 22px; max-width: 52ch; font-size: 14px; line-height: 1.55; }
+.krok-uvod { color: var(--text-quiet); margin: 0 0 22px; max-width: 52ch; font-size: 14px; line-height: 1.55; }
 .krok-zaver { text-align: center; padding-top: 40px; }
 .krok-zaver .krok-uvod, .krok-zaver .drobne { margin-left: auto; margin-right: auto; }
 .krok-zaver .krok-patka { justify-content: center; }
 
 .krok-patka {
   display: flex; justify-content: space-between; align-items: center; gap: 10px;
-  margin-top: 26px; padding-top: 18px; border-top: 1px solid var(--linka);
+  margin-top: 26px; padding-top: 18px; border-top: 1px solid var(--line);
 }
 .krok-patka .tlacitko.hlavni { margin-left: auto; }
 
 .zjisteno {
   display: grid; grid-template-columns: 1fr 1fr; gap: 1px;
-  background: var(--linka); border: 1px solid var(--linka);
-  border-radius: var(--r-velky); overflow: hidden; margin-bottom: 14px;
+  background: var(--line); border: 1px solid var(--line);
+  border-radius: var(--r-large); overflow: hidden; margin-bottom: 14px;
 }
 /* A row, not a stack: the icon names the thing and the two lines of text sit
    beside it, the same way a module tile is built. */
 .zjisteno > div { background: var(--panel); padding: 13px 16px; display: flex; align-items: center; gap: 13px; }
 .zjisteno-telo { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-.zjisteno-popis { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: var(--text-tichy); }
+.zjisteno-popis { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: var(--text-quiet); }
 .zjisteno-hodnota { font-size: 14px; font-weight: 600; }
 
 .volby { display: flex; flex-direction: column; gap: 8px; }
@@ -435,8 +435,8 @@
    alike. They carry different content but must read as one family, so the
    padding, the radius and the vertical rhythm live here and nowhere else. */
 .volba, .modul-dlazdice {
-  border: 1px solid var(--linka); background: var(--panel);
-  border-radius: var(--r-velky); padding: 12px 14px;
+  border: 1px solid var(--line); background: var(--panel);
+  border-radius: var(--r-large); padding: 12px 14px;
 }
 .volba {
   display: flex; flex-direction: column; gap: 4px; width: 100%;
@@ -446,43 +446,43 @@
     box-shadow var(--hover-duration) var(--hover-ease);
 }
 /* Under the pointer a choice card lifts, exactly as an archive row does — the
-   shared low `--stin`, not a shadow chosen for these cards. The keyboard gets
+   shared low `--shadow`, not a shadow chosen for these cards. The keyboard gets
    the same lift: the focus ring says where you are, the shadow says the thing
    under it is pickable, and that is the same statement in both directions.
    One rule for every choice card in the application — the three sources in
    `Nový přepis`, the transcription models, the acceleration and the
    language-editing tiers, the wizard's quality cards, the AI dialog's modes. */
 .volba:hover,
-.volba:focus-visible { border-color: var(--linka-pole); box-shadow: var(--stin); }
-.volba.zvolena { border-color: var(--akcent-linka); background: var(--akcent-svetly); }
+.volba:focus-visible { border-color: var(--line-field); box-shadow: var(--shadow); }
+.volba.zvolena { border-color: var(--accent-line); background: var(--accent-light); }
 .volba-hlava { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
 .volba-nazev { font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 8px; }
-.volba-velikost { font-size: 13px; color: var(--text-tichy); white-space: nowrap; font-variant-numeric: tabular-nums; font-weight: 600; }
+.volba-velikost { font-size: 13px; color: var(--text-quiet); white-space: nowrap; font-variant-numeric: tabular-nums; font-weight: 600; }
 
 .odznak {
   font-style: normal; font-size: 11px; font-weight: 700;
-  background: hsl(var(--ds-petrol) / 0.14); color: var(--akcent);
-  padding: 2px 9px; border-radius: var(--r-pilulka); letter-spacing: 0.02em;
+  background: hsl(var(--ds-petrol) / 0.14); color: var(--accent);
+  padding: 2px 9px; border-radius: var(--r-pill); letter-spacing: 0.02em;
 }
-.odznak.nutny { background: var(--vystraha-svetla); color: var(--vystraha); }
-.odznak.hotovo { background: hsl(var(--ds-grass) / 0.14); color: var(--uspech-text); }
+.odznak.nutny { background: var(--danger-light); color: var(--danger); }
+.odznak.hotovo { background: hsl(var(--ds-grass) / 0.14); color: var(--success-text); }
 /* A badge that is the card's action, not its state. The whole card is the
    button, so this must read as something that happens, not as a label. */
-.odznak.akce { background: var(--akcent-svetly); color: var(--akcent); }
-.volba.chybi .volba-ikona { background: var(--vystraha-svetla); color: var(--vystraha); }
-.volba.chybi:hover .odznak.akce { background: var(--akcent); color: white; }
-.odznak.tichy { background: var(--tlumene); color: var(--text-tichy); }
+.odznak.akce { background: var(--accent-light); color: var(--accent); }
+.volba.chybi .volba-ikona { background: var(--danger-light); color: var(--danger); }
+.volba.chybi:hover .odznak.akce { background: var(--accent); color: white; }
+.odznak.tichy { background: var(--muted); color: var(--text-quiet); }
 
-.souhrn { list-style: none; margin: 0; padding: 0; border: 1px solid var(--linka); border-radius: var(--r-velky); overflow: hidden; }
+.souhrn { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: var(--r-large); overflow: hidden; }
 .souhrn li {
   display: flex; justify-content: space-between; gap: 12px;
   padding: 10px 16px; background: var(--panel); font-size: 14px; font-weight: 500;
-  border-bottom: 1px solid var(--linka);
+  border-bottom: 1px solid var(--line);
 }
 .souhrn li:last-child { border-bottom: 0; }
-.souhrn li.hotova { color: var(--text-tichy); }
-.souhrn li.hotova span:last-child { color: var(--uspech); font-weight: 600; }
-.souhrn li.selhala span:last-child { color: var(--vystraha); }
+.souhrn li.hotova { color: var(--text-quiet); }
+.souhrn li.hotova span:last-child { color: var(--success); font-weight: 600; }
+.souhrn li.selhala span:last-child { color: var(--danger); }
 
 .prubeh-velky { margin-bottom: 20px; }
 .prubeh-velky .prubeh-lista { height: 6px; }
@@ -495,19 +495,19 @@
 .rucni h2 { margin: 0 0 8px; }
 
 .soucasti { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-.soucast { border: 1px solid var(--linka); background: var(--panel); border-radius: var(--r-karta); padding: 12px 15px; }
-.soucast.hotova { background: var(--jemne); }
-.soucast.hotova .soucast-text { color: var(--text-tichy); }
+.soucast { border: 1px solid var(--line); background: var(--panel); border-radius: var(--r-card); padding: 12px 15px; }
+.soucast.hotova { background: var(--subtle); }
+.soucast.hotova .soucast-text { color: var(--text-quiet); }
 .soucast label { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: start; cursor: pointer; }
 .soucast.hotova label { cursor: default; }
-.soucast input { margin-top: 3px; accent-color: var(--akcent); }
+.soucast input { margin-top: 3px; accent-color: var(--accent); }
 .soucast-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .soucast-nazev { font-weight: 600; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.soucast-velikost { color: var(--text-tichy); font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.soucast-velikost { color: var(--text-quiet); font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .downloaded-mark {
   display: inline-grid; place-items: center;
   width: 22px; height: 22px; border-radius: 50%;
-  background: hsl(var(--ds-grass) / 0.14); color: var(--uspech-text);
+  background: hsl(var(--ds-grass) / 0.14); color: var(--success-text);
   /* Centred against the whole row, not against its first line: the mark is
      about the component, while the checkbox belongs to the title beside it. */
   align-self: center;
@@ -522,13 +522,13 @@
      the dark one, where it lightened the page by 35 % behind a dialog that is
      darker than its own scrim. The depth cue inverted: the dialog read as a
      hole punched under a haze. */
-  background: var(--zaves);
+  background: var(--scrim);
   display: flex; align-items: center; justify-content: center;
   padding: 24px;
 }
 .dialog {
-  background: var(--panel); border: 1px solid var(--linka);
-  border-radius: var(--r-velky); box-shadow: var(--stin-vysoky);
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--r-large); box-shadow: var(--shadow-high);
   padding: 24px 26px; width: 100%; max-width: 420px;
   animation: dialog-nabehne 0.14s ease-out;
 }
@@ -550,7 +550,7 @@
   letter-spacing: -0.015em; text-transform: none; color: var(--text);
   line-height: 1.25;
 }
-.dialog p { margin: 0; color: var(--text-tichy); line-height: 1.5; }
+.dialog p { margin: 0; color: var(--text-quiet); line-height: 1.5; }
 .dialog h2 + p { margin-bottom: 18px; }
 /* A field is the dialog's last block; the footer owns the space above it. */
 .dialog .pole { margin-bottom: 0; }
@@ -588,7 +588,7 @@
 .release-notes-mark {
   display: grid; place-items: center; flex: 0 0 auto;
   width: 16px; height: 16px; border-radius: 50%;
-  background: hsl(var(--ds-grass) / 0.14); color: var(--uspech-text);
+  background: hsl(var(--ds-grass) / 0.14); color: var(--success-text);
 }
 /* Full-strength text, unlike `.dialog p`: the sentence above is the framing and
    may be quiet, but this is the thing the reader opened the dialog to read. */
@@ -602,13 +602,13 @@
   display: flex; align-items: flex-start; gap: 8px;
   margin-top: 14px !important;
 }
-.ai-edit-note-icon { flex: 0 0 auto; margin-top: 1px; color: var(--akcent); }
+.ai-edit-note-icon { flex: 0 0 auto; margin-top: 1px; color: var(--accent); }
 
 .add-recording-options .drobne { margin: 0; }
 .add-recording-back {
   display: inline-flex; align-items: center; gap: 6px;
   margin: -4px 0 14px; padding: 4px 0;
-  border: 0; background: none; color: var(--text-tichy);
+  border: 0; background: none; color: var(--text-quiet);
   font-size: 13px; font-weight: 600; cursor: pointer;
 }
 .add-recording-back:hover { color: var(--text); }
@@ -623,18 +623,18 @@
   display: grid; grid-template-columns: auto 1fr; align-items: center;
   column-gap: 14px; row-gap: 12px;
   margin: 0; padding: 16px;
-  border: 1px solid var(--linka); border-radius: var(--r-karta);
-  background: var(--jemne);
+  border: 1px solid var(--line); border-radius: var(--r-card);
+  background: var(--subtle);
 }
 .mic-stage.bezi .mic-znak {
-  background: var(--vystraha-svetla); color: var(--vystraha);
+  background: var(--danger-light); color: var(--danger);
   animation: mic-tep 1.6s ease-in-out infinite;
 }
 /* In preview the capsule becomes the take's play button — the same circle,
    now an instruction instead of a picture. */
 button.mic-prehrat {
   border: 0; cursor: pointer;
-  background: var(--akcent-svetly); color: var(--akcent);
+  background: var(--accent-light); color: var(--accent);
   transition: background var(--hover-duration) var(--hover-ease);
 }
 button.mic-prehrat:hover:not(:disabled) { background: hsl(var(--ds-petrol) / 0.22); }
@@ -653,14 +653,14 @@ button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
    is stacked under its buttons rather than sitting in a row, so it carries the
    gap the row already provides for the recorder. */
 .mic-stav, .about-stav { font-size: 13.5px; font-weight: 600; }
-.mic-stav.chyba, .about-stav.chyba { color: var(--vystraha); }
+.mic-stav.chyba, .about-stav.chyba { color: var(--danger); }
 .about-stav { margin: 12px 0 0; }
 .about-aktualizace { margin-top: 22px; }
 .about-aktualizace-akce { display: flex; gap: 10px; }
 /* The explanation belongs to the whole block above it, not to one button. */
 .about-aktualizace .settings-section-description { margin: 14px 0 0; }
 .mic-cas {
-  color: var(--text-tichy); font-size: 13px; font-weight: 600;
+  color: var(--text-quiet); font-size: 13px; font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 /* Under both columns: the spectrum belongs to the take, not to the icon.
@@ -678,7 +678,7 @@ button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
   display: block; height: 38px;
   color: hsl(var(--ds-foreground) / 0.22);
 }
-.mic-spektrum.bezi { color: var(--akcent); }
+.mic-spektrum.bezi { color: var(--accent); }
 /* The take's timeline, laid over the spectrum. The bars are the track, so
    the control paints only the shared `.posuvnik` thumb, vertically centred
    on the 38 px strip. */
@@ -713,7 +713,7 @@ button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
 .mini-rekorder.pozastaveny .mini-rekorder-tecka { animation: none; opacity: 0.45; }
 .mini-rekorder-tecka {
   width: 10px; height: 10px; margin-left: 12px; flex: 0 0 auto;
-  border-radius: 50%; background: var(--vystraha);
+  border-radius: 50%; background: var(--danger);
   animation: mic-tep 1.6s ease-in-out infinite;
 }
 @media (prefers-reduced-motion: reduce) {
@@ -726,7 +726,7 @@ button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
 .mic-start { gap: 9px; }
 .mic-start-tecka {
   width: 10px; height: 10px; flex: 0 0 auto; border-radius: 50%;
-  background: var(--vystraha);
+  background: var(--danger);
 }
 .mic-start:disabled .mic-start-tecka { opacity: 0.5; }
 
@@ -734,13 +734,13 @@ button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
   display: flex; align-items: flex-start; gap: 8px;
   margin-top: 14px !important;
 }
-.add-recording-note svg { flex: 0 0 auto; margin-top: 1px; color: var(--akcent); }
+.add-recording-note svg { flex: 0 0 auto; margin-top: 1px; color: var(--accent); }
 .add-recording-progress { margin-top: 18px; }
 .add-recording-error {
   margin-top: 14px !important; padding: 10px 12px;
   border: 1px solid hsl(var(--ds-destructive) / 0.25);
-  border-radius: var(--r-karta); background: var(--vystraha-svetla);
-  color: var(--vystraha) !important; font-size: 12.5px;
+  border-radius: var(--r-card); background: var(--danger-light);
+  color: var(--danger) !important; font-size: 12.5px;
   white-space: pre-line; max-height: 130px; overflow-y: auto;
 }
 
@@ -756,20 +756,20 @@ button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
 .ai-preview-warning {
   margin: 0 26px 14px; padding: 10px 12px;
   border: 1px solid hsl(var(--ds-destructive) / 0.25);
-  border-radius: var(--r-karta); background: var(--vystraha-svetla);
+  border-radius: var(--r-card); background: var(--danger-light);
   color: var(--text); font-size: 12.5px; line-height: 1.45;
 }
 /* Segmented controls use the same pill geometry as the rest of the app.
    The generic class is shared by document navigation and compact choices. */
 .segmented-control {
   display: inline-flex; align-items: center; gap: 3px;
-  padding: 3px; border-radius: var(--r-pilulka); background: var(--tlumene);
+  padding: 3px; border-radius: var(--r-pill); background: var(--muted);
 }
 .segmented-control button {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   min-height: 30px; padding: 0 11px;
-  border: 0; border-radius: var(--r-pilulka); background: transparent;
-  color: var(--text-tichy); cursor: pointer;
+  border: 0; border-radius: var(--r-pill); background: transparent;
+  color: var(--text-quiet); cursor: pointer;
   font: inherit; font-size: 12.5px; font-weight: 650; white-space: nowrap;
   transition: background var(--hover-duration) var(--hover-ease),
     color var(--hover-duration) var(--hover-ease),
@@ -777,40 +777,40 @@ button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
 }
 .segmented-control button:hover { color: var(--text); }
 .segmented-control button.active {
-  background: var(--panel); color: var(--text); box-shadow: var(--stin);
+  background: var(--panel); color: var(--text); box-shadow: var(--shadow);
 }
 
 .sidebar-count {
   display: inline-grid; place-items: center;
   min-width: 19px; height: 19px; padding: 0 5px;
-  border-radius: var(--r-pilulka); background: hsl(var(--ds-foreground) / 0.08);
+  border-radius: var(--r-pill); background: hsl(var(--ds-foreground) / 0.08);
   /* 11 px, the badge size `.odznak` already uses and the documented
      micro-label. 10.5 belonged to the archive calendar's weekday, not here. */
-  color: var(--text-tichy); font-size: 11px; font-weight: 700;
+  color: var(--text-quiet); font-size: 11px; font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 /* Each section is a card that opens, not a row on a shared sheet. The card is
    what makes the whole width clickable without inventing anything: it has an
    edge, so there is no question where the target ends. */
 .postranni .sidebar-section {
-  /* `--r-velky`, like every other bordered card on `--panel` in this
-     application. `--r-karta` is the inner radius here: menu items, list rows,
+  /* `--r-large`, like every other bordered card on `--panel` in this
+     application. `--r-card` is the inner radius here: menu items, list rows,
      the inset data panel. No `overflow: hidden` — the focus ring is an outer
      shadow and the toggle is flush with three of these edges, so hiding the
      overflow would clip it. The toggle rounds its own corners instead. */
-  margin: 0; border: 1px solid var(--linka); border-radius: var(--r-velky);
+  margin: 0; border: 1px solid var(--line); border-radius: var(--r-large);
   background: var(--panel);
   transition: border-color var(--hover-duration) var(--hover-ease),
     box-shadow var(--hover-duration) var(--hover-ease);
 }
 .postranni .sidebar-section + .sidebar-section { margin-top: 8px; }
 /* Pickable, exactly as a choice card and an archive row say it — the shared
-   low `--stin` and `--linka-pole`. Open is not exempt: `.volba.zvolena` and
+   low `--shadow` and `--line-field`. Open is not exempt: `.volba.zvolena` and
    `.radek.bezi` both keep their lift, and a state that suppressed it would
    make this the only surface in the application that does. */
 .postranni .sidebar-section:hover,
 .postranni .sidebar-section:focus-within {
-  border-color: var(--linka-pole); box-shadow: var(--stin);
+  border-color: var(--line-field); box-shadow: var(--shadow);
 }
 .postranni .sidebar-section h2 { margin: 0; line-height: 1.3; }
 /* The whole card width, because the action moved inside the body and nothing
@@ -832,10 +832,10 @@ button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
   transition: background var(--hover-duration) var(--hover-ease);
 }
 .sidebar-section.open .sidebar-section-toggle { border-radius: 15px 15px 0 0; }
-/* `--pozadi`, the transcript's own ground, like the rows inside the card.
-   Deliberately not `--tlumene`, which the icon's circle already uses: on that
+/* `--ground`, the transcript's own ground, like the rows inside the card.
+   Deliberately not `--muted`, which the icon's circle already uses: on that
    ground the circle would dissolve into its own background. */
-.sidebar-section-toggle:hover { background: var(--pozadi); }
+.sidebar-section-toggle:hover { background: var(--ground); }
 /* The mark leads the words under the pointer, having been quieter at rest. */
 .sidebar-section-toggle:hover .sidebar-section-icon { color: var(--text); }
 /* A circle, like every other leading icon in this application — module tiles,
@@ -849,7 +849,7 @@ button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
 .sidebar-section-icon {
   display: grid; place-items: center; flex: 0 0 auto;
   width: 30px; height: 30px; border-radius: 50%;
-  background: var(--tlumene); color: var(--text-tichy);
+  background: var(--muted); color: var(--text-quiet);
   transition: color var(--hover-duration) var(--hover-ease);
 }
 /* Takes the free width, so the arrow is pushed to the end of the row and the
@@ -857,7 +857,7 @@ button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
    here is one short word and it is the only thing the row has to say. */
 .sidebar-section-title { flex: 1 1 auto; }
 .sidebar-section-chevron {
-  flex: 0 0 auto; color: var(--text-tichy);
+  flex: 0 0 auto; color: var(--text-quiet);
   transition: transform var(--hover-duration) var(--hover-ease);
 }
 .sidebar-section.open .sidebar-section-chevron { transform: rotate(180deg); }
@@ -889,17 +889,17 @@ button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
 .sidebar-text-action {
   display: inline-flex; align-items: center; gap: 6px;
   flex: 0 0 auto; min-height: 30px; padding: 0 9px;
-  border: 0; border-radius: var(--r-pilulka); background: transparent;
-  color: var(--akcent); cursor: pointer; font: inherit;
+  border: 0; border-radius: var(--r-pill); background: transparent;
+  color: var(--accent); cursor: pointer; font: inherit;
   font-size: 12.5px; font-weight: 650;
   transition: background var(--hover-duration) var(--hover-ease),
     color var(--hover-duration) var(--hover-ease);
 }
-.sidebar-text-action:hover { background: var(--akcent-svetly); }
-.sidebar-text-action:disabled { color: var(--text-tichy); cursor: default; opacity: 0.65; }
+.sidebar-text-action:hover { background: var(--accent-light); }
+.sidebar-text-action:disabled { color: var(--text-quiet); cursor: default; opacity: 0.65; }
 .sidebar-text-action:disabled:hover { background: transparent; }
 .sidebar-empty {
-  margin: 0; color: var(--text-tichy); font-size: 13px; line-height: 1.45;
+  margin: 0; color: var(--text-quiet); font-size: 13px; line-height: 1.45;
 }
 
 /* Notes are cards, not table rows. The four-column grid they used to sit in
@@ -911,12 +911,12 @@ button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
   margin: 0; padding: 0; list-style: none;
 }
 .sticky {
-  padding: 11px 12px; border-radius: var(--r-velky);
-  background: var(--listek); border: 1px solid transparent;
+  padding: 11px 12px; border-radius: var(--r-large);
+  background: var(--note); border: 1px solid transparent;
   transition: border-color var(--hover-duration) var(--hover-ease);
 }
-.sticky:hover { border-color: var(--listek-linka); }
-.sticky.open { border-color: var(--akcent-linka); }
+.sticky:hover { border-color: var(--note-line); }
+.sticky.open { border-color: var(--accent-line); }
 .sticky-body { min-width: 0; display: flex; flex-direction: column; gap: 8px; }
 /* The note keeps its paper colour while being written; only the writing
    area lightens, the way a pad does. */
@@ -960,54 +960,54 @@ button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
 }
 .sticky-editor {
   width: 100%; min-width: 0; padding: 7px 8px;
-  border: 1px solid var(--listek-linka); border-radius: var(--r-maly);
+  border: 1px solid var(--note-line); border-radius: var(--r-small);
   outline: 0; resize: none; overflow: hidden; field-sizing: content;
-  background: var(--listek-pole); color: var(--text); font: inherit;
+  background: var(--note-field); color: var(--text); font: inherit;
   font-size: 13.5px; line-height: 1.45;
 }
-.sticky-editor::placeholder { color: var(--text-tichy); }
-.sticky-editor:focus { border-color: var(--akcent); box-shadow: var(--prstenec-pole); }
+.sticky-editor::placeholder { color: var(--text-quiet); }
+.sticky-editor:focus { border-color: var(--accent); box-shadow: var(--ring-field); }
 .sticky-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
 .sticky-time,
 .sticky-pin,
 .sticky-quiet,
 .sticky-confirm,
 .sticky-danger {
-  border: 0; border-radius: var(--r-pilulka); cursor: pointer;
+  border: 0; border-radius: var(--r-pill); cursor: pointer;
   font: inherit; font-size: 11.5px; font-weight: 700;
   transition: background var(--hover-duration) var(--hover-ease),
     color var(--hover-duration) var(--hover-ease);
 }
 .sticky-time {
   display: inline-flex; align-items: center; gap: 5px; padding: 4px 9px 4px 8px;
-  background: var(--akcent-svetly); color: var(--akcent);
+  background: var(--accent-light); color: var(--accent);
   font-variant-numeric: tabular-nums;
 }
 .sticky-time:disabled { cursor: default; }
 .sticky-pin,
 .sticky-quiet,
 .sticky-danger {
-  padding: 4px 8px; background: transparent; color: var(--text-tichy);
+  padding: 4px 8px; background: transparent; color: var(--text-quiet);
   font-weight: 650;
 }
 .sticky-pin:hover:not(:disabled),
 .sticky-quiet:hover { background: hsl(var(--ds-foreground) / 0.08); color: var(--text); }
 .sticky-pin:disabled { opacity: 0.45; cursor: default; }
 .sticky-danger { margin-left: auto; }
-.sticky-danger:hover { background: var(--vystraha-svetla); color: var(--vystraha); }
-.sticky-confirm { margin-left: auto; padding: 4px 11px; background: var(--akcent); color: white; }
+.sticky-danger:hover { background: var(--danger-light); color: var(--danger); }
+.sticky-confirm { margin-left: auto; padding: 4px 11px; background: var(--accent); color: white; }
 .sticky-confirm:disabled { opacity: 0.4; cursor: default; }
 .sticky-time-input {
   width: calc(6ch + 12px); height: 25px; margin: 0; padding: 3px 5px;
-  border: 1px solid var(--listek-linka); border-radius: var(--r-maly); outline: 0;
-  background: var(--listek-pole); color: var(--text); font: inherit;
+  border: 1px solid var(--note-line); border-radius: var(--r-small); outline: 0;
+  background: var(--note-field); color: var(--text); font: inherit;
   font-size: 11.5px; font-weight: 650; text-align: center;
   font-variant-numeric: tabular-nums;
 }
-.sticky-time-input:focus { border-color: var(--akcent); box-shadow: var(--prstenec-pole); }
+.sticky-time-input:focus { border-color: var(--accent); box-shadow: var(--ring-field); }
 .sticky-time-input[aria-invalid="true"] {
   border-color: hsl(var(--ds-destructive) / 0.45);
-  background: var(--vystraha-svetla); color: var(--vystraha);
+  background: var(--danger-light); color: var(--danger);
 }
 .speaker-count-choices {
   display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 0 0 14px;
@@ -1017,12 +1017,12 @@ button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
    in one flex row with four .tlacitko and behaves as the fifth choice. */
 .speaker-count-input {
   width: 84px; height: 34px; padding: 0 10px;
-  border: 1px solid var(--linka-pole); border-radius: var(--r-pilulka);
+  border: 1px solid var(--line-field); border-radius: var(--r-pill);
   background: var(--panel); color: var(--text); font: inherit;
   font-size: 13px; font-weight: 600; text-align: center;
 }
 .speaker-count-input:focus {
-  outline: 0; border-color: var(--akcent); box-shadow: var(--prstenec-pole);
+  outline: 0; border-color: var(--accent); box-shadow: var(--ring-field);
 }
 /* Which of the three documents to read. Stays on the dialog's white with the
    heading it belongs to, on the 26 px inset every dialog shares. */
@@ -1043,8 +1043,8 @@ button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
    two. The tabs above it choose the view and stay with the heading. */
 .ai-output-toolbar {
   display: flex; align-items: center; gap: 10px;
-  padding: 14px 26px 0; background: var(--pozadi);
-  border-top: 1px solid var(--linka);
+  padding: 14px 26px 0; background: var(--ground);
+  border-top: 1px solid var(--line);
 }
 .ai-output-toolbar .vyber { width: 190px; }
 /* 36, the height of the tabs beside it — this strip held three different
@@ -1054,37 +1054,37 @@ button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
   flex: 1 1 auto; min-height: 0; overflow: auto;
   /* No border of its own: the row above it is already on this grey and carries
      the edge. 26 on the sides, the dialog's own line. */
-  padding: 16px 26px 24px; background: var(--pozadi);
-  font-family: var(--pismo-text); font-size: var(--velikost-textu);
-  line-height: var(--radkovani); white-space: pre-wrap;
+  padding: 16px 26px 24px; background: var(--ground);
+  font-family: var(--font-body); font-size: var(--text-size);
+  line-height: var(--line-height); white-space: pre-wrap;
 }
 .ai-preview-text p { margin: 0 0 1.1em; }
 .ai-preview-empty {
   flex: 1 1 auto; min-height: 0;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  padding: 40px 24px; text-align: center; background: var(--pozadi);
+  padding: 40px 24px; text-align: center; background: var(--ground);
 }
 .ai-preview-empty-icon {
   display: grid; place-items: center; width: 44px; height: 44px;
   margin-bottom: 14px; border-radius: 50%;
-  background: var(--akcent-svetly); color: var(--akcent);
+  background: var(--accent-light); color: var(--accent);
 }
 .ai-preview-empty-icon svg {
   width: 21px; height: 21px; fill: none; stroke: currentColor;
   stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round;
 }
 .ai-preview-empty h3 { margin: 0 0 6px; font-size: 16px; }
-.ai-preview-empty p { max-width: 440px; margin: 0 0 18px; color: var(--text-tichy); }
+.ai-preview-empty p { max-width: 440px; margin: 0 0 18px; color: var(--text-quiet); }
 .ai-preview-actions {
   flex: 0 0 auto; margin: 0; padding: 14px 22px;
-  border-top: 1px solid var(--linka);
+  border-top: 1px solid var(--line);
 }
 .ai-preview-actions .tlacitko.tichy:first-child { margin-right: auto; }
 
 .tlacitko.nicive {
-  background: var(--vystraha-plna); border-color: var(--vystraha-plna); color: #fff;
+  background: var(--danger-solid); border-color: var(--danger-solid); color: #fff;
 }
-.tlacitko.nicive:hover { filter: brightness(1.08); background: var(--vystraha-plna); }
+.tlacitko.nicive:hover { filter: brightness(1.08); background: var(--danger-solid); }
 
 /* ---------------------------------------------------------------- drag and drop */
 
@@ -1095,12 +1095,12 @@ button.mic-prehrat:disabled { cursor: default; opacity: 0.6; }
   display: flex; align-items: center; justify-content: center; pointer-events: none;
 }
 .prekryv-obsah {
-  background: var(--panel); border: 2px dashed var(--akcent);
+  background: var(--panel); border: 2px dashed var(--accent);
   /* 22 px: the drop zone's amount, because this is the same dashed panel. */
   border-radius: 22px; padding: 40px 60px; text-align: center;
-  box-shadow: var(--stin-vysoky);
+  box-shadow: var(--shadow-high);
 }
-.prekryv-ikona { font-size: 34px; color: var(--akcent); line-height: 1; margin-bottom: 8px; }
+.prekryv-ikona { font-size: 34px; color: var(--accent); line-height: 1; margin-bottom: 8px; }
 .prekryv-obsah p { margin: 0; font-size: 17px; font-weight: 600; }
 
 /* The panel always stays a right-hand column, at one width. It used to move
