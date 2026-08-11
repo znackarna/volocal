@@ -931,7 +931,7 @@ export function Waveform({
       });
     }
     // `className` is a dependency because the colour comes from CSS: when the
-    // recorder stops, the strip loses `.bezi` and the accent with it, but the
+    // recorder stops, the strip loses `.running` and the accent with it, but the
     // canvas keeps whatever it last painted until something repaints it.
   }, [values, size, layers, mirrored, gain, waveformStyle, anchoring, ceiling, gamma,
       floor, peak, thickness, playedRatio, playedColor, className]);

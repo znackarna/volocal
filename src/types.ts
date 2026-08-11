@@ -212,8 +212,8 @@ function darkQuery(): MediaQueryList | null {
 let followingSystem: (() => void) | null = null;
 
 export function applyTheme(choice: string) {
-  const volba: ThemeChoice = choice === "light" || choice === "dark" ? choice : "system";
-  localStorage.setItem(THEME_KEY, volba);
+  const theme: ThemeChoice = choice === "light" || choice === "dark" ? choice : "system";
+  localStorage.setItem(THEME_KEY, theme);
 
   const media = darkQuery();
   if (followingSystem) {
@@ -225,8 +225,8 @@ export function applyTheme(choice: string) {
     document.documentElement.dataset.theme = dark ? "dark" : "light";
   };
 
-  if (volba !== "system") {
-    write(volba === "dark");
+  if (theme !== "system") {
+    write(theme === "dark");
     return;
   }
   write(media?.matches ?? false);

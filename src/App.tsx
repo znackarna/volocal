@@ -403,14 +403,14 @@ export default function App() {
           ? recordings.find((r) => r.id === finished[0])
           : undefined;
         setQuery({
-          nadpis: t("dialogs.retranscribe.title"),
+          title: t("dialogs.retranscribe.title"),
           text: only
             ? t("dialogs.retranscribe.textOne", {
                 title: only.title || fileName(only.path),
               })
             : tPlural("dialogs.retranscribe.textMany", finished.length),
           confirm: t("dialogs.retranscribe.confirm"),
-          nicive: true,
+          destructive: true,
           action: () => void askAboutSpeakers(ids, language),
         });
         return false;
@@ -799,14 +799,14 @@ export default function App() {
          one asks whether its transcripts go with it. The destructive button
          is the one that destroys; keeping them is the quiet way out. */
       setQuery({
-        nadpis: t("dialogs.folder.deleteTitle", { name: folder.name }),
+        title: t("dialogs.folder.deleteTitle", { name: folder.name }),
         text: folder.recording_count === 0
           ? t("dialogs.folder.deleteEmpty")
           : tPlural("dialogs.folder.deleteText", folder.recording_count),
         confirm: folder.recording_count === 0
           ? t("common.delete")
           : t("dialogs.folder.deleteAll"),
-        nicive: true,
+        destructive: true,
         action: () => void remove(folder.recording_count > 0),
         ...(folder.recording_count > 0
           ? { alternative: { label: t("dialogs.folder.deleteKeep"), action: () => void remove(false) } }
@@ -1238,7 +1238,7 @@ export default function App() {
           onDelete={(id) => {
             const n = recordings.find((x) => x.id === id);
             setQuery({
-              nadpis: t("app.confirm.removeTitle"),
+              title: t("app.confirm.removeTitle"),
               /* `title` alone is empty for a recording nobody renamed, and the
                  question then reads "Přepis  bude smazán." Everywhere else
                  the name falls back to the file, and a destructive question
@@ -1247,7 +1247,7 @@ export default function App() {
                 title: n ? n.title || fileName(n.path) : "",
               }),
               confirm: t("app.confirm.removeAction"),
-              nicive: true,
+              destructive: true,
               action: async () => {
                 await api.deleteRecording(id);
                 // A deleted recording has no business still playing.
@@ -1264,7 +1264,7 @@ export default function App() {
           onDeleteTranscription={(id) => {
             const n = recordings.find((x) => x.id === id);
             setQuery({
-              nadpis: t("app.confirm.deleteTranscriptTitle"),
+              title: t("app.confirm.deleteTranscriptTitle"),
               /* `title` alone is empty for a recording nobody renamed, and the
                  question then reads "Přepis  bude smazán." Everywhere else
                  the name falls back to the file, and a destructive question
@@ -1273,7 +1273,7 @@ export default function App() {
                 title: n ? n.title || fileName(n.path) : "",
               }),
               confirm: t("app.confirm.deleteTranscriptAction"),
-              nicive: true,
+              destructive: true,
               action: async () => {
                 await api.deleteTranscription(id);
                 loadRecordings();
@@ -1544,7 +1544,7 @@ export default function App() {
 
       <ConfirmationDialog
         query={query}
-        onZavri={() => setQuery(null)}
+        onClose={() => setQuery(null)}
         onError={reportError}
       />
 

@@ -2,12 +2,12 @@ import { useI18n } from "./i18n";
 import { useDialog } from "./useDialog";
 
 export interface ConfirmationRequest {
-  nadpis: string;
+  title: string;
   text: string;
   /** Label of the confirming button, for example "Remove" */
   confirm: string;
   /** An irreversible action is set apart by colour */
-  nicive?: boolean;
+  destructive?: boolean;
   /** May be async: every caller in the application passes one. Typed as
    *  returning `void` it swallowed the rejection — a failed deletion closed
    *  the dialog, left the list unreloaded, and said nothing at all. */
@@ -26,11 +26,11 @@ export interface ConfirmationRequest {
  */
 export default function ConfirmationDialog({
   query,
-  onZavri,
+  onClose,
   onError,
 }: {
   query: ConfirmationRequest | null;
-  onZavri: () => void;
+  onClose: () => void;
   /** Where a rejected action is reported. Without it the failure is silent. */
   onError?: (message: string) => void;
 }) {
@@ -38,13 +38,13 @@ export default function ConfirmationDialog({
   // Escape and the focus trap are one shared rule now; the focus itself starts
   // on Cancel rather than on the confirming button, because for an
   // irreversible action a blind Enter must not delete anything.
-  const dialog = useDialog<HTMLDivElement>(onZavri, query != null);
+  const dialog = useDialog<HTMLDivElement>(onClose, query != null);
 
   /** Closes first, then waits: the dialog answered the question and has no
    *  business staying on screen while the work runs. A rejection is reported
    *  rather than dropped. */
   const run = async (action?: () => void | Promise<void>) => {
-    onZavri();
+    onClose();
     try {
       await action?.();
     } catch (error) {
@@ -55,19 +55,19 @@ export default function ConfirmationDialog({
   if (!query) return null;
 
   return (
-    <div className="dialog-overlay" onMouseDown={onZavri}>
+    <div className="dialog-overlay" onMouseDown={onClose}>
       <div
         ref={dialog}
         className="dialog"
         role="alertdialog"
         aria-modal="true"
-        aria-labelledby="dialog-nadpis"
+        aria-labelledby="dialog-title"
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <h2 id="dialog-nadpis">{query.nadpis}</h2>
+        <h2 id="dialog-title">{query.title}</h2>
         <p>{query.text}</p>
         <div className="dialog-footer">
-          <button className="button" onClick={onZavri} autoFocus>
+          <button className="button" onClick={onClose} autoFocus>
             {t("common.cancel")}
           </button>
           {query.alternative && (
@@ -81,7 +81,7 @@ export default function ConfirmationDialog({
             </button>
           )}
           <button
-            className={`button ${query.nicive ? "destructive" : "primary"}`}
+            className={`button ${query.destructive ? "destructive" : "primary"}`}
             onClick={() => {
               void run(query.action);
             }}

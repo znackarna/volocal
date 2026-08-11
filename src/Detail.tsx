@@ -221,7 +221,7 @@ export default function Detail({
        difference, plus breathing room so the pair of rules cannot flap. */
     const EXPAND_NEED = 232;
     const measure = () => {
-      const name = left.querySelector<HTMLElement>(".detail-jmeno");
+      const name = left.querySelector<HTMLElement>(".detail-name");
       if (!name) return; // renaming — the span is an input right now
       const clipped = name.scrollWidth > name.clientWidth + 1;
       if (!pillsCompactRef.current) {
@@ -940,7 +940,7 @@ export default function Detail({
     event.preventDefault();
     // The word carries its own moment; the block start is the fallback for
     // the gaps between words and for transcripts with no word timings.
-    const word = (event.target as HTMLElement).closest<HTMLElement>(".slovo");
+    const word = (event.target as HTMLElement).closest<HTMLElement>(".word");
     const spoken = Number(word?.dataset.time);
     setTranscriptMenu({
       x: event.clientX,
@@ -1575,10 +1575,10 @@ export default function Detail({
                   onCreateFolderFor={onCreateFolderFor}
                   onRetranscribe={startTranscription}
                   onDeleteTranscript={() => setConfirmation({
-                    nadpis: t("detail.header.deleteTranscriptTitle"),
+                    title: t("detail.header.deleteTranscriptTitle"),
                     text: t("detail.header.deleteTranscriptText", { title: title || fileName(path) }),
                     confirm: t("detail.header.deleteTranscriptConfirm"),
-                    nicive: true,
+                    destructive: true,
                     action: async () => {
                       await api.deleteTranscription(id);
                       await load();
@@ -1588,10 +1588,10 @@ export default function Detail({
                     startTranscriptionInLanguage(selectedLanguage)
                   }
                   onRemove={() => setConfirmation({
-                    nadpis: t("detail.header.removeTitle"),
+                    title: t("detail.header.removeTitle"),
                     text: t("detail.header.removeText", { title: title || fileName(path) }),
                     confirm: t("detail.header.removeConfirm"),
-                    nicive: true,
+                    destructive: true,
                     action: async () => {
                       await api.deleteRecording(id);
                       if (player.recordingId === id) player.close();
@@ -2045,10 +2045,10 @@ export default function Detail({
                             return;
                           }
                           setConfirmation({
-                            nadpis: t("detail.speakers.removeTitle"),
+                            title: t("detail.speakers.removeTitle"),
                             text: t("detail.speakers.removeText", { name: speaker.name }),
                             confirm: t("detail.speakers.removeConfirm"),
-                            nicive: true,
+                            destructive: true,
                             action: () => removeVoice(speaker),
                           });
                         }}
@@ -2396,10 +2396,10 @@ export default function Detail({
                                    can be produced again. A note cannot. */
                                 onClick={() =>
                                   setConfirmation({
-                                    nadpis: t("detail.notes.deleteTitle"),
+                                    title: t("detail.notes.deleteTitle"),
                                     text: note.text.trim(),
                                     confirm: t("common.delete"),
-                                    nicive: true,
+                                    destructive: true,
                                     action: () => deleteNote(note),
                                   })
                                 }
@@ -2824,7 +2824,7 @@ export default function Detail({
       )}
       <ConfirmationDialog
         query={confirmation}
-        onZavri={() => setConfirmation(null)}
+        onClose={() => setConfirmation(null)}
         onError={onError}
       />
     </main>

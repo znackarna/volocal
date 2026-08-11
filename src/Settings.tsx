@@ -150,9 +150,9 @@ function byModelOrder(a: string, b: string): number {
 }
 
 const STATUS_BADGES: Record<ModuleStatus, { labelKey: TranslationKey; className: string }> = {
-  complete: { labelKey: "settings.modules.status.complete", className: "hotovo" },
-  missing: { labelKey: "settings.modules.status.missing", className: "nutny" },
-  optional: { labelKey: "settings.modules.status.optional", className: "tichy" },
+  complete: { labelKey: "settings.modules.status.complete", className: "complete" },
+  missing: { labelKey: "settings.modules.status.missing", className: "required" },
+  optional: { labelKey: "settings.modules.status.optional", className: "quiet" },
 };
 
 /** Renders a translated sentence whose `{name}` placeholder carries markup.
@@ -1010,9 +1010,9 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
           <Select
             value={themeChoice(n.theme)}
             onChange={(value) => save({ ...n, theme: value })}
-            items={THEMES.map((volba) => ({
-              value: volba.value,
-              label: t(volba.label),
+            items={THEMES.map((choice) => ({
+              value: choice.value,
+              label: t(choice.label),
             }))}
           />
         </div>
@@ -1269,7 +1269,7 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
             )}
           </div>
           {/* Inside the field it belongs to, which is what gives it the
-              system's 8 px — and puts the toggle back next to the `.pole`, so
+              system's 8 px — and puts the toggle back next to the `.field`, so
               it gets its own 24 px and the divider. Between them it was an
               orphan with no spacing rule at all. */}
           <InfoNote>{t("settings.recordings.movedNote")}</InfoNote>
