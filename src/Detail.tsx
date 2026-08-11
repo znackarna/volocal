@@ -1955,7 +1955,7 @@ export default function Detail({
                  taking a row of its own under the list: the panel is a column of
                  three sections and every row spent here is one the reader has to
                  scroll past to reach the other two. */
-              <div className="mluvci-akce">
+              <div className="speaker-actions">
                 {/* "Přidat", like the notes section's own, and second: this is
                     the way out of a corner — a recording nobody diarized, or a
                     person the clustering folded into somebody else — not the
@@ -1963,7 +1963,7 @@ export default function Detail({
                     word alone is unambiguous inside a card called Mluvčí. */}
                 <button
                   type="button"
-                  className="sidebar-text-action mluvci-pridat"
+                  className="sidebar-text-action speaker-add"
                   title={t("detail.speakers.addTitle")}
                   onClick={() => void addVoice()}
                 >
@@ -2032,7 +2032,7 @@ export default function Detail({
                       </span>
                       <button
                         type="button"
-                        className="mluvci-odstranit"
+                        className="speaker-remove"
                         title={t("detail.speakers.remove")}
                         aria-label={t("detail.speakers.remove")}
                         onClick={() => {

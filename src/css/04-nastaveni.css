@@ -559,12 +559,40 @@
    `.dialog h2 + p` owns the gap above, like every other block in a dialog.
    240 px is about eight items — beyond that the box scrolls, so a talkative
    release cannot push the footer off the bottom of a laptop screen. */
-.novinky { max-height: 240px; overflow-y: auto; }
-.novinky > * + * { margin-top: 12px; }
-.novinky ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
+/* This dialog's lead line gets 24 px under it rather than the family's 18. What
+   follows it is a column of marks, not a paragraph, and at 18 the first tick
+   sat close enough to the sentence to read as part of it. The dialog still owns
+   the gap, as every dialog does — the list carries no margin of its own. */
+.release-notes-dialog h2 + p { margin-bottom: 24px; }
+/* The gap between blocks belongs to the column, not to margins on what is in
+   it. `.release-notes ul` sets `margin: 0` and outranks any `* + *` rule, so a
+   margin-top here was overruled and the introducing sentence sat on the first
+   tick however large the number was.
+
+   14 px, which is what this application already gives an explanation belonging
+   to a whole group rather than to the line under it — the same relationship a
+   sentence has to the list it introduces. 22, the dialog's footer gap, was
+   tried and read as two separate blocks. */
+.release-notes {
+  max-height: 240px; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 14px;
+}
+/* No bullets and no left inset: each line carries its own mark, and the marks
+   are what the column lines up on. 8 px between rows rather than 6 — the mark
+   is taller than the type it sits beside, so the rows need the room. */
+.release-notes ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.release-notes li { display: flex; align-items: center; gap: 9px; }
+/* The tick from `.kontrola-znak`, at 16 px. There it marks a row of a checklist
+   40 px tall; here it stands beside one line of type, and 22 would be a badge
+   rather than a mark. Same grass tint, same text colour. */
+.release-notes-mark {
+  display: grid; place-items: center; flex: 0 0 auto;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: hsl(var(--ds-grass) / 0.14); color: var(--uspech-text);
+}
 /* Full-strength text, unlike `.dialog p`: the sentence above is the framing and
    may be quiet, but this is the thing the reader opened the dialog to read. */
-.novinky li, .novinky p { color: var(--text); font-size: 14px; line-height: 1.5; }
+.release-notes li, .release-notes p { color: var(--text); font-size: 14px; line-height: 1.5; }
 /* Two widths: 420 px for a question with a field, 520 px for a column of
    choice cards. 520 is the wider of the two former numbers because the cards
    in the AI dialog carry a badge in a third column (.volba.s-ikonou > .odznak),

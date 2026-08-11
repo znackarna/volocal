@@ -408,7 +408,7 @@
    gives — a row one line of type tall, where the standard 32 would be taller
    than the field beside it. Grey until pointed at: one of these sits in every
    row, and a column of red cans would read as a warning about the recording. */
-.mluvci-odstranit {
+.speaker-remove {
   display: grid; place-items: center; flex: 0 0 auto;
   width: 26px; height: 26px; padding: 0;
   border: 0; border-radius: 50%; background: transparent;
@@ -416,15 +416,15 @@
   transition: background var(--hover-duration) var(--hover-ease),
     color var(--hover-duration) var(--hover-ease);
 }
-.mluvci-odstranit:hover { background: var(--vystraha-svetla); color: var(--vystraha); }
+.speaker-remove:hover { background: var(--vystraha-svetla); color: var(--vystraha); }
 /* The notes section's "+ Přidat" exactly, with 7 px of side padding instead of
    9: this heading is the only one carrying two actions, and the card is 283 px
    wide. Those 4 px are what keeps "+ Přidat  Rozpoznat mluvčí" on one line. */
-.mluvci-pridat { padding: 0 7px; }
+.speaker-add { padding: 0 7px; }
 /* The two actions the heading carries. No gap of its own — each button's
    padding already holds them apart, and 8 more would push the pair off the
    card's edge. */
-.mluvci-akce { display: flex; align-items: center; flex: 0 0 auto; }
+.speaker-actions { display: flex; align-items: center; flex: 0 0 auto; }
 
 .nabidka {
   position: fixed; left: 50%;

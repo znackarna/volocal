@@ -163,7 +163,7 @@ export const csSettings = {
   "settings.about.updateFound": "K dispozici je verze {version}.",
   "settings.about.updateInstall": "Stáhnout a nainstalovat",
   "settings.about.updateNotesTitle": "Verze {version}",
-  "settings.about.updateNotesLead": "Co se v ní změnilo.",
+  "settings.about.updateNotesLead": "Co je lepší a novější?",
   "settings.about.updateNotesLater": "Teď ne",
   "settings.about.updateNotesReopen": "Co je nového",
   "settings.about.updateDownloading": "Stahuji… {percent} %",
@@ -385,7 +385,7 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
   "settings.about.updateNotesTitle":
     "Nadpis dialogu, který ukáže, co je v nové verzi. {version} je její číslo, například 1.0.5.",
   "settings.about.updateNotesLead":
-    "Věta pod tím nadpisem. Pod ní následuje seznam změn, který píše autor vydání — ten je v tom dialogu to podstatné, tahle věta ho jen uvádí.",
+    "Věta pod tím nadpisem, uvozuje seznam. Otázka, ne oznámení: čtenář se rozhoduje, jestli kvůli tomu přeruší práci, a ptá se přesně na tohle. Seznam pod ní píše autor vydání a je to v dialogu to podstatné.",
   "settings.about.updateNotesLater":
     "Tlačítko, kterým se dialog zavře bez instalace. Nabídka platí dál, nic se neztrácí.",
   "settings.about.updateNotesReopen":

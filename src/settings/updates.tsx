@@ -66,20 +66,31 @@ function ReleaseNotes({
     <div className="prekryv-dialogu" onMouseDown={onClose}>
       <div
         ref={dialog}
-        className="dialog"
+        className="dialog release-notes-dialog"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="novinky-nadpis"
+        aria-labelledby="release-notes-title"
         onMouseDown={(event) => event.stopPropagation()}
       >
-        <h2 id="novinky-nadpis">{t("settings.about.updateNotesTitle", { version })}</h2>
+        <h2 id="release-notes-title">{t("settings.about.updateNotesTitle", { version })}</h2>
         <p>{t("settings.about.updateNotesLead")}</p>
-        <div className="novinky">
+        <div className="release-notes">
           {readNotes(notes).map((block, i) =>
             block.kind === "list" ? (
               <ul key={i}>
                 {block.items.map((item, j) => (
-                  <li key={j}>{item}</li>
+                  <li key={j}>
+                    {/* The green tick from the components list, at 16 px rather
+                        than 22: there it marks one row of a checklist, here it
+                        runs down a column beside single lines of text. */}
+                    <span className="release-notes-mark" aria-hidden>
+                      <svg width="10" height="10" viewBox="0 0 14 14" fill="none">
+                        <path d="M3 7.2 5.7 10 11 4.5" stroke="currentColor" strokeWidth="2"
+                              strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </span>
+                    <span>{item}</span>
+                  </li>
                 ))}
               </ul>
             ) : (
@@ -204,6 +215,7 @@ export function UpdateCheck({
   }
 
   const notes = state.at === "found" ? state.notes : "";
+
 
   return (
     <div className="about-aktualizace">
