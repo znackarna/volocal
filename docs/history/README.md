@@ -22,7 +22,7 @@ the time.
 | [2026-08-08](2026-08-08.md) | 10 | The unnamed interjections get a list of their own … |
 | [2026-08-09](2026-08-09.md) | 4 | The audio the application makes has a folder of its own … |
 | [2026-08-10](2026-08-10.md) | 23 | The change log leaves CLAUDE.md … |
-| [2026-08-11](2026-08-11.md) | 10 | Volocal 1.0.0, and a signing key that is worth something |
+| [2026-08-11](2026-08-11.md) | 11 | Volocal 1.0.0, and a signing key that is worth something |
 
 ## What each day was about
 

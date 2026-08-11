@@ -102,9 +102,8 @@ export const csDetail = {
   "detail.menu.copied": "Zkopírováno do schránky.",
   "detail.menu.edit": "Opravit text",
   "detail.menu.note": "Poznámka k {time}",
-  "detail.menu.toPrevious": "Připsat výše — {name}",
-  "detail.menu.toNext": "Připsat níže — {name}",
-  "detail.menu.toNewVoice": "Připsat novému mluvčímu",
+  "detail.menu.toSpeaker": "Přiřadit mluvčího",
+  "detail.menu.newSpeaker": "Nový mluvčí",
   "detail.find.open": "Hledat v přepisu (Ctrl+F)",
   "detail.find.placeholder": "Hledat v přepisu",
   "detail.find.count": "{at} z {total}",
@@ -320,12 +319,10 @@ export const csDetailContext: Partial<Record<keyof typeof csDetail, string>> = {
   "detail.menu.copied": "Potvrzení po zkopírování.",
   "detail.menu.edit": "Položka nabídky: otevře úsek k ruční úpravě textu.",
   "detail.menu.note": "Položka nabídky: založí poznámku připnutou k tomuto času. {time} je mm:ss.",
-  "detail.menu.toPrevious":
-    "Položka nabídky: přiřadí tenhle blok mluvčímu, který mluví nad ním. {name} je jeho jméno.",
-  "detail.menu.toNext":
-    "Položka nabídky: přiřadí tenhle blok mluvčímu, který mluví pod ním. {name} je jeho jméno.",
-  "detail.menu.toNewVoice":
-    "Položka nabídky: založí dalšího mluvčího a přiřadí mu tenhle blok. Pro člověka, kterého rozpoznání vůbec nenašlo.",
+  "detail.menu.toSpeaker":
+    "Položka nabídky, která rozbalí seznam mluvčích v nahrávce. Kliknutím na jméno se tenhle blok přiřadí jemu.",
+  "detail.menu.newSpeaker":
+    "Poslední položka v seznamu mluvčích. Založí dalšího a přiřadí mu tenhle blok — pro člověka, kterého rozpoznání vůbec nenašlo.",
   "detail.find.placeholder":
     "Zástupný text v poli pro hledání uvnitř otevřeného přepisu. Krátké, pole je úzké.",
   "detail.find.count":
