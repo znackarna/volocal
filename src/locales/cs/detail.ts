@@ -112,7 +112,7 @@ export const csDetail = {
   "detail.find.next": "Další nález",
   "detail.unassigned.heading": "Bez jména",
   "detail.unassigned.hint":
-    "Vsuvky, na které rozpoznání nestačí. Klepnutím si je poslechnete, jménem přiřadíte.",
+    "Tady bylo rozpoznání nejisté. Kliknutím přehrajete a tlačítkem přiřadíte.",
   "detail.unassigned.hearTitle": "Přehrát od tohoto místa",
 
   "detail.ai.missingTitle": "Jazyková úprava není připravená",
