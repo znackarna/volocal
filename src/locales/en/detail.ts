@@ -69,6 +69,13 @@ export const enDetail: Partial<Record<keyof typeof csDetail, string>> = {
   "detail.speakers.playSample": "Play a sample of this voice",
   "detail.speakers.nameHint": "The same name merges two speakers.",
   "detail.speakers.nameLabel": "Speaker name",
+  "detail.speakers.add": "Add",
+  "detail.speakers.addTitle": "Add a speaker",
+  "detail.speakers.remove": "Remove speaker",
+  "detail.speakers.removeTitle": "Remove this speaker?",
+  "detail.speakers.removeText":
+    "{name} disappears from the speaker list. The transcript text stays, without a name.",
+  "detail.speakers.removeConfirm": "Remove",
   "detail.notes.heading": "Notes",
   "detail.notes.add": "Add",
   "detail.notes.timeLabel": "Note time",

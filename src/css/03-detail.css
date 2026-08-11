@@ -404,6 +404,27 @@
    own — only a width, or it would stretch and push the name into two lines. */
 .mluvci-seznam .vyber { flex: 0 0 auto; width: 132px; }
 .mluvci-seznam .vyber button { min-height: 30px; font-size: 12px; }
+/* Takes a person off the list. 26 px for the reason `.hledani-prepisu button`
+   gives — a row one line of type tall, where the standard 32 would be taller
+   than the field beside it. Grey until pointed at: one of these sits in every
+   row, and a column of red cans would read as a warning about the recording. */
+.mluvci-odstranit {
+  display: grid; place-items: center; flex: 0 0 auto;
+  width: 26px; height: 26px; padding: 0;
+  border: 0; border-radius: 50%; background: transparent;
+  color: var(--text-tichy); cursor: pointer;
+  transition: background var(--hover-duration) var(--hover-ease),
+    color var(--hover-duration) var(--hover-ease);
+}
+.mluvci-odstranit:hover { background: var(--vystraha-svetla); color: var(--vystraha); }
+/* The notes section's "+ Přidat" exactly, with 7 px of side padding instead of
+   9: this heading is the only one carrying two actions, and the card is 283 px
+   wide. Those 4 px are what keeps "+ Přidat  Rozpoznat mluvčí" on one line. */
+.mluvci-pridat { padding: 0 7px; }
+/* The two actions the heading carries. No gap of its own — each button's
+   padding already holds them apart, and 8 more would push the pair off the
+   card's edge. */
+.mluvci-akce { display: flex; align-items: center; flex: 0 0 auto; }
 
 .nabidka {
   position: fixed; left: 50%;

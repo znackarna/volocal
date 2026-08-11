@@ -127,7 +127,8 @@ const Icons = {
   deleteTranscript:
     "M7.5 17.5l7-7a2 2 0 0 1 2.9 0l2.1 2.1a2 2 0 0 1 0 2.9L16 19H9l-1.5-1.5Z M11.5 13.5l4.5 4.5 M4 20h16",
   language: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z M3.6 9h16.8 M3.6 15h16.8 M12 3c2.3 2.4 3.5 5.6 3.5 9S14.3 18.6 12 21c-2.3-2.4-3.5-5.6-3.5-9S9.7 5.4 12 3Z",
-  remove: "M4 7h16 M10 4h4 M6 7l1 13h10l1-13 M10 11v6 M14 11v6",
+  /* From the shared registry: the panel's speaker rows draw the same can. */
+  remove: LINE_ICONS.remove,
   /* From the shared registry: three places draw a folder, and they must not
      drift apart. */
   folder: LINE_ICONS.folder,

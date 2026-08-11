@@ -410,6 +410,7 @@ fn main() {
             commands::backups::set_segment_speaker,
             commands::backups::rename_speaker,
             commands::backups::add_speaker,
+            commands::backups::delete_speaker,
             commands::backups::merge_speakers,
             commands::dictionary::dictionary,
             commands::dictionary::add_dictionary_entry,

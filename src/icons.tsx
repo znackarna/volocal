@@ -34,6 +34,9 @@ export const LINE_ICONS = {
    *  writing rather than as a generic tool. */
   edits:
     "M5 19h3.5L19.4 8.1a1.9 1.9 0 0 0 0-2.7l-.8-.8a1.9 1.9 0 0 0-2.7 0L5 15.5V19Z M14.8 6.6l2.6 2.6",
+  /** A trash can. Used by the recording menu and by the speaker rows in the
+   *  transcript's panel: both take something off a list for good. */
+  remove: "M4 7h16 M10 4h4 M6 7l1 13h10l1-13 M10 11v6 M14 11v6",
   /** A drawer with its tab. Used by the archive's folder heading, its cards
    *  and the recording menu's move action, so the same idea keeps the same
    *  drawing in all three. */

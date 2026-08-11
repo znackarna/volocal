@@ -221,6 +221,21 @@ pub fn add_speaker(app: State<'_, AppState>, recording_id: String) -> Reported<d
     Ok(speaker)
 }
 
+/// Takes a speaker off the list.
+///
+/// The panel could add people and join them, and undo neither. A speaker added
+/// by a slip of the hand — and it is one click away in the transcript's own
+/// menu — stayed in the list for good, and a group the clustering invented out
+/// of a cough could only be got rid of by merging it into somebody it was not.
+///
+/// What was said is not touched: those blocks lose the name and nothing else,
+/// which is where anything diarization could not place already is.
+#[tauri::command]
+pub fn delete_speaker(app: State<'_, AppState>, recording_id: String, key: String) -> Reported<()> {
+    let db = app.db.lock().unwrap();
+    reported(db::delete_speaker(&db, &recording_id, &key))
+}
+
 #[tauri::command]
 pub fn merge_speakers(
     app: State<'_, AppState>,

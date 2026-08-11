@@ -83,6 +83,13 @@ export const csDetail = {
   "detail.speakers.playSample": "Přehrát ukázku hlasu",
   "detail.speakers.nameHint": "Stejné jméno sloučí mluvčí.",
   "detail.speakers.nameLabel": "Jméno mluvčího",
+  "detail.speakers.add": "Přidat",
+  "detail.speakers.addTitle": "Přidat mluvčího",
+  "detail.speakers.remove": "Odstranit mluvčího",
+  "detail.speakers.removeTitle": "Odstranit mluvčího?",
+  "detail.speakers.removeText":
+    "{name} zmizí ze seznamu mluvčích. Text přepisu zůstane beze jména.",
+  "detail.speakers.removeConfirm": "Odstranit",
 
   "detail.notes.heading": "Poznámky",
   "detail.notes.add": "Přidat",
@@ -296,6 +303,16 @@ export const csDetailContext: Partial<Record<keyof typeof csDetail, string>> = {
     "Přístupný název pole se jménem mluvčího. Pole nemá vedle sebe viditelný popisek, takže tohle je jediné, co se přečte nahlas.",
   "detail.speakers.nameHint":
     "Vysvětlení pod seznamem mluvčích: dva mluvčí se stejným jménem se spojí v jednoho.",
+  "detail.speakers.add":
+    "Tlačítko v hlavičce sekce přidá dalšího mluvčího, kterému zatím nepatří žádná pasáž. Stojí vedle „Rozpoznat mluvčí“, takže samotné slovo stačí. Plus kreslí ikona, do textu nepatří.",
+  "detail.speakers.addTitle":
+    "Bublina toho tlačítka. Tady je potřeba říct, co se přidává.",
+  "detail.speakers.remove":
+    "Popisek tlačítka u řádku mluvčího, které ho odstraní ze seznamu. Jen ikona koše, text se čte nahlas.",
+  "detail.speakers.removeTitle": "Nadpis dotazu před odstraněním mluvčího ze seznamu.",
+  "detail.speakers.removeText":
+    "Vysvětlení v tom dotazu. {name} je jméno mluvčího a věta jím začíná, bez uvozovacího slova „Mluvčí“. Podstatné je, že se nic nemaže z přepisu — text zůstane, ztratí jen jméno.",
+  "detail.speakers.removeConfirm": "Potvrzovací tlačítko toho dotazu.",
 
   "detail.notes.heading": "Nadpis sekce s poznámkami k nahrávce.",
   "detail.notes.add": "Tlačítko přidá novou poznámku. Plus vedle popisku kreslí rozhraní, do textu nepatří.",

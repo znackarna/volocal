@@ -1409,6 +1409,29 @@ pub fn rename_speaker(db: &Connection, recording_id: &str, key: &str, name: &str
 
 /// Diarizace casto rozdeli jednoho cloveka na dva (zmena hlasitosti, kaslani).
 /// Slouceni je proto zakladni operace, ne okrajova funkce.
+/// Removes a speaker and leaves what they said without a name.
+///
+/// Not a merge with nobody: a merge moves the blocks to another person, and
+/// there may be no other person to move them to. The blocks stay exactly where
+/// they are and lose only the name, which is the state the archive already has
+/// for anything diarization could not place — so they turn up in the panel's
+/// list of unnamed passages, where they can be given to somebody again. Nothing
+/// about the transcript itself changes.
+pub fn delete_speaker(db: &Connection, recording_id: &str, key: &str) -> Result<()> {
+    // Both statements or neither: a speaker deleted while their blocks still
+    // point at them would leave those blocks naming somebody who is gone.
+    let tx = transaction_unless_in_one(db)?;
+    db.execute(
+        "UPDATE segmenty SET mluvci = NULL WHERE nahravka_id = ?1 AND mluvci = ?2",
+        params![recording_id, key],
+    )?;
+    db.execute(
+        "DELETE FROM mluvci WHERE nahravka_id = ?1 AND klic = ?2",
+        params![recording_id, key],
+    )?;
+    commit(tx)
+}
+
 pub fn merge_speakers(
     db: &Connection,
     recording_id: &str,
@@ -1733,11 +1756,12 @@ mod cluster_threshold_migration_tests {
 mod tests {
     use super::{
         ai_outputs, align_word_timestamps, create_folder, delete_folder, delete_recording,
-        delete_recording_note, delete_segments, folder_recording_ids, folders,
-        insert_recording_note, insert_segment, load_settings, migrate_legacy_schema,
-        move_to_folder, recording_notes, recover_interrupted, save_ai_document, save_ai_output,
-        segments, update_recording_note, watch_file_imported, watch_file_is_stable, waveform,
-        AiDocument, AiOutput, RecordingNote, Segment, WaveformData,
+        delete_recording_note, delete_segments, delete_speaker, folder_recording_ids, folders,
+        insert_recording_note, insert_segment, insert_speaker, load_settings,
+        migrate_legacy_schema, move_to_folder, recording_notes, recover_interrupted,
+        save_ai_document, save_ai_output, segments, speakers, update_recording_note,
+        watch_file_imported, watch_file_is_stable, waveform, AiDocument, AiOutput, RecordingNote,
+        Segment, Speaker, WaveformData,
     };
     use rusqlite::{params, Connection};
 
@@ -1820,6 +1844,90 @@ mod tests {
             Some("součas DNA"),
             "the correction survives a round trip through the speaker pass"
         );
+    }
+
+    /// Enough of `mluvci` to delete a row from it. The real table has a foreign
+    /// key into `nahravky`, which these tests do not create.
+    const SPEAKER_SCHEMA: &str = "CREATE TABLE mluvci (
+           klic         TEXT NOT NULL,
+           nahravka_id  TEXT NOT NULL,
+           jmeno        TEXT NOT NULL,
+           barva        TEXT NOT NULL,
+           PRIMARY KEY (klic, nahravka_id)
+         );";
+
+    /// Removing a speaker takes the name off their passages and touches nothing
+    /// else. The passages themselves stay where they are — they are the reading,
+    /// and only the machine's guess about who was speaking is being withdrawn.
+    #[test]
+    fn removing_a_speaker_leaves_what_they_said_without_a_name() {
+        let db = Connection::open_in_memory().unwrap();
+        db.execute_batch(SEGMENT_SCHEMA).unwrap();
+        db.execute_batch(SPEAKER_SCHEMA).unwrap();
+
+        let mut theirs = segment(1.0, 2.0, r#"[{"s":"ahoj","t":1.0}]"#);
+        theirs.text = "co řekli".into();
+        theirs.speakers = Some("speaker_0".into());
+        insert_segment(&db, &theirs).unwrap();
+
+        let mut somebody_else = segment(2.0, 3.0, r#"[{"s":"ahoj","t":2.0}]"#);
+        somebody_else.id = "second".into();
+        somebody_else.speakers = Some("speaker_1".into());
+        insert_segment(&db, &somebody_else).unwrap();
+
+        for key in ["speaker_0", "speaker_1"] {
+            insert_speaker(
+                &db,
+                &Speaker {
+                    key: key.into(),
+                    recording_id: "recording".into(),
+                    name: key.into(),
+                    color: "#000".into(),
+                },
+            )
+            .unwrap();
+        }
+
+        delete_speaker(&db, "recording", "speaker_0").unwrap();
+
+        let read = segments(&db, "recording").unwrap();
+        assert_eq!(read[0].speakers, None, "the name is gone");
+        assert_eq!(read[0].text, "co řekli", "and nothing else is");
+        assert_eq!(
+            read[1].speakers.as_deref(),
+            Some("speaker_1"),
+            "nobody else loses their name"
+        );
+
+        let left = speakers(&db, "recording").unwrap();
+        assert_eq!(left.len(), 1);
+        assert_eq!(left[0].key, "speaker_1");
+    }
+
+    /// The same errand run from inside a larger one, which is how the folder
+    /// delete crashed: `delete_speaker` asking SQLite for a transaction while
+    /// its caller already held one.
+    #[test]
+    fn a_speaker_can_be_removed_inside_someone_elses_transaction() {
+        let db = Connection::open_in_memory().unwrap();
+        db.execute_batch(SEGMENT_SCHEMA).unwrap();
+        db.execute_batch(SPEAKER_SCHEMA).unwrap();
+        insert_speaker(
+            &db,
+            &Speaker {
+                key: "speaker_0".into(),
+                recording_id: "recording".into(),
+                name: "Někdo".into(),
+                color: "#000".into(),
+            },
+        )
+        .unwrap();
+
+        let tx = db.unchecked_transaction().unwrap();
+        delete_speaker(&db, "recording", "speaker_0").unwrap();
+        tx.commit().unwrap();
+
+        assert!(speakers(&db, "recording").unwrap().is_empty());
     }
 
     /// The two columns `segments()` selects beyond the obvious ones. Kept

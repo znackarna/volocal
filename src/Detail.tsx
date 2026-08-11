@@ -1131,6 +1131,52 @@ export default function Detail({
   );
 
 
+  /** The row whose name field should take the keyboard as soon as it is drawn.
+   *  A ref rather than state: the field is focused when it appears, and that is
+   *  not something anything else has to be re-rendered for. */
+  const focusNewName = useRef<string | null>(null);
+
+  /** A person the reader knows is in the recording, before any passage has been
+   *  handed to them.
+   *
+   *  The transcript's menu can also make one, but only while giving it a block.
+   *  Somebody who writes down the participants first and assigns afterwards had
+   *  no way in at all, and neither had anybody whose recording was never
+   *  diarized. */
+  const addVoice = useCallback(async () => {
+    try {
+      const voice = await api.addSpeaker(id);
+      setSpeakers((p) => [...p, voice]);
+      // The stored name is a placeholder; selecting it means the first thing
+      // typed replaces it rather than being appended to "Mluvčí 3".
+      focusNewName.current = voice.key;
+    } catch (e) {
+      onError(userMessage(e));
+    }
+  }, [id, onError, userMessage]);
+
+  /** Taking a person off the list.
+   *
+   *  Their passages stay exactly where they are and lose only the name, so the
+   *  panel's list of unnamed places is where they turn up — nothing has to be
+   *  found again. The improved document goes stale for the same reason a rename
+   *  makes it stale: the names are in it. */
+  const removeVoice = useCallback(
+    async (speaker: Speaker) => {
+      try {
+        await api.deleteSpeaker(id, speaker.key);
+        setSpeakers((p) => p.filter((m) => m.key !== speaker.key));
+        setSegments((p) =>
+          p.map((x) => (x.speakers === speaker.key ? { ...x, speakers: null } : x))
+        );
+        setAiDocument((document) => (document ? { ...document, stale: true } : null));
+      } catch (e) {
+        onError(userMessage(e));
+      }
+    },
+    [id, onError, userMessage]
+  );
+
   /** What is in the field. Typing is not a decision, so it goes no further
    *  than the screen. */
   const renameLocally = useCallback((key: string, name: string) => {
@@ -1905,15 +1951,38 @@ export default function Detail({
             open={openSections.speakers}
             onToggle={() => toggleSection("speakers")}
             action={
-              <button className="sidebar-text-action" onClick={diarizeSpeakers}
-                      disabled={diarizing || running || segments.length === 0}>
-                <LineIcon name="speakers" size={15} />
-                {diarizing
-                  ? t("detail.speakers.diarizing")
-                  : speakers.length > 0
-                    ? t("detail.speakers.diarizeAgain")
-                    : t("detail.speakers.diarize")}
-              </button>
+              /* Both actions on the heading's own line, rather than one of them
+                 taking a row of its own under the list: the panel is a column of
+                 three sections and every row spent here is one the reader has to
+                 scroll past to reach the other two. */
+              <div className="mluvci-akce">
+                {/* "Přidat", like the notes section's own, and second: this is
+                    the way out of a corner — a recording nobody diarized, or a
+                    person the clustering folded into somebody else — not the
+                    ordinary way in. The tooltip says what is being added; the
+                    word alone is unambiguous inside a card called Mluvčí. */}
+                <button
+                  type="button"
+                  className="sidebar-text-action mluvci-pridat"
+                  title={t("detail.speakers.addTitle")}
+                  onClick={() => void addVoice()}
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
+                    <path d="M12 5v14 M5 12h14" stroke="currentColor" strokeWidth="1.7"
+                          strokeLinecap="round" />
+                  </svg>
+                  {t("detail.speakers.add")}
+                </button>
+                <button className="sidebar-text-action" onClick={diarizeSpeakers}
+                        disabled={diarizing || running || segments.length === 0}>
+                  <LineIcon name="speakers" size={15} />
+                  {diarizing
+                    ? t("detail.speakers.diarizing")
+                    : speakers.length > 0
+                      ? t("detail.speakers.diarizeAgain")
+                      : t("detail.speakers.diarize")}
+                </button>
+              </div>
             }
           >
             {speakers.length > 0 ? (
@@ -1934,6 +2003,12 @@ export default function Detail({
                         </svg>
                       </button>
                       <input
+                        ref={(field) => {
+                          if (!field || focusNewName.current !== speaker.key) return;
+                          focusNewName.current = null;
+                          field.focus();
+                          field.select();
+                        }}
                         value={speaker.name}
                         aria-label={t("detail.speakers.nameLabel")}
                         onChange={(event) => renameLocally(speaker.key, event.target.value)}
@@ -1955,6 +2030,31 @@ export default function Detail({
                       <span className="mluvci-podil">
                         {Math.round((speakerShare.get(speaker.key) ?? 0) * 100)} %
                       </span>
+                      <button
+                        type="button"
+                        className="mluvci-odstranit"
+                        title={t("detail.speakers.remove")}
+                        aria-label={t("detail.speakers.remove")}
+                        onClick={() => {
+                          // Asked about only when there is something to lose.
+                          // A person just added by a slip of the hand holds a
+                          // placeholder name and nothing else, and a dialog
+                          // about that would be in the way.
+                          if (!segments.some((s) => s.speakers === speaker.key)) {
+                            void removeVoice(speaker);
+                            return;
+                          }
+                          setConfirmation({
+                            nadpis: t("detail.speakers.removeTitle"),
+                            text: t("detail.speakers.removeText", { name: speaker.name }),
+                            confirm: t("detail.speakers.removeConfirm"),
+                            nicive: true,
+                            action: () => removeVoice(speaker),
+                          });
+                        }}
+                      >
+                        <LineIcon name="remove" size={15} />
+                      </button>
                       {naming === speaker.key && namePool.length > 0 && (
                         <div className="mluvci-jmena">
                           {namePool.map((name) => (
