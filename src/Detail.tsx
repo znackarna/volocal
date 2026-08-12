@@ -29,7 +29,7 @@ import { localMessage, useProgressMessage, useUserMessage } from "./messages";
 import type { TranslationKey } from "./i18n";
 import { useLabels } from "./labels";
 import { useDialog } from "./useDialog";
-import { CONFIDENCE_THRESHOLD, formatTime, fileName } from "./types";
+import { CONFIDENCE_THRESHOLD, formatTime, fileName, statusClass } from "./types";
 import { forgetSpeakerName, speakerNamesFor } from "./speakerNames";
 import ProgressBubble from "./ProgressBubble";
 /* The transcript screen's own parts. They were all in this file until it had
@@ -1560,7 +1560,7 @@ export default function Detail({
           {(
             <>
               <h1 className="detail-title">
-                <span className={`status-mark detail-status ${status}`} aria-hidden />
+                <span className={`status-mark detail-status ${statusClass(status)}`} aria-hidden />
                 <span className="detail-name">{title || fileName(path)}</span>
               </h1>
               {!running && !diarizing && (
