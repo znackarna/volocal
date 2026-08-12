@@ -114,7 +114,7 @@ export const enSettings: Partial<Record<keyof typeof csSettings, string>> = {
   "settings.performance.threads": "CPU threads",
   "settings.performance.threadsAuto": "automatic",
   "settings.performance.threadsNote": "Zero means automatic.",
-  "settings.performance.benchmarkNote": "The test transcribes a piece of a recording in every available mode and sets the fastest one.",
+  "settings.performance.benchmarkNote": "The test transcribes a piece of a recording and sets the fastest mode.",
   "settings.performance.benchmarking": "Measuring…",
   "settings.performance.benchmark": "Measure speed",
   "settings.performance.fastest": "fastest",
