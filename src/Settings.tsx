@@ -1609,7 +1609,7 @@ function QuickTips() {
  */
 function Backups({ onError }: { onError: (message: string) => void }) {
   const { t, formatNumber, formatDate } = useI18n();
-  const { dataSize } = useFormats();
+  const { dataSize, transcriptCount, archiveDuration } = useFormats();
   /** The hour on its own for the row, and the whole moment for the question
    *  that names it — the row already has the day beside it, the dialog does not. */
   const formatTime = (moment: string) =>
@@ -1633,7 +1633,13 @@ function Backups({ onError }: { onError: (message: string) => void }) {
   } | null>(null);
   const [running, setRunning] = useState(false);
   const [list, setList] = useState<
-    { file: string; taken_at: string; size: number }[] | null
+    {
+      file: string;
+      taken_at: string;
+      size: number;
+      recordings: number | null;
+      seconds: number | null;
+    }[] | null
   >(null);
 
   const refresh = useCallback(() => {
@@ -1734,7 +1740,17 @@ function Backups({ onError }: { onError: (message: string) => void }) {
                 {/* dataSize speaks in megabytes; the file system speaks in
                     bytes. Passed straight through, a 1.4 MB archive announced
                     itself as 1 420 GB. */}
-                <span className="backup-size">{dataSize(backup.size / (1024 * 1024))}</span>
+                {/* What is in it, rather than what it weighs. Nobody picks a
+                    backup by megabytes; they pick it by whether the recording
+                    they are missing is in there. The size stays in the
+                    tooltip, where a file's weight belongs. */}
+                <span className="backup-holds" title={dataSize(backup.size / (1024 * 1024))}>
+                  {backup.recordings === null
+                    ? ""
+                    : `${transcriptCount(backup.recordings)} · ${archiveDuration(
+                        backup.seconds ?? 0
+                      )}`}
+                </span>
                 <button
                   className="button"
                   disabled={running}

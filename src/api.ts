@@ -162,7 +162,15 @@ export const api = {
     invoke<{ latest: string; count: number; directory: string }>("backup_status"),
   backUpNow: () => invoke<string>("back_up_now"),
   backups: () =>
-    invoke<{ file: string; taken_at: string; size: number }[]>("backups"),
+    invoke<
+      {
+        file: string;
+        taken_at: string;
+        size: number;
+        recordings: number | null;
+        seconds: number | null;
+      }[]
+    >("backups"),
   /** Replaces the open archive with a backup, and reopens it. */
   restoreBackup: (file: string) => invoke<void>("restore_backup", { file }),
 };

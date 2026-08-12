@@ -53,6 +53,53 @@ pub(crate) struct Backup {
     /// and the calendar mark on each row needs the parts, not the prose.
     taken_at: String,
     size: u64,
+    /// How many recordings are in it, and how many seconds of audio they add
+    /// up to. Absent when the file could not be read at all.
+    recordings: Option<i64>,
+    seconds: Option<f64>,
+}
+
+/// What is inside a backup, without opening it for writing.
+///
+/// Megabytes are what a file manager says about a file. Nobody chooses a backup
+/// by them — they choose by whether the recording they are missing is in it, and
+/// the nearest honest answer to that is how many recordings there are and how
+/// much audio they add up to.
+///
+/// Read-only on purpose, and this is the whole reason the function exists rather
+/// than `db::open` being called: opening a backup the ordinary way would migrate
+/// it. Reading a list must not rewrite nine files.
+///
+/// Older backups still have the Czech schema, and the point of a backup is that
+/// it is old, so both names are tried. Anything unreadable answers `None` and
+/// the row simply says less.
+fn backup_contents(path: &std::path::Path) -> Option<(i64, f64)> {
+    use rusqlite::OpenFlags;
+    let db = Connection::open_with_flags(
+        path,
+        OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_URI,
+    )
+    .ok()?;
+    let table = ["recordings", "nahravky"].into_iter().find(|name| {
+        db.query_row(
+            "SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = ?1",
+            [name],
+            |r| r.get::<_, i64>(0),
+        )
+        .unwrap_or(0)
+            > 0
+    })?;
+    let column = if table == "recordings" {
+        "duration"
+    } else {
+        "delka"
+    };
+    db.query_row(
+        &format!("SELECT count(*), COALESCE(SUM({column}), 0) FROM {table}"),
+        [],
+        |r| Ok((r.get(0)?, r.get(1)?)),
+    )
+    .ok()
 }
 
 #[tauri::command]
@@ -62,10 +109,13 @@ pub fn backups(app: State<'_, AppState>) -> Vec<Backup> {
         .filter_map(|path| {
             let metadata = path.metadata().ok()?;
             let when: chrono::DateTime<chrono::Local> = metadata.modified().ok()?.into();
+            let inside = backup_contents(&path);
             Some(Backup {
                 file: path.file_name()?.to_string_lossy().to_string(),
                 taken_at: when.format("%Y-%m-%dT%H:%M:%S").to_string(),
                 size: metadata.len(),
+                recordings: inside.map(|(n, _)| n),
+                seconds: inside.map(|(_, s)| s),
             })
         })
         .collect()

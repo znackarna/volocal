@@ -1208,7 +1208,7 @@ button.mic-play:disabled { cursor: default; opacity: 0.6; }
   font-variant-numeric: tabular-nums;
 }
 .backup-when svg { flex: 0 0 auto; color: var(--text-quiet); }
-.backup-size {
+.backup-holds {
   flex: 0 0 auto; color: var(--text-quiet);
   font-variant-numeric: tabular-nums;
 }
