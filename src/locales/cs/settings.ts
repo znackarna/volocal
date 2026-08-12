@@ -88,7 +88,7 @@ export const csSettings = {
   "settings.performance.threadsAuto": "automaticky",
   "settings.performance.threadsNote": "Nula znamená automatickou volbu.",
   "settings.performance.benchmarkNote":
-    "Test přepíše kousek nahrávky každým dostupným režimem a nejrychlejší rovnou nastaví.",
+    "Test přepíše kousek nahrávky a rovnou nastaví nejrychlejší režim.",
   "settings.performance.benchmarking": "Měřím…",
   "settings.performance.benchmark": "Změřit rychlost",
   "settings.performance.fastest": "nejrychlejší",
