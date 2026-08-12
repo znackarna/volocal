@@ -24,8 +24,8 @@ podrobností a domluvíme se.
 
 ### Které verze
 
-Volocal je ve verzi 0.9.0 a nemá zpětné vydávání oprav. Podporovaná je vždy
-poslední vydaná verze; oprava přijde v té další.
+Volocal nemá zpětné vydávání oprav. Podporovaná je vždy poslední vydaná verze;
+oprava přijde v té další.
 
 ### Hranice důvěry
 
@@ -74,7 +74,8 @@ ověřuje se certifikát protistrany. To znamená, že důvěřujeme provozovate
 `huggingface.co` a `www.gyan.dev`, a celému řetězci certifikačních autorit ve
 vašem systému.
 
-Proti vydání 0.9.0 se změnilo jedno: aplikace už netvrdí, že původ ověřila.
+Proti dřívějšímu chování se změnilo jedno: aplikace už netvrdí, že původ
+ověřila.
 Každá dokončená instalace zapíše do `installed.json` adresu, otisk toho, co
 skutečně dorazilo, a `verified: false`, dokud nebylo s čím porovnávat. Samotná
 existence souboru na disku už za doklad původu neplatí. Tento záznam ale zatím
@@ -185,8 +186,8 @@ without the details and we will arrange one.
 
 ### Which versions
 
-Volocal is at 0.9.0 and does not backport fixes. The supported version is
-always the latest release; a fix arrives in the next one.
+Volocal does not backport fixes. The supported version is always the latest
+release; a fix arrives in the next one.
 
 ### Trust boundary
 
@@ -237,8 +238,8 @@ whoever operates `github.com`, `api.github.com`,
 `objects.githubusercontent.com`, `huggingface.co` and `www.gyan.dev`, and the
 whole chain of certificate authorities on your system.
 
-One thing has changed since 0.9.0 was released: the application no longer claims
-the origin was checked. Every completed installation records the address, the
+One thing has changed from the earlier behaviour: the application no longer
+claims the origin was checked. Every completed installation records the address, the
 digest of what actually arrived, and `verified: false` while there was nothing
 to compare against, in `installed.json`. A file sitting in the right place is no
 longer accepted as evidence of where it came from. That record is not yet shown
