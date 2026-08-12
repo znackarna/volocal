@@ -1176,8 +1176,18 @@ button.mic-play:disabled { cursor: default; opacity: 0.6; }
    filling the row it sits in. */
 .backup-list li {
   display: flex; align-items: center; gap: 14px;
-  min-height: 54px; padding: 8px 14px;
+  min-height: 58px; padding: 10px 14px;
 }
+/* The same answer the archive gives when a row is pointed at: the leaf's
+   header takes the accent and the leaf stops standing off the page. Shared
+   with `.row` in the library rather than invented here — one gesture, one
+   meaning, wherever the leaf appears. */
+.backup-list li:hover .recording-calendar-month,
+.backup-list li:focus-within .recording-calendar-month {
+  background: var(--accent); color: #fff;
+}
+.backup-list li:hover .recording-calendar,
+.backup-list li:focus-within .recording-calendar { box-shadow: none; }
 .backup-list li + li { border-top: 1px solid var(--line); }
 /* The archive's own leaf at its compact size: 38 px wide, no year. A backup
    is chosen by its day, and the year of one taken this week says nothing. */
@@ -1190,10 +1200,14 @@ button.mic-play:disabled { cursor: default; opacity: 0.6; }
 /* No tabular figures on the date. They are for numbers read down a column,
    and these are sentences of digits: monospaced, "12. 8. 2026 10:58" falls
    apart into widely spaced characters. The size keeps them — it is a column. */
+/* The clock sits with the hour rather than beside it: 6 px, the distance a
+   mark keeps from the word it belongs to elsewhere in this application. */
 .backup-when {
-  flex: 1 1 auto; font-weight: 600; line-height: 1.35;
+  flex: 1 1 auto; display: flex; align-items: center; gap: 6px;
+  font-weight: 600; line-height: 1.35;
   font-variant-numeric: tabular-nums;
 }
+.backup-when svg { flex: 0 0 auto; color: var(--text-quiet); }
 .backup-size {
   flex: 0 0 auto; color: var(--text-quiet);
   font-variant-numeric: tabular-nums;

@@ -1720,6 +1720,15 @@ function Backups({ onError }: { onError: (message: string) => void }) {
                     the day is what the eye finds without reading. */}
                 <RecordingCalendar value={backup.taken_at} />
                 <span className="backup-when">
+                  {/* A clock, quiet, to pair with the leaf: the leaf answers
+                      which day and this answers which time of it. Drawn here
+                      rather than put in the shared registry — one place draws
+                      it, and the registry is for ideas that recur. */}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+                    <path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z M12 7.5V12l3 1.8"
+                          stroke="currentColor" strokeWidth="1.7"
+                          strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
                   {formatTime(backup.taken_at)}
                 </span>
                 {/* dataSize speaks in megabytes; the file system speaks in
