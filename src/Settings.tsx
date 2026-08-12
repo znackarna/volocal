@@ -278,15 +278,18 @@ function SettingsDisclosure({
   children,
   /** Called the first time it is opened, for content worth fetching only then. */
   onOpen,
+  /** `card-footer` when it is the last band of a card and wants its own rule. */
+  className = "",
 }: {
   title: string;
   badge?: ReactNode;
   children: ReactNode;
   onOpen?: () => void;
+  className?: string;
 }) {
   return (
     <details
-      className="settings-disclosure"
+      className={`settings-disclosure ${className}`.trim()}
       onToggle={(event) => {
         if ((event.currentTarget as HTMLDetailsElement).open) onOpen?.();
       }}
@@ -1675,12 +1678,21 @@ function Backups({ onError }: { onError: (message: string) => void }) {
         )}
       </dl>
 
-      {/* Folded away until it is asked for. Putting a backup back is the rarest
-          thing on this screen and the only one that replaces what is there, so
-          it does not sit open beside a button that merely makes another copy. */}
+      <div className="settings-action-row separated">
+        <InfoNote compact>{t("settings.backups.note")}</InfoNote>
+        <button className="button" onClick={backUpNow} disabled={running}>
+          {running ? t("settings.backups.running") : t("settings.backups.action")}
+        </button>
+      </div>
+
+      {/* Last band of the card, folded away. Putting a backup back is the
+          rarest thing on this screen and the only one that replaces what is
+          there — it belongs under everything that is not, rather than between
+          the summary and the button that merely makes another copy. */}
       {(status?.count ?? 0) > 0 && (
         <SettingsDisclosure
           title={t("settings.backups.restoreTitle")}
+          className="card-footer"
           onOpen={() => {
             if (list === null) api.backups().then(setList).catch(() => setList([]));
           }}
@@ -1726,13 +1738,6 @@ function Backups({ onError }: { onError: (message: string) => void }) {
           </ul>
         </SettingsDisclosure>
       )}
-
-      <div className="settings-action-row separated">
-        <InfoNote compact>{t("settings.backups.note")}</InfoNote>
-        <button className="button" onClick={backUpNow} disabled={running}>
-          {running ? t("settings.backups.running") : t("settings.backups.action")}
-        </button>
-      </div>
 
       <ConfirmationDialog
         query={confirmation}
@@ -1886,7 +1891,7 @@ function ToolDiagnostics({
     ["embedding", "settings.diagnostics.diarizationEmbedding", k.embedding_model],
   ];
   return (
-    <SettingsDisclosure title={t("settings.diagnostics.title")}>
+    <SettingsDisclosure title={t("settings.diagnostics.title")} className="card-footer">
       <ul className="check">
         {rows.map(([id, titleKey, path]) => (
           <li key={id} className={path ? "yes" : "no"}>

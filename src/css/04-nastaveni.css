@@ -213,6 +213,18 @@
 .settings-action-row + .settings-disclosure {
   margin-top: 12px; padding-top: 0; border-top: 0;
 }
+/* Unless it is the card's last band, which is where a folded-away extra
+   belongs: the rarest thing on the card, under everything that is not.
+
+   Then it takes its rule back, and takes the action row's own 22/20 with it,
+   so the two bands are spaced the same way rather than one being tighter. The
+   rule above it is the only one it gets — nothing follows it, so nothing
+   closes it. The arrangement that was there before had it sandwiched between
+   two rules in the middle of the card, which read as a band that had lost its
+   place. */
+.settings-action-row + .settings-disclosure.card-footer {
+  margin-top: 22px; padding-top: 20px; border-top: 1px solid var(--line);
+}
 .settings-disclosure > summary {
   display: flex; align-items: center; gap: 8px;
   padding: 6px 0; border: 0; background: none; cursor: pointer;
