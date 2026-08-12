@@ -678,7 +678,8 @@ fn report_unusable_archive(
              aby se jmenoval stejně jako archiv. Potom Volocal spusťte znovu.\n\n\
              Podrobnost: {error:#}{where_to_look}"
         )
-    };    let handle = app.handle().clone();
+    };
+    let handle = app.handle().clone();
     // `blocking_show` waits for a closure that the event loop has yet to run,
     // so on the main thread it would wait for ever — and `setup` is the main
     // thread. Hence a thread of its own, and hence this function returning
