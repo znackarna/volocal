@@ -48,8 +48,10 @@ pub(crate) struct Backup {
     /// worked out here — a full path arriving over IPC is a path that could
     /// point anywhere.
     file: String,
-    /// When it was taken, formatted for reading.
-    when: String,
+    /// When it was taken, as `2026-08-12T11:09:03`. The moment, not a sentence
+    /// about it: the window has the reader's language and this side does not,
+    /// and the calendar mark on each row needs the parts, not the prose.
+    taken_at: String,
     size: u64,
 }
 
@@ -62,7 +64,7 @@ pub fn backups(app: State<'_, AppState>) -> Vec<Backup> {
             let when: chrono::DateTime<chrono::Local> = metadata.modified().ok()?.into();
             Some(Backup {
                 file: path.file_name()?.to_string_lossy().to_string(),
-                when: when.format("%-d. %-m. %Y %H:%M").to_string(),
+                taken_at: when.format("%Y-%m-%dT%H:%M:%S").to_string(),
                 size: metadata.len(),
             })
         })

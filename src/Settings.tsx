@@ -11,6 +11,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { listen } from "@tauri-apps/api/event";
 import { api } from "./api";
+import { RecordingCalendar } from "./Library";
 import ConfirmationDialog from "./ConfirmationDialog";
 import type { ConfirmationRequest } from "./ConfirmationDialog";
 import CountdownRing from "./CountdownRing";
@@ -1607,8 +1608,20 @@ function QuickTips() {
  * feel like hunting for a folder.
  */
 function Backups({ onError }: { onError: (message: string) => void }) {
-  const { t, formatNumber } = useI18n();
+  const { t, formatNumber, formatDate } = useI18n();
   const { dataSize } = useFormats();
+  /** The hour on its own for the row, and the whole moment for the question
+   *  that names it — the row already has the day beside it, the dialog does not. */
+  const formatTime = (moment: string) =>
+    formatDate(new Date(moment), { hour: "2-digit", minute: "2-digit" });
+  const formatMoment = (moment: string) =>
+    formatDate(new Date(moment), {
+      day: "numeric",
+      month: "numeric",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   const userMessage = useUserMessage();
   /* Its own, rather than a prop threaded down from the application: this is the
      only question this screen asks, and it asks it about its own card. */
@@ -1619,7 +1632,9 @@ function Backups({ onError }: { onError: (message: string) => void }) {
     directory: string;
   } | null>(null);
   const [running, setRunning] = useState(false);
-  const [list, setList] = useState<{ file: string; when: string; size: number }[] | null>(null);
+  const [list, setList] = useState<
+    { file: string; taken_at: string; size: number }[] | null
+  >(null);
 
   const refresh = useCallback(() => {
     api.backupStatus().then(setStatus).catch(() => setStatus(null));
@@ -1697,11 +1712,16 @@ function Backups({ onError }: { onError: (message: string) => void }) {
             if (list === null) api.backups().then(setList).catch(() => setList([]));
           }}
         >
-          <InfoNote>{t("settings.backups.restoreNote")}</InfoNote>
           <ul className="backup-list">
             {(list ?? []).map((backup) => (
               <li key={backup.file}>
-                <span className="backup-when">{backup.when}</span>
+                {/* The same torn-off leaf the archive puts on a recording. A
+                    backup is chosen by its day first and its hour second, and
+                    the day is what the eye finds without reading. */}
+                <RecordingCalendar value={backup.taken_at} />
+                <span className="backup-when">
+                  {formatTime(backup.taken_at)}
+                </span>
                 {/* dataSize speaks in megabytes; the file system speaks in
                     bytes. Passed straight through, a 1.4 MB archive announced
                     itself as 1 420 GB. */}
@@ -1712,7 +1732,9 @@ function Backups({ onError }: { onError: (message: string) => void }) {
                   onClick={() =>
                     setConfirmation({
                       title: t("settings.backups.restoreConfirmTitle"),
-                      text: t("settings.backups.restoreConfirmText", { when: backup.when }),
+                      text: t("settings.backups.restoreConfirmText", {
+                        when: formatMoment(backup.taken_at),
+                      }),
                       confirm: t("settings.backups.restoreAction"),
                       destructive: true,
                       action: async () => {
@@ -1736,6 +1758,10 @@ function Backups({ onError }: { onError: (message: string) => void }) {
               </li>
             ))}
           </ul>
+          {/* Under the list, not over it. What it says is what happens *after*
+              a row is chosen, and it was standing between the reader and the
+              dates they came here to look at. */}
+          <InfoNote>{t("settings.backups.restoreNote")}</InfoNote>
         </SettingsDisclosure>
       )}
 

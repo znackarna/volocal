@@ -1369,7 +1369,9 @@ function Row({
   );
 }
 
-function RecordingCalendar({ value }: { value: string }) {
+/** The date as a torn-off calendar leaf. Exported because the backups list
+ *  shows dates in the same shape, and two drawings of one idea drift apart. */
+export function RecordingCalendar({ value }: { value: string }) {
   const { t, formatDate } = useI18n();
   const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
   const year = match?.[1] ?? "----";

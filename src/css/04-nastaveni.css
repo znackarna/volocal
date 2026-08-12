@@ -1170,20 +1170,30 @@ button.mic-play:disabled { cursor: default; opacity: 0.6; }
   border: 1px solid var(--line); border-radius: var(--r-card);
   background: var(--subtle); font-size: 13px;
 }
+/* Taller than `.check`'s 40, because this row carries two things that one
+   does not: a calendar leaf and a button. 8 px around a 38 px leaf makes 54,
+   which leaves the standalone 34 px button room to be itself rather than
+   filling the row it sits in. */
 .backup-list li {
-  display: flex; align-items: center; gap: 12px;
-  min-height: 40px; padding: 6px 14px;
+  display: flex; align-items: center; gap: 14px;
+  min-height: 54px; padding: 8px 14px;
 }
 .backup-list li + li { border-top: 1px solid var(--line); }
-/* 30 px, not the standalone 34. This is a control inside a row, like the one
-   on a speaker's line in the transcript panel and like the segmented control
-   — at 34 it filled the row it sits in and made the list read as a column of
-   buttons with dates beside them, rather than a list with a way to act. */
-.backup-list .button { height: 30px; padding: 0 13px; font-size: 12.5px; }
+/* The archive's own leaf at its compact size: 38 px wide, no year. A backup
+   is chosen by its day, and the year of one taken this week says nothing. */
+.backup-list .recording-calendar {
+  width: 38px; height: 38px; border-radius: 6px;
+}
+.backup-list .recording-calendar-month { padding: 2px 0; font-size: 7.5px; }
+.backup-list .recording-calendar-day { margin-top: 2px; font-size: 16px; }
+.backup-list .recording-calendar-year { display: none; }
 /* No tabular figures on the date. They are for numbers read down a column,
    and these are sentences of digits: monospaced, "12. 8. 2026 10:58" falls
    apart into widely spaced characters. The size keeps them — it is a column. */
-.backup-when { flex: 1 1 auto; font-weight: 600; line-height: 1.35; }
+.backup-when {
+  flex: 1 1 auto; font-weight: 600; line-height: 1.35;
+  font-variant-numeric: tabular-nums;
+}
 .backup-size {
   flex: 0 0 auto; color: var(--text-quiet);
   font-variant-numeric: tabular-nums;
