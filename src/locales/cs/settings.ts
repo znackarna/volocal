@@ -285,13 +285,9 @@ export const csSettings = {
 
   // Where each tool and model was found on disk.
   "settings.diagnostics.title": "Technické podrobnosti",
-<<<<<<< HEAD
   "settings.diagnostics.copy": "Zkopírovat údaje",
-=======
-  "settings.diagnostics.copy": "Zkopírovat technické údaje",
   "settings.diagnostics.showLog": "Otevřít log",
   "settings.diagnostics.noLog": "Log zatím neexistuje.",
->>>>>>> 115e30c (Leave a report behind when the application will not start)
   "settings.diagnostics.copyNote":
     "Vloží se do schránky. Nikam se nic neposílá — kam text pošlete, je na vás.",
   "settings.diagnostics.copied": "Technické údaje jsou ve schránce.",
@@ -493,15 +489,11 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
 
   "settings.diagnostics.title": "Nadpis skrytého bloku s cestami k nalezeným souborům.",
   "settings.diagnostics.copy":
-<<<<<<< HEAD
     "Tlačítko pod tím seznamem. Zkopíruje verzi, cesty, nastavení a konec logu, aby to šlo poslat, když se něco pokazí. Krátké schválně — co se kopíruje, říká věta pod ním.",
-=======
-    "Tlačítko pod tím seznamem. Zkopíruje verzi, cesty, nastavení a konec logu, aby to šlo poslat, když se něco pokazí.",
   "settings.diagnostics.showLog":
     "Tlačítko vedle kopírování. Otevře složku a označí v ní soubor s logem — pro případ, že posledních šedesát řádků v hlášení nestačí.",
   "settings.diagnostics.noLog":
     "Log se zapisuje až od prvního spuštění, které něco zaznamenalo. Do té doby soubor není.",
->>>>>>> 115e30c (Leave a report behind when the application will not start)
   "settings.diagnostics.copyNote":
     "Vysvětlení pod tlačítkem. Podstatné je, že aplikace nic neodesílá; text jde do schránky a rozhoduje uživatel.",
   "settings.diagnostics.copied": "Potvrzení v notifikační liště, že se kopírování povedlo.",
