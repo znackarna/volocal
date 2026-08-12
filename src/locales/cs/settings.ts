@@ -278,7 +278,7 @@ export const csSettings = {
 
   // Where each tool and model was found on disk.
   "settings.diagnostics.title": "Technické podrobnosti",
-  "settings.diagnostics.copy": "Zkopírovat technické údaje",
+  "settings.diagnostics.copy": "Zkopírovat údaje",
   "settings.diagnostics.copyNote":
     "Vloží se do schránky. Nikam se nic neposílá — kam text pošlete, je na vás.",
   "settings.diagnostics.copied": "Technické údaje jsou ve schránce.",
@@ -471,7 +471,7 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
 
   "settings.diagnostics.title": "Nadpis skrytého bloku s cestami k nalezeným souborům.",
   "settings.diagnostics.copy":
-    "Tlačítko pod tím seznamem. Zkopíruje verzi, cesty, nastavení a konec logu, aby to šlo poslat, když se něco pokazí.",
+    "Tlačítko pod tím seznamem. Zkopíruje verzi, cesty, nastavení a konec logu, aby to šlo poslat, když se něco pokazí. Krátké schválně — co se kopíruje, říká věta pod ním.",
   "settings.diagnostics.copyNote":
     "Vysvětlení pod tlačítkem. Podstatné je, že aplikace nic neodesílá; text jde do schránky a rozhoduje uživatel.",
   "settings.diagnostics.copied": "Potvrzení v notifikační liště, že se kopírování povedlo.",
