@@ -813,26 +813,25 @@ button.mic-play:disabled { cursor: default; opacity: 0.6; }
 /* Each section is a card that opens, not a row on a shared sheet. The card is
    what makes the whole width clickable without inventing anything: it has an
    edge, so there is no question where the target ends. */
-/* No card. The sidebar is already a bounded surface with a border down its
-   left, and four bordered cards inside it were boxes in a box — each paying
-   a border and 12 px of inset out of 283 px that the lists inside them
-   needed. A rule between sections says the same thing for one pixel.
-
-   What is lost with them: the low lift on hover that said "pickable". It was
-   saying it about a heading that opens and closes, which the chevron and the
-   band under the pointer both say without a shadow. */
-.sidebar .sidebar-section { margin: 0; border: 0; background: none; }
-/* The rule runs the whole width of the sidebar, not just the width of the
-   text. It divides the panel into sections; a line that stops 18 px short of
-   both edges divides the text and leaves the panel looking undecided.
-
-   Pulled out by exactly the sidebar's own padding and given it back as
-   padding, so nothing inside moves. The number appears twice — here and in
-   the narrow-window rule at the foot of this file — and the two have to stay
-   equal or the line will overhang and the panel will scroll sideways. */
-.sidebar .sidebar-section + .sidebar-section {
-  margin: 6px -18px 0; padding: 6px 18px 0;
-  border-top: 1px solid var(--line);
+.sidebar .sidebar-section {
+  /* `--r-large`, like every other bordered card on `--panel` in this
+     application. `--r-card` is the inner radius here: menu items, list rows,
+     the inset data panel. No `overflow: hidden` — the focus ring is an outer
+     shadow and the toggle is flush with three of these edges, so hiding the
+     overflow would clip it. The toggle rounds its own corners instead. */
+  margin: 0; border: 1px solid var(--line); border-radius: var(--r-large);
+  background: var(--panel);
+  transition: border-color var(--hover-duration) var(--hover-ease),
+    box-shadow var(--hover-duration) var(--hover-ease);
+}
+.sidebar .sidebar-section + .sidebar-section { margin-top: 8px; }
+/* Pickable, exactly as a choice card and an archive row say it — the shared
+   low `--shadow` and `--line-field`. Open is not exempt: `.choice.chosen` and
+   `.row.running` both keep their lift, and a state that suppressed it would
+   make this the only surface in the application that does. */
+.sidebar .sidebar-section:hover,
+.sidebar .sidebar-section:focus-within {
+  border-color: var(--line-field); box-shadow: var(--shadow);
 }
 .sidebar .sidebar-section h2 { margin: 0; line-height: 1.3; }
 /* The whole card width, because the action moved inside the body and nothing
@@ -840,15 +839,20 @@ button.mic-play:disabled { cursor: default; opacity: 0.6; }
    a way around a button that could not contain another button. */
 .sidebar-section-toggle {
   display: flex; align-items: center; gap: 8px; width: 100%;
-  /* 8 px all round, pulled 8 px out on each side: the text then starts flush
-     with the body below it, and the band under the pointer is still a row with
-     ends rather than a stripe across the panel. 8 also lands the header on the
-     46 px it has always had, which the old `8px 12px` was chosen for. */
-  padding: 8px; margin: 0 -8px; width: calc(100% + 16px);
-  border: 0; border-radius: var(--r-card); background: transparent;
+  /* `8px 12px`, the compact archive row's own pair. 12 px of side inset rather
+     than the card family's 14–16 because this card is 283 px wide and its body
+     is a list of rows that need the width — and every card in this application
+     keeps its horizontal inset at least as large as its vertical one, which
+     `14px 12px` was alone in inverting. With the circle back, 8 lands the
+     header on its 46 px. */
+  padding: 8px 12px;
+  /* One less than the card's 16, for the 1 px border it sits inside. Squared
+     off at the bottom once the body is showing. */
+  border: 0; border-radius: 15px; background: transparent;
   color: inherit; font: inherit; text-align: left; cursor: pointer;
   transition: background var(--hover-duration) var(--hover-ease);
 }
+.sidebar-section.open .sidebar-section-toggle { border-radius: 15px 15px 0 0; }
 /* `--ground`, the transcript's own ground, like the rows inside the card.
    Deliberately not `--muted`, which the icon's circle already uses: on that
    ground the circle would dissolve into its own background. */
@@ -883,7 +887,7 @@ button.mic-play:disabled { cursor: default; opacity: 0.6; }
    four rhythms under five identical headers, because each list carried a top
    margin of its own. Those are zeroed; this is the one number. */
 .sidebar-section-body {
-  min-width: 0; padding: 10px 0 12px;
+  min-width: 0; padding: 10px 12px 12px;
   animation: sidebar-section-open 180ms var(--hover-ease);
 }
 .sidebar-section-body > :first-child { margin-top: 0; }
@@ -1129,8 +1133,6 @@ button.mic-play:disabled { cursor: default; opacity: 0.6; }
    Only the padding still gives way, and only a little. */
 @media (max-width: 1180px) {
   .sidebar { padding: 18px 14px 60px; }
-  /* With the padding, so the rule still reaches both edges and no further. */
-  .sidebar .sidebar-section + .sidebar-section { margin-inline: -14px; padding-inline: 14px; }
 }
 
 
