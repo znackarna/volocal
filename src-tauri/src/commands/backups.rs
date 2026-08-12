@@ -4,8 +4,8 @@
 //! Every command keeps the name, the arguments and the return type the window
 //! already calls it by; nothing here is a rename.
 
-use crate::{db, tools, transcription};
 use crate::user_message::UserMessage;
+use crate::{db, tools, transcription};
 use crate::{reported, AppState, Reported, WaveformJob};
 use rusqlite::Connection;
 use serde::Serialize;
