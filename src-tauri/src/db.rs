@@ -467,6 +467,78 @@ const RENAMED: &[(&str, &[(&str, &str)])] = &[
     ("klice settings", &[("klic", "key"), ("hodnota", "value")]),
 ];
 
+/// What this build knows how to read.
+///
+/// 1 is the Czech schema every archive had until 1.0.5; 2 is the English one.
+/// The number is written into the archive so that a build meeting an archive
+/// from the future can say so, instead of doing what 1.0.4 did to 1.0.5's:
+/// look for the tables it knows, not find them, and quietly make empty ones.
+/// The reader is then shown an archive with nothing in it, which is the worst
+/// thing this application could tell somebody who has lost nothing at all.
+///
+/// It cannot fix the builds already out there. It stops the next migration from
+/// repeating it.
+const SCHEMA_VERSION: i64 = 2;
+
+/// The key that carries it, in the settings table.
+const SCHEMA_VERSION_KEY: &str = "schema-version";
+
+/// Raised when the archive was written by a newer Volocal than this one.
+///
+/// A type of its own because the window has to tell these two apart: a damaged
+/// archive asks to be replaced from a backup, and this one asks for nothing but
+/// a newer application — the archive is perfectly good and its owner must not
+/// be told to start copying files over it.
+#[derive(Debug)]
+pub struct ArchiveFromTheFuture {
+    pub found: i64,
+    pub known: i64,
+}
+
+impl std::fmt::Display for ArchiveFromTheFuture {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "the archive was written by a newer version of Volocal \
+             (schema {}, this build knows {})",
+            self.found, self.known
+        )
+    }
+}
+
+impl std::error::Error for ArchiveFromTheFuture {}
+
+/// Reads the schema number without assuming the table it lives in exists.
+///
+/// It has moved: `klice` before 1.0.5, `settings` after. An archive older than
+/// both has neither the key nor a number, and counts as the schema it was
+/// written in.
+fn stored_schema_version(db: &Connection) -> Result<Option<i64>> {
+    let table = if has_table(db, "settings")? {
+        "settings"
+    } else if has_table(db, "klice")? {
+        "klice"
+    } else {
+        return Ok(None);
+    };
+    // Both columns moved with the table, and this runs before the rename, so
+    // the pair is chosen together. Asking for the wrong one is not a missing
+    // row that `optional` would absorb — it is a missing column, and it fails.
+    let (key_column, value_column) = if table == "settings" {
+        ("key", "value")
+    } else {
+        ("klic", "hodnota")
+    };
+    let value: Option<String> = db
+        .query_row(
+            &format!("SELECT {value_column} FROM {table} WHERE {key_column} = ?1"),
+            params![SCHEMA_VERSION_KEY],
+            |r| r.get(0),
+        )
+        .optional()?;
+    Ok(value.and_then(|v| v.parse().ok()))
+}
+
 /// Whether this archive still has a table by that name.
 fn has_table(db: &Connection, name: &str) -> Result<bool> {
     let found: i64 = db.query_row(
@@ -614,6 +686,20 @@ fn refill_search_index(db: &Connection) -> Result<()> {
 
 pub fn open(path: &std::path::Path) -> Result<Connection> {
     let db = Connection::open(path)?;
+
+    // Before anything is renamed or created. An archive from a newer build is
+    // not ours to touch, and the one thing this must not do is what an older
+    // build does today: fail to find the tables it knows and make empty ones.
+    if let Some(found) = stored_schema_version(&db)? {
+        if found > SCHEMA_VERSION {
+            return Err(ArchiveFromTheFuture {
+                found,
+                known: SCHEMA_VERSION,
+            }
+            .into());
+        }
+    }
+
     rename_schema_to_english(&db, path)?;
     db.execute_batch(
         r#"
@@ -755,6 +841,8 @@ pub fn open(path: &std::path::Path) -> Result<Connection> {
         "#,
     )?;
     migrate_legacy_schema(&db);
+    // Written last, so an archive only claims a schema it actually reached.
+    save_metadata_value(&db, SCHEMA_VERSION_KEY, &SCHEMA_VERSION.to_string())?;
     // After the batch, which is what creates the empty index the rename left.
     if let Err(error) = refill_search_index(&db) {
         crate::note!("archive: the search index could not be rebuilt: {error}");
@@ -1983,10 +2071,11 @@ mod tests {
         ai_outputs, align_word_timestamps, create_folder, delete_folder, delete_recording,
         delete_recording_note, delete_segments, delete_speaker, dictionary, folder_recording_ids,
         folders, has_table, insert_recording_note, insert_segment, insert_speaker, load_settings,
-        migrate_legacy_schema, move_to_folder, open, recording_notes, recover_interrupted,
-        save_ai_document, save_ai_output, search, segments, speakers, update_recording_note,
-        watch_file_imported, watch_file_is_stable, waveform, AiDocument, AiOutput, RecordingNote,
-        Segment, Speaker, WaveformData,
+        metadata_value, migrate_legacy_schema, move_to_folder, open, recording_notes,
+        recover_interrupted, save_ai_document, save_ai_output, save_metadata_value, search,
+        segments, speakers, update_recording_note, watch_file_imported, watch_file_is_stable,
+        waveform, AiDocument, AiOutput, ArchiveFromTheFuture, RecordingNote, Segment, Speaker,
+        WaveformData,
     };
     use rusqlite::{params, Connection};
 
@@ -2349,6 +2438,70 @@ mod tests {
             .unwrap();
         assert_eq!(names, vec!["Janka", "Přidáno ve staré verzi"]);
         assert!(!has_table(&db, "nahravky").unwrap());
+    }
+
+    /// An archive carries the schema it was written for, so that a build older
+    /// than it can say so rather than guess.
+    #[test]
+    fn opening_an_archive_writes_down_which_schema_it_now_has() {
+        let temp = TempDb::new("archive");
+        let path = temp.0.clone();
+        let db = open(&path).unwrap();
+        assert_eq!(
+            metadata_value(&db, "schema-version").unwrap().as_deref(),
+            Some("2")
+        );
+    }
+
+    /// The whole point of writing it down: what happens to the build that meets
+    /// an archive from the future.
+    ///
+    /// 1.0.4 met 1.0.5's archive, did not recognise it, and made empty tables —
+    /// which would have shown its owner an archive with nothing in it. This is
+    /// the opposite: refuse, say why, and touch nothing.
+    #[test]
+    fn an_archive_from_a_newer_version_is_refused_and_left_alone() {
+        let temp = TempDb::new("archive");
+        let path = temp.0.clone();
+        {
+            let db = open(&path).unwrap();
+            save_metadata_value(&db, "schema-version", "99").unwrap();
+        }
+
+        let refused = open(&path).unwrap_err();
+        let named = refused
+            .downcast_ref::<ArchiveFromTheFuture>()
+            .expect("the window has to tell this apart from a damaged archive");
+        assert_eq!(named.found, 99);
+        assert_eq!(named.known, 2);
+
+        // And nothing was done to it on the way out.
+        let db = Connection::open(&path).unwrap();
+        let value: String = db
+            .query_row(
+                "SELECT value FROM settings WHERE key = 'schema-version'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(value, "99", "the archive is untouched");
+    }
+
+    /// An archive written before any of this has no number, and is simply the
+    /// schema it was written in — not a stranger to be refused.
+    #[test]
+    fn an_archive_with_no_number_at_all_is_opened_and_given_one() {
+        let temp = TempDb::new("archive");
+        let path = temp.0.clone();
+        drop(czech_archive(&path));
+
+        let db = open(&path).unwrap();
+
+        assert_eq!(segments(&db, "r1").unwrap().len(), 1);
+        assert_eq!(
+            metadata_value(&db, "schema-version").unwrap().as_deref(),
+            Some("2")
+        );
     }
 
     /// A fresh archive has nothing to rename and must not be slowed or touched.

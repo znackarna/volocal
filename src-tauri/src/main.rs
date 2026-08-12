@@ -625,15 +625,31 @@ fn report_unusable_archive(
         let _ = window.hide();
     }
 
-    let message = format!(
-        "Volocal nemůže otevřít svůj archiv, a proto se nespustí.\n\n\
-         Archiv:\n{archive_text}\n\n\
-         Zálohy:\n{backups_text}\n\n\
-         Poškozený soubor archivu si uložte stranou a na jeho místo zkopírujte \
-         nejnovější zálohu z uvedené složky. Zkopírovaný soubor přejmenujte tak, \
-         aby se jmenoval stejně jako archiv. Potom Volocal spusťte znovu.\n\n\
-         Podrobnost: {error:#}"
-    );
+    // Two different things go wrong here and they ask for opposite actions.
+    // A damaged archive wants a backup copied over it. An archive written by a
+    // newer Volocal wants nothing done to it at all — it is in perfect order,
+    // and telling its owner to start copying files over it would be the one
+    // instruction that could actually lose the work this dialog exists to save.
+    let message = if let Some(future) = error.downcast_ref::<db::ArchiveFromTheFuture>() {
+        format!(
+            "Tenhle archiv napsala novější verze Volocalu, než je ta spuštěná.\n\n\
+             Archiv:\n{archive_text}\n\n\
+             Aktualizujte Volocal na nejnovější verzi a spusťte ho znovu. \
+             S archivem nic nedělejte — je v pořádku a nic v něm nechybí.\n\n\
+             Podrobnost: schéma {}, tahle verze umí {}",
+            future.found, future.known
+        )
+    } else {
+        format!(
+            "Volocal nemůže otevřít svůj archiv, a proto se nespustí.\n\n\
+             Archiv:\n{archive_text}\n\n\
+             Zálohy:\n{backups_text}\n\n\
+             Poškozený soubor archivu si uložte stranou a na jeho místo zkopírujte \
+             nejnovější zálohu z uvedené složky. Zkopírovaný soubor přejmenujte tak, \
+             aby se jmenoval stejně jako archiv. Potom Volocal spusťte znovu.\n\n\
+             Podrobnost: {error:#}"
+        )
+    };
 
     let handle = app.handle().clone();
     // `blocking_show` waits for a closure that the event loop has yet to run,
