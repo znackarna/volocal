@@ -1725,19 +1725,10 @@ function Backups({ onError }: { onError: (message: string) => void }) {
                     backup is chosen by its day first and its hour second, and
                     the day is what the eye finds without reading. */}
                 <RecordingCalendar value={backup.taken_at} />
-                <span className="recording-metadata backup-when">
-                  {/* The floppy, which everywhere else in this application
-                      means written to disk — which is exactly what happened
-                      at this hour. Not the clock: that is taken, and taken by
-                      length, which is a different fact two columns to the
-                      right. Two clocks in one row meaning two things is worse
-                      than one mark less. */}
-                  <RecordingMetadataItem
-                    kind="saved"
-                    label={t("settings.backups.latest")}
-                    value={formatTime(backup.taken_at)}
-                  />
-                </span>
+                {/* No mark on the hour. The leaf beside it already says which
+                    day, and with marks on both facts at the right a third one
+                    made the row busier than it is informative. */}
+                <span className="backup-when">{formatTime(backup.taken_at)}</span>
                 {/* dataSize speaks in megabytes; the file system speaks in
                     bytes. Passed straight through, a 1.4 MB archive announced
                     itself as 1 420 GB. */}
