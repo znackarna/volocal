@@ -639,7 +639,7 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
           />
         </div>
 
-        <div className="settings-action-row separated">
+        <div className="settings-action-row spaced">
           {missingRequired.length > 0 ? (
             <span className="warning-row">
               {tPlural("settings.modules.missingRequired", missingRequired.length)}
@@ -1678,7 +1678,7 @@ function Backups({ onError }: { onError: (message: string) => void }) {
         )}
       </dl>
 
-      <div className="settings-action-row separated">
+      <div className="settings-action-row spaced">
         <InfoNote compact>{t("settings.backups.note")}</InfoNote>
         <button className="button" onClick={backUpNow} disabled={running}>
           {running ? t("settings.backups.running") : t("settings.backups.action")}

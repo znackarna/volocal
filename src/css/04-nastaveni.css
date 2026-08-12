@@ -188,6 +188,13 @@
 .settings-action-row.separated {
   margin-top: 22px; padding-top: 20px; border-top: 1px solid var(--line);
 }
+/* The same distance without the rule, for the cards whose content above is
+   already framed — the module tiles, the backup summary. A rule under a
+   bordered panel draws the same boundary twice, and on a card that also ends
+   in a folded-away footer it made two rules a few lines apart with one row of
+   text between them. The rule that stays is the one below this row, which
+   separates the card from the thing folded away at its foot. */
+.settings-action-row.spaced { margin-top: 22px; }
 .settings-action-row > .settings-info-note { margin: 0; }
 .settings-action-row > .button { flex: 0 0 auto; }
 .settings-success { color: var(--success); }
@@ -216,12 +223,11 @@
 /* Unless it is the card's last band, which is where a folded-away extra
    belongs: the rarest thing on the card, under everything that is not.
 
-   Then it takes its rule back, and takes the action row's own 22/20 with it,
-   so the two bands are spaced the same way rather than one being tighter. The
-   rule above it is the only one it gets — nothing follows it, so nothing
-   closes it. The arrangement that was there before had it sandwiched between
-   two rules in the middle of the card, which read as a band that had lost its
-   place. */
+   Then it takes the rule, at the action row's own 22/20. This is the card's
+   only rule, which is the point — the action row above it gives its own up
+   (`.spaced`) precisely so that this one is not the second of two a few lines
+   apart with a single row of text between them. One line, and it falls where
+   the card stops being about its main business. */
 .settings-action-row + .settings-disclosure.card-footer {
   margin-top: 22px; padding-top: 20px; border-top: 1px solid var(--line);
 }
