@@ -312,8 +312,45 @@ pub struct Voices {
 
 impl Voices {
     /// Opens the model that the installer already downloads.
+    ///
+    /// Asks for the graphics card first and says which one it got. Both halves
+    /// of that matter, and neither used to be true.
+    ///
+    /// The card was asked for by pushing DirectML in front of the processor and
+    /// letting ONNX Runtime sort it out. What that does when DirectML cannot be
+    /// registered — no `DirectML.dll` old enough machine, no DirectX 12 device,
+    /// a driver that will not start — is fall through to the processor and log
+    /// it at a level nobody subscribes to. The work then takes about twelve
+    /// times longer and nothing anywhere says so: not the interface, not the
+    /// diagnostic report, not the log. A machine doing this well and a machine
+    /// doing it badly were indistinguishable from the outside.
+    ///
+    /// So the card is now asked for loudly — `error_on_failure` turns a refused
+    /// registration into an error instead of a shrug — and the fall back to the
+    /// processor is done here, deliberately, with a line written for it. One
+    /// line either way, once per model open, into the log the diagnostic report
+    /// already carries.
     pub fn open(model: &std::path::Path) -> anyhow::Result<Self> {
-        Self::open_on(model, cfg!(windows))
+        if !cfg!(windows) {
+            return Self::open_on(model, false);
+        }
+        match Self::open_on(model, true) {
+            Ok(voices) => {
+                crate::note!("speaker model: on the graphics card, through DirectML");
+                Ok(voices)
+            }
+            // Worded for what is known rather than what is guessed: the model
+            // could not be opened for the card. Whether that is the card's
+            // doing or the file's, the next line proves which — if the file is
+            // the problem, this one fails too and its error is what surfaces.
+            Err(error) => {
+                crate::note!(
+                    "speaker model: could not be opened for the graphics card, so the processor \
+                     runs it - roughly twelve times slower: {error:#}"
+                );
+                Self::open_on(model, false)
+            }
+        }
     }
 
     fn open_on(model: &std::path::Path, on_card: bool) -> anyhow::Result<Self> {
@@ -418,12 +455,14 @@ fn build(model: &std::path::Path, on_card: bool) -> Result<ort::session::Session
     let mut providers = Vec::new();
     #[cfg(windows)]
     if on_card {
-        providers.push(ort::ep::DirectML::default().build());
+        // `error_on_failure`, so that a registration this machine cannot do
+        // comes back as an error rather than as a silent demotion to the
+        // processor. `Voices::open` is what catches it and says so.
+        providers.push(ort::ep::DirectML::default().build().error_on_failure());
     }
-    // Last in line, and reached silently: when a provider cannot be registered
-    // ONNX Runtime falls through to the next one and logs at a level nobody
-    // subscribes to. So nothing here reports which one ran — only the clock
-    // can, which is what the probe in `probe/ort-dml` is for.
+    // Still last in line even when the card registered: DirectML will not run
+    // every shape, and the operators it refuses go here. What it is no longer
+    // doing is standing in for the card without anybody noticing.
     providers.push(ort::ep::CPU::default().build());
 
     let mut builder =
@@ -1156,5 +1195,60 @@ mod tests {
             "unrelated directions score zero"
         );
         assert!(alike(&a, &unit(&[-1.0, 0.0, 0.0])) < -0.99);
+    }
+
+    /// Which provider actually ran, on the machine running the test.
+    ///
+    /// Ignored because it needs the downloaded CAM++ model and a real graphics
+    /// card, neither of which a CI runner has. It exists so the question
+    /// "is this machine using DirectML?" has an answer that takes one command
+    /// instead of a stopwatch:
+    ///
+    /// ```text
+    /// cargo test --manifest-path src-tauri/Cargo.toml     ///   voiceprint::tests::it_says_which_one_opened -- --ignored --nocapture
+    /// ```
+    #[test]
+    #[ignore = "needs the downloaded model; run by hand to see which provider this machine gets"]
+    fn it_says_which_one_opened() {
+        let Some(local) = std::env::var_os("LOCALAPPDATA") else {
+            return;
+        };
+        let model = std::path::PathBuf::from(local)
+            .join("cz.znackarna.volocal")
+            .join("models")
+            .join("3dspeaker_speech_campplus_sv_zh_en_16k-common_advanced.onnx");
+        assert!(
+            model.is_file(),
+            "no model at {} - download it in Settings first",
+            model.display()
+        );
+
+        // The line it writes is the point; `note!` reaches stderr, which
+        // `--nocapture` shows.
+        let on_whatever_it_gets = Voices::open(&model);
+        assert!(
+            on_whatever_it_gets.is_ok(),
+            "the model did not open at all: {:?}",
+            on_whatever_it_gets.err()
+        );
+
+        // And the other half of the fallback: the processor on its own, which
+        // is what `open` reaches for when the card is refused.
+        assert!(
+            Voices::open_on(&model, false).is_ok(),
+            "the processor could not open it either, so the fallback has nothing to fall back to"
+        );
+    }
+
+    /// The fallback arm is taken, and taking it does not swallow the failure.
+    ///
+    /// No model and no graphics card needed: opening for the card fails on the
+    /// file, `open` writes its line and tries the processor, and the processor
+    /// fails on the same file. What must come back is an error rather than a
+    /// `Voices` that would then produce nothing.
+    #[test]
+    fn a_model_that_is_not_there_goes_through_the_fallback_and_still_fails() {
+        let missing = std::path::Path::new("no-such-speaker-model.onnx");
+        assert!(Voices::open(missing).is_err());
     }
 }
