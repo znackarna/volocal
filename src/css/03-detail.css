@@ -322,7 +322,13 @@
   /* White in the light theme. `--panel` rather than a literal white so the dark
      theme gets its card colour instead of a glaring slab. */
   border-left: 1px solid var(--line); background: var(--panel);
-  overflow-y: auto; padding: 20px 18px 60px;
+  /* 12 px at the sides, not 18. The one thing kept from the version that
+     stood these cards on the transcript's ground: that arrangement was
+     rejected, and the extra six pixels each side it gave the cards were the
+     part of it worth having. The lists inside are rows that need the width.
+     18 px of vertical inset, because a surface this tall reads tighter at the
+     top than at the sides. */
+  overflow-y: auto; padding: 18px 12px 60px;
 }
 
 .speaker-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }

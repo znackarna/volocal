@@ -1132,7 +1132,7 @@ button.mic-play:disabled { cursor: default; opacity: 0.6; }
    there all along.
    Only the padding still gives way, and only a little. */
 @media (max-width: 1180px) {
-  .sidebar { padding: 18px 14px 60px; }
+  .sidebar { padding: 16px 10px 60px; }
 }
 
 
