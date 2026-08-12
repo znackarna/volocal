@@ -23,7 +23,7 @@ export const csSettings = {
   "settings.portable.machineBundled": "Počítač: {machine} · zobrazovací jádro je přiložené",
   "settings.portable.machineSeparate":
     "Počítač: {machine} · zobrazovací jádro není přiložené; na počítači bez WebView2 se okno neotevře",
-  "settings.portable.copyTitle": "Kopie na přenosný disk",
+  "settings.portable.copyTitle": "Přenosný disk",
   "settings.portable.copyDescription":
     "Zkopíruje aplikaci a modely na zvolený disk. Na jiném počítači pak stačí spustit soubor {file}.",
   "settings.portable.copyDestination": "Kam vytvořit přenosnou kopii",
