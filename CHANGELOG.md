@@ -2,9 +2,94 @@
 
 Notable changes, in English. Commit messages up to and including 9 August 2026
 are Czech, from before the project was opened up; they are left as they are.
-The reasoning behind individual decisions lives in `docs/history/`.
+The reasoning behind individual decisions lives in `docs/history/`, day by day,
+and every published version also has its notes on the
+[releases page](../../releases).
 
-## 0.9.0 — not yet released
+## 1.0.9 — 12 August 2026
+
+- Fixes 1.0.8, which reported every model and program as missing. WebView2 keeps
+  its profile in a folder named after the application's identifier, so the folder
+  the tools migration was moving into already existed on every machine: the
+  migration refused to run and the lookup answered with that folder — browser
+  cache, and none of the tools. A folder is now recognised by holding `bin` or
+  `models` rather than by existing, and the migration moves those two folders
+  rather than the one around them.
+- Nobody who installed 1.0.8 lost anything; the models never moved.
+
+## 1.0.8 — withdrawn
+
+Published and taken down the same day. See 1.0.9.
+
+## 1.0.7 — 12 August 2026
+
+- A backup can be put back from inside the application, listed by day with what
+  it holds and how much audio. The current archive is copied aside before
+  anything is replaced.
+- An archive written by a newer Volocal is refused rather than guessed at, with
+  a dialog that says to update the application and touch nothing.
+- A start that fails writes `volocal-problem.txt` beside the log and the dialog
+  says where it is — Settings, which holds the button that copies the technical
+  details, cannot be reached when the application will not open.
+- Settings can copy those details and open the log.
+- Every status dot in the archive has its colour back. All four had been grey
+  since 1.0.5: the class was built from the stored Czech status while the
+  stylesheet had been translated to English, so none of them matched a rule.
+
+## 1.0.6 — 11 August 2026
+
+- Fixes 1.0.5 refusing to open an archive it had itself migrated, with *there is
+  already another table or index with this name: recordings*. Nothing was lost
+  in an archive that hit this — it was unopenable, not damaged — and 1.0.6
+  repairs it on open.
+
+## 1.0.5 — withdrawn
+
+Published and taken down. See 1.0.6.
+
+## 1.0.4 — 11 August 2026
+
+- Speakers can be removed from the transcript panel; the passages keep their
+  words and lose only the name.
+- A speaker can be added by hand, the only way in for a recording that was never
+  diarized.
+- The transcript's context menu lists speakers by name instead of pointing at
+  the block above and the block below.
+- Updates carry release notes: the text is shown in a dialog before the download
+  is agreed to.
+
+## 1.0.3 — 11 August 2026
+
+- The first update that installed itself end to end: an installed 1.0.1 found
+  it, downloaded it, handed it to the installer and came back running.
+
+## 1.0.2 — 11 August 2026
+
+- The publishing pass refuses an installer whose filename does not carry the
+  version being released, after 1.0.1 went out holding the 1.0.0 installer and
+  updated itself to itself.
+- The build calls Tauri directly rather than through npm, which was claiming
+  `--config` for itself even after `--` and failing the build silently enough to
+  leave the previous installer in the folder.
+
+## 1.0.1 — 11 August 2026
+
+- Same application as 1.0.0, published to find out whether updating works. Its
+  assets were wrong; see 1.0.2.
+
+## 1.0.0 — 11 August 2026
+
+The first published release. The application below had been in daily use by its
+author since 30 July; what 1.0.0 added was the release itself — a signing key
+for the update feed, an installer, and an update path.
+
+The installer is not code signed, and Windows warns the first time it is run.
+
+## 0.9.0 — never published
+
+The state the application was in when it was opened up, kept here because the
+entries above are differences from it rather than a description of the whole
+thing.
 
 The first version worth handing to somebody else. Everything below works and is
 in daily use by its author. Development started on 30 July 2026, so this entry

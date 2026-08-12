@@ -1138,7 +1138,7 @@ mod tests {
     }
 
     /// A record is written after a success and read back by id. Its absence is
-    /// what tells a 0.9.0 installation apart from a verified one.
+    /// what tells an installation made before records apart from a verified one.
     #[test]
     fn an_installation_leaves_a_record_that_can_be_read_back() {
         let directory = scratch("record");
@@ -1184,8 +1184,8 @@ mod tests {
         );
     }
 
-    /// The migration question, as a test: an installation made by 0.9.0 has the
-    /// file but no record, and must not be treated as checked.
+    /// The migration question, as a test: an installation made before records
+    /// existed has the file but no record, and must not be treated as checked.
     #[test]
     fn a_file_without_a_record_is_not_verified() {
         let directory = scratch("record-missing");
