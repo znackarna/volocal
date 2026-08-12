@@ -1132,7 +1132,9 @@ button.mic-play:disabled { cursor: default; opacity: 0.6; }
    there all along.
    Only the padding still gives way, and only a little. */
 @media (max-width: 1180px) {
-  .sidebar { padding: 18px 14px 60px; }
+  /* Below the wide inset, not below the old one: the sidebar gave its 18 up
+     when the cards stopped sitting inside a surface of their own. */
+  .sidebar { padding: 16px 10px 60px; }
 }
 
 
