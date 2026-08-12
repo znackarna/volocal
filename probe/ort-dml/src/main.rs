@@ -42,8 +42,11 @@ use ort::{
 fn default_model() -> Option<PathBuf> {
     let local = env::var_os("LOCALAPPDATA")?;
     Some(
+        // The folder is named after the Tauri identifier, so it changed when
+        // Slobot became Volocal on 10 August. This said `Whisp` until the probe
+        // was next picked up and pointed at nothing.
         PathBuf::from(local)
-            .join("Whisp")
+            .join("cz.znackarna.volocal")
             .join("models")
             .join("3dspeaker_speech_campplus_sv_zh_en_16k-common_advanced.onnx"),
     )
@@ -88,7 +91,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         return run_through(&model_path, runs, frames);
     }
 
-    println!("mode: {}\n", if want_dml { "DirectML" } else { "processor" });
+    println!(
+        "mode: {}\n",
+        if want_dml { "DirectML" } else { "processor" }
+    );
     let mut session = session_for(&model_path, want_dml)?;
 
     println!("\n-- vstupy --");
@@ -128,7 +134,10 @@ const BATCHES: [i64; 5] = [1, 4, 16, 64, 256];
 /// Both paths, several batch sizes, one table. No single row is interesting —
 /// what matters is how far apart the two columns drift.
 fn run_through(model: &Path, runs: usize, frames: i64) -> Result<(), Box<dyn Error>> {
-    println!("\nseconds of audio per passage: {:.1}", frames as f64 / 100.0);
+    println!(
+        "\nseconds of audio per passage: {:.1}",
+        frames as f64 / 100.0
+    );
     println!(
         "\n{:>7}  {:>12}  {:>12}  {:>9}  {:>14}",
         "batch", "DirectML", "processor", "ratio", "DML per passage"
@@ -190,7 +199,8 @@ fn session_for(model: &Path, want_dml: bool) -> Result<Session, Box<dyn Error>> 
     // the time is what gets measured.
     providers.push(CPU::default().build());
 
-    let mut builder = Session::builder()?.with_optimization_level(GraphOptimizationLevel::Level3)?;
+    let mut builder =
+        Session::builder()?.with_optimization_level(GraphOptimizationLevel::Level3)?;
     if want_dml {
         // Not a tuning knob but a condition: DirectML refuses to be created
         // while memory pattern optimisation is on, and it is on by default.
