@@ -839,13 +839,12 @@ button.mic-play:disabled { cursor: default; opacity: 0.6; }
    a way around a button that could not contain another button. */
 .sidebar-section-toggle {
   display: flex; align-items: center; gap: 8px; width: 100%;
-  /* `8px 12px`, the compact archive row's own pair. 12 px of side inset rather
-     than the card family's 14–16 because this card is 283 px wide and its body
-     is a list of rows that need the width — and every card in this application
-     keeps its horizontal inset at least as large as its vertical one, which
-     `14px 12px` was alone in inverting. With the circle back, 8 lands the
-     header on its 46 px. */
-  padding: 8px 12px;
+  /* Square, 12 px all round. It was `8px 12px`, chosen when the rule of the
+     day was that a card's horizontal inset must be at least its vertical one
+     — which this satisfied and then some, at the price of a header that sat
+     tight against its own top and bottom edges while the sides breathed.
+     Equal is the plainer answer and the one that looks right. */
+  padding: 12px;
   /* One less than the card's 16, for the 1 px border it sits inside. Squared
      off at the bottom once the body is showing. */
   border: 0; border-radius: 15px; background: transparent;
@@ -887,7 +886,11 @@ button.mic-play:disabled { cursor: default; opacity: 0.6; }
    four rhythms under five identical headers, because each list carried a top
    margin of its own. Those are zeroed; this is the one number. */
 .sidebar-section-body {
-  min-width: 0; padding: 10px 12px 12px;
+  /* 12 at the sides and the bottom, with the header above it. 6 at the top
+     rather than the old 10: the header's own bottom inset grew from 8 to 12,
+     and the two together are what separates its text from the body — 18 px,
+     which is what it was and what it should stay. */
+  min-width: 0; padding: 6px 12px 12px;
   animation: sidebar-section-open 180ms var(--hover-ease);
 }
 .sidebar-section-body > :first-child { margin-top: 0; }
