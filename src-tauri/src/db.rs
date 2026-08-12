@@ -508,6 +508,49 @@ impl std::fmt::Display for ArchiveFromTheFuture {
 
 impl std::error::Error for ArchiveFromTheFuture {}
 
+/// What a file somebody has *offered* as an archive turns out to be.
+///
+/// [`open`] migrates what it opens, which makes it the wrong tool for asking
+/// questions about a file that has only been proposed: answering "can I take
+/// this?" must not rewrite the thing being asked about, and must certainly not
+/// rewrite it before the reader has agreed to anything.
+#[derive(Debug, PartialEq, Eq)]
+pub enum Offered {
+    /// No archive tables in it. A picture, a document, the wrong `.db`.
+    NotAnArchive,
+    /// Written by a newer Volocal. Refused rather than migrated backwards: this
+    /// build does not know what the newer one put in there, and opening it
+    /// would strip whatever that is.
+    FromTheFuture { found: i64, known: i64 },
+    /// Old or current. `open` migrates an old one on the way in.
+    Usable,
+}
+
+/// Looks at an offered archive read-only and says which of the three it is.
+pub fn look_at_offered_archive(path: &std::path::Path) -> Offered {
+    use rusqlite::OpenFlags;
+    let Ok(db) = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY) else {
+        return Offered::NotAnArchive;
+    };
+    // Both names, because an archive worth importing may predate the rename —
+    // that is exactly the archive somebody kept on an old machine.
+    let holds_recordings = ["recordings", "nahravky"]
+        .into_iter()
+        .any(|name| has_table(&db, name).unwrap_or(false));
+    if !holds_recordings {
+        return Offered::NotAnArchive;
+    }
+    match stored_schema_version(&db) {
+        Ok(Some(found)) if found > SCHEMA_VERSION => Offered::FromTheFuture {
+            found,
+            known: SCHEMA_VERSION,
+        },
+        // No number at all is an archive older than the numbering, which `open`
+        // handles: it is given one on the way in.
+        _ => Offered::Usable,
+    }
+}
+
 /// Reads the schema number without assuming the table it lives in exists.
 ///
 /// It has moved: `klice` before 1.0.5, `settings` after. An archive older than
@@ -2087,11 +2130,11 @@ mod tests {
         ai_outputs, align_word_timestamps, create_folder, delete_folder, delete_recording,
         delete_recording_note, delete_segments, delete_speaker, dictionary, folder_recording_ids,
         folders, has_table, insert_recording_note, insert_segment, insert_speaker, load_settings,
-        metadata_value, migrate_legacy_schema, move_to_folder, open, recording_notes,
-        recover_interrupted, save_ai_document, save_ai_output, save_metadata_value, search,
-        segments, speakers, update_recording_note, watch_file_imported, watch_file_is_stable,
-        waveform, AiDocument, AiOutput, ArchiveFromTheFuture, RecordingNote, Segment, Speaker,
-        WaveformData,
+        look_at_offered_archive, metadata_value, migrate_legacy_schema, move_to_folder, open,
+        recording_notes, recover_interrupted, save_ai_document, save_ai_output,
+        save_metadata_value, search, segments, speakers, update_recording_note,
+        watch_file_imported, watch_file_is_stable, waveform, AiDocument, AiOutput,
+        ArchiveFromTheFuture, Offered, RecordingNote, Segment, Speaker, WaveformData,
     };
     use rusqlite::{params, Connection};
 
@@ -3138,6 +3181,73 @@ mod tests {
             [],
         )
         .expect("the column has to exist after the migration");
+    }
+
+    /// Everything the import command refuses, and the two things it accepts.
+    ///
+    /// A backup came from this application; a file picked off a disk did not.
+    /// This is what stands between "I chose the wrong file" and an archive
+    /// replaced by a holiday photograph.
+    #[test]
+    fn an_offered_file_is_judged_before_anything_is_replaced() {
+        // An ordinary archive of this build's schema.
+        let current = TempDb::new("offered-current");
+        drop(open(&current.0).unwrap());
+        assert_eq!(look_at_offered_archive(&current.0), Offered::Usable);
+
+        // One from a newer Volocal. Refused, and refused by number.
+        let future = TempDb::new("offered-future");
+        {
+            let db = open(&future.0).unwrap();
+            save_metadata_value(&db, "schema-version", "99").unwrap();
+        }
+        assert_eq!(
+            look_at_offered_archive(&future.0),
+            Offered::FromTheFuture {
+                found: 99,
+                known: 2
+            }
+        );
+
+        // An archive from before the schema was English. This is the one worth
+        // being able to take: it is what sat on the machine somebody replaced.
+        let czech = TempDb::new("offered-czech");
+        drop(czech_archive(&czech.0));
+        assert_eq!(look_at_offered_archive(&czech.0), Offered::Usable);
+
+        // A database, but not one of ours.
+        let stranger = TempDb::new("offered-stranger");
+        {
+            let db = Connection::open(&stranger.0).unwrap();
+            db.execute("CREATE TABLE something_else (id TEXT)", [])
+                .unwrap();
+        }
+        assert_eq!(look_at_offered_archive(&stranger.0), Offered::NotAnArchive);
+
+        // Not a database at all.
+        let rubbish = TempDb::new("offered-rubbish");
+        std::fs::write(&rubbish.0, b"this is not a database, it is a sentence").unwrap();
+        assert_eq!(look_at_offered_archive(&rubbish.0), Offered::NotAnArchive);
+
+        // And nothing at that path.
+        let missing = TempDb::new("offered-missing");
+        assert_eq!(look_at_offered_archive(&missing.0), Offered::NotAnArchive);
+    }
+
+    /// Looking must not be opening. `open` migrates, and an archive somebody has
+    /// only pointed at has not been agreed to yet — least of all one that is
+    /// about to be refused for being too new.
+    #[test]
+    fn looking_at_an_offered_archive_does_not_write_to_it() {
+        let temp = TempDb::new("offered-untouched");
+        drop(czech_archive(&temp.0));
+        let before = std::fs::read(&temp.0).unwrap();
+        assert_eq!(look_at_offered_archive(&temp.0), Offered::Usable);
+        assert_eq!(
+            std::fs::read(&temp.0).unwrap(),
+            before,
+            "the file changed just by being looked at"
+        );
     }
 }
 

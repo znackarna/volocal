@@ -441,6 +441,8 @@ fn main() {
             commands::backups::back_up_now,
             commands::backups::backups,
             commands::backups::restore_backup,
+            commands::backups::export_archive,
+            commands::backups::import_archive,
         ])
         .build(tauri::generate_context!())
         .expect("failed to start the application")

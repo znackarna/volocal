@@ -173,6 +173,13 @@ export const api = {
     >("backups"),
   /** Replaces the open archive with a backup, and reopens it. */
   restoreBackup: (file: string) => invoke<void>("restore_backup", { file }),
+
+  /** Writes a copy of the archive to a path the reader chose. */
+  exportArchive: (path: string) => invoke<void>("export_archive", { path }),
+
+  /** Puts an archive from a chosen file in place of the open one. Replaces; it
+   *  does not merge. */
+  importArchive: (path: string) => invoke<void>("import_archive", { path }),
 };
 
 export type { Speaker };

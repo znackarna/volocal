@@ -183,6 +183,17 @@ export const csErrors = {
   // Rust can emit has one, and the check needs no exceptions.
   "errors.benchmark.backend_failed": "{detail}",
   "errors.benchmark.launch_failed": "{detail}",
+  // Replacing the archive, and copying it somewhere it survives this computer.
+  "errors.backup.unknown":
+    "Tahle záloha ve složce se zálohami není. Zkuste seznam otevřít znovu.",
+  "errors.archive.export.onto_itself":
+    "Tohle je archiv, se kterým aplikace právě pracuje. Vyberte jiné místo nebo jiný název.",
+  "errors.archive.import.not_an_archive":
+    "Vybraný soubor není archiv Volocalu. Archiv je jediný soubor .db — buď volocal.db, nebo kopie, kterou jste si uložili.",
+  "errors.archive.import.from_the_future":
+    "Tenhle archiv vznikl v novější verzi Volocalu. Načtením byste přišli o to, co novější verze umí navíc. Aktualizujte aplikaci a zkuste to znovu.",
+  "errors.archive.import.itself":
+    "Tohle je archiv, se kterým aplikace právě pracuje. Nahrazovat ho jím samotným nedává smysl.",
 } as const;
 
 export const csErrorsContext: Partial<Record<keyof typeof csErrors, string>> = {
@@ -225,4 +236,14 @@ export const csErrorsContext: Partial<Record<keyof typeof csErrors, string>> = {
     "Zkouška výkonu potřebuje skutečný zvuk, aby změřila, co je na tomhle počítači rychlejší.",
   "errors.benchmark.unknown_failure":
     "Malé písmeno je záměr: text se vkládá doprostřed věty o nezdařené zkoušce.",
+  "errors.backup.unknown":
+    "Ukáže se, když seznam záloh na obrazovce už neodpovídá tomu, co je na disku — soubor mezitím zmizel.",
+  "errors.archive.export.onto_itself":
+    "Uživatel v dialogu pro uložení vybral přímo živý archiv aplikace.",
+  "errors.archive.import.not_an_archive":
+    "Vybraný soubor neobsahuje tabulky archivu. Typicky se sáhlo vedle — třeba na zálohu jiného programu.",
+  "errors.archive.import.from_the_future":
+    "Archiv z novější verze. Odmítáme ho místo toho, abychom ho otevřeli a nevědomky z něj odstranili, co neznáme.",
+  "errors.archive.import.itself":
+    "Uživatel nabídl k načtení ten samý soubor, se kterým aplikace pracuje.",
 };
