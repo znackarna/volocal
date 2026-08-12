@@ -1020,12 +1020,53 @@ mod tools_folder_tests {
         assert!(after.join("models/ggml-large-v3.bin").is_file());
     }
 
+    /// The defect 1.0.8 shipped, held down so it cannot come back.
+    ///
+    /// WebView2 keeps its profile in a folder named after the same identifier,
+    /// and puts it there the first time the window opens. A migration that
+    /// asked only whether the folder existed therefore never ran, and a
+    /// `tools_root` that asked only the same thing pointed the application at
+    /// a folder of browser cache — every model reported missing.
+    #[test]
+    fn a_folder_webview_made_is_not_a_folder_of_ours() {
+        let local = scratch("tools-webview");
+        let old = local.join(tools::TOOLS_FOLDER_BEFORE_THE_RENAME);
+        std::fs::create_dir_all(old.join("models")).unwrap();
+        std::fs::write(old.join("models/ggml-large-v3.bin"), b"pretend").unwrap();
+        // What the window leaves there on first open.
+        std::fs::create_dir_all(local.join(tools::TOOLS_FOLDER).join("EBWebView")).unwrap();
+
+        let (_, after) = tools::rename_tools_root(&local).expect("moved anyway");
+
+        assert!(after.join("models/ggml-large-v3.bin").is_file());
+        // And what was already there is left where it was.
+        assert!(after.join("EBWebView").is_dir());
+    }
+
+    /// The old folder goes only if it is empty afterwards.
+    #[test]
+    fn something_else_in_the_old_folder_keeps_it_alive() {
+        let local = scratch("tools-leftover");
+        let old = local.join(tools::TOOLS_FOLDER_BEFORE_THE_RENAME);
+        std::fs::create_dir_all(old.join("bin")).unwrap();
+        std::fs::write(old.join("poznamka.txt"), b"mine").unwrap();
+
+        tools::rename_tools_root(&local).expect("moved");
+
+        assert!(old.join("poznamka.txt").is_file(), "not ours to remove");
+        assert!(local.join(tools::TOOLS_FOLDER).join("bin").is_dir());
+    }
     /// Already done, or never needed. Either way nothing happens twice.
     #[test]
     fn a_folder_already_under_the_new_name_is_left_alone() {
         let local = scratch("tools-done");
-        std::fs::create_dir_all(local.join(tools::TOOLS_FOLDER)).unwrap();
-        std::fs::create_dir_all(local.join(tools::TOOLS_FOLDER_BEFORE_THE_RENAME)).unwrap();
+        std::fs::create_dir_all(local.join(tools::TOOLS_FOLDER).join("models")).unwrap();
+        std::fs::create_dir_all(
+            local
+                .join(tools::TOOLS_FOLDER_BEFORE_THE_RENAME)
+                .join("models"),
+        )
+        .unwrap();
 
         assert!(tools::rename_tools_root(&local).is_none());
         // Both are still there: merging them is not a rename, and 20 GB is not

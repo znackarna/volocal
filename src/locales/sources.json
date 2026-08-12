@@ -746,8 +746,6 @@
     "settings.diagnostics.copyNote": "db5de2d8bdb0",
     "settings.diagnostics.copyRefused": "d768046504ab",
     "settings.diagnostics.diarizationEmbedding": "9827a6d1e4a9",
-    "settings.diagnostics.diarizationProgram": "5f76807307ee",
-    "settings.diagnostics.diarizationSegmentation": "8e44c2468584",
     "settings.diagnostics.modelVad": "18f8e571d3dd",
     "settings.diagnostics.modelWhisper": "96c46da177bc",
     "settings.diagnostics.noLog": "bd507f9f3a28",

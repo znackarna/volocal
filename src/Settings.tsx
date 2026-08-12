@@ -1937,8 +1937,6 @@ function ToolDiagnostics({
     ["whisper-cli", null, k.whisper_cli],
     ["model_whisper", "settings.diagnostics.modelWhisper", k.model_whisper],
     ["model_vad", "settings.diagnostics.modelVad", k.model_vad],
-    ["diarization", "settings.diagnostics.diarizationProgram", k.sherpa_diarization],
-    ["segmentation", "settings.diagnostics.diarizationSegmentation", k.segmentation_model],
     ["embedding", "settings.diagnostics.diarizationEmbedding", k.embedding_model],
   ];
   return (

@@ -278,8 +278,6 @@ export interface ToolCheck {
   whisper_cli: string | null;
   model_whisper: string | null;
   model_vad: string | null;
-  sherpa_diarization: string | null;
-  segmentation_model: string | null;
   embedding_model: string | null;
   editor_cli: string | null;
   editor_server: string | null;
