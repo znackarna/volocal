@@ -63,7 +63,7 @@ export const enSettings: Partial<Record<keyof typeof csSettings, string>> = {
   "settings.portable.description": "The app runs from {directory}. Transcripts, programs and models are stored there too. Nothing is written to the system.",
   "settings.portable.machineBundled": "Computer: {machine} · the rendering engine is included",
   "settings.portable.machineSeparate": "Computer: {machine} · the rendering engine is not included; on a computer without WebView2 the window won’t open",
-  "settings.portable.copyTitle": "Copy to a removable drive",
+  "settings.portable.copyTitle": "Removable drive",
   "settings.portable.copyDescription": "Copies the app and the models to the chosen drive. On another computer you just run {file}.",
   "settings.portable.copyDestination": "Where to create the portable copy",
   "settings.portable.copyHint": "Models load more slowly from a flash drive.",
