@@ -1200,10 +1200,11 @@ button.mic-play:disabled { cursor: default; opacity: 0.6; }
 /* No tabular figures on the date. They are for numbers read down a column,
    and these are sentences of digits: monospaced, "12. 8. 2026 10:58" falls
    apart into widely spaced characters. The size keeps them — it is a column. */
+/* The hour takes the room, so what the backup holds sits against the button
+   at the right — read as one block with it, the way the archive's own
+   metadata sits at the end of a row. */
 .backup-when {
-  flex: 0 0 auto; font-weight: 600; line-height: 1.35;
+  flex: 1 1 auto; font-weight: 600; line-height: 1.35;
   font-variant-numeric: tabular-nums;
 }
-/* The pair pushes the button to the right and takes what is left, so a row
-   with nothing in its backup does not leave a hole where the facts would be. */
-.backup-holds { flex: 1 1 auto; }
+.backup-holds { flex: 0 0 auto; }
