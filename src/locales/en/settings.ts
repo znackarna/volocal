@@ -208,7 +208,7 @@ export const enSettings: Partial<Record<keyof typeof csSettings, string>> = {
   "settings.backups.directory": "Folder",
   "settings.backups.reveal": "Open the backup folder",
   "settings.backups.count": "Copies kept",
-  "settings.backups.restoreTitle": "Go back to a backup, or move the archive",
+  "settings.backups.restoreTitle": "Restoring a backup, moving the archive",
   "settings.backups.restoreNote":
     "The backup you pick replaces the current archive. Later transcripts will not be in it.",
   "settings.backups.restoreAction": "Restore",

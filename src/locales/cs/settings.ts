@@ -253,7 +253,7 @@ export const csSettings = {
   "settings.backups.count": "Uloženo kopií",
   "settings.backups.directory": "Složka",
   "settings.backups.reveal": "Otevřít složku se zálohami",
-  "settings.backups.restoreTitle": "Vrátit se k záloze nebo přenést archiv",
+  "settings.backups.restoreTitle": "Obnova zálohy a přenos archivu",
   "settings.backups.emptyList": "Zatím tu není záloha, ke které by se šlo vrátit.",
   "settings.archive.export": "Export archivu",
   "settings.archive.note":
@@ -477,7 +477,7 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
     "Bublina nad cestou. Kliknutí otevře složku ve správci souborů daného systému.",
   "settings.backups.running": "Stav tlačítka po dobu zálohování.",
   "settings.backups.restoreTitle":
-    "Nadpis skrytého bloku. „Vrátit se“, ne „obnovit“ — obnovit zní jako oprava něčeho rozbitého, tohle je návrat v čase. Blok drží všechno, co se s archivem jako celkem dělá: seznam záloh, uložení kopie jinam a načtení souboru.",
+    "Nadpis skrytého bloku. Dvě podstatná jména za sebou, jako ostatní nadpisy na téhle obrazovce, a „obnova“ souhlasí s tlačítkem Obnovit pod ním. Dřív tu stálo „Vrátit se k záloze“, protože obnovit zní jako oprava něčeho rozbitého — nadpis se ale četl jinak, než co dělalo tlačítko. Blok drží obojí: seznam záloh a export s importem archivu.",
   "settings.backups.emptyList":
     "Místo seznamu, dokud žádná záloha není. Blok je vidět i tak, protože načíst archiv ze souboru jde i na čerstvě nainstalovaném počítači.",
   "settings.archive.export":
