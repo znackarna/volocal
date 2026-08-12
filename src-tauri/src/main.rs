@@ -376,6 +376,7 @@ fn main() {
             commands::settings::save_settings,
             commands::settings::check_tools,
             commands::settings::diagnostic_report,
+            commands::settings::log_directory,
             commands::library::list_recordings,
             commands::library::add_recording,
             commands::library::scan_watch_folder,
@@ -627,18 +628,44 @@ fn report_unusable_archive(
         let _ = window.hide();
     }
 
+    // Written before the dialog, so the path it names is already there when
+    // somebody goes looking. Everything a running application would put in a
+    // diagnostic report, except what lives in the archive — which is the thing
+    // that could not be opened.
+    let lines = diagnostics::recent_lines();
+    let report = format!(
+        "Volocal {}\n{} {}\n\nArchiv: {archive_text}\nZálohy: {backups_text}\n\n\
+         Start selhal: {error:#}\n\n-- log, posledních {} řádků --\n{}",
+        env!("CARGO_PKG_VERSION"),
+        std::env::consts::OS,
+        std::env::consts::ARCH,
+        lines.len(),
+        lines.join("\n"),
+    );
+    let where_to_look = diagnostics::write_problem_report(&report)
+        .map(|path| {
+            format!(
+                "\n\nPodrobnosti pro nás jsou v souboru:\n{}\nPošlete nám ho, ať víme, co se stalo.",
+                path.display()
+            )
+        })
+        .unwrap_or_default();
+
     // Two different things go wrong here and they ask for opposite actions.
     // A damaged archive wants a backup copied over it. An archive written by a
     // newer Volocal wants nothing done to it at all — it is in perfect order,
     // and telling its owner to start copying files over it would be the one
     // instruction that could actually lose the work this dialog exists to save.
+    //
+    // Both name the file, because both are a moment somebody may have to
+    // describe to us.
     let message = if let Some(future) = error.downcast_ref::<db::ArchiveFromTheFuture>() {
         format!(
             "Tenhle archiv napsala novější verze Volocalu, než je ta spuštěná.\n\n\
              Archiv:\n{archive_text}\n\n\
              Aktualizujte Volocal na nejnovější verzi a spusťte ho znovu. \
              S archivem nic nedělejte — je v pořádku a nic v něm nechybí.\n\n\
-             Podrobnost: schéma {}, tahle verze umí {}",
+             Podrobnost: schéma {}, tahle verze umí {}{where_to_look}",
             future.found, future.known
         )
     } else {
@@ -649,10 +676,9 @@ fn report_unusable_archive(
              Poškozený soubor archivu si uložte stranou a na jeho místo zkopírujte \
              nejnovější zálohu z uvedené složky. Zkopírovaný soubor přejmenujte tak, \
              aby se jmenoval stejně jako archiv. Potom Volocal spusťte znovu.\n\n\
-             Podrobnost: {error:#}"
+             Podrobnost: {error:#}{where_to_look}"
         )
     };
-
     let handle = app.handle().clone();
     // `blocking_show` waits for a closure that the event loop has yet to run,
     // so on the main thread it would wait for ever — and `setup` is the main
