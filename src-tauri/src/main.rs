@@ -748,6 +748,50 @@ fn report_unusable_archive(
     });
 }
 
+/// Points the stored folders at the tools folder's new name.
+///
+/// Only the ones that named the old folder. The defaults are relative — `bin`,
+/// `models` — and resolve against whatever `tools_root` answers, so they need
+/// nothing done to them. What needs looking at is an absolute path, and only
+/// when it starts with the folder that just moved: somebody who put their
+/// models on another drive chose that, and it is not ours to rewrite.
+///
+/// Compared without case, because this is Windows and two spellings of one path
+/// are one folder.
+fn follow_the_tools_folder(db: &Connection, before: &std::path::Path, after: &std::path::Path) {
+    let Ok(mut settings) = db::load_settings(db) else {
+        return;
+    };
+    let old = before.to_string_lossy().to_lowercase();
+    let moved = |stored: &str| -> Option<String> {
+        if !std::path::Path::new(stored).is_absolute() {
+            return None;
+        }
+        let rest = stored.to_lowercase().strip_prefix(&old)?.len();
+        Some(format!(
+            "{}{}",
+            after.display(),
+            &stored[stored.len() - rest..]
+        ))
+    };
+
+    let mut changed = false;
+    for (name, field) in [
+        ("bin", &mut settings.bin_directory),
+        ("models", &mut settings.models_directory),
+    ] {
+        if let Some(now) = moved(field) {
+            crate::note!("tools: the {name} folder setting follows to {now}");
+            *field = now;
+            changed = true;
+        }
+    }
+    if changed {
+        if let Err(error) = db::save_settings(db, &settings) {
+            crate::note!("tools: the moved paths could not be saved ({error})");
+        }
+    }
+}
 fn connect_database(app: &tauri::App, db_path: PathBuf) -> Result<()> {
     if let Some(parent) = db_path.parent() {
         std::fs::create_dir_all(parent)?;
@@ -760,7 +804,12 @@ fn connect_database(app: &tauri::App, db_path: PathBuf) -> Result<()> {
     if let Some(moved) = PROFILE_MOVE.get() {
         crate::note!("{moved}");
     }
+    // Before anything reads the settings: the folder moves and this is what
+    // makes the paths stored in the archive point at where it went.
     let mut connection = db::open(&db_path)?;
+    if let Some((before, after)) = tools::rename_tools_root(&tools::local_data()) {
+        follow_the_tools_folder(&connection, &before, &after);
+    }
 
     // Anything still marked as running belongs to a session that never
     // finished. Without this the recording would sit there for ever showing a
@@ -871,6 +920,132 @@ fn connect_database(app: &tauri::App, db_path: PathBuf) -> Result<()> {
     Ok(())
 }
 
+/// The stored folders when the tools folder is renamed under them.
+///
+/// The rename itself is one `std::fs::rename` and Windows' own business; what is
+/// worth holding down is which stored paths follow it and which are left alone,
+/// because rewriting a path somebody chose is how models end up reported missing
+/// after a download that worked.
+///
+/// Forward slashes throughout: the comparison is on strings, so the separator
+/// only has to be consistent, and backslashes in a Rust test read as escapes.
+#[cfg(test)]
+mod tools_folder_tests {
+    use super::*;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    /// A folder of this test's own. Its own counter, so it cannot collide with
+    /// the archive tests running beside it.
+    fn scratch(name: &str) -> std::path::PathBuf {
+        static COUNTER: AtomicUsize = AtomicUsize::new(0);
+        let id = COUNTER.fetch_add(1, Ordering::Relaxed);
+        let dir = std::env::temp_dir().join(format!("volocal-{name}-{id}"));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    const BEFORE: &str = "C:/x/Whisp";
+    const AFTER: &str = "C:/x/cz.znackarna.volocal";
+
+    fn archive_with(bin: &str, models: &str) -> Connection {
+        let db = db::open(std::path::Path::new(":memory:")).unwrap();
+        let mut settings = db::load_settings(&db).unwrap();
+        settings.bin_directory = bin.into();
+        settings.models_directory = models.into();
+        db::save_settings(&db, &settings).unwrap();
+        db
+    }
+
+    fn follow(db: &Connection) {
+        follow_the_tools_folder(
+            db,
+            std::path::Path::new(BEFORE),
+            std::path::Path::new(AFTER),
+        );
+    }
+
+    fn stored(db: &Connection) -> (String, String) {
+        let settings = db::load_settings(db).unwrap();
+        (settings.bin_directory, settings.models_directory)
+    }
+
+    #[test]
+    fn the_defaults_are_relative_and_need_no_help() {
+        // `bin` and `models` resolve against whatever `tools_root` answers, so
+        // they arrive at the new folder without being touched.
+        let db = archive_with("bin", "models");
+        follow(&db);
+        assert_eq!(stored(&db), ("bin".to_string(), "models".to_string()));
+    }
+
+    #[test]
+    fn an_absolute_path_into_the_old_folder_follows_it() {
+        let db = archive_with("C:/x/Whisp/bin", "C:/x/Whisp/models");
+        follow(&db);
+        assert_eq!(
+            stored(&db),
+            (
+                "C:/x/cz.znackarna.volocal/bin".to_string(),
+                "C:/x/cz.znackarna.volocal/models".to_string()
+            )
+        );
+    }
+
+    /// The one that matters. A folder somebody chose is theirs.
+    #[test]
+    fn a_folder_somebody_chose_elsewhere_is_left_exactly_as_it_is() {
+        let db = archive_with("C:/x/Whisp/bin", "D:/modely");
+        follow(&db);
+        let (bin, models) = stored(&db);
+        assert_eq!(bin, "C:/x/cz.znackarna.volocal/bin");
+        assert_eq!(models, "D:/modely", "not ours to rewrite");
+    }
+
+    /// A folder of 20 GB is renamed, not copied: this is one call to the
+    /// system and it is instant. What the test holds down is the three
+    /// answers around it.
+    #[test]
+    fn the_old_folder_is_renamed_and_what_is_in_it_comes_along() {
+        let local = scratch("tools-rename");
+        let old = local.join(tools::TOOLS_FOLDER_BEFORE_THE_RENAME);
+        std::fs::create_dir_all(old.join("models")).unwrap();
+        std::fs::write(old.join("models/ggml-large-v3.bin"), b"pretend").unwrap();
+
+        let (before, after) = tools::rename_tools_root(&local).expect("renamed");
+
+        assert_eq!(before, old);
+        assert_eq!(after, local.join(tools::TOOLS_FOLDER));
+        assert!(!old.exists());
+        assert!(after.join("models/ggml-large-v3.bin").is_file());
+    }
+
+    /// Already done, or never needed. Either way nothing happens twice.
+    #[test]
+    fn a_folder_already_under_the_new_name_is_left_alone() {
+        let local = scratch("tools-done");
+        std::fs::create_dir_all(local.join(tools::TOOLS_FOLDER)).unwrap();
+        std::fs::create_dir_all(local.join(tools::TOOLS_FOLDER_BEFORE_THE_RENAME)).unwrap();
+
+        assert!(tools::rename_tools_root(&local).is_none());
+        // Both are still there: merging them is not a rename, and 20 GB is not
+        // something to merge on a guess.
+        assert!(local.join(tools::TOOLS_FOLDER_BEFORE_THE_RENAME).is_dir());
+    }
+
+    #[test]
+    fn a_first_run_has_nothing_to_rename() {
+        let local = scratch("tools-fresh");
+        assert!(tools::rename_tools_root(&local).is_none());
+    }
+    /// Windows spells one folder several ways and means the same one.
+    #[test]
+    fn the_comparison_does_not_care_about_case() {
+        let db = archive_with("c:/x/whisp/bin", "models");
+        follow(&db);
+        assert_eq!(stored(&db).0, "C:/x/cz.znackarna.volocal/bin");
+    }
+}
 #[cfg(test)]
 mod archive_location_tests {
     use super::*;
