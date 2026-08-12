@@ -259,7 +259,7 @@ export const csSettings = {
   "settings.backups.restoreAction": "Obnovit",
   "settings.backups.restoreConfirmTitle": "Obnovit archiv ze zálohy?",
   "settings.backups.restoreConfirmText":
-    "Archiv se nahradí zálohou z {when}. Současný stav se uloží stranou jako whisp-before-restore.db, takže se k němu jde vrátit. Zvukové soubory na disku zůstanou nedotčené.",
+    "Archiv se nahradí zálohou z {when}. Současný stav se uloží stranou jako volocal-before-restore.db, takže se k němu jde vrátit. Zvukové soubory na disku zůstanou nedotčené.",
   "settings.backups.note": "Záloha se vytváří automaticky při spuštění.",
   "settings.backups.running": "Zálohuji…",
   "settings.backups.action": "Zálohovat teď",

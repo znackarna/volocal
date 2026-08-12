@@ -214,7 +214,7 @@ export const enSettings: Partial<Record<keyof typeof csSettings, string>> = {
   "settings.backups.restoreAction": "Restore",
   "settings.backups.restoreConfirmTitle": "Restore the archive from a backup?",
   "settings.backups.restoreConfirmText":
-    "The archive will be replaced with the backup from {when}. The current state is saved aside as whisp-before-restore.db, so you can come back to it. The audio files on disk are untouched.",
+    "The archive will be replaced with the backup from {when}. The current state is saved aside as volocal-before-restore.db, so you can come back to it. The audio files on disk are untouched.",
   "settings.backups.note": "A backup is made automatically at startup.",
   "settings.backups.running": "Backing up…",
   "settings.backups.action": "Back up now",

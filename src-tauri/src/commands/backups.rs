@@ -156,7 +156,16 @@ pub fn restore_backup(app: State<'_, AppState>, file: String) -> Reported<()> {
 
     let mut held = app.db.lock().unwrap();
 
-    let aside = app.db_path.with_file_name("whisp-before-restore.db");
+    // Beside the archive and named after it, so it says what it is a copy of.
+    let stem = app
+        .db_path
+        .file_stem()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .to_string();
+    let aside = app
+        .db_path
+        .with_file_name(format!("{stem}-before-restore.db"));
     let _ = std::fs::remove_file(&aside);
     if let Err(error) = held.execute("VACUUM INTO ?1", [aside.to_string_lossy()]) {
         crate::note!("restore: the archive could not be copied aside: {error}");

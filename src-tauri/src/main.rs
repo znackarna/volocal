@@ -484,6 +484,43 @@ fn main() {
         });
 }
 
+/// What the archive file is called.
+const ARCHIVE: &str = "volocal.db";
+
+/// And what it was called while the application was still Whisp. The file is
+/// renamed on the first start that finds it, so this name is only ever read.
+const ARCHIVE_BEFORE_THE_RENAME: &str = "whisp.db";
+
+/// Renames the archive to the application's own name, once, in one folder.
+///
+/// A file called `whisp.db` in a folder called `cz.znackarna.volocal` is a
+/// loose end from a rename that finished everywhere else a year of work ago —
+/// the log, the window, the installer, the identifier. It carries the
+/// write-ahead log with it: a `-wal` left beside a file that has moved is
+/// replayed into nothing, and its contents are the last session's work.
+///
+/// Best effort. If the rename fails the archive is opened where it is, under
+/// the name it has, and the next start tries again.
+fn rename_archive_to_the_new_name(folder: &std::path::Path) {
+    let old = folder.join(ARCHIVE_BEFORE_THE_RENAME);
+    let new = folder.join(ARCHIVE);
+    if !old.is_file() || new.exists() {
+        return;
+    }
+    if let Err(error) = std::fs::rename(&old, &new) {
+        crate::note!("archive: {} could not be renamed ({error})", old.display());
+        return;
+    }
+    for suffix in ["-wal", "-shm"] {
+        let from = folder.join(format!("{ARCHIVE_BEFORE_THE_RENAME}{suffix}"));
+        let to = folder.join(format!("{ARCHIVE}{suffix}"));
+        if from.is_file() {
+            let _ = std::fs::rename(from, to);
+        }
+    }
+    crate::note!("archive: renamed {} to {}", old.display(), new.display());
+}
+
 /// Which archive to open, given where this mode says it belongs and the only
 /// other place one can be.
 ///
@@ -493,18 +530,29 @@ fn main() {
 /// is sitting there, open that instead. Losing sight of a year of transcripts
 /// must take more than a folder appearing beside the executable.
 fn archive_to_open(chosen: &std::path::Path, other: &std::path::Path) -> std::path::PathBuf {
-    let preferred = chosen.join("whisp.db");
+    // Before looking, so that what is looked for is the name it will have.
+    rename_archive_to_the_new_name(chosen);
+    rename_archive_to_the_new_name(other);
+
+    let preferred = chosen.join(ARCHIVE);
     if preferred.is_file() {
         return preferred;
     }
-    let alternative = other.join("whisp.db");
-    if alternative.is_file() {
-        crate::note!(
-            "opening the existing archive at {} instead of starting an empty one at {}",
-            alternative.display(),
-            preferred.display()
-        );
-        return alternative;
+    // The old name is still worth looking for: a rename that failed - the file
+    // held open by something else - must not turn into an empty archive.
+    for candidate in [
+        chosen.join(ARCHIVE_BEFORE_THE_RENAME),
+        other.join(ARCHIVE),
+        other.join(ARCHIVE_BEFORE_THE_RENAME),
+    ] {
+        if candidate.is_file() {
+            crate::note!(
+                "opening the existing archive at {} instead of starting an empty one at {}",
+                candidate.display(),
+                preferred.display()
+            );
+            return candidate;
+        }
     }
     preferred
 }
@@ -549,8 +597,13 @@ fn profile_folder(profile: PathBuf) -> PathBuf {
     else {
         return profile;
     };
-    // Nothing to bring over, or this copy has already been through here.
-    if !old.join("whisp.db").is_file() || profile.join("whisp.db").is_file() {
+    // Nothing to bring over, or this copy has already been through here. Both
+    // names on both sides: the folder move and the file rename are separate
+    // migrations, and either can have happened without the other.
+    let holds_an_archive = |folder: &std::path::Path| {
+        folder.join(ARCHIVE).is_file() || folder.join(ARCHIVE_BEFORE_THE_RENAME).is_file()
+    };
+    if !holds_an_archive(&old) || holds_an_archive(&profile) {
         return profile;
     }
     /* Tauri may have created the new folder already. An empty one is in the
@@ -834,7 +887,12 @@ mod archive_location_tests {
     }
 
     fn archive(dir: &std::path::Path) {
-        std::fs::write(dir.join("whisp.db"), b"not really sqlite").unwrap();
+        std::fs::write(dir.join(ARCHIVE), b"not really sqlite").unwrap();
+    }
+
+    /// An archive as every installation before 1.0.8 has it.
+    fn archive_under_the_old_name(dir: &std::path::Path) {
+        std::fs::write(dir.join(ARCHIVE_BEFORE_THE_RENAME), b"not really sqlite").unwrap();
     }
 
     #[test]
@@ -843,7 +901,7 @@ mod archive_location_tests {
         let other = scratch("other");
         archive(&chosen);
         archive(&other);
-        assert_eq!(archive_to_open(&chosen, &other), chosen.join("whisp.db"));
+        assert_eq!(archive_to_open(&chosen, &other), chosen.join(ARCHIVE));
     }
 
     /// The defect this exists for: portability flipped, and the archive was
@@ -853,14 +911,45 @@ mod archive_location_tests {
         let chosen = scratch("empty");
         let other = scratch("has-the-archive");
         archive(&other);
-        assert_eq!(archive_to_open(&chosen, &other), other.join("whisp.db"));
+        assert_eq!(archive_to_open(&chosen, &other), other.join(ARCHIVE));
     }
 
     #[test]
     fn a_genuine_first_run_still_starts_where_it_belongs() {
         let chosen = scratch("first-run");
         let other = scratch("also-empty");
-        assert_eq!(archive_to_open(&chosen, &other), chosen.join("whisp.db"));
+        assert_eq!(archive_to_open(&chosen, &other), chosen.join(ARCHIVE));
+    }
+
+    /// The file left over from the application's first name is renamed on the
+    /// way past, and what is opened is the name it now has.
+    #[test]
+    fn an_archive_under_the_old_name_is_renamed_and_then_opened() {
+        let chosen = scratch("old-name");
+        let other = scratch("nothing-here");
+        archive_under_the_old_name(&chosen);
+        std::fs::write(chosen.join("whisp.db-wal"), b"last session").unwrap();
+
+        assert_eq!(archive_to_open(&chosen, &other), chosen.join(ARCHIVE));
+
+        assert!(!chosen.join(ARCHIVE_BEFORE_THE_RENAME).exists());
+        // The write-ahead log goes with the file it belongs to. Left behind, it
+        // would be a session's work beside a database that has moved.
+        assert!(chosen.join("volocal.db-wal").is_file());
+        assert!(!chosen.join("whisp.db-wal").exists());
+    }
+
+    /// Both names in one folder is not ours to resolve: the new one is the
+    /// archive and the old one is left exactly where it is.
+    #[test]
+    fn an_old_file_beside_a_new_one_is_left_alone() {
+        let chosen = scratch("both");
+        let other = scratch("empty-again");
+        archive(&chosen);
+        archive_under_the_old_name(&chosen);
+
+        assert_eq!(archive_to_open(&chosen, &other), chosen.join(ARCHIVE));
+        assert!(chosen.join(ARCHIVE_BEFORE_THE_RENAME).is_file());
     }
 
     /// The rename moved the profile folder, and these say what that must never
@@ -886,7 +975,7 @@ mod archive_location_tests {
             std::fs::write(old.join("volocal-log.txt"), b"a line").unwrap();
 
             assert_eq!(profile_folder(new.clone()), new);
-            assert!(new.join("whisp.db").is_file());
+            assert!(new.join(ARCHIVE).is_file());
             // Everything in the folder travels, not only the database.
             assert!(new.join("volocal-log.txt").is_file());
             assert!(!old.exists());
@@ -897,7 +986,7 @@ mod archive_location_tests {
             let (old, new) = profiles("fresh");
             assert_eq!(profile_folder(new.clone()), new);
             assert!(!old.exists());
-            assert!(!new.join("whisp.db").is_file());
+            assert!(!new.join(ARCHIVE).is_file());
         }
 
         /// Run twice — an upgrade, then any later start. The second must not
@@ -909,15 +998,12 @@ mod archive_location_tests {
             archive(&new);
             std::fs::create_dir_all(&old).unwrap();
             archive(&old);
-            std::fs::write(new.join("whisp.db"), b"the one in use").unwrap();
+            std::fs::write(new.join(ARCHIVE), b"the one in use").unwrap();
 
             assert_eq!(profile_folder(new.clone()), new);
-            assert_eq!(
-                std::fs::read(new.join("whisp.db")).unwrap(),
-                b"the one in use"
-            );
+            assert_eq!(std::fs::read(new.join(ARCHIVE)).unwrap(), b"the one in use");
             // The old one is not swept away either: it is not ours to delete.
-            assert!(old.join("whisp.db").is_file());
+            assert!(old.join(ARCHIVE).is_file());
         }
 
         /// The new folder exists but is empty, which is what Tauri leaves
@@ -930,7 +1016,7 @@ mod archive_location_tests {
             std::fs::create_dir_all(&new).unwrap();
 
             assert_eq!(profile_folder(new.clone()), new);
-            assert!(new.join("whisp.db").is_file());
+            assert!(new.join(ARCHIVE).is_file());
         }
 
         /// The move cannot happen — here because the new folder holds somebody
@@ -945,7 +1031,7 @@ mod archive_location_tests {
             std::fs::write(new.join("something-else.txt"), b"not ours").unwrap();
 
             assert_eq!(profile_folder(new.clone()), old);
-            assert!(old.join("whisp.db").is_file());
+            assert!(old.join(ARCHIVE).is_file());
         }
     }
 }
