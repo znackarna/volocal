@@ -1869,8 +1869,17 @@ function Backups({
             ways — one takes the archive off this computer, the other brings one
             onto it — and each needs a different sentence said before it is
             pressed. A row here is a note and one button, which is the shape the
-            action row was drawn for. */}
-        <div className="settings-action-row spaced">
+            action row was drawn for.
+
+            `separated` on the first of them, so a line falls between the
+            backups and the archive itself. That is a second rule on this card,
+            which the note by `.settings-action-row.separated` warns against —
+            and it is meant here: the objection there is to two rules a few
+            lines apart with one row of text between them, and this one lands
+            below a list, inside a block that is folded away until somebody
+            opens it. Above the line is going back in time; below it is the
+            archive leaving or arriving. */}
+        <div className="settings-action-row separated">
           <InfoNote compact>{t("settings.archive.exportNote")}</InfoNote>
           <button className="button" onClick={exportArchive} disabled={saving || running}>
             {saving ? t("settings.archive.exportSaving") : t("settings.archive.export")}
