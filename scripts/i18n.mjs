@@ -808,6 +808,28 @@ function check(strict = false) {
       );
     }
     if (missing.length) console.log(`  chybí ${missing.length} — spusť npm run i18n:export ${language}`);
+
+    // Fingerprints whose key no longer exists anywhere in the Czech source.
+    //
+    // Nothing else looks for these. Every other count here starts from a key
+    // that exists and asks what is known about it, so a record left behind by a
+    // deleted key is invisible to all of them — it is never a missing
+    // translation, never drifted, never unrecorded.
+    //
+    // They were found by hand three times on 2026-08-13: four left by the two
+    // diarization components, three by the transcript menu when it started
+    // naming speakers instead of pointing at neighbours, and four more from
+    // downloads. Harmless in themselves, and that is the trouble: they
+    // accumulate quietly and make this file a worse record of what the
+    // application says every time a key is retired.
+    const abandoned = Object.keys(recorded).filter((key) => !(key in source.entries));
+    if (abandoned.length) {
+      warnings.push(`${language}: ${abandoned.length} otisků po zrušených klíčích`);
+      console.log(`  otisky po klíčích, které už nikde nejsou (${abandoned.length}):`);
+      for (const key of abandoned.slice(0, 20)) console.log(`    ${key}`);
+      if (abandoned.length > 20) console.log(`    … a dalších ${abandoned.length - 20}`);
+      console.log(`  Smaž je ze src/locales/sources.json.`);
+    }
   }
 
   console.log("");

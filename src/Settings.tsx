@@ -1865,32 +1865,31 @@ function Backups({
             who came here for a backup should reach the backups first, and this
             one is the wider door: it takes any archive, including one from a
             computer that is gone. */}
-        {/* A band each, rather than the pair sharing one. They point opposite
-            ways — one takes the archive off this computer, the other brings one
-            onto it — and each needs a different sentence said before it is
-            pressed. A row here is a note and one button, which is the shape the
-            action row was drawn for.
+        {/* One band, one note, two buttons. They read as a pair — the same
+            archive going out and coming in — and the note has a sentence for
+            each rather than each having a note.
 
-            `separated` on the first of them, so a line falls between the
-            backups and the archive itself. That is a second rule on this card,
-            which the note by `.settings-action-row.separated` warns against —
-            and it is meant here: the objection there is to two rules a few
-            lines apart with one row of text between them, and this one lands
-            below a list, inside a block that is folded away until somebody
+            `separated`, so a line falls between the backups and the archive
+            itself. That is a second rule on this card, which the comment beside
+            `.settings-action-row.separated` warns against — and it is meant
+            here: what that comment objects to is two rules a few lines apart
+            with one row of text between them, on the open face of a card. This
+            one lands under a list, inside a block folded away until somebody
             opens it. Above the line is going back in time; below it is the
-            archive leaving or arriving. */}
-        <div className="settings-action-row separated">
-          <InfoNote compact>{t("settings.archive.exportNote")}</InfoNote>
-          <button className="button" onClick={exportArchive} disabled={saving || running}>
-            {saving ? t("settings.archive.exportSaving") : t("settings.archive.export")}
-          </button>
-        </div>
+            archive leaving or arriving.
 
-        <div className="settings-action-row spaced">
-          <InfoNote compact>{t("settings.archive.importNote")}</InfoNote>
-          <button className="button" onClick={importArchive} disabled={running}>
-            {t("settings.archive.import")}
-          </button>
+            The buttons are wrapped because the row is `space-between`: loose,
+            one would go to each end and leave the note stranded between them. */}
+        <div className="settings-action-row separated">
+          <InfoNote compact>{t("settings.archive.note")}</InfoNote>
+          <div className="settings-action-row-buttons">
+            <button className="button" onClick={exportArchive} disabled={saving || running}>
+              {saving ? t("settings.archive.exportSaving") : t("settings.archive.export")}
+            </button>
+            <button className="button" onClick={importArchive} disabled={running}>
+              {t("settings.archive.import")}
+            </button>
+          </div>
         </div>
       </SettingsDisclosure>
 

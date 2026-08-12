@@ -197,6 +197,14 @@
 .settings-action-row.spaced { margin-top: 22px; }
 .settings-action-row > .settings-info-note { margin: 0; }
 .settings-action-row > .button { flex: 0 0 auto; }
+/* Two buttons at the right-hand end, as one group.
+
+   The row is `space-between`, which is right for a note and a button and wrong
+   the moment there are two: it would put one button at each end and strand the
+   note in the middle of them. Export and import are one choice with two
+   directions and have to sit as one. 8 px is `.diagnostics-actions`' gap, the
+   other place on this screen where two buttons stand together. */
+.settings-action-row-buttons { display: flex; gap: 8px; flex: 0 0 auto; }
 .settings-success { color: var(--success); }
 .field { margin-bottom: 24px; }
 .settings section > .field:last-child { margin-bottom: 0; }
