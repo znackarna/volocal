@@ -89,6 +89,25 @@ pub fn is_portable() -> bool {
     app_directory().join("prenosna.txt").is_file()
 }
 
+/// The folder holding the tools and the models, under `%LOCALAPPDATA%`.
+///
+/// The identifier, the same one the archive's folder uses in the roaming
+/// profile — not `Volocal`, which is where the installer puts the program and
+/// the uninstaller. Twenty gigabytes of models in a folder an uninstaller owns
+/// is a folder an uninstall can empty.
+pub const TOOLS_FOLDER: &str = "cz.znackarna.volocal";
+
+/// And what it was called while the application was still Whisp.
+pub const TOOLS_FOLDER_BEFORE_THE_RENAME: &str = "Whisp";
+
+/// Where `%LOCALAPPDATA%` is, or the program's own folder if Windows will not
+/// say.
+pub fn local_data() -> PathBuf {
+    std::env::var_os("LOCALAPPDATA")
+        .map(PathBuf::from)
+        .unwrap_or_else(app_directory)
+}
+
 /// Where the tools and models are downloaded to.
 ///
 /// Beside the program in portable mode. Otherwise into the user's profile —
@@ -98,10 +117,60 @@ pub fn tools_root() -> PathBuf {
     if is_portable() {
         return app_directory();
     }
-    std::env::var_os("LOCALAPPDATA")
-        .map(PathBuf::from)
-        .unwrap_or_else(app_directory)
-        .join("Whisp")
+    let local = local_data();
+    let root = local.join(TOOLS_FOLDER);
+    if root.is_dir() {
+        return root;
+    }
+    // The old name is still answered for, so a rename that could not happen —
+    // a tool running out of `bin` holds the folder open — means the models are
+    // found where they are rather than reported missing.
+    let before = local.join(TOOLS_FOLDER_BEFORE_THE_RENAME);
+    if before.is_dir() {
+        return before;
+    }
+    root
+}
+
+/// Renames the tools folder to the application's own name, once.
+///
+/// Twenty gigabytes do not move: on one volume this is a directory rename and
+/// it is instant. Nothing is copied and nothing is at risk of being half-copied.
+///
+/// It can fail, and the ordinary reason is benign — a tool still running out of
+/// `bin` holds the folder open. Then nothing happens, `tools_root` answers for
+/// the old name as it always has, and the next start tries again.
+///
+/// The folder to work in is passed rather than read, so a test can give it one
+/// that is not the machine's — `LOCALAPPDATA` is process-wide and these tests
+/// run beside each other in one process.
+///
+/// The stored paths are the caller's problem, not this function's: the defaults
+/// are relative (`bin`, `models`) and travel with the root by themselves. Only
+/// an absolute path somebody chose needs looking at, and only the database
+/// knows what those are.
+pub fn rename_tools_root(local: &Path) -> Option<(PathBuf, PathBuf)> {
+    if is_portable() {
+        return None;
+    }
+    let before = local.join(TOOLS_FOLDER_BEFORE_THE_RENAME);
+    let root = local.join(TOOLS_FOLDER);
+    if !before.is_dir() || root.exists() {
+        return None;
+    }
+    match std::fs::rename(&before, &root) {
+        Ok(()) => {
+            crate::note!("tools: renamed {} to {}", before.display(), root.display());
+            Some((before, root))
+        }
+        Err(error) => {
+            crate::note!(
+                "tools: {} could not be renamed ({error}); using it where it is",
+                before.display()
+            );
+            None
+        }
+    }
 }
 
 /// Where a file the catalogue describes as "bin/something" or "models/something"
