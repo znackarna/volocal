@@ -403,7 +403,10 @@ function ArchiveViewToggle({
   );
 }
 
-function RecordingMetadataItem({
+/** One fact about a recording, with the mark that says which fact it is.
+ *  Exported for the backups list, which shows the same pair — how many
+ *  transcripts and how much audio — and should show it the same way. */
+export function RecordingMetadataItem({
   kind,
   label,
   value,

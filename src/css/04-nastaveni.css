@@ -1200,15 +1200,10 @@ button.mic-play:disabled { cursor: default; opacity: 0.6; }
 /* No tabular figures on the date. They are for numbers read down a column,
    and these are sentences of digits: monospaced, "12. 8. 2026 10:58" falls
    apart into widely spaced characters. The size keeps them — it is a column. */
-/* The clock sits with the hour rather than beside it: 6 px, the distance a
-   mark keeps from the word it belongs to elsewhere in this application. */
 .backup-when {
-  flex: 1 1 auto; display: flex; align-items: center; gap: 6px;
-  font-weight: 600; line-height: 1.35;
+  flex: 0 0 auto; font-weight: 600; line-height: 1.35;
   font-variant-numeric: tabular-nums;
 }
-.backup-when svg { flex: 0 0 auto; color: var(--text-quiet); }
-.backup-holds {
-  flex: 0 0 auto; color: var(--text-quiet);
-  font-variant-numeric: tabular-nums;
-}
+/* The pair pushes the button to the right and takes what is left, so a row
+   with nothing in its backup does not leave a hole where the facts would be. */
+.backup-holds { flex: 1 1 auto; }

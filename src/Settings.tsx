@@ -11,7 +11,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { listen } from "@tauri-apps/api/event";
 import { api } from "./api";
-import { RecordingCalendar } from "./Library";
+import { RecordingCalendar, RecordingMetadataItem } from "./Library";
 import ConfirmationDialog from "./ConfirmationDialog";
 import type { ConfirmationRequest } from "./ConfirmationDialog";
 import CountdownRing from "./CountdownRing";
@@ -1725,32 +1725,29 @@ function Backups({ onError }: { onError: (message: string) => void }) {
                     backup is chosen by its day first and its hour second, and
                     the day is what the eye finds without reading. */}
                 <RecordingCalendar value={backup.taken_at} />
-                <span className="backup-when">
-                  {/* A clock, quiet, to pair with the leaf: the leaf answers
-                      which day and this answers which time of it. Drawn here
-                      rather than put in the shared registry — one place draws
-                      it, and the registry is for ideas that recur. */}
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-                    <path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z M12 7.5V12l3 1.8"
-                          stroke="currentColor" strokeWidth="1.7"
-                          strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                  {formatTime(backup.taken_at)}
-                </span>
+                <span className="backup-when">{formatTime(backup.taken_at)}</span>
                 {/* dataSize speaks in megabytes; the file system speaks in
                     bytes. Passed straight through, a 1.4 MB archive announced
                     itself as 1 420 GB. */}
-                {/* What is in it, rather than what it weighs. Nobody picks a
-                    backup by megabytes; they pick it by whether the recording
-                    they are missing is in there. The size stays in the
-                    tooltip, where a file's weight belongs. */}
-                <span className="backup-holds" title={dataSize(backup.size / (1024 * 1024))}>
-                  {backup.recordings === null
-                    ? ""
-                    : `${transcriptCount(backup.recordings)} · ${archiveDuration(
-                        backup.seconds ?? 0
-                      )}`}
-                </span>
+                {/* The archive's own pair, with the archive's own marks: how
+                    many transcripts and how much audio. Nobody picks a backup
+                    by megabytes — those stay in the tooltip, where a file's
+                    weight belongs. */}
+                {backup.recordings !== null && (
+                  <span className="recording-metadata backup-holds"
+                        title={dataSize(backup.size / (1024 * 1024))}>
+                    <RecordingMetadataItem
+                      kind="segments"
+                      label={t("library.folders.count")}
+                      value={transcriptCount(backup.recordings)}
+                    />
+                    <RecordingMetadataItem
+                      kind="duration"
+                      label={t("library.card.duration")}
+                      value={archiveDuration(backup.seconds ?? 0)}
+                    />
+                  </span>
+                )}
                 <button
                   className="button"
                   disabled={running}
