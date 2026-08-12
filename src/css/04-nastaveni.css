@@ -822,17 +822,8 @@ button.mic-play:disabled { cursor: default; opacity: 0.6; }
    saying it about a heading that opens and closes, which the chevron and the
    band under the pointer both say without a shadow. */
 .sidebar .sidebar-section { margin: 0; border: 0; background: none; }
-/* The rule runs the whole width of the sidebar, not just the width of the
-   text. It divides the panel into sections; a line that stops 18 px short of
-   both edges divides the text and leaves the panel looking undecided.
-
-   Pulled out by exactly the sidebar's own padding and given it back as
-   padding, so nothing inside moves. The number appears twice — here and in
-   the narrow-window rule at the foot of this file — and the two have to stay
-   equal or the line will overhang and the panel will scroll sideways. */
 .sidebar .sidebar-section + .sidebar-section {
-  margin: 6px -18px 0; padding: 6px 18px 0;
-  border-top: 1px solid var(--line);
+  margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--line);
 }
 .sidebar .sidebar-section h2 { margin: 0; line-height: 1.3; }
 /* The whole card width, because the action moved inside the body and nothing
@@ -1129,8 +1120,6 @@ button.mic-play:disabled { cursor: default; opacity: 0.6; }
    Only the padding still gives way, and only a little. */
 @media (max-width: 1180px) {
   .sidebar { padding: 18px 14px 60px; }
-  /* With the padding, so the rule still reaches both edges and no further. */
-  .sidebar .sidebar-section + .sidebar-section { margin-inline: -14px; padding-inline: 14px; }
 }
 
 
