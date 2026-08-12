@@ -1766,15 +1766,8 @@ function Backups({
         )}
       </dl>
 
-      {/* Two buttons, and the pair is the point: one copy goes where the
-          application keeps them, the other goes where the reader keeps them.
-          Saving a copy is the quiet one, so it sits to the left of the action
-          the card is named after. */}
       <div className="settings-action-row spaced">
         <InfoNote compact>{t("settings.backups.note")}</InfoNote>
-        <button className="button" onClick={exportArchive} disabled={saving || running}>
-          {saving ? t("settings.archive.exportSaving") : t("settings.archive.export")}
-        </button>
         <button className="button" onClick={backUpNow} disabled={running}>
           {running ? t("settings.backups.running") : t("settings.backups.action")}
         </button>
@@ -1872,6 +1865,18 @@ function Backups({
             who came here for a backup should reach the backups first, and this
             one is the wider door: it takes any archive, including one from a
             computer that is gone. */}
+        {/* A band each, rather than the pair sharing one. They point opposite
+            ways — one takes the archive off this computer, the other brings one
+            onto it — and each needs a different sentence said before it is
+            pressed. A row here is a note and one button, which is the shape the
+            action row was drawn for. */}
+        <div className="settings-action-row spaced">
+          <InfoNote compact>{t("settings.archive.exportNote")}</InfoNote>
+          <button className="button" onClick={exportArchive} disabled={saving || running}>
+            {saving ? t("settings.archive.exportSaving") : t("settings.archive.export")}
+          </button>
+        </div>
+
         <div className="settings-action-row spaced">
           <InfoNote compact>{t("settings.archive.importNote")}</InfoNote>
           <button className="button" onClick={importArchive} disabled={running}>

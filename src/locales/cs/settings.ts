@@ -247,21 +247,23 @@ export const csSettings = {
   // Copies of the archive database.
   "settings.backups.title": "Záloha archivu",
   "settings.backups.description":
-    "Archiv tvoří jediný soubor. Při každém spuštění vznikne kopie: zůstávají tři poslední a jedna pro každý z posledních sedmi dnů. Všechny leží na tomhle počítači vedle archivu, takže výměnu disku přežije jen kopie uložená jinam.",
+    "Archiv tvoří jediný soubor. Při každém spuštění vznikne kopie: zůstávají tři poslední a jedna pro každý z posledních sedmi dnů.",
   "settings.backups.latest": "Poslední záloha",
   "settings.backups.none": "zatím žádná",
   "settings.backups.count": "Uloženo kopií",
   "settings.backups.directory": "Složka",
   "settings.backups.reveal": "Otevřít složku se zálohami",
-  "settings.backups.restoreTitle": "Vrátit se k záloze nebo načíst archiv",
+  "settings.backups.restoreTitle": "Vrátit se k záloze nebo přenést archiv",
   "settings.backups.emptyList": "Zatím tu není záloha, ke které by se šlo vrátit.",
   "settings.archive.export": "Uložit kopii archivu…",
+  "settings.archive.exportNote":
+    "Zálohy leží na tomhle počítači vedle archivu. Výměnu disku přežije jen kopie uložená jinam.",
   "settings.archive.exportSaving": "Ukládám…",
   "settings.archive.exported": "Kopie archivu je uložená: {path}",
   "settings.archive.fileFilter": "Archiv Volocalu",
   "settings.archive.import": "Načíst archiv ze souboru…",
   "settings.archive.importNote":
-    "Načtený archiv nahradí ten současný — nespojí se s ním. Přepisy dorazí celé, zvukové soubory ale necestují s nimi: kde nahrávka na tomhle počítači není, zůstane přepis a přehrávání ne.",
+    "Načtený archiv nahradí ten současný. Zvukové soubory nejsou součástí zálohy.",
   "settings.archive.importConfirmTitle": "Nahradit archiv načteným souborem?",
   "settings.archive.importConfirmText":
     "Současný archiv se nahradí souborem {name}. Stávající stav se uloží stranou jako volocal-before-import.db, takže se k němu jde vrátit. Zvukové soubory na disku zůstanou nedotčené.",
@@ -477,11 +479,13 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
     "Bublina nad cestou. Kliknutí otevře složku ve správci souborů daného systému.",
   "settings.backups.running": "Stav tlačítka po dobu zálohování.",
   "settings.backups.restoreTitle":
-    "Nadpis skrytého bloku. „Vrátit se“, ne „obnovit“ — obnovit zní jako oprava něčeho rozbitého, tohle je návrat v čase. Blok drží obojí, co nahrazuje archiv: seznam záloh a načtení souboru.",
+    "Nadpis skrytého bloku. „Vrátit se“, ne „obnovit“ — obnovit zní jako oprava něčeho rozbitého, tohle je návrat v čase. Blok drží všechno, co se s archivem jako celkem dělá: seznam záloh, uložení kopie jinam a načtení souboru.",
   "settings.backups.emptyList":
     "Místo seznamu, dokud žádná záloha není. Blok je vidět i tak, protože načíst archiv ze souboru jde i na čerstvě nainstalovaném počítači.",
   "settings.archive.export":
     "Tlačítko vedle „Zálohovat teď“. Uloží kopii archivu tam, kam uživatel ukáže — na disk, který přežije tenhle počítač.",
+  "settings.archive.exportNote":
+    "Vysvětlení, proč tlačítko existuje, když se zálohuje samo: automatické zálohy leží na stejném disku jako archiv.",
   "settings.archive.exportSaving": "Stav tlačítka po dobu ukládání kopie.",
   "settings.archive.exported": "Hlášení po uložení. {path} je celá cesta k souboru.",
   "settings.archive.fileFilter":
@@ -489,7 +493,7 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
   "settings.archive.import":
     "Tlačítko ve skrytém bloku. Otevře dialog pro výběr souboru s archivem.",
   "settings.archive.importNote":
-    "Podstatné je slovo nahradí, ne spojí — a že zvuk necestuje. Obojí se musí říct dřív, než uživatel klikne.",
+    "Dvě věty, obě podstatné: nahradí (ne spojí) a že zvuk s archivem necestuje. Obojí se musí říct dřív, než uživatel klikne. Kratší nebýt nemůže, delší být nemá.",
   "settings.archive.importConfirmTitle": "Nadpis potvrzovacího dialogu.",
   "settings.archive.importConfirmText":
     "{name} je název vybraného souboru. Název volocal-before-import.db je skutečný název souboru, nepřekládej ho.",

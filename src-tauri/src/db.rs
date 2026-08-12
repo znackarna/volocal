@@ -2000,7 +2000,25 @@ pub fn back_up_and_rotate(
 ) -> Result<std::path::PathBuf> {
     let stamp = chrono::Local::now().format("%Y-%m-%d-%H%M%S");
     let destination = backup_directory(db_path).join(format!("volocal-{stamp}.db"));
-    back_up(db, &destination)?;
+    // A second call inside the same second finds the copy it was about to make
+    // already sitting there, and that is an answer rather than a failure: what
+    // was asked for is a backup of now, and there is one.
+    //
+    // Reported as an error until 2026-08-13, because `VACUUM INTO` refuses to
+    // overwrite and the refusal reached the screen as `output file already
+    // exists: Error code 1: SQL error or missing database`. Pressing *Zálohovat
+    // teď* twice quickly is enough: the name is only accurate to the second,
+    // and the button re-enables as soon as the first copy is written.
+    //
+    // Not fixed by widening the stamp. `backup_stamp` parses exactly
+    // `0000-00-00-000000`, the rotation reads the moment out of that name, and
+    // every backup already on every disk is written in it.
+    //
+    // Not fixed by overwriting either: `back_up` refuses to clobber on purpose,
+    // so that a timestamped name can never land on an older copy.
+    if !destination.is_file() {
+        back_up(db, &destination)?;
+    }
 
     let existing = list_backups(db_path);
     let stamps: Vec<String> = existing.iter().filter_map(|p| backup_stamp(p)).collect();
@@ -2072,6 +2090,35 @@ mod backup_rotation_tests {
                 "{foreign}"
             );
         }
+    }
+
+    /// Pressing *Zálohovat teď* twice in the same second.
+    ///
+    /// Reported from the running application on 2026-08-13: `output file
+    /// already exists: Error code 1: SQL error or missing database`. The stamp
+    /// in the name is only accurate to the second, and the button re-enables
+    /// the moment the first copy is written, so two clicks land on one name.
+    #[test]
+    fn two_backups_in_the_same_second_are_one_backup_and_not_an_error() {
+        let folder = std::env::temp_dir().join("volocal-backup-twice");
+        let _ = std::fs::remove_dir_all(&folder);
+        std::fs::create_dir_all(&folder).unwrap();
+        let archive = folder.join("volocal.db");
+        let db = open(&archive).unwrap();
+
+        let first = back_up_and_rotate(&db, &archive).unwrap();
+        let second = back_up_and_rotate(&db, &archive).unwrap();
+
+        assert_eq!(first, second, "the same second is the same copy");
+        assert!(first.is_file());
+        assert_eq!(
+            list_backups(&archive).len(),
+            1,
+            "and it is one file, not two"
+        );
+
+        drop(db);
+        let _ = std::fs::remove_dir_all(&folder);
     }
 }
 
