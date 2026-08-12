@@ -163,10 +163,16 @@ jobs:
       # `setup` before a window ever appears — and every one of those looks
       # like a perfectly green build right up until somebody double-clicks.
       #
-      # The archive file is the signal, not the window: `whisp.db` is created
+      # The archive file is the signal, not the window: `volocal.db` is created
       # by the Rust side during startup, after the settings are read and the
       # migrations have run. If it appears, the application got past the part
       # that can fail on a machine that is not this one.
+      #
+      # The name matters, and it caught nothing for a day because of it. This
+      # step waited for `whisp.db` from before the rename, so it waited ninety
+      # seconds for a file no build has created since 10 August and then
+      # reported that the application never started. It builds, installs and
+      # runs; the check was reading the wrong name.
       - name: Smoke test of the installed copy
         shell: pwsh
         run: |
@@ -184,7 +190,7 @@ jobs:
           # Asserted rather than deleted. On a fresh runner this file cannot
           # exist, and if it somehow did, an old one would make the whole test
           # pass without the application having done anything.
-          $archive = "$env:APPDATA\cz.znackarna.volocal\whisp.db"
+          $archive = "$env:APPDATA\cz.znackarna.volocal\volocal.db"
           if (Test-Path $archive) { throw "an archive was already here; this runner is not clean" }
           $app = Start-Process -FilePath $exe.FullName -PassThru
           $deadline = (Get-Date).AddSeconds(90)
@@ -195,7 +201,15 @@ jobs:
           $log = "$env:APPDATA\cz.znackarna.volocal\volocal-log.txt"
           if (Test-Path $log) { Write-Host "--- volocal-log.txt ---"; Get-Content $log }
           if (-not (Test-Path $archive)) {
-            throw "it started but never got as far as creating its archive"
+            # What is actually there, because the last time this failed the
+            # answer was "the file it was waiting for is called something else"
+            # and the message gave no way to see that.
+            $folder = Split-Path $archive
+            Write-Host "--- $folder ---"
+            if (Test-Path $folder) {
+              Get-ChildItem $folder -Recurse | Select-Object -ExpandProperty FullName
+            } else { Write-Host "(the folder does not exist)" }
+            throw "it started but never got as far as creating $(Split-Path $archive -Leaf)"
           }
           Write-Host "archive created, $((Get-Item $archive).Length) bytes - it runs"
           Stop-Process -Id $app.Id -Force -ErrorAction SilentlyContinue
