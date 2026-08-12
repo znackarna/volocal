@@ -23,6 +23,8 @@ export const api = {
   checkTools: () => invoke<ToolCheck>("check_tools"),
   /** Plain text for a person to paste into a message when something is wrong. */
   diagnosticReport: () => invoke<string>("diagnostic_report"),
+  /** The log file itself, for the times the report is not enough. */
+  logFile: () => invoke<string | null>("log_directory"),
 
   listRecordings: () => invoke<Recording[]>("list_recordings"),
   addRecording: (path: string) => invoke<Recording>("add_recording", { path }),

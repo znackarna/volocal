@@ -93,3 +93,19 @@ pub fn recent_lines() -> Vec<String> {
 pub fn file_path() -> Option<PathBuf> {
     FILE.get().cloned()
 }
+
+/// Writes a report about a start that failed, beside the log, and says where.
+///
+/// The button that copies the technical details lives in Settings, and Settings
+/// needs the application to have started. So the one moment somebody most needs
+/// to hand the state over is the moment they cannot reach the thing that hands
+/// it over — they get a dialog they cannot select text in, and a sentence in
+/// this file is the only other trace.
+///
+/// A file rather than the clipboard: nothing is running that could put anything
+/// on a clipboard, and a path can be read out of a dialog and typed.
+pub fn write_problem_report(text: &str) -> Option<PathBuf> {
+    let path = FILE.get()?.with_file_name("volocal-problem.txt");
+    std::fs::write(&path, text).ok()?;
+    Some(path)
+}

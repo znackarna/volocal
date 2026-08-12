@@ -1869,6 +1869,7 @@ function ToolDiagnostics({
   onError: (message: string) => void;
 }) {
   const { t } = useI18n();
+  const userMessage = useUserMessage();
   /** Executable names are technical identifiers and stay as they are; the rest
    *  names what the file is for and is looked up. */
   const rows: Array<[string, TranslationKey | null, string | null]> = [
@@ -1912,8 +1913,9 @@ function ToolDiagnostics({
           are stored, the compute that was chosen, the end of the log. The list
           above answers "is it there"; a problem usually needs "and what was it
           doing", which no screenshot of this panel can say. */}
+      <div className="diagnostics-actions">
       <button
-        className="button diagnostics-copy"
+        className="button"
         onClick={async () => {
           try {
             await copyPlainText(await api.diagnosticReport());
@@ -1929,6 +1931,20 @@ function ToolDiagnostics({
       >
         {t("settings.diagnostics.copy")}
       </button>
+        {/* The report holds the last sixty lines. A transcription that ran for
+            an hour leaves more than that, and somebody may simply want to read
+            it themselves. */}
+        <button
+          className="button"
+          onClick={async () => {
+            const file = await api.logFile().catch(() => null);
+            if (!file) return onError(t("settings.diagnostics.noLog"));
+            void revealItemInDir(file).catch((e) => onError(userMessage(e)));
+          }}
+        >
+          {t("settings.diagnostics.showLog")}
+        </button>
+      </div>
       <InfoNote>{t("settings.diagnostics.copyNote")}</InfoNote>
     </SettingsDisclosure>
   );

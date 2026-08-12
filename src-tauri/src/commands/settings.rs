@@ -38,6 +38,16 @@ pub fn check_tools(app: State<'_, AppState>) -> Reported<tools::ToolCheck> {
     Ok(tools::check(&n))
 }
 
+/// Where the log file is, so the window can open the folder holding it.
+///
+/// The report covers the ordinary case. This is for the one it cannot: a
+/// transcription that took an hour and left more in the log than sixty lines,
+/// or a problem somebody wants to look at themselves.
+#[tauri::command]
+pub fn log_directory() -> Option<String> {
+    crate::diagnostics::file_path().map(|path| path.to_string_lossy().to_string())
+}
+
 /// Everything worth knowing when something has gone wrong, as one block of text.
 ///
 /// Written because of an evening spent guessing. Speech detection came up
