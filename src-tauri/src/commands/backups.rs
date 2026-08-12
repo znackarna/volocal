@@ -189,6 +189,128 @@ pub fn restore_backup(app: State<'_, AppState>, file: String) -> Reported<()> {
     Ok(())
 }
 
+/// Writes a copy of the archive wherever the reader asked for it.
+///
+/// The backups this application takes by itself live in a folder beside the
+/// archive, on the same disk, in the same profile. That protects against the
+/// application damaging the archive and against nothing else — not a dead disk,
+/// not a reinstalled system, not a lost laptop. This is the one way to get a
+/// copy off the machine, and it is why the command exists rather than the
+/// documentation saying "copy volocal.db somewhere".
+///
+/// It also has to exist because that advice would be *wrong*: the archive runs
+/// in WAL mode, so a file copied in Explorer can be missing everything written
+/// since the last checkpoint. `VACUUM INTO` writes a consistent archive with
+/// the log already folded in, which is the same reason the backups use it.
+#[tauri::command]
+pub fn export_archive(app: State<'_, AppState>, path: String) -> Reported<()> {
+    let destination = std::path::PathBuf::from(&path);
+    if points_at_the_same_file(&destination, &app.db_path) {
+        return Err(UserMessage::new("archive.export.onto_itself"));
+    }
+
+    let db = app.db.lock().unwrap();
+    // `VACUUM INTO` refuses a target that exists, and the save dialog has
+    // already asked about overwriting. Removed here rather than reported, or
+    // saying yes to that question would produce an error.
+    let _ = std::fs::remove_file(&destination);
+    reported(
+        db.execute("VACUUM INTO ?1", [destination.to_string_lossy()])
+            .map(|_| ())
+            .map_err(anyhow::Error::from),
+    )?;
+    crate::note!("archive: a copy was written to {}", destination.display());
+    Ok(())
+}
+
+/// Whether two paths are the same file, as far as can be told before one exists.
+///
+/// The destination of an export usually does not exist yet, so it cannot be
+/// canonicalised. Its folder can, and a folder plus a file name is enough to
+/// catch the case this guards: somebody picking the live archive in the save
+/// dialog, which would otherwise be deleted and then vacuumed into by a
+/// connection still holding it open.
+fn points_at_the_same_file(a: &std::path::Path, b: &std::path::Path) -> bool {
+    fn parts(p: &std::path::Path) -> (std::path::PathBuf, std::ffi::OsString) {
+        let folder = p
+            .parent()
+            .map(|f| f.canonicalize().unwrap_or_else(|_| f.to_path_buf()))
+            .unwrap_or_default();
+        (folder, p.file_name().unwrap_or_default().to_os_string())
+    }
+    let (folder_a, name_a) = parts(a);
+    let (folder_b, name_b) = parts(b);
+    // Windows file names do not distinguish case, and neither does this.
+    folder_a == folder_b && name_a.eq_ignore_ascii_case(&name_b)
+}
+
+/// Takes an archive from a file the reader picked, in place of the open one.
+///
+/// The steps are `restore_backup`'s, for the same reasons, with one addition in
+/// front: the file is looked at before anything is touched. A backup came from
+/// this application and can be trusted to be an archive; a file chosen from a
+/// disk cannot. Two answers stop it there — a file that holds no archive at all,
+/// and one written by a newer Volocal, which this build would open by stripping
+/// whatever the newer one knew.
+///
+/// Checked *before* the archive is replaced, not after. Discovering it
+/// afterwards would mean the reader has already lost the archive they had in
+/// exchange for one that cannot be opened.
+///
+/// What this is not is a merge. The archive that arrives replaces the one that
+/// is here; nothing is combined. Two archives have their own recording ids,
+/// folders, speakers and search index, and picking a winner for each of those is
+/// a different feature from this one. The window says *replaces* for that
+/// reason.
+#[tauri::command]
+pub fn import_archive(app: State<'_, AppState>, path: String) -> Reported<()> {
+    let source = std::path::PathBuf::from(&path);
+    match db::look_at_offered_archive(&source) {
+        db::Offered::NotAnArchive => return Err(UserMessage::new("archive.import.not_an_archive")),
+        db::Offered::FromTheFuture { found, known } => {
+            crate::note!("import: refused an archive at schema {found}, this build knows {known}");
+            return Err(UserMessage::new("archive.import.from_the_future"));
+        }
+        db::Offered::Usable => {}
+    }
+    if points_at_the_same_file(&source, &app.db_path) {
+        return Err(UserMessage::new("archive.import.itself"));
+    }
+
+    let mut held = app.db.lock().unwrap();
+
+    let stem = app
+        .db_path
+        .file_stem()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .to_string();
+    let aside = app
+        .db_path
+        .with_file_name(format!("{stem}-before-import.db"));
+    let _ = std::fs::remove_file(&aside);
+    if let Err(error) = held.execute("VACUUM INTO ?1", [aside.to_string_lossy()]) {
+        crate::note!("import: the archive could not be copied aside: {error}");
+    }
+
+    *held = reported(Connection::open(":memory:").map_err(anyhow::Error::from))?;
+
+    let replaced = std::fs::copy(&source, &app.db_path).map(|_| ());
+    for suffix in ["-wal", "-shm"] {
+        let mut name = app.db_path.clone().into_os_string();
+        name.push(suffix);
+        let _ = std::fs::remove_file(std::path::PathBuf::from(name));
+    }
+
+    // Reopened whether the copy worked or not, for `restore_backup`'s reason:
+    // an application left holding `:memory:` answers every screen with an empty
+    // archive.
+    *held = reported(db::open(&app.db_path))?;
+    reported(replaced.map_err(anyhow::Error::from))?;
+    crate::note!("archive: replaced with the one at {}", source.display());
+    Ok(())
+}
+
 /// Backs the archive up right now and reports where it landed.
 ///
 /// This one does hold the lock: the user asked for it and is watching, so
@@ -395,4 +517,50 @@ pub fn merge_speakers(
 ) -> Reported<()> {
     let db = app.db.lock().unwrap();
     reported(db::merge_speakers(&db, &recording_id, &from_key, &to_key))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::points_at_the_same_file;
+
+    /// The guard on the save dialog, and the only thing between a mistyped
+    /// destination and a deleted archive: `export_archive` removes whatever is
+    /// at the target before vacuuming into it, because `VACUUM INTO` will not
+    /// overwrite. Point that at the live archive and the archive is what gets
+    /// removed — by the connection still holding it open.
+    #[test]
+    fn the_live_archive_cannot_be_chosen_as_the_destination() {
+        let folder = std::env::temp_dir().join("volocal-export-guard");
+        std::fs::create_dir_all(&folder).unwrap();
+        let archive = folder.join("volocal.db");
+        std::fs::write(&archive, b"").unwrap();
+
+        assert!(points_at_the_same_file(&archive, &archive));
+
+        // Windows does not distinguish case in file names, and a reader typing
+        // the name back into the dialog is exactly how this arrives.
+        assert!(points_at_the_same_file(
+            &folder.join("VOLOCAL.DB"),
+            &archive
+        ));
+
+        // The same name reached by a longer route.
+        assert!(points_at_the_same_file(
+            &folder.join("sub").join("..").join("volocal.db"),
+            &archive
+        ));
+
+        // And the ordinary case: somewhere else entirely, or the same folder
+        // under another name, both of which must be allowed.
+        assert!(!points_at_the_same_file(
+            &folder.join("volocal-2026-08-12.db"),
+            &archive
+        ));
+        assert!(!points_at_the_same_file(
+            std::path::Path::new("D:/elsewhere/volocal.db"),
+            &archive
+        ));
+
+        let _ = std::fs::remove_dir_all(&folder);
+    }
 }

@@ -124,4 +124,9 @@ export const enErrors: Partial<Record<keyof typeof csErrors, string>> = {
   "errors.benchmark.unknown_failure": "unknown error",
   "errors.benchmark.backend_failed": "{detail}",
   "errors.benchmark.launch_failed": "{detail}",
+  "errors.backup.unknown": "That backup is not in the backup folder. Try opening the list again.",
+  "errors.archive.export.onto_itself": "That is the archive the application is working with. Choose another place or another name.",
+  "errors.archive.import.not_an_archive": "The file you chose is not a Volocal archive. An archive is a single .db file — either volocal.db, or a copy you saved yourself.",
+  "errors.archive.import.from_the_future": "This archive was written by a newer Volocal. Loading it would lose whatever the newer version can do. Update the application and try again.",
+  "errors.archive.import.itself": "That is the archive the application is working with. Replacing it with itself does nothing.",
 };

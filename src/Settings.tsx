@@ -7,7 +7,7 @@ import {
   type ReactNode,
 } from "react";
 import { getVersion } from "@tauri-apps/api/app";
-import { open } from "@tauri-apps/plugin-dialog";
+import { open, save } from "@tauri-apps/plugin-dialog";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { listen } from "@tauri-apps/api/event";
 import { api } from "./api";
@@ -1358,7 +1358,7 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
 
       {activeTab === "appearance" && <QuickTips />}
 
-      {activeTab === "files" && <Backups onError={onError} />}
+      {activeTab === "files" && <Backups onError={onError} onInfo={onInfo} />}
 
       {activeTab === "files" && !check?.portable && (
         <section className="settings-card-portable-copy">
@@ -1606,8 +1606,21 @@ function QuickTips() {
  * The whole archive is one SQLite file. It is worth saying out loud where the
  * copies are, because the moment anyone needs them is the moment they will not
  * feel like hunting for a folder.
+ *
+ * The card carries two more things than its title suggests, and they are here
+ * rather than on a card of their own because they are the same file. Saving a
+ * copy is what the automatic backups are not: those live beside the archive, on
+ * this disk, in this profile, and a dead disk takes the lot. Loading one belongs
+ * beside restoring, because it is the same act — an archive arrives in place of
+ * the one that is open.
  */
-function Backups({ onError }: { onError: (message: string) => void }) {
+function Backups({
+  onError,
+  onInfo,
+}: {
+  onError: (message: string) => void;
+  onInfo: (message: string) => void;
+}) {
   const { t, formatNumber, formatDate } = useI18n();
   const { dataSize, transcriptCount, archiveDuration } = useFormats();
   /** The hour on its own for the row, and the whole moment for the question
@@ -1632,6 +1645,9 @@ function Backups({ onError }: { onError: (message: string) => void }) {
     directory: string;
   } | null>(null);
   const [running, setRunning] = useState(false);
+  /** Separate from `running`: saving a copy changes nothing, so it must not
+   *  disable the buttons that do. */
+  const [saving, setSaving] = useState(false);
   const [list, setList] = useState<
     {
       file: string;
@@ -1660,6 +1676,57 @@ function Backups({ onError }: { onError: (message: string) => void }) {
       setRunning(false);
     }
   }, [onError, refresh, userMessage]);
+
+  /* A name with the day in it, because the folder these land in is the one
+     somebody keeps several in. */
+  const exportArchive = useCallback(async () => {
+    const stamp = new Date().toISOString().slice(0, 10);
+    try {
+      const destination = await save({
+        defaultPath: `volocal-${stamp}.db`,
+        filters: [{ name: t("settings.archive.fileFilter"), extensions: ["db"] }],
+      });
+      if (!destination) return;
+      setSaving(true);
+      await api.exportArchive(destination);
+      onInfo(t("settings.archive.exported", { path: destination }));
+    } catch (e) {
+      onError(userMessage(e));
+    } finally {
+      setSaving(false);
+    }
+  }, [onError, onInfo, t, userMessage]);
+
+  /* The question is asked after the file is chosen rather than before, so that
+     it can name it. "Replace the archive?" with nothing named is a question
+     nobody can answer. */
+  const importArchive = useCallback(async () => {
+    const chosen = await open({
+      multiple: false,
+      filters: [{ name: t("settings.archive.fileFilter"), extensions: ["db"] }],
+    });
+    if (typeof chosen !== "string") return;
+    setConfirmation({
+      title: t("settings.archive.importConfirmTitle"),
+      text: t("settings.archive.importConfirmText", {
+        name: chosen.split(/[\\/]/).pop() ?? chosen,
+      }),
+      confirm: t("settings.archive.importAction"),
+      destructive: true,
+      action: async () => {
+        setRunning(true);
+        try {
+          await api.importArchive(chosen);
+          // Same reason as restoring: every screen is holding data from the
+          // archive that has just been replaced.
+          window.location.reload();
+        } catch (e) {
+          onError(userMessage(e));
+          setRunning(false);
+        }
+      },
+    });
+  }, [onError, t, userMessage]);
 
   return (
     <section className="settings-card-backups">
@@ -1699,8 +1766,15 @@ function Backups({ onError }: { onError: (message: string) => void }) {
         )}
       </dl>
 
+      {/* Two buttons, and the pair is the point: one copy goes where the
+          application keeps them, the other goes where the reader keeps them.
+          Saving a copy is the quiet one, so it sits to the left of the action
+          the card is named after. */}
       <div className="settings-action-row spaced">
         <InfoNote compact>{t("settings.backups.note")}</InfoNote>
+        <button className="button" onClick={exportArchive} disabled={saving || running}>
+          {saving ? t("settings.archive.exportSaving") : t("settings.archive.export")}
+        </button>
         <button className="button" onClick={backUpNow} disabled={running}>
           {running ? t("settings.backups.running") : t("settings.backups.action")}
         </button>
@@ -1710,14 +1784,17 @@ function Backups({ onError }: { onError: (message: string) => void }) {
           rarest thing on this screen and the only one that replaces what is
           there — it belongs under everything that is not, rather than between
           the summary and the button that merely makes another copy. */}
-      {(status?.count ?? 0) > 0 && (
-        <SettingsDisclosure
-          title={t("settings.backups.restoreTitle")}
-          className="card-footer"
-          onOpen={() => {
-            if (list === null) api.backups().then(setList).catch(() => setList([]));
-          }}
-        >
+      {/* Always here, unlike the list inside it. A machine that has just been
+          set up has no backups and is exactly the machine somebody wants to
+          load an archive into. */}
+      <SettingsDisclosure
+        title={t("settings.backups.restoreTitle")}
+        className="card-footer"
+        onOpen={() => {
+          if (list === null) api.backups().then(setList).catch(() => setList([]));
+        }}
+      >
+        {(status?.count ?? 0) > 0 ? (
           <ul className="backup-list">
             {(list ?? []).map((backup) => (
               <li key={backup.file}>
@@ -1783,12 +1860,25 @@ function Backups({ onError }: { onError: (message: string) => void }) {
               </li>
             ))}
           </ul>
-          {/* Under the list, not over it. What it says is what happens *after*
-              a row is chosen, and it was standing between the reader and the
-              dates they came here to look at. */}
-          <InfoNote>{t("settings.backups.restoreNote")}</InfoNote>
-        </SettingsDisclosure>
-      )}
+        ) : (
+          <p className="settings-section-description">{t("settings.backups.emptyList")}</p>
+        )}
+        {/* Under the list, not over it. What it says is what happens *after*
+            a row is chosen, and it was standing between the reader and the
+            dates they came here to look at. */}
+        {(status?.count ?? 0) > 0 && <InfoNote>{t("settings.backups.restoreNote")}</InfoNote>}
+
+        {/* The other way an archive arrives. Below the dates, because a reader
+            who came here for a backup should reach the backups first, and this
+            one is the wider door: it takes any archive, including one from a
+            computer that is gone. */}
+        <div className="settings-action-row spaced">
+          <InfoNote compact>{t("settings.archive.importNote")}</InfoNote>
+          <button className="button" onClick={importArchive} disabled={running}>
+            {t("settings.archive.import")}
+          </button>
+        </div>
+      </SettingsDisclosure>
 
       <ConfirmationDialog
         query={confirmation}
