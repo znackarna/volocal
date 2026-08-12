@@ -248,7 +248,7 @@ export const enSettings: Partial<Record<keyof typeof csSettings, string>> = {
   "settings.diagnostics.notFound": "not found",
   "settings.backups.emptyList": "There is no backup to go back to yet.",
   "settings.archive.export": "Export archive",
-  "settings.archive.note": "Exporting saves the transcripts only, without the source recordings. Importing replaces the current archive.",
+  "settings.archive.note": "An export does not contain the source recordings. An import replaces the current archive.",
   "settings.archive.exportSaving": "Exporting…",
   "settings.archive.exported": "A copy of the archive was saved: {path}",
   "settings.archive.fileFilter": "Volocal archive",

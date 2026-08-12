@@ -257,7 +257,7 @@ export const csSettings = {
   "settings.backups.emptyList": "Zatím tu není záloha, ke které by se šlo vrátit.",
   "settings.archive.export": "Export archivu",
   "settings.archive.note":
-    "Export uloží jen texty bez zdrojové nahrávky. Import nahradí současný archiv.",
+    "Export neobsahuje zdrojové nahrávky. Import nahradí současný archiv.",
   "settings.archive.exportSaving": "Exportuji…",
   "settings.archive.exported": "Kopie archivu je uložená: {path}",
   "settings.archive.fileFilter": "Archiv Volocalu",
@@ -483,7 +483,7 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
   "settings.archive.export":
     "Tlačítko ve skrytém bloku. Uloží kopii archivu tam, kam uživatel ukáže — na disk, který přežije tenhle počítač. Krátký název, protože vedle něj stojí Import archivu.",
   "settings.archive.note":
-    "Jedna poznámka pro obě tlačítka, věta na každé. U exportu to, co v kopii není: archiv drží přepisy a cesty ke zvuku, ne zvuk sám. U importu slovo nahradí — ne spojí, ne přidá.",
+    "Jedna poznámka pro obě tlačítka, věta na každé. U exportu to, co v kopii není — archiv drží přepisy a cesty ke zvuku, ne zvuk sám. U importu slovo nahradí, ne spojí. Obě věty říkají, co chybí nebo co zmizí; nic z toho není pochvala funkce.",
   "settings.archive.exportSaving": "Stav tlačítka po dobu ukládání kopie. Tvar podle sousední dvojice Zálohovat teď / Zálohuji…",
   "settings.archive.exported": "Hlášení po uložení. {path} je celá cesta k souboru.",
   "settings.archive.fileFilter":
