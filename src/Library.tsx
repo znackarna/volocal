@@ -8,7 +8,7 @@ import RecordingActionsMenu, { ActionMenu, MENU_ICONS } from "./RecordingActions
 import NameDialog from "./NameDialog";
 import { LineIcon } from "./icons";
 import Select from "./Select";
-import { formatTime, fileName } from "./types";
+import { formatTime, fileName, statusClass } from "./types";
 import { useLabels } from "./labels";
 import { useFormats } from "./formats";
 import { useI18n } from "./i18n";
@@ -1245,7 +1245,7 @@ function Row({
         <span className="row-text">
           <span className="row-title">
             <span className="row-status-icon" aria-hidden>
-              <span className={`status-mark ${recording.status}`} />
+              <span className={`status-mark ${statusClass(recording.status)}`} />
             </span>
             <span className="row-name">{shownName(recording)}</span>
           </span>

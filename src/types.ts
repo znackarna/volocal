@@ -9,6 +9,27 @@ export interface UserMessage {
 
 export type Status = "nova" | "prepisuje" | "hotova" | "chyba";
 
+/** The class that paints a recording's status dot.
+ *
+ *  The stored value is Czech and stays that way — it is written in every
+ *  archive on disk. The class name is English like every other class. This is
+ *  the one place the two meet, and before it existed the markup handed the
+ *  stored value straight to `className`: renaming `.hotova` to `.done` in the
+ *  stylesheet therefore turned every dot grey, in every row of the archive,
+ *  and nothing failed. `Record<Status, string>` is the guard — a new status
+ *  without a class will not compile.
+ */
+export const STATUS_CLASS: Record<Status, string> = {
+  nova: "new",
+  prepisuje: "transcribing",
+  hotova: "done",
+  chyba: "failed",
+};
+
+export function statusClass(status: string): string {
+  return STATUS_CLASS[status as Status] ?? "";
+}
+
 export interface Recording {
   id: string;
   path: string;
