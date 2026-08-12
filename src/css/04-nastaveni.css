@@ -1118,24 +1118,47 @@ button.mic-play:disabled { cursor: default; opacity: 0.6; }
 
 
 
-/* The button under the component list. 14 px, the gap this application gives an
-   explanation that belongs to a whole group rather than to the line above it —
-   and that is what this is: it copies the list and everything around it.
-   `align-self` because the disclosure is a flex column: without it the button
-   stretches the full width of the card, which no other button here does. */
-.diagnostics-copy { margin-top: 14px; align-self: flex-start; }
+/* The two ways out of a problem, side by side: copy what we need, or open the
+   log and read it.
+
+   18 px above them, not the 14 a paragraph would take. A bordered panel ends
+   on a line, and a button 14 px under a line reads as stuck to it — the same
+   amount that looks generous under text looks tight under a frame.
+
+   `align-self` because the disclosure is a flex column: without it they would
+   stretch the full width of the card, which no other button here does. The
+   note below keeps its own 8 px — it belongs to these buttons, not the panel.
+
+   This rule was lost once, in a rebase, and nothing said so: `.diagnostics-copy`
+   went on existing while the markup had moved to `.diagnostics-actions`, and
+   the buttons only looked right because `.button` is inline-flex. */
+.diagnostics-actions {
+  display: flex; gap: 8px; margin-top: 18px; align-self: flex-start;
+}
 
 /* The backups, one row each: when it was taken, how large it is, and the way
    back. The date leads because it is the only thing anybody chooses by; the
    size is there to tell an empty archive from a full one at a glance. */
-.backup-list { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+/* Everything about the surface is `.check`'s, deliberately: two lists on the
+   same screen doing the same job — a column of things with a value beside
+   each — had no reason to be a bordered panel in one place and bare rules in
+   the other. Same border, radius, ground, 14 px inset, hairline and 13 px.
+   Only the row is taller, because this one carries a 34 px button. */
+.backup-list {
+  list-style: none; margin: 14px 0 0; padding: 0; overflow: hidden;
+  border: 1px solid var(--line); border-radius: var(--r-card);
+  background: var(--subtle); font-size: 13px;
+}
 .backup-list li {
   display: flex; align-items: center; gap: 12px;
-  padding: 7px 0; border-top: 1px solid var(--line);
+  min-height: 40px; padding: 6px 14px;
 }
-.backup-list li:first-child { border-top: 0; }
-.backup-when { flex: 1 1 auto; font-size: 13.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.backup-list li + li { border-top: 1px solid var(--line); }
+/* No tabular figures on the date. They are for numbers read down a column,
+   and these are sentences of digits: monospaced, "12. 8. 2026 10:58" falls
+   apart into widely spaced characters. The size keeps them — it is a column. */
+.backup-when { flex: 1 1 auto; font-weight: 600; line-height: 1.35; }
 .backup-size {
-  flex: 0 0 auto; color: var(--text-quiet); font-size: 13px;
+  flex: 0 0 auto; color: var(--text-quiet);
   font-variant-numeric: tabular-nums;
 }

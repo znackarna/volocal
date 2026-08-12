@@ -1690,7 +1690,10 @@ function Backups({ onError }: { onError: (message: string) => void }) {
             {(list ?? []).map((backup) => (
               <li key={backup.file}>
                 <span className="backup-when">{backup.when}</span>
-                <span className="backup-size">{dataSize(backup.size)}</span>
+                {/* dataSize speaks in megabytes; the file system speaks in
+                    bytes. Passed straight through, a 1.4 MB archive announced
+                    itself as 1 420 GB. */}
+                <span className="backup-size">{dataSize(backup.size / (1024 * 1024))}</span>
                 <button
                   className="button"
                   disabled={running}
