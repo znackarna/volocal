@@ -1203,8 +1203,5 @@ button.mic-play:disabled { cursor: default; opacity: 0.6; }
 /* The hour takes the room, so what the backup holds sits against the button
    at the right — read as one block with it, the way the archive's own
    metadata sits at the end of a row. */
-.backup-when {
-  flex: 1 1 auto; font-weight: 600; line-height: 1.35;
-  font-variant-numeric: tabular-nums;
-}
+.backup-when { flex: 1 1 auto; }
 .backup-holds { flex: 0 0 auto; }
