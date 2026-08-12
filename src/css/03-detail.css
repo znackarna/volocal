@@ -318,20 +318,11 @@
 
 /* ---------------------------------------------------------------- sidebar */
 
-/* The same ground the transcript stands on, so the sections read as cards
-   lying on the page rather than panels cut into a white slab. It was a slab
-   before, and each card inside it was then a white box on white — a border
-   doing all the work of saying where one section ended.
-
-   The border down the left stays. With one ground on both sides it is the
-   only thing that says where the column begins, and without it the cards
-   float in a space with no edges.
-
-   12 px of side inset rather than 18: the cards no longer sit inside a
-   surface of their own, so the room that surface was keeping goes to them. */
 .sidebar {
-  border-left: 1px solid var(--line); background: var(--ground);
-  overflow-y: auto; padding: 18px 12px 60px;
+  /* White in the light theme. `--panel` rather than a literal white so the dark
+     theme gets its card colour instead of a glaring slab. */
+  border-left: 1px solid var(--line); background: var(--panel);
+  overflow-y: auto; padding: 20px 18px 60px;
 }
 
 .speaker-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
