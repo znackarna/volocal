@@ -5,7 +5,9 @@
 //! already calls it by; nothing here is a rename.
 
 use crate::{db, tools, transcription};
+use crate::user_message::UserMessage;
 use crate::{reported, AppState, Reported, WaveformJob};
+use rusqlite::Connection;
 use serde::Serialize;
 use tauri::State;
 // ---------------------------------------------------------------- backups
@@ -37,6 +39,93 @@ pub fn backup_status(app: State<'_, AppState>) -> BackupStatus {
             .to_string_lossy()
             .to_string(),
     }
+}
+
+/// One backup, as the list shows it.
+#[derive(Serialize)]
+pub(crate) struct Backup {
+    /// The file name alone. Restoring takes this back, and the directory is
+    /// worked out here — a full path arriving over IPC is a path that could
+    /// point anywhere.
+    file: String,
+    /// When it was taken, formatted for reading.
+    when: String,
+    size: u64,
+}
+
+#[tauri::command]
+pub fn backups(app: State<'_, AppState>) -> Vec<Backup> {
+    db::list_backups(&app.db_path)
+        .into_iter()
+        .filter_map(|path| {
+            let metadata = path.metadata().ok()?;
+            let when: chrono::DateTime<chrono::Local> = metadata.modified().ok()?.into();
+            Some(Backup {
+                file: path.file_name()?.to_string_lossy().to_string(),
+                when: when.format("%-d. %-m. %Y %H:%M").to_string(),
+                size: metadata.len(),
+            })
+        })
+        .collect()
+}
+
+/// Puts a backup back, in place of the archive that is open right now.
+///
+/// Until now the only way back was the one the startup dialog prints when the
+/// archive cannot be opened at all: save the file aside, copy the newest backup
+/// over it, rename it to match. That is work with a file manager at the one
+/// moment somebody is frightened, and it is the only part of this application
+/// that asks for it.
+///
+/// What happens here, in order, and the order is the whole thing:
+///
+/// 1. The name is checked against the backup directory's own listing. A path
+///    arriving over IPC is not trusted to say which file may replace an archive.
+/// 2. The archive as it stands is copied aside first. Restoring is a decision
+///    somebody can regret within the minute — usually because they picked the
+///    wrong date — and without this there would be nothing to regret it back to.
+/// 3. The open connection is replaced with one to `:memory:`, which closes the
+///    file. Windows will not let a file be replaced while it is open, and a
+///    half-copied archive is exactly the damage this command exists to undo.
+/// 4. The backup is copied over, and the write-ahead log removed with it: a
+///    `-wal` belonging to the old file would be replayed into the new one.
+/// 5. The archive is opened again — through `open`, so a backup written by an
+///    older schema is migrated on the way in.
+#[tauri::command]
+pub fn restore_backup(app: State<'_, AppState>, file: String) -> Reported<()> {
+    let directory = db::backup_directory(&app.db_path);
+    let source = directory.join(&file);
+    let known = db::list_backups(&app.db_path)
+        .into_iter()
+        .any(|path| path == source);
+    if !known {
+        return Err(UserMessage::new("backup.unknown"));
+    }
+
+    let mut held = app.db.lock().unwrap();
+
+    let aside = app.db_path.with_file_name("whisp-before-restore.db");
+    let _ = std::fs::remove_file(&aside);
+    if let Err(error) = held.execute("VACUUM INTO ?1", [aside.to_string_lossy()]) {
+        crate::note!("restore: the archive could not be copied aside: {error}");
+    }
+
+    *held = reported(Connection::open(":memory:").map_err(anyhow::Error::from))?;
+
+    let replaced = std::fs::copy(&source, &app.db_path).map(|_| ());
+    for suffix in ["-wal", "-shm"] {
+        let mut name = app.db_path.clone().into_os_string();
+        name.push(suffix);
+        let _ = std::fs::remove_file(std::path::PathBuf::from(name));
+    }
+
+    // Opened again whether the copy worked or not: leaving the application
+    // holding `:memory:` would make every screen answer with an empty archive,
+    // which is the lie this whole day has been about.
+    *held = reported(db::open(&app.db_path))?;
+    reported(replaced.map_err(anyhow::Error::from))?;
+    crate::note!("restore: the archive was replaced with {file}");
+    Ok(())
 }
 
 /// Backs the archive up right now and reports where it landed.

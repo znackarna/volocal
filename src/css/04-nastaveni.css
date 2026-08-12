@@ -1124,3 +1124,18 @@ button.mic-play:disabled { cursor: default; opacity: 0.6; }
    `align-self` because the disclosure is a flex column: without it the button
    stretches the full width of the card, which no other button here does. */
 .diagnostics-copy { margin-top: 14px; align-self: flex-start; }
+
+/* The backups, one row each: when it was taken, how large it is, and the way
+   back. The date leads because it is the only thing anybody chooses by; the
+   size is there to tell an empty archive from a full one at a glance. */
+.backup-list { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.backup-list li {
+  display: flex; align-items: center; gap: 12px;
+  padding: 7px 0; border-top: 1px solid var(--line);
+}
+.backup-list li:first-child { border-top: 0; }
+.backup-when { flex: 1 1 auto; font-size: 13.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.backup-size {
+  flex: 0 0 auto; color: var(--text-quiet); font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
