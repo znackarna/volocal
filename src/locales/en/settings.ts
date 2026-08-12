@@ -244,8 +244,6 @@ export const enSettings: Partial<Record<keyof typeof csSettings, string>> = {
   "settings.diagnostics.title": "Technical details",
   "settings.diagnostics.modelWhisper": "Whisper model",
   "settings.diagnostics.modelVad": "VAD model",
-  "settings.diagnostics.diarizationProgram": "diarization (program)",
-  "settings.diagnostics.diarizationSegmentation": "diarization (segmentation)",
   "settings.diagnostics.diarizationEmbedding": "diarization (voice prints)",
   "settings.diagnostics.notFound": "not found",
 };

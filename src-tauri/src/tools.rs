@@ -1,4 +1,4 @@
-//! Finding and running the external tools: ffmpeg, whisper-cli, sherpa-onnx.
+//! Finding and running the external tools: ffmpeg and whisper-cli.
 //!
 //! Deliberately without linking any of them in — each is a process of its own.
 //! That is what lets any one of them be swapped or rebuilt without touching the
@@ -113,20 +113,34 @@ pub fn local_data() -> PathBuf {
 /// Beside the program in portable mode. Otherwise into the user's profile —
 /// not Program Files, where an application without administrator rights could
 /// write nothing at all.
+/// Whether a folder is one of ours rather than one that merely exists.
+///
+/// `%LOCALAPPDATA%\cz.znackarna.volocal` is not ours alone: WebView2 keeps its
+/// profile there, in `EBWebView`, named after the same identifier, and it puts
+/// it there the first time the window opens. So the folder existing says
+/// nothing at all — 1.0.8 asked only that and pointed the whole application at
+/// a folder holding a quarter of a gigabyte of browser cache and none of its
+/// tools, which is every model reported missing.
+///
+/// What makes a folder ours is that our things are in it.
+fn holds_the_tools(folder: &Path) -> bool {
+    folder.join("bin").is_dir() || folder.join("models").is_dir()
+}
+
 pub fn tools_root() -> PathBuf {
     if is_portable() {
         return app_directory();
     }
     let local = local_data();
     let root = local.join(TOOLS_FOLDER);
-    if root.is_dir() {
+    if holds_the_tools(&root) {
         return root;
     }
-    // The old name is still answered for, so a rename that could not happen —
+    // The old name is still answered for, so a move that could not happen —
     // a tool running out of `bin` holds the folder open — means the models are
     // found where they are rather than reported missing.
     let before = local.join(TOOLS_FOLDER_BEFORE_THE_RENAME);
-    if before.is_dir() {
+    if holds_the_tools(&before) {
         return before;
     }
     root
@@ -134,8 +148,9 @@ pub fn tools_root() -> PathBuf {
 
 /// Renames the tools folder to the application's own name, once.
 ///
-/// Twenty gigabytes do not move: on one volume this is a directory rename and
-/// it is instant. Nothing is copied and nothing is at risk of being half-copied.
+/// Twenty gigabytes do not move: each of `bin` and `models` is a directory
+/// rename on one volume, instant, with nothing copied and nothing at risk of
+/// being half-copied.
 ///
 /// It can fail, and the ordinary reason is benign — a tool still running out of
 /// `bin` holds the folder open. Then nothing happens, `tools_root` answers for
@@ -155,22 +170,39 @@ pub fn rename_tools_root(local: &Path) -> Option<(PathBuf, PathBuf)> {
     }
     let before = local.join(TOOLS_FOLDER_BEFORE_THE_RENAME);
     let root = local.join(TOOLS_FOLDER);
-    if !before.is_dir() || root.exists() {
+    if !holds_the_tools(&before) || holds_the_tools(&root) {
         return None;
     }
-    match std::fs::rename(&before, &root) {
-        Ok(()) => {
-            crate::note!("tools: renamed {} to {}", before.display(), root.display());
-            Some((before, root))
+
+    // `bin` and `models`, not the folder around them. The folder cannot be
+    // renamed onto a name WebView2 is already using, and these two are the
+    // whole of what is ours. Each is a directory rename on one volume: instant,
+    // and twenty gigabytes stay where they are on the disk.
+    let _ = std::fs::create_dir_all(&root);
+    let mut moved = 0;
+    for name in ["bin", "models"] {
+        let from = before.join(name);
+        if !from.is_dir() {
+            continue;
         }
-        Err(error) => {
-            crate::note!(
-                "tools: {} could not be renamed ({error}); using it where it is",
-                before.display()
-            );
-            None
+        match std::fs::rename(&from, root.join(name)) {
+            Ok(()) => moved += 1,
+            Err(error) => {
+                crate::note!("tools: {} could not be moved ({error})", from.display());
+            }
         }
     }
+    if moved == 0 {
+        return None;
+    }
+    // Only if it is empty. Anything else in there is somebody else's.
+    let _ = std::fs::remove_dir(&before);
+    crate::note!(
+        "tools: moved {moved} folder(s) from {} to {}",
+        before.display(),
+        root.display()
+    );
+    Some((before, root))
 }
 
 /// Where a file the catalogue describes as "bin/something" or "models/something"
@@ -366,8 +398,6 @@ pub struct ToolCheck {
     pub whisper_cli: Option<String>,
     pub model_whisper: Option<String>,
     pub model_vad: Option<String>,
-    pub sherpa_diarization: Option<String>,
-    pub segmentation_model: Option<String>,
     pub embedding_model: Option<String>,
     pub editor_cli: Option<String>,
     pub editor_server: Option<String>,
@@ -415,7 +445,6 @@ pub fn check(n: &crate::db::Settings) -> ToolCheck {
     let whisper = find_program_in(&[bin_compute], "whisper-cli")
         .or_else(|| find_program_in(&find_v, "whisper-cli"))
         .or_else(|| find_program_in(&find_v, "main"));
-    let sherpa = find_program_in(&find_v, "sherpa-onnx-offline-speaker-diarization");
     let editor_vulkan = bin.join("editor-vulkan");
     let editor_cpu = bin.join("editor-cpu");
     let editor = if k.vulkan_driver {
@@ -429,7 +458,6 @@ pub fn check(n: &crate::db::Settings) -> ToolCheck {
     k.ffmpeg = na_text(&ffmpeg);
     k.ffprobe = na_text(&ffprobe);
     k.whisper_cli = na_text(&whisper);
-    k.sherpa_diarization = na_text(&sherpa);
     k.editor_cli = na_text(&editor);
     k.editor_server = editor.as_ref().and_then(|cli| {
         let server = cli.with_file_name("llama-server.exe");
@@ -442,13 +470,6 @@ pub fn check(n: &crate::db::Settings) -> ToolCheck {
     k.model_vad = na_text(&find_file(
         &models,
         &["ggml-silero-v6.2.0.bin", "ggml-silero-v5.1.2.bin"],
-    ));
-    k.segmentation_model = na_text(&find_file(
-        &models,
-        &[
-            "sherpa-onnx-pyannote-segmentation-3-0/model.onnx",
-            "segmentace.onnx",
-        ],
     ));
     // The order is deliberate and it is quality, not alphabet. Somebody who
     // already has an older model need not replace it — it is used until a newer
@@ -502,10 +523,15 @@ pub fn check(n: &crate::db::Settings) -> ToolCheck {
 
     // Speaker recognition needs one model and no program. Until 2026-08-07 it
     // also required `sherpa-onnx-offline-speaker-diarization.exe` and the
-    // pyannote segmentation model; both are gone, because finding where speech
-    // is was work the transcript had already done. The two paths are still
-    // reported in diagnostics — the files may well be on disk from before — but
-    // nothing waits for them any more.
+    // pyannote segmentation model; both went, because finding where speech is
+    // was work the transcript had already done.
+    //
+    // They were still looked for and still listed in diagnostics after that —
+    // two green ticks beside things nothing runs, which is a panel answering
+    // "is it there" about files whose answer does not matter. Now they are not
+    // looked for at all. Anybody who installed before that date still has them
+    // on disk, a few hundred megabytes doing nothing; the application does not
+    // delete files it did not put there without being asked.
     if k.embedding_model.is_none() {
         k.issues_diarization
             .push(UserMessage::new("tools.embedding_model_missing"));

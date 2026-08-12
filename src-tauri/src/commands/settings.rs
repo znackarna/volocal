@@ -128,8 +128,6 @@ pub fn diagnostic_report(app: State<'_, AppState>) -> Reported<String> {
         ("whisper-cli", &found.whisper_cli),
         ("whisper model", &found.model_whisper),
         ("vad model", &found.model_vad),
-        ("diarization", &found.sherpa_diarization),
-        ("segmentation model", &found.segmentation_model),
         ("embedding model", &found.embedding_model),
         ("editor", &found.editor_cli),
         ("editor model", &found.editor_model),

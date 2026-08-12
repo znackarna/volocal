@@ -296,8 +296,6 @@ export const csSettings = {
   "settings.diagnostics.copyFailed": "Technické údaje se nepodařilo připravit.",
   "settings.diagnostics.modelWhisper": "model Whisperu",
   "settings.diagnostics.modelVad": "model VAD",
-  "settings.diagnostics.diarizationProgram": "diarizace (program)",
-  "settings.diagnostics.diarizationSegmentation": "diarizace (segmentace)",
   "settings.diagnostics.diarizationEmbedding": "diarizace (hlasové otisky)",
   "settings.diagnostics.notFound": "nenalezeno",
 } as const;
@@ -504,10 +502,6 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
     "Nepodařilo se ty údaje vůbec sestavit. Jiná chyba než odmítnutá schránka.",
   "settings.diagnostics.modelWhisper": "Řádek kontroly: soubor s modelem Whisperu.",
   "settings.diagnostics.modelVad": "Řádek kontroly: model detekce řeči (VAD).",
-  "settings.diagnostics.diarizationProgram":
-    "Řádek kontroly: spustitelný program pro rozpoznání mluvčích.",
-  "settings.diagnostics.diarizationSegmentation":
-    "Řádek kontroly: model, který nahrávku dělí na úseky jednotlivých mluvčích.",
   "settings.diagnostics.diarizationEmbedding":
     "Řádek kontroly: model, který z hlasu spočítá otisk pro porovnání mluvčích.",
   "settings.diagnostics.notFound": "Hodnota místo cesty, když se soubor nenašel.",
