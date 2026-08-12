@@ -24,6 +24,7 @@ the time.
 | [2026-08-10](2026-08-10.md) | 23 | The change log leaves CLAUDE.md … |
 | [2026-08-11](2026-08-11.md) | 12 | Volocal 1.0.0, and a signing key that is worth something |
 | [2026-08-12](2026-08-12.md) | 33 | The code speaks English, and five releases go out … |
+| [2026-08-13](2026-08-13.md) | 2 | A backup taken twice in one second is one backup … |
 
 ## What each day was about
 
@@ -50,3 +51,5 @@ the time.
 **[2026-08-11](2026-08-11.md)** — Volocal 1.0.0. By the end of the night an update installed itself end to end — after a release that carried the previous version's installer, and a job object that killed the installer a moment after starting it. The updater's signing key was replaced with one that has a password, which is free before the first release and impossible after it.
 
 **[2026-08-12](2026-08-12.md)** — Every Czech identifier, class name and comment turned English, the database schema with them and a migration that carries each archive over. Five releases: 1.0.5 refused the archive it had migrated and was replaced by 1.0.6; 1.0.8 pointed the application at a folder of browser cache and was replaced by 1.0.9 and deleted. In between: a backup can be restored from inside the application, a failed start writes a report the owner can hand over, and the status dots got their colour back after being grey since 1.0.5. The day ended with one branch instead of five, and a repository cleared of dead files — and of documents that still called the product Slobot and said it had never been released.
+
+**[2026-08-13](2026-08-13.md)** — Pressing *Zálohovat teď* twice in the same second reported *SQL error or missing database* about an archive that was fine. And the archive card arranged the way its owner wanted it: saving a copy on a band of its own, and the note about replacing an archive written as two plain sentences rather than one that explains itself.
