@@ -622,9 +622,9 @@ fn rename_schema_to_english(db: &Connection, path: &std::path::Path) -> Result<(
     // back. `VACUUM INTO` rather than a file copy: the write-ahead log may hold
     // the last session's work, and copying the main file alone would leave it
     // out of the very backup taken to protect it.
-    // Named after the archive rather than fixed, so a file called anything
-    // else gets a copy that says what it is a copy of. For `whisp.db`, which is
-    // what every installation has, this is `whisp-before-english.db`.
+    // Named after the archive rather than fixed, so a file called anything else
+    // gets a copy that says what it is a copy of - and so it followed the
+    // archive when that was renamed from `whisp.db` to `volocal.db`.
     let stem = path
         .file_stem()
         .unwrap_or_default()
@@ -1850,12 +1850,22 @@ const DAILY_BACKUPS_KEPT: usize = 7;
 
 /// The timestamp out of a name this module wrote, or nothing.
 ///
-/// Only `whisp-YYYY-MM-DD-HHMMSS.db` counts. A file somebody parked in the
-/// folder themselves — `whisp-pred-upgradem.db`, an exported copy — is not
+/// Only `volocal-YYYY-MM-DD-HHMMSS.db` counts, or `whisp-` for the ones taken
+/// before the rename. A file somebody parked in the folder themselves —
+/// `whisp-pred-upgradem.db`, an exported copy — is not
 /// ours to rotate away, and the extension alone does not say whose it is.
+/// Both prefixes, because a folder of backups outlives a rename.
+///
+/// New ones are written as `volocal-`; every one taken before today is
+/// `whisp-`, and they are the same list — listed together, rotated together,
+/// and offered together in the window. Renaming the files themselves would be
+/// work for nothing: their names are read by this function and by nobody else.
 fn backup_stamp(path: &std::path::Path) -> Option<String> {
     let name = path.file_name()?.to_str()?;
-    let stamp = name.strip_prefix("whisp-")?.strip_suffix(".db")?;
+    let stamp = name
+        .strip_prefix("volocal-")
+        .or_else(|| name.strip_prefix("whisp-"))?
+        .strip_suffix(".db")?;
     let shape = "0000-00-00-000000";
     if stamp.len() != shape.len() {
         return None;
@@ -1946,7 +1956,7 @@ pub fn back_up_and_rotate(
     db_path: &std::path::Path,
 ) -> Result<std::path::PathBuf> {
     let stamp = chrono::Local::now().format("%Y-%m-%d-%H%M%S");
-    let destination = backup_directory(db_path).join(format!("whisp-{stamp}.db"));
+    let destination = backup_directory(db_path).join(format!("volocal-{stamp}.db"));
     back_up(db, &destination)?;
 
     let existing = list_backups(db_path);
@@ -1998,6 +2008,12 @@ mod backup_rotation_tests {
     #[test]
     fn only_our_own_names_are_rotated() {
         assert_eq!(
+            backup_stamp(std::path::Path::new("/x/volocal-2026-08-04-071530.db")),
+            Some("2026-08-04-071530".to_string())
+        );
+        // Taken before the application was renamed, and part of the same list:
+        // listed together, rotated together, offered together.
+        assert_eq!(
             backup_stamp(std::path::Path::new("/x/whisp-2026-08-04-071530.db")),
             Some("2026-08-04-071530".to_string())
         );
@@ -2005,7 +2021,7 @@ mod backup_rotation_tests {
             "/x/whisp-pred-upgradem.db",
             "/x/archiv.db",
             "/x/whisp-2026-08-04.db",
-            "/x/whisp-2026-08-04-071530.db.bak",
+            "/x/volocal-2026-08-04-071530.db.bak",
         ] {
             assert_eq!(
                 backup_stamp(std::path::Path::new(foreign)),
