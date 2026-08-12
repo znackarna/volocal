@@ -255,7 +255,7 @@ export const csSettings = {
   "settings.backups.reveal": "Otevřít složku se zálohami",
   "settings.backups.restoreTitle": "Vrátit se k záloze",
   "settings.backups.restoreNote":
-    "Nahradí současný archiv vybranou zálohou. Přepisy, které vznikly po ní, v archivu nebudou.",
+    "Vybraná záloha nahradí současný archiv. Pozdější přepisy v archivu nebudou.",
   "settings.backups.restoreAction": "Obnovit",
   "settings.backups.restoreConfirmTitle": "Obnovit archiv ze zálohy?",
   "settings.backups.restoreConfirmText":

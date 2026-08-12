@@ -188,6 +188,13 @@
 .settings-action-row.separated {
   margin-top: 22px; padding-top: 20px; border-top: 1px solid var(--line);
 }
+/* The same distance without the rule, for the cards whose content above is
+   already framed — the module tiles, the backup summary. A rule under a
+   bordered panel draws the same boundary twice, and on a card that also ends
+   in a folded-away footer it made two rules a few lines apart with one row of
+   text between them. The rule that stays is the one below this row, which
+   separates the card from the thing folded away at its foot. */
+.settings-action-row.spaced { margin-top: 22px; }
 .settings-action-row > .settings-info-note { margin: 0; }
 .settings-action-row > .button { flex: 0 0 auto; }
 .settings-success { color: var(--success); }
@@ -213,6 +220,17 @@
 .settings-action-row + .settings-disclosure {
   margin-top: 12px; padding-top: 0; border-top: 0;
 }
+/* Unless it is the card's last band, which is where a folded-away extra
+   belongs: the rarest thing on the card, under everything that is not.
+
+   Then it takes the rule, at the action row's own 22/20. This is the card's
+   only rule, which is the point — the action row above it gives its own up
+   (`.spaced`) precisely so that this one is not the second of two a few lines
+   apart with a single row of text between them. One line, and it falls where
+   the card stops being about its main business. */
+.settings-action-row + .settings-disclosure.card-footer {
+  margin-top: 22px; padding-top: 20px; border-top: 1px solid var(--line);
+}
 .settings-disclosure > summary {
   display: flex; align-items: center; gap: 8px;
   padding: 6px 0; border: 0; background: none; cursor: pointer;
@@ -227,15 +245,18 @@
   transition: transform 0.16s ease;
 }
 .settings-disclosure[open] .settings-disclosure-chevron { transform: rotate(90deg); }
+/* No rule down the side, and no indent to carry one.
+
+   It was drawn to say "this belongs to the summary above", which the summary
+   already says by being the thing you opened. What it actually did was add a
+   second border beside every panel put inside it — there was already an
+   exception for `.check` admitting as much — and indent the content away from
+   everything else on the card for no reason the eye can use. */
 .settings-disclosure-content {
-  margin-top: 8px; padding-left: 16px;
-  border-left: 2px solid var(--line);
+  margin-top: 8px;
   display: flex; flex-direction: column; gap: 2px;
 }
 .settings-disclosure-content > .small-text:first-child { margin-top: 0; }
-/* A panel inside the disclosure carries its own frame, so the indent's rule
-   would be a second border beside the first. The panel stands on its own. */
-.settings-disclosure-content:has(> .check) { padding-left: 0; border-left: 0; }
 /* Below the window's own 1000 px minimum (tauri.conf.json), so this cannot
    fire today. Kept as a net, like the 900 px rule for the header pills, in
    case the minimum ever drops or the interface is opened in a browser.
@@ -1149,16 +1170,41 @@ button.mic-play:disabled { cursor: default; opacity: 0.6; }
   border: 1px solid var(--line); border-radius: var(--r-card);
   background: var(--subtle); font-size: 13px;
 }
+/* Taller than `.check`'s 40, because this row carries two things that one
+   does not: a calendar leaf and a button. 8 px around a 38 px leaf makes 54,
+   which leaves the standalone 34 px button room to be itself rather than
+   filling the row it sits in. */
 .backup-list li {
-  display: flex; align-items: center; gap: 12px;
-  min-height: 40px; padding: 6px 14px;
+  display: flex; align-items: center; gap: 14px;
+  min-height: 58px; padding: 10px 14px;
 }
+/* The same answer the archive gives when a row is pointed at: the leaf's
+   header takes the accent and the leaf stops standing off the page. Shared
+   with `.row` in the library rather than invented here — one gesture, one
+   meaning, wherever the leaf appears. */
+.backup-list li:hover .recording-calendar-month,
+.backup-list li:focus-within .recording-calendar-month {
+  background: var(--accent); color: #fff;
+}
+.backup-list li:hover .recording-calendar,
+.backup-list li:focus-within .recording-calendar { box-shadow: none; }
 .backup-list li + li { border-top: 1px solid var(--line); }
+/* The archive's own leaf at its compact size: 38 px wide, no year. A backup
+   is chosen by its day, and the year of one taken this week says nothing. */
+.backup-list .recording-calendar {
+  width: 38px; height: 38px; border-radius: 6px;
+}
+.backup-list .recording-calendar-month { padding: 2px 0; font-size: 7.5px; }
+.backup-list .recording-calendar-day { margin-top: 2px; font-size: 16px; }
+.backup-list .recording-calendar-year { display: none; }
 /* No tabular figures on the date. They are for numbers read down a column,
    and these are sentences of digits: monospaced, "12. 8. 2026 10:58" falls
    apart into widely spaced characters. The size keeps them — it is a column. */
-.backup-when { flex: 1 1 auto; font-weight: 600; line-height: 1.35; }
-.backup-size {
-  flex: 0 0 auto; color: var(--text-quiet);
+/* The hour takes the room, so what the backup holds sits against the button
+   at the right — read as one block with it, the way the archive's own
+   metadata sits at the end of a row. */
+.backup-when {
+  flex: 1 1 auto; font-weight: 600; line-height: 1.35;
   font-variant-numeric: tabular-nums;
 }
+.backup-holds { flex: 0 0 auto; }

@@ -11,6 +11,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { listen } from "@tauri-apps/api/event";
 import { api } from "./api";
+import { RecordingCalendar, RecordingMetadataItem } from "./Library";
 import ConfirmationDialog from "./ConfirmationDialog";
 import type { ConfirmationRequest } from "./ConfirmationDialog";
 import CountdownRing from "./CountdownRing";
@@ -278,15 +279,18 @@ function SettingsDisclosure({
   children,
   /** Called the first time it is opened, for content worth fetching only then. */
   onOpen,
+  /** `card-footer` when it is the last band of a card and wants its own rule. */
+  className = "",
 }: {
   title: string;
   badge?: ReactNode;
   children: ReactNode;
   onOpen?: () => void;
+  className?: string;
 }) {
   return (
     <details
-      className="settings-disclosure"
+      className={`settings-disclosure ${className}`.trim()}
       onToggle={(event) => {
         if ((event.currentTarget as HTMLDetailsElement).open) onOpen?.();
       }}
@@ -636,7 +640,7 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
           />
         </div>
 
-        <div className="settings-action-row separated">
+        <div className="settings-action-row spaced">
           {missingRequired.length > 0 ? (
             <span className="warning-row">
               {tPlural("settings.modules.missingRequired", missingRequired.length)}
@@ -1604,8 +1608,20 @@ function QuickTips() {
  * feel like hunting for a folder.
  */
 function Backups({ onError }: { onError: (message: string) => void }) {
-  const { t, formatNumber } = useI18n();
-  const { dataSize } = useFormats();
+  const { t, formatNumber, formatDate } = useI18n();
+  const { dataSize, transcriptCount, archiveDuration } = useFormats();
+  /** The hour on its own for the row, and the whole moment for the question
+   *  that names it — the row already has the day beside it, the dialog does not. */
+  const formatTime = (moment: string) =>
+    formatDate(new Date(moment), { hour: "2-digit", minute: "2-digit" });
+  const formatMoment = (moment: string) =>
+    formatDate(new Date(moment), {
+      day: "numeric",
+      month: "numeric",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   const userMessage = useUserMessage();
   /* Its own, rather than a prop threaded down from the application: this is the
      only question this screen asks, and it asks it about its own card. */
@@ -1616,7 +1632,15 @@ function Backups({ onError }: { onError: (message: string) => void }) {
     directory: string;
   } | null>(null);
   const [running, setRunning] = useState(false);
-  const [list, setList] = useState<{ file: string; when: string; size: number }[] | null>(null);
+  const [list, setList] = useState<
+    {
+      file: string;
+      taken_at: string;
+      size: number;
+      recordings: number | null;
+      seconds: number | null;
+    }[] | null
+  >(null);
 
   const refresh = useCallback(() => {
     api.backupStatus().then(setStatus).catch(() => setStatus(null));
@@ -1675,32 +1699,67 @@ function Backups({ onError }: { onError: (message: string) => void }) {
         )}
       </dl>
 
-      {/* Folded away until it is asked for. Putting a backup back is the rarest
-          thing on this screen and the only one that replaces what is there, so
-          it does not sit open beside a button that merely makes another copy. */}
+      <div className="settings-action-row spaced">
+        <InfoNote compact>{t("settings.backups.note")}</InfoNote>
+        <button className="button" onClick={backUpNow} disabled={running}>
+          {running ? t("settings.backups.running") : t("settings.backups.action")}
+        </button>
+      </div>
+
+      {/* Last band of the card, folded away. Putting a backup back is the
+          rarest thing on this screen and the only one that replaces what is
+          there — it belongs under everything that is not, rather than between
+          the summary and the button that merely makes another copy. */}
       {(status?.count ?? 0) > 0 && (
         <SettingsDisclosure
           title={t("settings.backups.restoreTitle")}
+          className="card-footer"
           onOpen={() => {
             if (list === null) api.backups().then(setList).catch(() => setList([]));
           }}
         >
-          <InfoNote>{t("settings.backups.restoreNote")}</InfoNote>
           <ul className="backup-list">
             {(list ?? []).map((backup) => (
               <li key={backup.file}>
-                <span className="backup-when">{backup.when}</span>
+                {/* The same torn-off leaf the archive puts on a recording. A
+                    backup is chosen by its day first and its hour second, and
+                    the day is what the eye finds without reading. */}
+                <RecordingCalendar value={backup.taken_at} />
+                {/* No mark on the hour. The leaf beside it already says which
+                    day, and with marks on both facts at the right a third one
+                    made the row busier than it is informative. */}
+                <span className="backup-when">{formatTime(backup.taken_at)}</span>
                 {/* dataSize speaks in megabytes; the file system speaks in
                     bytes. Passed straight through, a 1.4 MB archive announced
                     itself as 1 420 GB. */}
-                <span className="backup-size">{dataSize(backup.size / (1024 * 1024))}</span>
+                {/* The archive's own pair, with the archive's own marks: how
+                    many transcripts and how much audio. Nobody picks a backup
+                    by megabytes — those stay in the tooltip, where a file's
+                    weight belongs. */}
+                {backup.recordings !== null && (
+                  <span className="recording-metadata backup-holds"
+                        title={dataSize(backup.size / (1024 * 1024))}>
+                    <RecordingMetadataItem
+                      kind="segments"
+                      label={t("library.folders.count")}
+                      value={transcriptCount(backup.recordings)}
+                    />
+                    <RecordingMetadataItem
+                      kind="duration"
+                      label={t("library.card.duration")}
+                      value={archiveDuration(backup.seconds ?? 0)}
+                    />
+                  </span>
+                )}
                 <button
                   className="button"
                   disabled={running}
                   onClick={() =>
                     setConfirmation({
                       title: t("settings.backups.restoreConfirmTitle"),
-                      text: t("settings.backups.restoreConfirmText", { when: backup.when }),
+                      text: t("settings.backups.restoreConfirmText", {
+                        when: formatMoment(backup.taken_at),
+                      }),
                       confirm: t("settings.backups.restoreAction"),
                       destructive: true,
                       action: async () => {
@@ -1724,15 +1783,12 @@ function Backups({ onError }: { onError: (message: string) => void }) {
               </li>
             ))}
           </ul>
+          {/* Under the list, not over it. What it says is what happens *after*
+              a row is chosen, and it was standing between the reader and the
+              dates they came here to look at. */}
+          <InfoNote>{t("settings.backups.restoreNote")}</InfoNote>
         </SettingsDisclosure>
       )}
-
-      <div className="settings-action-row separated">
-        <InfoNote compact>{t("settings.backups.note")}</InfoNote>
-        <button className="button" onClick={backUpNow} disabled={running}>
-          {running ? t("settings.backups.running") : t("settings.backups.action")}
-        </button>
-      </div>
 
       <ConfirmationDialog
         query={confirmation}
@@ -1886,7 +1942,7 @@ function ToolDiagnostics({
     ["embedding", "settings.diagnostics.diarizationEmbedding", k.embedding_model],
   ];
   return (
-    <SettingsDisclosure title={t("settings.diagnostics.title")}>
+    <SettingsDisclosure title={t("settings.diagnostics.title")} className="card-footer">
       <ul className="check">
         {rows.map(([id, titleKey, path]) => (
           <li key={id} className={path ? "yes" : "no"}>
