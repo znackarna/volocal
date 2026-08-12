@@ -215,7 +215,7 @@ export const csSettings = {
   // Telling speakers apart.
   "settings.dictionary.description":
     "Slova, která přepis plete pokaždé stejně: jména, místa, odborné výrazy. Opraví se ve všech nových přepisech.",
-  "settings.dictionary.newEntry": "Nový záznam",
+  "settings.dictionary.newEntry": "Nový výraz",
   "settings.dictionary.find": "Co přepis slyší",
   "settings.dictionary.findPlaceholder": "součas DNA",
   "settings.dictionary.replace": "Jak to má být",
@@ -438,7 +438,8 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
 
   "settings.dictionary.description":
     "Úvodní věta záložky Slovník. „Přepis“ je tu ten hotový text, ne činnost.",
-  "settings.dictionary.newEntry": "Popisek řádku, ve kterém se zakládá nový záznam.",
+  "settings.dictionary.newEntry":
+    "Popisek řádku, ve kterém se zakládá nová dvojice. „Výraz“, ne „záznam“: záznam je v téhle aplikaci všude jinde nahrávka, takže ve slovníku četl jako nová nahrávka. Výraz je i proto, že ta dvojice může být sousloví, ne jen slovo.",
   "settings.dictionary.find": "Popisek pole: co se v přepisu objevuje špatně.",
   "settings.dictionary.findPlaceholder":
     "Ukázka v poli. Skutečná chyba z reálné nahrávky; klidně nahraď příkladem ze svého jazyka.",
