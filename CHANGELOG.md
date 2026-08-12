@@ -6,6 +6,31 @@ The reasoning behind individual decisions lives in `docs/history/`, day by day,
 and every published version also has its notes on the
 [releases page](../../releases).
 
+## 1.0.10 — 13 August 2026
+
+- The archive can be exported to a file and imported from one. Export uses
+  `VACUUM INTO`, so the copy is consistent even though the archive runs in WAL
+  mode — a file copied in a file manager can be missing everything written since
+  the last checkpoint. Import replaces the current archive rather than merging
+  with it, and refuses a file holding no archive tables or one written by a newer
+  Volocal, checked before anything is replaced rather than after. The transcripts
+  travel; the audio does not, because the archive stores paths to files that live
+  outside it.
+- Pressing *Zálohovat teď* twice inside one second reported *output file already
+  exists: Error code 1: SQL error or missing database* about an archive that was
+  perfectly fine. A backup's name is only accurate to the second, so the second
+  click aimed at a name already taken. A file for this second is now taken to be
+  the copy that call would have made.
+- Speaker recognition records which processor it opened on. ONNX Runtime treats a
+  provider it cannot register as a shrug and falls through to the processor
+  silently, so a machine running this twelve times faster and one that is not
+  looked identical from outside. DirectML is now asked for with
+  `error_on_failure`, and the fall back is written to the log that the diagnostic
+  report already carries.
+- Measured, and recorded because it was assumed otherwise: an installed copy has
+  no `DirectML.dll` beside it and gets the graphics card anyway, from the copy
+  Windows ships in `System32` — here newer than the one `ort` downloads.
+
 ## 1.0.9 — 12 August 2026
 
 - Fixes 1.0.8, which reported every model and program as missing. WebView2 keeps
