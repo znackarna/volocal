@@ -34,6 +34,9 @@ describe("the status dot", () => {
   });
 
   test("every class the map names is painted by the stylesheet", () => {
+    // Read from disk rather than imported: vitest hands back an empty string
+    // for a stylesheet, `?raw` included, because the test environment does not
+    // run the CSS pipeline. Tried, and it made the check pass on nothing.
     const css = readFileSync("src/css/02-knihovna.css", "utf8");
     for (const [status, className] of Object.entries(STATUS_CLASS)) {
       expect(
