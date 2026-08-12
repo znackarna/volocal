@@ -208,6 +208,13 @@ export const enSettings: Partial<Record<keyof typeof csSettings, string>> = {
   "settings.backups.directory": "Folder",
   "settings.backups.reveal": "Open the backup folder",
   "settings.backups.count": "Copies kept",
+  "settings.backups.restoreTitle": "Go back to a backup",
+  "settings.backups.restoreNote":
+    "Replaces the current archive with the backup you pick. Transcripts made after it will not be in the archive.",
+  "settings.backups.restoreAction": "Restore",
+  "settings.backups.restoreConfirmTitle": "Restore the archive from a backup?",
+  "settings.backups.restoreConfirmText":
+    "The archive will be replaced with the backup from {when}. The current state is saved aside as whisp-before-restore.db, so you can come back to it. The audio files on disk are untouched.",
   "settings.backups.note": "A backup is made automatically at startup.",
   "settings.backups.running": "Backing up…",
   "settings.backups.action": "Back up now",

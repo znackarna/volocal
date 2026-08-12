@@ -159,6 +159,9 @@ export const api = {
   backupStatus: () =>
     invoke<{ latest: string; count: number; directory: string }>("backup_status"),
   backUpNow: () => invoke<string>("back_up_now"),
+  backups: () => invoke<{ file: string; when: string; size: number }[]>("backups"),
+  /** Replaces the open archive with a backup, and reopens it. */
+  restoreBackup: (file: string) => invoke<void>("restore_backup", { file }),
 };
 
 export type { Speaker };

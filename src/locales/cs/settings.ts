@@ -253,6 +253,13 @@ export const csSettings = {
   "settings.backups.count": "Uloženo kopií",
   "settings.backups.directory": "Složka",
   "settings.backups.reveal": "Otevřít složku se zálohami",
+  "settings.backups.restoreTitle": "Vrátit se k záloze",
+  "settings.backups.restoreNote":
+    "Nahradí současný archiv vybranou zálohou. Přepisy, které vznikly po ní, v archivu nebudou.",
+  "settings.backups.restoreAction": "Obnovit",
+  "settings.backups.restoreConfirmTitle": "Obnovit archiv ze zálohy?",
+  "settings.backups.restoreConfirmText":
+    "Archiv se nahradí zálohou z {when}. Současný stav se uloží stranou jako whisp-before-restore.db, takže se k němu jde vrátit. Zvukové soubory na disku zůstanou nedotčené.",
   "settings.backups.note": "Záloha se vytváří automaticky při spuštění.",
   "settings.backups.running": "Zálohuji…",
   "settings.backups.action": "Zálohovat teď",
@@ -456,6 +463,15 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
   "settings.backups.reveal":
     "Bublina nad cestou. Kliknutí otevře složku ve správci souborů daného systému.",
   "settings.backups.running": "Stav tlačítka po dobu zálohování.",
+  "settings.backups.restoreTitle":
+    "Nadpis skrytého bloku se seznamem záloh. „Vrátit se“, ne „obnovit“ — obnovit zní jako oprava něčeho rozbitého, tohle je návrat v čase.",
+  "settings.backups.restoreNote":
+    "Vysvětlení nad seznamem. Podstatné je to, co se ztratí: práce, která vznikla po té záloze.",
+  "settings.backups.restoreAction":
+    "Tlačítko u každé zálohy, a zároveň potvrzovací tlačítko v dotazu.",
+  "settings.backups.restoreConfirmTitle": "Nadpis dotazu před nahrazením archivu.",
+  "settings.backups.restoreConfirmText":
+    "Vysvětlení v tom dotazu. {when} je datum a čas zálohy. Jméno souboru je tam schválně — je to jediná cesta zpátky, kdyby si někdo vybral špatné datum.",
 
   "settings.decoding.title":
     "Nadpis skrytého bloku s prahovými hodnotami dekódování Whisperu.",

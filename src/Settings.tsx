@@ -11,6 +11,8 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { listen } from "@tauri-apps/api/event";
 import { api } from "./api";
+import ConfirmationDialog from "./ConfirmationDialog";
+import type { ConfirmationRequest } from "./ConfirmationDialog";
 import CountdownRing from "./CountdownRing";
 import InfoNote from "./InfoNote";
 import { LineIcon, type LineIconName } from "./icons";
@@ -274,13 +276,21 @@ function SettingsDisclosure({
   title,
   badge,
   children,
+  /** Called the first time it is opened, for content worth fetching only then. */
+  onOpen,
 }: {
   title: string;
   badge?: ReactNode;
   children: ReactNode;
+  onOpen?: () => void;
 }) {
   return (
-    <details className="settings-disclosure">
+    <details
+      className="settings-disclosure"
+      onToggle={(event) => {
+        if ((event.currentTarget as HTMLDetailsElement).open) onOpen?.();
+      }}
+    >
       <summary>
         <svg className="settings-disclosure-chevron" width="10" height="10"
              viewBox="0 0 10 10" aria-hidden>
@@ -1595,16 +1605,22 @@ function QuickTips() {
  */
 function Backups({ onError }: { onError: (message: string) => void }) {
   const { t, formatNumber } = useI18n();
+  const { dataSize } = useFormats();
   const userMessage = useUserMessage();
+  /* Its own, rather than a prop threaded down from the application: this is the
+     only question this screen asks, and it asks it about its own card. */
+  const [confirmation, setConfirmation] = useState<ConfirmationRequest | null>(null);
   const [status, setStatus] = useState<{
     latest: string;
     count: number;
     directory: string;
   } | null>(null);
   const [running, setRunning] = useState(false);
+  const [list, setList] = useState<{ file: string; when: string; size: number }[] | null>(null);
 
   const refresh = useCallback(() => {
     api.backupStatus().then(setStatus).catch(() => setStatus(null));
+    setList(null);
   }, []);
 
   useEffect(refresh, [refresh]);
@@ -1659,12 +1675,67 @@ function Backups({ onError }: { onError: (message: string) => void }) {
         )}
       </dl>
 
+      {/* Folded away until it is asked for. Putting a backup back is the rarest
+          thing on this screen and the only one that replaces what is there, so
+          it does not sit open beside a button that merely makes another copy. */}
+      {(status?.count ?? 0) > 0 && (
+        <SettingsDisclosure
+          title={t("settings.backups.restoreTitle")}
+          onOpen={() => {
+            if (list === null) api.backups().then(setList).catch(() => setList([]));
+          }}
+        >
+          <InfoNote>{t("settings.backups.restoreNote")}</InfoNote>
+          <ul className="backup-list">
+            {(list ?? []).map((backup) => (
+              <li key={backup.file}>
+                <span className="backup-when">{backup.when}</span>
+                <span className="backup-size">{dataSize(backup.size)}</span>
+                <button
+                  className="button"
+                  disabled={running}
+                  onClick={() =>
+                    setConfirmation({
+                      title: t("settings.backups.restoreConfirmTitle"),
+                      text: t("settings.backups.restoreConfirmText", { when: backup.when }),
+                      confirm: t("settings.backups.restoreAction"),
+                      destructive: true,
+                      action: async () => {
+                        setRunning(true);
+                        try {
+                          await api.restoreBackup(backup.file);
+                          // Everything on every screen came from the archive
+                          // that was just replaced. Reloading is the honest way
+                          // to be sure nothing on screen is from the old one.
+                          window.location.reload();
+                        } catch (e) {
+                          onError(userMessage(e));
+                          setRunning(false);
+                        }
+                      },
+                    })
+                  }
+                >
+                  {t("settings.backups.restoreAction")}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </SettingsDisclosure>
+      )}
+
       <div className="settings-action-row separated">
         <InfoNote compact>{t("settings.backups.note")}</InfoNote>
         <button className="button" onClick={backUpNow} disabled={running}>
           {running ? t("settings.backups.running") : t("settings.backups.action")}
         </button>
       </div>
+
+      <ConfirmationDialog
+        query={confirmation}
+        onClose={() => setConfirmation(null)}
+        onError={onError}
+      />
     </section>
   );
 }
