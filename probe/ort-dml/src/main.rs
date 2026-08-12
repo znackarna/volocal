@@ -97,13 +97,13 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
     let mut session = session_for(&model_path, want_dml)?;
 
-    println!("\n-- vstupy --");
+    println!("\n-- inputs --");
     for (i, o) in session.inputs().iter().enumerate() {
-        println!("  [{i}] {:<28} {}", o.name(), popis(o));
+        println!("  [{i}] {:<28} {}", o.name(), describe(o));
     }
     println!("-- outputs --");
     for (i, o) in session.outputs().iter().enumerate() {
-        println!("  [{i}] {:<28} {}", o.name(), popis(o));
+        println!("  [{i}] {:<28} {}", o.name(), describe(o));
     }
 
     let (name, dims) = input_shape(&session, batch, frames)?;
@@ -119,10 +119,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!(
         "\n{} runs: mean {:.2} ms | median {:.2} ms | fastest {:.2} ms | slowest {:.2} ms",
         runs,
-        m.prumer * 1e3,
+        m.mean * 1e3,
         m.median * 1e3,
-        m.nej * 1e3,
-        m.nejhorsi * 1e3
+        m.fastest * 1e3,
+        m.slowest * 1e3
     );
     Ok(())
 }
@@ -242,11 +242,11 @@ fn input_shape(
     Ok((name, dims))
 }
 
-struct Mereni {
-    prumer: f64,
+struct Timings {
+    mean: f64,
     median: f64,
-    nej: f64,
-    nejhorsi: f64,
+    fastest: f64,
+    slowest: f64,
 }
 
 fn measure(
@@ -254,8 +254,8 @@ fn measure(
     name: &str,
     dims: &[i64],
     runs: usize,
-    hlasite: bool,
-) -> Result<Mereni, Box<dyn Error>> {
+    loud: bool,
+) -> Result<Timings, Box<dyn Error>> {
     let count: usize = dims.iter().product::<i64>() as usize;
     // Something that at least resembles speech in range. What goes into the
     // matrices does not change the speed of the multiplication, but all zeroes
@@ -276,7 +276,7 @@ fn measure(
             // so it stays out of the average — under DirectML it tends to be an
             // order of magnitude longer than the rest.
             let (s, d) = outputs[0].try_extract_tensor::<f32>()?;
-            if hlasite {
+            if loud {
                 println!(
                     "warm-up run, driver start included: {:.1} ms, output {:?}, {} numbers",
                     took.as_secs_f64() * 1e3,
@@ -290,15 +290,15 @@ fn measure(
     }
 
     times.sort_unstable();
-    Ok(Mereni {
-        prumer: times.iter().sum::<std::time::Duration>().as_secs_f64() / times.len() as f64,
+    Ok(Timings {
+        mean: times.iter().sum::<std::time::Duration>().as_secs_f64() / times.len() as f64,
         median: times[times.len() / 2].as_secs_f64(),
-        nej: times[0].as_secs_f64(),
-        nejhorsi: times[times.len() - 1].as_secs_f64(),
+        fastest: times[0].as_secs_f64(),
+        slowest: times[times.len() - 1].as_secs_f64(),
     })
 }
 
-fn popis(o: &Outlet) -> String {
+fn describe(o: &Outlet) -> String {
     match o.dtype() {
         ValueType::Tensor {
             ty,
