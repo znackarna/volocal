@@ -24,7 +24,7 @@ the time.
 | [2026-08-10](2026-08-10.md) | 23 | The change log leaves CLAUDE.md … |
 | [2026-08-11](2026-08-11.md) | 12 | Volocal 1.0.0, and a signing key that is worth something |
 | [2026-08-12](2026-08-12.md) | 33 | The code speaks English, and five releases go out … |
-| [2026-08-13](2026-08-13.md) | 5 | A backup taken twice in one second is one backup … |
+| [2026-08-13](2026-08-13.md) | 6 | A backup taken twice in one second is one backup … |
 
 ## What each day was about
 
