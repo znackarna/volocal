@@ -256,14 +256,12 @@ export const csSettings = {
   "settings.backups.restoreTitle": "Vrátit se k záloze nebo přenést archiv",
   "settings.backups.emptyList": "Zatím tu není záloha, ke které by se šlo vrátit.",
   "settings.archive.export": "Uložit kopii archivu…",
-  "settings.archive.exportNote":
-    "Zálohy leží na tomhle počítači vedle archivu. Výměnu disku přežije jen kopie uložená jinam.",
+  "settings.archive.exportNote": "Uloží jen texty bez zdrojové nahrávky.",
   "settings.archive.exportSaving": "Ukládám…",
   "settings.archive.exported": "Kopie archivu je uložená: {path}",
   "settings.archive.fileFilter": "Archiv Volocalu",
   "settings.archive.import": "Načíst archiv ze souboru…",
-  "settings.archive.importNote":
-    "Načtený archiv nahradí ten současný. Zvukové soubory nejsou součástí zálohy.",
+  "settings.archive.importNote": "Načtený archiv nahradí ten současný.",
   "settings.archive.importConfirmTitle": "Nahradit archiv načteným souborem?",
   "settings.archive.importConfirmText":
     "Současný archiv se nahradí souborem {name}. Stávající stav se uloží stranou jako volocal-before-import.db, takže se k němu jde vrátit. Zvukové soubory na disku zůstanou nedotčené.",
@@ -485,7 +483,7 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
   "settings.archive.export":
     "Tlačítko vedle „Zálohovat teď“. Uloží kopii archivu tam, kam uživatel ukáže — na disk, který přežije tenhle počítač.",
   "settings.archive.exportNote":
-    "Vysvětlení, proč tlačítko existuje, když se zálohuje samo: automatické zálohy leží na stejném disku jako archiv.",
+    "Co v uložené kopii je a co ne. Archiv drží přepisy a cesty ke zvuku, ne samotný zvuk — kdo si kopii odnese na jiný počítač, dostane texty.",
   "settings.archive.exportSaving": "Stav tlačítka po dobu ukládání kopie.",
   "settings.archive.exported": "Hlášení po uložení. {path} je celá cesta k souboru.",
   "settings.archive.fileFilter":
@@ -493,7 +491,7 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
   "settings.archive.import":
     "Tlačítko ve skrytém bloku. Otevře dialog pro výběr souboru s archivem.",
   "settings.archive.importNote":
-    "Dvě věty, obě podstatné: nahradí (ne spojí) a že zvuk s archivem necestuje. Obojí se musí říct dřív, než uživatel klikne. Kratší nebýt nemůže, delší být nemá.",
+    "Jedna věta a to podstatné slovo je nahradí — ne spojí, ne přidá. Co archiv neobsahuje, se říká u ukládání kopie, ne tady.",
   "settings.archive.importConfirmTitle": "Nadpis potvrzovacího dialogu.",
   "settings.archive.importConfirmText":
     "{name} je název vybraného souboru. Název volocal-before-import.db je skutečný název souboru, nepřekládej ho.",
