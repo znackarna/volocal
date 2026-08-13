@@ -396,7 +396,7 @@ export default function App() {
          transcript from the same menu asks first; doing it as a side effect of
          starting a new run did not. */
       const finished = ids.filter(
-        (id) => recordings.find((r) => r.id === id)?.status === "hotova"
+        (id) => recordings.find((r) => r.id === id)?.status === "done"
       );
       if (finished.length > 0) {
         const only = finished.length === 1
@@ -1024,7 +1024,7 @@ export default function App() {
   }, [reportError, userMessage]);
 
   const archiveFooterStatus = useMemo(() => {
-    const completed = recordings.filter((recording) => recording.status === "hotova");
+    const completed = recordings.filter((recording) => recording.status === "done");
     const duration = completed.reduce((sum, recording) => sum + recording.duration, 0);
     return {
       transcripts: formats.transcriptCount(completed.length),
@@ -1038,14 +1038,14 @@ export default function App() {
     return {
       duration: recording.duration > 0 ? formatTime(recording.duration) : null,
       language: recording.language ? labels.languageCapitalized(recording.language) : null,
-      segments: recording.status === "hotova" ? formats.segmentCount(recording.segment_count) : null,
+      segments: recording.status === "done" ? formats.segmentCount(recording.segment_count) : null,
       /* `Uloženo` used to be a constant, lit for every detail — including a
          recording with no transcript at all, where there is nothing saved to
          speak of. It is a statement about a stored document, so it appears
          where one exists. There is no unsaved state to report: every edit is
          written as it is made, which is what makes this a fact rather than a
          progress indicator. */
-      saved: recording.status === "hotova",
+      saved: recording.status === "done",
     };
   }, [formats, labels, recordings, selectedId]);
 

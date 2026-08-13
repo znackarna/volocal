@@ -47,8 +47,7 @@ pub struct Recording {
     pub title: String,
     pub duration: f64,
     pub created_at: String,
-    /// The stored value, which is Czech and stays that way — every archive on
-    /// disk says one of these: nova | prepisuje | hotova | chyba
+    /// One of [`status`]. Czech until schema 3 — see `rename_statuses_to_english`.
     pub status: String,
     pub model: String,
     /// Language code the transcript actually ran in. With automatic
@@ -478,10 +477,38 @@ const RENAMED: &[(&str, &[(&str, &str)])] = &[
 ///
 /// It cannot fix the builds already out there. It stops the next migration from
 /// repeating it.
-const SCHEMA_VERSION: i64 = 2;
+/// 3 since 13 August 2026, when the four status values stopped being Czech.
+const SCHEMA_VERSION: i64 = 3;
 
 /// The key that carries it, in the settings table.
 const SCHEMA_VERSION_KEY: &str = "schema-version";
+
+/// What `recordings.status` may say.
+///
+/// Constants rather than literals scattered over eight files, because these
+/// have been renamed once and the rename is not the kind a compiler helps with:
+/// a status is a string on both sides of the IPC boundary and in the SQL, so a
+/// missed one goes on compiling and simply stops matching. It has happened —
+/// `.hotova` became `.done` in the stylesheet in 1.0.5 and every status dot in
+/// the archive went grey, with nothing failing anywhere.
+///
+/// The SQL in this module still writes them literally, because a query is text.
+/// `the_stored_statuses_are_the_ones_the_queries_use` is what holds the two
+/// together.
+pub mod status {
+    pub const NEW: &str = "new";
+    pub const TRANSCRIBING: &str = "transcribing";
+    pub const DONE: &str = "done";
+    pub const FAILED: &str = "error";
+
+    /// Czech to English, which is what an archive older than schema 3 needs.
+    pub const RENAMED: &[(&str, &str)] = &[
+        ("nova", NEW),
+        ("prepisuje", TRANSCRIBING),
+        ("hotova", DONE),
+        ("chyba", FAILED),
+    ];
+}
 
 /// Raised when the archive was written by a newer Volocal than this one.
 ///
@@ -711,6 +738,41 @@ fn rename_schema_to_english(db: &Connection, path: &std::path::Path) -> Result<(
     Ok(())
 }
 
+/// Turns the four Czech status values into the English ones, in place.
+///
+/// The tables and columns stopped being Czech in 1.0.5; these four strings did
+/// not, because they are data rather than structure and renaming data means
+/// touching every archive. This does that, and it is cheap: one statement over
+/// one column, inside the transaction SQLite gives a single `UPDATE`.
+///
+/// No copy is taken first, unlike the table rename. That one restructured the
+/// file and could not be undone; this one rewrites four known strings, and the
+/// backups the application already keeps are the way back if one is ever
+/// needed. What does protect it is `SCHEMA_VERSION`, raised to 3: a build older
+/// than this refuses the archive by name instead of reading it and finding
+/// every recording in a status it does not know.
+///
+/// Idempotent by construction — nothing maps onto a Czech value, so a second
+/// run matches no rows. An archive already in English is one `UPDATE` that
+/// changes nothing.
+fn rename_statuses_to_english(db: &Connection) -> Result<()> {
+    let mut clauses = String::new();
+    for (czech, english) in status::RENAMED {
+        clauses.push_str(&format!(" WHEN '{czech}' THEN '{english}'"));
+    }
+    let changed = db.execute(
+        &format!(
+            "UPDATE recordings SET status = CASE status{clauses} ELSE status END
+             WHERE status IN ('nova', 'prepisuje', 'hotova', 'chyba')"
+        ),
+        [],
+    )?;
+    if changed > 0 {
+        crate::note!("archive: {changed} recordings moved to the English statuses");
+    }
+    Ok(())
+}
+
 /// Fills the rebuilt full-text index from the transcripts already in the
 /// archive. Runs after the schema batch, which is what creates the empty index.
 fn refill_search_index(db: &Connection) -> Result<()> {
@@ -755,7 +817,7 @@ pub fn open(path: &std::path::Path) -> Result<Connection> {
             name        TEXT NOT NULL,
             duration        REAL NOT NULL DEFAULT 0,
             created_at    TEXT NOT NULL,
-            status         TEXT NOT NULL DEFAULT 'nova',
+            status         TEXT NOT NULL DEFAULT 'new',
             model        TEXT NOT NULL DEFAULT '',
             error        TEXT,
             -- Which folder holds the recording; NULL is the archive's root.
@@ -884,6 +946,9 @@ pub fn open(path: &std::path::Path) -> Result<Connection> {
         "#,
     )?;
     migrate_legacy_schema(&db);
+    // After the batch, which is what guarantees there is a `recordings` table
+    // to update, and before anything reads a status out of it.
+    rename_statuses_to_english(&db)?;
     // Written last, so an archive only claims a schema it actually reached.
     save_metadata_value(&db, SCHEMA_VERSION_KEY, &SCHEMA_VERSION.to_string())?;
     // After the batch, which is what creates the empty index the rename left.
@@ -1251,13 +1316,13 @@ pub fn recover_interrupted(db: &Connection) -> Result<usize> {
     // failure is how a forty-minute transcript that went fine comes back as
     // an error.
     db.execute(
-        "UPDATE recordings SET status = 'hotova', error = NULL
-         WHERE status = 'prepisuje'
+        "UPDATE recordings SET status = 'done', error = NULL
+         WHERE status = 'transcribing'
            AND EXISTS (SELECT 1 FROM segments WHERE recording_id = recordings.id)",
         [],
     )?;
     let count = db.execute(
-        "UPDATE recordings SET status = 'chyba', error = ?1 WHERE status = 'prepisuje'",
+        "UPDATE recordings SET status = 'error', error = ?1 WHERE status = 'transcribing'",
         params![UserMessage::new("transcription.interrupted").to_stored()],
     )?;
     commit(tx)?;
@@ -1335,7 +1400,7 @@ pub fn list_recordings(db: &Connection) -> Result<Vec<Recording>> {
 pub fn completed_recording_ids_with_segments(db: &Connection) -> Result<Vec<String>> {
     let mut statement = db.prepare(
         "SELECT n.id FROM recordings n
-         WHERE n.status = 'hotova'
+         WHERE n.status = 'done'
            AND EXISTS (SELECT 1 FROM segments s WHERE s.recording_id = n.id)
          ORDER BY n.created_at",
     )?;
@@ -2227,7 +2292,7 @@ mod tests {
         folders, has_table, insert_recording_note, insert_segment, insert_speaker, load_settings,
         look_at_offered_archive, metadata_value, migrate_legacy_schema, move_to_folder, open,
         recording_notes, recover_interrupted, save_ai_document, save_ai_output,
-        save_metadata_value, search, segments, speakers, update_recording_note,
+        save_metadata_value, search, segments, speakers, status, update_recording_note,
         watch_file_imported, watch_file_is_stable, waveform, AiDocument, AiOutput,
         ArchiveFromTheFuture, Offered, RecordingNote, Segment, Speaker, WaveformData,
     };
@@ -2440,7 +2505,10 @@ mod tests {
             )
             .unwrap();
         assert_eq!(name, "Janka");
-        assert_eq!(status, "hotova", "the stored value is not a name and stays");
+        assert_eq!(
+            status, "done",
+            "the Czech status was migrated with the Czech schema"
+        );
         assert_eq!(folder_id.as_deref(), Some("f1"));
 
         let segment = segments(&db, "r1").unwrap();
@@ -2603,8 +2671,84 @@ mod tests {
         let db = open(&path).unwrap();
         assert_eq!(
             metadata_value(&db, "schema-version").unwrap().as_deref(),
-            Some("2")
+            Some("3")
         );
+    }
+
+    /// The four stored values, on an archive that has one recording in each.
+    ///
+    /// Written as a whole set rather than one example, because the failure this
+    /// guards against is a partial rename: three statuses migrated and the
+    /// fourth left in Czech shows a dot with no colour and a screen offering
+    /// the wrong buttons, and nothing anywhere fails.
+    #[test]
+    fn every_czech_status_becomes_its_english_name() {
+        let temp = TempDb::new("statuses");
+        let path = temp.0.clone();
+        {
+            let old = Connection::open(&path).unwrap();
+            old.execute_batch(
+                "CREATE TABLE recordings (
+                     id TEXT PRIMARY KEY, path TEXT NOT NULL, name TEXT NOT NULL,
+                     duration REAL NOT NULL DEFAULT 0, created_at TEXT NOT NULL,
+                     status TEXT NOT NULL DEFAULT 'nova', model TEXT NOT NULL DEFAULT '',
+                     error TEXT, folder_id TEXT);
+                 INSERT INTO recordings (id, path, name, created_at, status) VALUES
+                     ('a', 'C:\\a.mp3', 'A', '2026-08-01', 'nova'),
+                     ('b', 'C:\\b.mp3', 'B', '2026-08-01', 'prepisuje'),
+                     ('c', 'C:\\c.mp3', 'C', '2026-08-01', 'hotova'),
+                     ('d', 'C:\\d.mp3', 'D', '2026-08-01', 'chyba');",
+            )
+            .unwrap();
+        }
+
+        let db = open(&path).unwrap();
+        let read = |id: &str| -> String {
+            db.query_row(
+                "SELECT status FROM recordings WHERE id = ?1",
+                params![id],
+                |r| r.get(0),
+            )
+            .unwrap()
+        };
+        assert_eq!(read("a"), status::NEW);
+        assert_eq!(read("b"), status::TRANSCRIBING);
+        assert_eq!(read("c"), status::DONE);
+        assert_eq!(read("d"), status::FAILED);
+
+        // And nothing else moved: four recordings in, four out, names intact.
+        let names: Vec<String> = db
+            .prepare("SELECT name FROM recordings ORDER BY id")
+            .unwrap()
+            .query_map([], |r| r.get(0))
+            .unwrap()
+            .collect::<std::result::Result<_, _>>()
+            .unwrap();
+        assert_eq!(names, vec!["A", "B", "C", "D"]);
+    }
+
+    /// Opening twice is the ordinary case — every launch after the first one.
+    #[test]
+    fn an_archive_already_in_english_is_left_alone() {
+        let temp = TempDb::new("statuses-again");
+        let path = temp.0.clone();
+        {
+            let db = open(&path).unwrap();
+            db.execute(
+                "INSERT INTO recordings (id, path, name, created_at, status)
+                 VALUES ('a', 'C:\\a.mp3', 'A', '2026-08-01', ?1)",
+                params![status::DONE],
+            )
+            .unwrap();
+        }
+
+        let db = open(&path).unwrap();
+        let stored: String = db
+            .query_row("SELECT status FROM recordings WHERE id = 'a'", [], |r| {
+                r.get(0)
+            })
+            .unwrap();
+        assert_eq!(stored, status::DONE);
     }
 
     /// The whole point of writing it down: what happens to the build that meets
@@ -2627,7 +2771,7 @@ mod tests {
             .downcast_ref::<ArchiveFromTheFuture>()
             .expect("the window has to tell this apart from a damaged archive");
         assert_eq!(named.found, 99);
-        assert_eq!(named.known, 2);
+        assert_eq!(named.known, 3);
 
         // And nothing was done to it on the way out.
         let db = Connection::open(&path).unwrap();
@@ -2654,7 +2798,7 @@ mod tests {
         assert_eq!(segments(&db, "r1").unwrap().len(), 1);
         assert_eq!(
             metadata_value(&db, "schema-version").unwrap().as_deref(),
-            Some("2")
+            Some("3")
         );
     }
 
@@ -2800,13 +2944,13 @@ mod tests {
 
     #[test]
     fn a_transcript_that_finished_is_not_reported_as_a_failure() {
-        // The row never got its final `hotova` — the write failed, or the
+        // The row never got its final `done` — the write failed, or the
         // application was closed in the half-second between the transaction
         // and the status. The segments are there, so the work is done.
         let db = interrupted_archive();
         db.execute(
-            "INSERT INTO recordings (id, status) VALUES ('done', 'prepisuje')",
-            [],
+            "INSERT INTO recordings (id, status) VALUES ('done', ?1)",
+            params![status::TRANSCRIBING],
         )
         .unwrap();
         let mut written = segment(0.0, 1.0, "[]");
@@ -2815,7 +2959,7 @@ mod tests {
 
         recover_interrupted(&db).unwrap();
 
-        assert_eq!(status_of(&db, "done"), "hotova");
+        assert_eq!(status_of(&db, "done"), status::DONE);
         let error: Option<String> = db
             .query_row("SELECT error FROM recordings WHERE id = 'done'", [], |r| {
                 r.get(0)
@@ -2828,15 +2972,15 @@ mod tests {
     fn a_run_that_never_wrote_anything_is_still_a_failure() {
         let db = interrupted_archive();
         db.execute(
-            "INSERT INTO recordings (id, status) VALUES ('empty', 'prepisuje')",
-            [],
+            "INSERT INTO recordings (id, status) VALUES ('empty', ?1)",
+            params![status::TRANSCRIBING],
         )
         .unwrap();
 
         let count = recover_interrupted(&db).unwrap();
 
         assert_eq!(count, 1);
-        assert_eq!(status_of(&db, "empty"), "chyba");
+        assert_eq!(status_of(&db, "empty"), status::FAILED);
     }
 
     #[test]
@@ -3300,7 +3444,7 @@ mod tests {
             look_at_offered_archive(&future.0),
             Offered::FromTheFuture {
                 found: 99,
-                known: 2
+                known: 3
             }
         );
 

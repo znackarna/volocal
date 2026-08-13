@@ -13,19 +13,27 @@ import { STATUS_CLASS, statusClass } from "./types";
  *  every class the map names is a class the stylesheet actually paints.
  */
 describe("the status dot", () => {
-  test("the stored Czech values are what the map is keyed on", () => {
-    // These four strings are in every archive on disk. If one is renamed here
-    // without a migration, the dot silently stops matching that recording.
+  test("the stored values are what the map is keyed on", () => {
+    // These four strings are what Rust writes into `recordings.status`. If one
+    // is renamed here without the migration in `db.rs`, the dot silently stops
+    // matching that recording. They were Czech until schema 3.
     expect(Object.keys(STATUS_CLASS).sort()).toEqual([
-      "chyba",
-      "hotova",
-      "nova",
-      "prepisuje",
+      "done",
+      "error",
+      "new",
+      "transcribing",
     ]);
   });
 
+  test("a Czech status is unknown now, and asks for no class rather than a wrong one", () => {
+    // An archive still saying `hotova` has not been through `open()`, which no
+    // recording reaching this screen can avoid. If one ever did, a dot with the
+    // default look is the honest answer.
+    expect(statusClass("hotova")).toBe("");
+  });
+
   test("a finished transcript is green, which is the one that went grey", () => {
-    expect(statusClass("hotova")).toBe("done");
+    expect(statusClass("done")).toBe("done");
   });
 
   test("something the archive has never written asks for no class at all", () => {

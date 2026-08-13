@@ -7,23 +7,24 @@ export interface UserMessage {
   detail: string;
 }
 
-export type Status = "nova" | "prepisuje" | "hotova" | "chyba";
+export type Status = "new" | "transcribing" | "done" | "error";
 
 /** The class that paints a recording's status dot.
  *
- *  The stored value is Czech and stays that way — it is written in every
- *  archive on disk. The class name is English like every other class. This is
- *  the one place the two meet, and before it existed the markup handed the
- *  stored value straight to `className`: renaming `.hotova` to `.done` in the
- *  stylesheet therefore turned every dot grey, in every row of the archive,
- *  and nothing failed. `Record<Status, string>` is the guard — a new status
- *  without a class will not compile.
+ *  The stored value and the class name are separate things that happen to look
+ *  alike since schema 3, when the four statuses stopped being Czech. Keeping the
+ *  map is not ceremony: before it existed the markup handed the stored value
+ *  straight to `className`, so renaming `.hotova` to `.done` in the stylesheet
+ *  turned every dot grey, in every row of the archive, and nothing failed. The
+ *  stylesheet is free to call a class what it likes — `error` is painted by
+ *  `.failed` — and `Record<Status, string>` is the guard: a new status without
+ *  a class will not compile.
  */
 export const STATUS_CLASS: Record<Status, string> = {
-  nova: "new",
-  prepisuje: "transcribing",
-  hotova: "done",
-  chyba: "failed",
+  new: "new",
+  transcribing: "transcribing",
+  done: "done",
+  error: "failed",
 };
 
 export function statusClass(status: string): string {

@@ -609,7 +609,7 @@ mod tests {
             title: "Rozhovor".to_string(),
             duration: 120.0,
             created_at: String::new(),
-            status: "hotova".to_string(),
+            status: crate::db::status::DONE.to_string(),
             model: "large-v3".to_string(),
             language: "cs".to_string(),
             language_choice: "cs".to_string(),

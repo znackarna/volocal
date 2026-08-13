@@ -831,7 +831,7 @@ mod sentence_block_tests {
                  );
                  CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
                  INSERT INTO recordings (id, status, created_at)
-                 VALUES ('recording', 'hotova', '2026-08-02 00:00:00');",
+                 VALUES ('recording', 'done', '2026-08-02 00:00:00');",
             )
             .unwrap();
 

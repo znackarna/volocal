@@ -148,7 +148,7 @@ pub fn start_in_thread(
             // initial state.
             if let Some(s) = &connection {
                 let _ = db::delete_segments(s, &recording_id);
-                let _ = db::set_status(s, &recording_id, "nova", None);
+                let _ = db::set_status(s, &recording_id, db::status::NEW, None);
             }
             status(
                 &app,
@@ -169,10 +169,12 @@ pub fn start_in_thread(
                 // connection; `recover_interrupted` catches the rest.
                 let stored = connection
                     .as_ref()
-                    .map(|s| db::set_status(s, &recording_id, "hotova", None));
+                    .map(|s| db::set_status(s, &recording_id, db::status::DONE, None));
                 if !matches!(stored, Some(Ok(_))) {
                     if let Ok(second) = db::open(&db_path) {
-                        if let Err(error) = db::set_status(&second, &recording_id, "hotova", None) {
+                        if let Err(error) =
+                            db::set_status(&second, &recording_id, db::status::DONE, None)
+                        {
                             crate::note!("finished but not marked as such: {error}");
                         }
                     }
@@ -188,7 +190,12 @@ pub fn start_in_thread(
             }
             Err(message) => {
                 if let Some(s) = &connection {
-                    let _ = db::set_status(s, &recording_id, "chyba", Some(&message.to_stored()));
+                    let _ = db::set_status(
+                        s,
+                        &recording_id,
+                        db::status::FAILED,
+                        Some(&message.to_stored()),
+                    );
                 }
                 status(&app, &recording_id, "error", 0, message.clone());
                 let _ = app.emit("transcription:error", (recording_id.clone(), message));
@@ -241,7 +248,7 @@ pub fn start_diarization_in_thread(
             // only rewrites who said what, and it writes at the very end. So a
             // cancelled run leaves the recording exactly as it found it.
             if let Some(s) = &connection {
-                let _ = db::set_status(s, &recording_id, "hotova", None);
+                let _ = db::set_status(s, &recording_id, db::status::DONE, None);
             }
             status(
                 &app,
@@ -262,10 +269,12 @@ pub fn start_diarization_in_thread(
                 // connection; `recover_interrupted` catches the rest.
                 let stored = connection
                     .as_ref()
-                    .map(|s| db::set_status(s, &recording_id, "hotova", None));
+                    .map(|s| db::set_status(s, &recording_id, db::status::DONE, None));
                 if !matches!(stored, Some(Ok(_))) {
                     if let Ok(second) = db::open(&db_path) {
-                        if let Err(error) = db::set_status(&second, &recording_id, "hotova", None) {
+                        if let Err(error) =
+                            db::set_status(&second, &recording_id, db::status::DONE, None)
+                        {
                             crate::note!("finished but not marked as such: {error}");
                         }
                     }
@@ -281,7 +290,7 @@ pub fn start_diarization_in_thread(
             }
             Err(message) => {
                 if let Some(s) = &connection {
-                    let _ = db::set_status(s, &recording_id, "hotova", None);
+                    let _ = db::set_status(s, &recording_id, db::status::DONE, None);
                 }
                 status(&app, &recording_id, "error", 0, message.clone());
                 let _ = app.emit("transcription:error", (recording_id.clone(), message));
@@ -313,7 +322,7 @@ fn run_diarization(
         .clone()
         .ok_or_else(|| UserMessage::new("tools.ffmpeg_missing"))?;
 
-    db::set_status(&connection, recording_id, "prepisuje", None)?;
+    db::set_status(&connection, recording_id, db::status::TRANSCRIBING, None)?;
     status(
         app,
         recording_id,
@@ -424,7 +433,7 @@ fn run(
     let recording = db::recording(&connection, recording_id)?;
     let dictionary = db::dictionary(&connection)?;
 
-    db::set_status(&connection, recording_id, "prepisuje", None)?;
+    db::set_status(&connection, recording_id, db::status::TRANSCRIBING, None)?;
     db::set_model(&connection, recording_id, &settings.model)?;
 
     let check = tools::check(&settings);

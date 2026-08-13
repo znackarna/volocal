@@ -154,7 +154,7 @@ export default function Detail({
   const [status, setStatus] = useState("");
   /** Which folder holds this recording, so its menu can offer to move it. */
   const [folder, setFolder] = useState<string | null>(null);
-  /** Why the last transcription failed. Only set when status is "chyba". */
+  /** Why the last transcription failed. Only set when status is "error". */
   const [error, setError] = useState<string | null>(null);
   const [language, setLanguage] = useState("");
   const [segments, setSegments] = useState<Segment[]>([]);
@@ -416,7 +416,7 @@ export default function Detail({
       // itself. Starting the detail prewarm as well would run a second ffmpeg
       // conversion for the same source. Finished and legacy recordings still
       // use this best-effort fallback when their cache does not exist yet.
-      if (d.recording.status !== "prepisuje") {
+      if (d.recording.status !== "transcribing") {
         preparePlaybackSource(id, d.recording.path);
       }
       const [dictionaryEntries, exists, aiStatus, settings, tools] = await Promise.all([
@@ -893,7 +893,7 @@ export default function Detail({
     // busy for ever: a bubble frozen at zero, no player, no actions, and a
     // cancel button the backend answers with "nothing is running".
     if (!(await onTranscribe(id))) return;
-    setStatus("prepisuje");
+    setStatus("transcribing");
     // Clear the previous failure, or the old message would linger under a
     // progress bar for a run that is going fine.
     setError(null);
@@ -902,7 +902,7 @@ export default function Detail({
   const startTranscriptionInLanguage = useCallback(async (selectedLanguage: string) => {
     if (!(await onTranscribe(id, selectedLanguage))) return;
     setLanguage(selectedLanguage);
-    setStatus("prepisuje");
+    setStatus("transcribing");
     setError(null);
   }, [id, onTranscribe]);
 
@@ -1421,7 +1421,7 @@ export default function Detail({
      event; the phase covers a run this screen did not start — from the
      archive, from the watched folder, or after a confirmation was accepted. */
   const running =
-    status === "prepisuje" ||
+    status === "transcribing" ||
     (progress != null && !["complete", "cancelled", "error"].includes(progress.phase));
   // The segment that last began, rather than the one the playhead sits
   // inside. Between two sentences there is a pause that belongs to neither,
@@ -1701,14 +1701,14 @@ export default function Detail({
         />
       ) : null}
 
-      {status === "nova" && !sourceMissing ? (
+      {status === "new" && !sourceMissing ? (
         /* The strip only states the situation. The call to action stands in
            the middle of the empty transcript area — where the text will be —
            so the fact and the button are not said twice. */
         <div className="player player-prompt">
           <InfoNote compact>{t("detail.empty.notTranscribed")}</InfoNote>
         </div>
-      ) : status === "chyba" && segments.length === 0 && !sourceMissing ? (
+      ) : status === "error" && segments.length === 0 && !sourceMissing ? (
         /* A transcription that failed or was interrupted. Without a way out
            from here, the only route back would be the library. */
         <div className="player player-prompt">
@@ -1920,7 +1920,7 @@ export default function Detail({
           })}
 
           {!running && segments.length === 0 && (
-            status === "nova" && !sourceMissing ? (
+            status === "new" && !sourceMissing ? (
               /* The empty area names what it is for and offers the one action
                  that fills it. A missing source falls through to the plain
                  line: a file that is gone cannot be transcribed. */
