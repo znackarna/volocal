@@ -1998,7 +1998,25 @@ pub fn back_up_and_rotate(
     db: &Connection,
     db_path: &std::path::Path,
 ) -> Result<std::path::PathBuf> {
-    let stamp = chrono::Local::now().format("%Y-%m-%d-%H%M%S");
+    back_up_and_rotate_at(db, db_path, chrono::Local::now())
+}
+
+/// The same, for a moment somebody names.
+///
+/// The clock is a parameter for one reason: the behaviour below is *two calls
+/// inside one second*, and a test that calls twice and hopes the second hand
+/// waits is a test that fails on whichever machine is slowest that morning.
+/// It did, on 2026-08-13, on a pull request that changed two Markdown files —
+/// `070456` and `070457`, a boundary crossed between two lines of the test.
+///
+/// Nothing else passes a moment in. `back_up_and_rotate` reads the clock, which
+/// is where reading it belongs.
+fn back_up_and_rotate_at(
+    db: &Connection,
+    db_path: &std::path::Path,
+    when: chrono::DateTime<chrono::Local>,
+) -> Result<std::path::PathBuf> {
+    let stamp = when.format("%Y-%m-%d-%H%M%S");
     let destination = backup_directory(db_path).join(format!("volocal-{stamp}.db"));
     // A second call inside the same second finds the copy it was about to make
     // already sitting there, and that is an answer rather than a failure: what
@@ -2098,6 +2116,11 @@ mod backup_rotation_tests {
     /// already exists: Error code 1: SQL error or missing database`. The stamp
     /// in the name is only accurate to the second, and the button re-enables
     /// the moment the first copy is written, so two clicks land on one name.
+    ///
+    /// The moment is handed in rather than read twice from the clock. Read
+    /// twice, this test says *the same second* and means *whatever the second
+    /// hand did between these two lines*, which is not the same claim and not
+    /// one a machine can keep.
     #[test]
     fn two_backups_in_the_same_second_are_one_backup_and_not_an_error() {
         let folder = std::env::temp_dir().join("volocal-backup-twice");
@@ -2106,8 +2129,9 @@ mod backup_rotation_tests {
         let archive = folder.join("volocal.db");
         let db = open(&archive).unwrap();
 
-        let first = back_up_and_rotate(&db, &archive).unwrap();
-        let second = back_up_and_rotate(&db, &archive).unwrap();
+        let now = chrono::Local::now();
+        let first = back_up_and_rotate_at(&db, &archive, now).unwrap();
+        let second = back_up_and_rotate_at(&db, &archive, now).unwrap();
 
         assert_eq!(first, second, "the same second is the same copy");
         assert!(first.is_file());
@@ -2116,6 +2140,30 @@ mod backup_rotation_tests {
             1,
             "and it is one file, not two"
         );
+
+        drop(db);
+        let _ = std::fs::remove_dir_all(&folder);
+    }
+
+    /// The other half of the same promise, and the one a careless fix eats: a
+    /// name is reused because it names this second, not because a backup
+    /// already exists. Returning the newest copy whatever the time would pass
+    /// the test above and quietly stop making backups.
+    #[test]
+    fn the_next_second_is_a_backup_of_its_own() {
+        let folder = std::env::temp_dir().join("volocal-backup-next-second");
+        let _ = std::fs::remove_dir_all(&folder);
+        std::fs::create_dir_all(&folder).unwrap();
+        let archive = folder.join("volocal.db");
+        let db = open(&archive).unwrap();
+
+        let now = chrono::Local::now();
+        let first = back_up_and_rotate_at(&db, &archive, now).unwrap();
+        let later =
+            back_up_and_rotate_at(&db, &archive, now + chrono::TimeDelta::seconds(1)).unwrap();
+
+        assert_ne!(first, later, "a different second is a different copy");
+        assert_eq!(list_backups(&archive).len(), 2, "and both are on disk");
 
         drop(db);
         let _ = std::fs::remove_dir_all(&folder);
