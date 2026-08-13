@@ -61,6 +61,28 @@ export function forgetSpeakerName(id: string, used: string) {
   write(pools);
 }
 
+/** A name taken off a voice goes back on the shortlist.
+ *
+ *  The exact opposite of [`forgetSpeakerName`], and it exists for the same
+ *  reason that one does. A name that has landed on a voice is in the archive,
+ *  so offering it again would be offering the same answer twice — and clearing
+ *  the field ends that. The name is then waiting again rather than gone, which
+ *  is the difference between correcting a mistake and typing it all a second
+ *  time.
+ *
+ *  Appended rather than put back where it was: the order of a shortlist carries
+ *  nothing, and the one thing worth avoiding is the same name twice.
+ */
+export function returnSpeakerName(id: string, name: string) {
+  const wanted = name.trim();
+  if (!wanted) return;
+  const pools = read();
+  const pool = pools[id] ?? [];
+  if (pool.includes(wanted)) return;
+  pools[id] = [...pool, wanted];
+  write(pools);
+}
+
 /** Phases after which the shortlist is worth reading again. */
 const RUN_ENDED = ["complete", "cancelled", "error"];
 
