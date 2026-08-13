@@ -86,11 +86,25 @@ Czech copy, either update the translation or run
 `node scripts/i18n.mjs approve <language> <keys…>` when the existing wording
 already says the new thing.
 
-The SQLite schema and persisted recording statuses still use their original
-Czech values. Renaming them directly would make existing libraries unreadable.
-Rust exposes English structs and functions over this legacy schema. Settings
-fields include serde aliases so configuration written by older versions still
-loads.
+The SQLite schema is English. Tables and columns were renamed in 1.0.5 —
+`recordings`, `folders`, `segments`, `speakers`, `recording_id`, `start_time` —
+by a migration that copies the archive to `…-before-english.db` first and then
+renames inside one transaction. This paragraph said the opposite until
+13 August 2026.
+
+What is still Czech is stored data rather than structure: the four values of
+`recordings.status` (`nova`, `prepisuje`, `hotova`, `chyba`, and the column's
+own `DEFAULT`), and one settings key, `jazyk-rozpoznavani`, written once as a
+marker that an old archive has been through its language migration.
+
+Renaming a stored value means migrating every archive, so it is a change of its
+own with its own test — not something to do while passing. The objection that
+usually stops it does not apply here, though: an archive that has been through
+1.0.5 already cannot be read by a build older than it, which was decided and
+recorded on 12 August.
+
+Settings fields include serde aliases so configuration written by older versions
+still loads.
 
 CSS selectors are English. This paragraph said the opposite until 13 August
 2026, when it turned out the migration it was deferring had already happened:
