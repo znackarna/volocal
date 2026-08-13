@@ -6,6 +6,8 @@ import { useI18n } from "./../i18n";
 import { changedWords, plain } from "./../transcriptText";
 import { CONFIDENCE_THRESHOLD, formatTime } from "./../types";
 import type { Segment } from "./../types";
+import { spreadTiedWords } from "./../wordTimes";
+import type { StoredWord } from "./../wordTimes";
 /** The words of `text`, with the ones that were not in `original` underlined. */
 export function MarkedWords({ original, text }: { original: string; text: string }) {
   const changed = useMemo(() => changedWords(original, text), [original, text]);
@@ -197,12 +199,18 @@ export const SegmentRow = memo(function SegmentRow({
   const words = useMemo(() => {
     if (segment.words) {
       try {
-        const storedWords = JSON.parse(segment.words) as Array<{ t: number; s: string }>;
+        const storedWords = JSON.parse(segment.words) as StoredWord[];
         if (storedWords.length > 0) {
+          // Whisper hands one timestamp to a run of adjacent words often
+          // enough to be felt — a tenth of the archive's words are in such a
+          // run. This is where they stop all meaning the same moment: the
+          // measured value stays on the first of them and the rest are placed
+          // across the gap. `wordTimes.ts` says why nothing stored is touched.
+          const times = spreadTiedWords(storedWords, segment.end);
           const output: Array<{ text: string; time: number; space: boolean }> = [];
           storedWords.forEach((w, i) => {
-            if (i > 0) output.push({ text: " ", time: w.t, space: true });
-            output.push({ text: w.s, time: w.t, space: false });
+            if (i > 0) output.push({ text: " ", time: times[i], space: true });
+            output.push({ text: w.s, time: times[i], space: false });
           });
           return output;
         }
