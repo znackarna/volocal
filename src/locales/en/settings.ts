@@ -5,8 +5,9 @@ export const enSettings: Partial<Record<keyof typeof csSettings, string>> = {
   "settings.title": "Settings",
   "settings.groups": "Settings groups",
   "settings.tab.transcription": "Transcription",
-  "settings.tab.application": "Application",
-  "settings.tab.about": "About",
+  "settings.tab.files": "Folders and backups",
+  "settings.tab.updates": "Updates",
+  "settings.tab.about": "Information",
   "settings.about.description":
     "It turns speech into text. Everything is processed on your computer alone and nothing is sent out. Your recordings, transcripts and models stay fully under your control.",
   "settings.about.version": "Version",

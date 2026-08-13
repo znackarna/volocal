@@ -3,8 +3,9 @@ export const csSettings = {
   "settings.title": "Nastavení",
   "settings.groups": "Skupiny nastavení",
   "settings.tab.transcription": "Přepis",
-  "settings.tab.application": "Aplikace",
-  "settings.tab.about": "O aplikaci",
+  "settings.tab.files": "Složky a zálohy",
+  "settings.tab.updates": "Aktualizace",
+  "settings.tab.about": "Informace",
   "settings.missingRequired": "Některé povinné modely chybí",
   "settings.language.title": "Jazyk aplikace",
   "settings.language.description": "Změna se projeví hned. Přepisy zůstanou v původním jazyce.",
@@ -271,8 +272,12 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
   "settings.performance.defaultDescription":
     "Popis staršího sestavení whisper.cpp, které nemá zvolenou akceleraci. Ukáže se jen tam, kde takové sestavení je.",
   "settings.tab.transcription": "Název záložky. Jde o převod řeči na text, ne o opisování.",
-  "settings.tab.application":
-    "Název záložky, na které je všechno o chodu aplikace samotné — jazyk rozhraní, motiv, písmo, složky a zálohy. Ne o přepisu.",
+  "settings.tab.files":
+    "Název záložky, na které je složka pro nahrávky, sledovaná složka, zálohy archivu a přenosná kopie. Pojmenuj ji tím, co na ní je — dřív se jmenovala Aplikace a neříkala o žádné z těch věcí nic.",
+  "settings.tab.updates":
+    "Název záložky a zároveň nadpis její jediné karty. Kontrola nové verze, co je v ní nového a její instalace.",
+  "settings.tab.about":
+    "Název poslední záložky: co aplikace je, co umí a na čem stojí. Nic se na ní nenastavuje, je jen ke čtení.",
 
   "settings.badge.inUse":
     "Odznak na kartě modelu, který je právě nastavený. Malé písmeno je záměr.",
@@ -350,7 +355,8 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
   "settings.about.updateNotesReopen":
     "Tlačítko v panelu, které ten dialog otevře znovu, když ho někdo zavřel a chce si text přečíst ještě jednou.",
 
-  "settings.appearance.title": "Nadpis karty s jazykem rozhraní, motivem a písmem přepisu.",
+  "settings.appearance.title":
+    "Nadpis karty s jazykem rozhraní, motivem a písmem přepisu — a zároveň název záložky, na které ta karta sama stojí. Jedno slovo pro obojí schválně: druhý klíč se stejným slovem je druhá věc, kterou je potřeba držet v souladu.",
   "settings.appearance.description":
     "Úvodní věta té karty. Drží jazyk rozhraní, motiv, písmo přepisu a jeho velikost; pod nimi je živá ukázka přepisu.",
   "settings.appearance.theme":

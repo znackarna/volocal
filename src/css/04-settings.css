@@ -104,17 +104,25 @@
 .settings-card-dictionary { order: 4; }
 .settings-card-modules { order: 5; }
 .settings-card-advanced { order: 6; }
-/* Aplikace: the banner first when there is one, because it says what kind of
-   installation everything under it belongs to. */
 /* Every card on a tab needs a number here, and the recordings folder had none:
    without a rule it takes `order: 0` and sorts above cards that asked for 1, so
-   it rendered over the portable-mode banner no matter where the JSX put it. */
+   it rendered over the portable-mode banner no matter where the JSX put it.
+   That includes the two tabs that hold a single card each — alone the number
+   changes nothing, and it is what stops the next card added beside them from
+   silently jumping to the top. */
+.settings-card-appearance { order: 1; }
+.settings-card-updates { order: 1; }
+/* Složky a zálohy: the banner first when there is one, because it says what
+   kind of installation everything under it belongs to; then where recordings
+   are put, where new ones are looked for, and last the copies of the archive
+   and of the whole application, which are what you go to when something has
+   already gone wrong. */
 .settings-card-portable { order: 1; }
-.settings-card-appearance { order: 2; }
-.settings-card-recordings { order: 3; }
-.settings-card-watch-folder { order: 4; }
-.settings-card-backups { order: 5; }
-.settings-card-portable-copy { order: 6; }
+.settings-card-recordings { order: 2; }
+.settings-card-watch-folder { order: 3; }
+.settings-card-backups { order: 4; }
+.settings-card-portable-copy { order: 5; }
+/* Informace: what it is, what it does, what it stands on. */
 .settings-card-about { order: 1; }
 .settings-card-abilities { order: 2; }
 .settings-card-credits { order: 3; }
@@ -698,7 +706,11 @@ button.mic-play:disabled { cursor: default; opacity: 0.6; }
 .mic-status, .about-status { font-size: 13.5px; font-weight: 600; }
 .mic-status.failed, .about-status.failed { color: var(--danger); }
 .about-status { margin: 12px 0 0; }
-.about-updates { margin-top: 22px; }
+/* The update block is the whole of its own card now, so it takes the 24 px a
+   card's first block after its heading takes — the same amount as `h2 + .field`
+   and `h2 + .about-abilities` above. It carried 22 as the last band of the
+   About card, where it followed a panel rather than a heading. */
+.settings section > h2 + .about-updates { margin-top: 24px; }
 .about-updates-actions { display: flex; gap: 10px; }
 /* The explanation belongs to the whole block above it, not to one button. */
 .about-updates .settings-section-description { margin: 14px 0 0; }

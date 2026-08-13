@@ -182,20 +182,43 @@ const DECODING_FIELDS: ReadonlyArray<{
   },
 ];
 
-/* Three tabs, and they answer three different questions: what comes out of a
-   recording, how the application itself behaves, and what it is made of.
+/* Five tabs, each one a subject somebody arrives with: what comes out of a
+   recording, how the application looks, where its files are kept, staying on
+   the current version, and what the application is.
 
-   There were seven. `Modely`, `Výkon`, `Slovník` and `Soubory` were not
-   subjects a reader arrives with — they were the shape of the code. The
-   dictionary belongs to the transcript it corrects, the acceleration and the
-   folders belong to `Pokročilé`, and the four read-only tiles on `Modely` said
-   nothing the status band at the foot of `Přepis` does not say in one line. */
-type SettingsTab = "transcription" | "application" | "about";
+   There were seven, and for one day there were three — `Přepis`, `Aplikace`
+   and `O aplikaci`. Jakub looked at those three and said they do not help:
+   appearance is a subject of its own, `O aplikaci` is `Informace`, and updating
+   is something you do rather than something you read about the application. So
+   `Vzhled` and `Aktualizace` stand on their own again.
 
-const SETTINGS_TABS: SettingsTab[] = ["transcription", "application", "about"];
+   What the reduction took out stays out. `Modely`, `Výkon`, `Slovník` and
+   `Soubory` were the shape of the code rather than subjects a reader arrives
+   with, and the controls deleted with them were dead, harmful or derivable from
+   another one. This is only about how the remaining ones are grouped.
+
+   `Aplikace` is now `Složky a zálohy`. Once appearance left it, what was under
+   that name was the recordings folder, the watched folder and the archive's
+   copies — and none of them is what a reader would look for behind the word
+   `Aplikace`. */
+type SettingsTab = "transcription" | "appearance" | "files" | "updates" | "about";
+
+const SETTINGS_TABS: SettingsTab[] = [
+  "transcription",
+  "appearance",
+  "files",
+  "updates",
+  "about",
+];
+/** `appearance` is named by the one card that fills its tab rather than by a
+ *  key of its own: a second key holding the same word is a second thing to keep
+ *  in step, and the transcription card already borrows its tab's key in the
+ *  other direction. */
 const SETTINGS_TAB_KEYS: Record<SettingsTab, TranslationKey> = {
   transcription: "settings.tab.transcription",
-  application: "settings.tab.application",
+  appearance: "settings.appearance.title",
+  files: "settings.tab.files",
+  updates: "settings.tab.updates",
   about: "settings.tab.about",
 };
 
@@ -356,6 +379,10 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
   const [entryReplace, setEntryReplace] = useState("");
   const [activeTab, setActiveTab] = useState<SettingsTab>(() => {
     const remembered = localStorage.getItem("settings-tab");
+    /* A remembered name this build does not have opens the first tab rather
+       than an empty panel, which is what makes renaming one safe: `application`
+       was stored on every machine that opened Settings yesterday and is not a
+       tab any more. */
     return SETTINGS_TABS.some((tab) => tab === remembered)
       ? remembered as SettingsTab
       : "transcription";
@@ -610,7 +637,7 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
         aria-labelledby={`settings-tab-${activeTab}`}
       >
 
-      {activeTab === "application" && check?.portable && (
+      {activeTab === "files" && check?.portable && (
         <section className="portable-info settings-card-portable">
           <h2>{t("settings.portable.title")}</h2>
           <p>
@@ -1073,7 +1100,7 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
         </div>
       </section>}
 
-      {activeTab === "application" && <section className="settings-card-appearance">
+      {activeTab === "appearance" && <section className="settings-card-appearance">
         <h2>{t("settings.appearance.title")}</h2>
         <p className="settings-section-description">
           {t("settings.appearance.description")}
@@ -1230,7 +1257,7 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
         </div>
       </section>}
 
-      {activeTab === "application" && <section className="settings-card-watch-folder">
+      {activeTab === "files" && <section className="settings-card-watch-folder">
         <h2>{t("settings.files.watchTitle")}</h2>
         <p className="settings-section-description">
           {t("settings.files.watchDescription")}
@@ -1295,7 +1322,7 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
           in %APPDATA% where nobody looks. The point of this card is that the
           audio the application makes for itself is somewhere its owner can
           find — which is also what lets a factory reset leave it alone. */}
-      {activeTab === "application" && <section className="settings-card-recordings">
+      {activeTab === "files" && <section className="settings-card-recordings">
         <h2>{t("settings.recordings.title")}</h2>
         <p className="settings-section-description">
           {t("settings.recordings.description")}
@@ -1382,9 +1409,9 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
           revisits. Dismissing it is final on this machine now, which is the
           trade: one fewer control against one fewer way back. */}
 
-      {activeTab === "application" && <Backups onError={onError} onInfo={onInfo} />}
+      {activeTab === "files" && <Backups onError={onError} onInfo={onInfo} />}
 
-      {activeTab === "application" && !check?.portable && (
+      {activeTab === "files" && !check?.portable && (
         <section className="settings-card-portable-copy">
           <h2>{t("settings.portable.copyTitle")}</h2>
           <p className="settings-section-description">
@@ -1418,14 +1445,25 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
         </section>
       )}
 
-      {activeTab === "about" && (
-        <About
-          onError={onError}
-          onInfo={onInfo}
-          automaticUpdates={n.update_check_automatic}
-          onAutomaticUpdatesChange={(on) => save({ ...n, update_check_automatic: on })}
-        />
+      {/* Updating is the one thing on this screen that is neither a setting nor
+          a fact about the application: it is an errand, with a button that goes
+          out to a server and a second one that closes the application and
+          starts an installer. It stood at the foot of the About page, under the
+          licences, which is where a reader looking for a new version would look
+          last. */}
+      {activeTab === "updates" && (
+        <section className="settings-card-updates">
+          <h2>{t("settings.tab.updates")}</h2>
+          <UpdateCheck
+            onError={onError}
+            onInfo={onInfo}
+            automatic={n.update_check_automatic}
+            onAutomaticChange={(on) => save({ ...n, update_check_automatic: on })}
+          />
+        </section>
       )}
+
+      {activeTab === "about" && <About />}
 
       </div>
     </main>
@@ -1437,19 +1475,10 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
  *
  * Jakub asked for the three things this answers: which technologies it stands
  * on, under what licences, and what the application can actually do. Nothing
- * here is a setting — it is the one page that exists to be read.
+ * here is a setting or an action — it is the one page that exists to be read,
+ * which is why the update check moved off it and onto a tab of its own.
  */
-function About({
-  onError,
-  onInfo,
-  automaticUpdates,
-  onAutomaticUpdatesChange,
-}: {
-  onError: (message: string) => void;
-  onInfo: (message: string) => void;
-  automaticUpdates: boolean;
-  onAutomaticUpdatesChange: (on: boolean) => void;
-}) {
+function About() {
   const { t } = useI18n();
   const [version, setVersion] = useState("");
 
@@ -1544,13 +1573,6 @@ function About({
             <dd>značkárna s.r.o.</dd>
           </div>
         </dl>
-
-        <UpdateCheck
-          onError={onError}
-          onInfo={onInfo}
-          automatic={automaticUpdates}
-          onAutomaticChange={onAutomaticUpdatesChange}
-        />
       </section>
 
       <section className="settings-card-abilities">
