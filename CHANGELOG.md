@@ -6,6 +6,55 @@ The reasoning behind individual decisions lives in `docs/history/`, day by day,
 and every published version also has its notes on the
 [releases page](../../releases).
 
+## 1.1.0 — 13 August 2026
+
+A minor version rather than a patch, for two reasons: speaker recognition was
+never using the graphics card it asked for, and the archive moves to schema 3.
+
+- **Speaker recognition runs on the graphics card, and until now it never had.**
+  DirectML registered, wrote a line in the log saying so, and then refused every
+  batch it was given with `E_INVALIDARG` at `cam_layer/AveragePool` — so every
+  recording's speakers were found on the processor while the log said otherwise.
+  The cause was one frame: the model will not run that pooling layer under 199
+  frames, and a two-second window at 16 kHz is exactly 198. The window now takes
+  the larger of two seconds and what the model accepts, which is eighty samples
+  more — five milliseconds. Measured over 256 windows: 97.5 ms on the card
+  against 1333.8 ms on the processor, **13.7×**. The check that answers *is this
+  machine using DirectML?* now puts a batch through the model as well as opening
+  it, because opening it was the half that already worked.
+- **Clicking a word starts at that word.** Whisper aligns tokens rather than
+  words, so a run of short tokens can share one timestamp — 9.7 % of the words
+  in a typical archive, in groups of two to six. Every word in such a group
+  seeked to the first of them, lit up at the same moment, and offered the same
+  position to the context menu. They are now spread across the gap to the next
+  measured timestamp, weighted by length, with the measured word never moved.
+  Validated against 6905 words that do have their own timestamps: mean error
+  falls from 0.340 s to 0.101 s, closer in 92.2 % of cases.
+- **A transcript opens without waiting for the end of itself.** Every word is a
+  clickable element; the spaces between them were elements too, which doubled
+  the count for nothing. And the window drew all of a forty-five minute
+  transcript — 359 blocks, 6845 words — before showing any of it. It now draws
+  the first screenful and the rest on the next frame.
+- **The window opens sooner.** The transcript, the settings and the wizard are
+  no longer read before the first paint: 457 kB rather than 583 kB. They are
+  fetched a moment later, so the first press of a recording does not pay for it.
+- **Speaker names typed before a run are offered after it.** They were written
+  down and never read again: the transcript reads the list when the recording
+  changes, and starting recognition from the transcript already on screen never
+  changes it. A name cleared from a voice also returns to the list rather than
+  having to be typed a second time.
+- **The progress bar for speaker recognition reports the part that takes the
+  time.** It stood at 10 % for the whole of the longest stage and then jumped to
+  34. The features are 89 % of that stage — measured, 760 ms against 94 ms — and
+  had been given 30 % of the bar and no report at all while they ran.
+- **Coming back to a transcript that is still playing lands on the block being
+  read** as soon as it is drawn, rather than at the next block boundary.
+- The four values of `recordings.status` are English in the archive, which is
+  the last Czech to leave the stored data. **This raises the schema to 3, and a
+  build older than this one will refuse the archive by name** rather than open
+  it and find every recording in a status it does not know. The migration is one
+  statement and runs on first open; there is no way back to 1.0.10 afterwards.
+
 ## 1.0.10 — 13 August 2026
 
 - The archive can be exported to a file and imported from one. Export uses
