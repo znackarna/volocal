@@ -105,6 +105,9 @@ export interface Settings {
   /** Ask about a newer Volocal on start, not only when the button is pressed. */
   update_check_automatic: boolean;
   model: string;
+  /** `fast` | `accurate` | `""` — the answer to the wizard's one question.
+   *  Empty means nobody was ever asked; read it through `qualityChoice`. */
+  quality_choice: string;
   /** Optional local model used to turn a transcript into a readable document. */
   editor_model: string;
   language: string;
@@ -347,7 +350,7 @@ export interface DownloadComponent {
   /** Dictionary key for the sentence under it, `catalog.<id>.description`. */
   description_code: string;
   megabytes: number;
-  group: "program" | "model" | "speakers" | string;
+  group: "program" | "model" | "speech" | "editor" | string;
   required: boolean;
   recommended: boolean;
   complete: boolean;
@@ -362,12 +365,61 @@ export interface DownloadProgress {
   message: UserMessage | null;
 }
 
-export interface BenchmarkResult {
-  compute: string;
-  seconds: number;
-  realtime_factor: number;
-  error: UserMessage | null;
+/* `BenchmarkResult` stood here and is gone with `Změřit rychlost`. The button
+   set `compute`, and there is no `compute` to set: the machine picks the
+   backend from its drivers. The Rust command it called is still registered and
+   is now the application's only instrument for timing a backend — see the
+   change record for 14 August 2026. */
+
+/** The one question the first run asks, and everything that follows from it.
+ *
+ *  Two ends of one choice, and the reader answers it once. It decides which
+ *  transcription model the wizard downloads and, later and separately, how
+ *  large a language-editing model is fetched when a document is first wanted.
+ *  Nothing asks a second time.
+ */
+export type QualityChoice = "fast" | "accurate";
+
+/** What the stored answer means, including on a machine that was never asked.
+ *
+ *  Empty is every installation set up before 14 August 2026. Rather than
+ *  inventing an answer for them, it is read off the model they transcribe
+ *  with — which is what the same question produced when they were set up. The
+ *  turbo model is the fast side of that question; anything else is the other.
+ */
+export function qualityChoice(settings: Pick<Settings, "quality_choice" | "model">): QualityChoice {
+  if (settings.quality_choice === "fast" || settings.quality_choice === "accurate") {
+    return settings.quality_choice;
+  }
+  return settings.model.includes("turbo") ? "fast" : "accurate";
 }
+
+/** Every language-editing model, by the catalogue component that installs it.
+ *
+ *  Three are in the catalogue and two are offered. The middle one is here so
+ *  that a machine which already holds it keeps working — Settings still turns
+ *  the feature on with it, and the by-hand list still shows it as installed —
+ *  but nothing offers it any more, in the wizard, in Settings or in that list.
+ */
+export const EDITOR_MODELS: Record<string, string> = {
+  "editor-model-light": "gemma-4-e2b-q4",
+  "editor-model-balanced": "gemma-4-e4b-q4",
+  "editor-model-best": "gemma-4-12b-q4",
+};
+
+/** Which of them the one question implies. Sizes are not written here: the
+ *  catalogue carries them, and a second copy is the one that goes stale. */
+export const EDITOR_TIER: Record<QualityChoice, string> = {
+  fast: "editor-model-light",
+  accurate: "editor-model-best",
+};
+
+/** Components nothing offers any more, though the catalogue still installs and
+ *  verifies them. They are drawn in the by-hand list only when they are already
+ *  on the disk, where a tick is a fact about this machine rather than an offer:
+ *  hiding a model somebody has downloaded would make the list say the disk is
+ *  emptier than it is. */
+export const UNOFFERED_COMPONENTS = ["model-large-q5", "editor-model-balanced"];
 
 /** Identifiers the backend uses for compute backends. Their names live in the
  *  translation dictionary and are read through `useLabels`. */

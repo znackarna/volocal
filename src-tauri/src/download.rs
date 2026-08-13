@@ -29,7 +29,13 @@ pub struct DownloadComponent {
     /// Dictionary key for the sentence under the name.
     pub description_code: String,
     pub megabytes: u64,
-    /// program | model | speakers | editor
+    /// program | model | speech | editor
+    ///
+    /// `speech` holds the two models that decide something about the sound
+    /// rather than about the words: where somebody is speaking, and whose
+    /// voice it is. They were in `model` and `speakers`, one heading each, and
+    /// the owner asked for one — the by-hand list is read down its headings,
+    /// and a heading over a single 2 MB row is a heading about nothing.
     pub group: String,
     /// Without it there is no transcription at all.
     pub required: bool,
@@ -208,7 +214,7 @@ fn raw_catalog() -> Vec<DownloadComponent> {
         k(
             "vad",
             2,
-            "model",
+            "speech",
             true,
             "models/ggml-silero-v6.2.0.bin",
             Destination::AsFile("models/ggml-silero-v6.2.0.bin".into()),
@@ -298,7 +304,7 @@ fn raw_catalog() -> Vec<DownloadComponent> {
         k(
             "model-hlasy",
             28,
-            "speakers",
+            "speech",
             false,
             "models/3dspeaker_speech_campplus_sv_zh_en_16k-common_advanced.onnx",
             Destination::AsFile(
@@ -320,8 +326,18 @@ pub fn catalog(settings: &crate::db::Settings) -> Vec<DownloadComponent> {
             k.origin_verified = origin_verified(settings, &k.id);
             k.recommended = match k.id.as_str() {
                 "ffmpeg" | "vad" => true,
-                // Which model depends on whether there is anything to compute with.
-                "model-large-q5" => has_nvidia || has_vulkan,
+                // Which model depends on whether there is anything to compute
+                // with, and these two are the pair the wizard asks about.
+                //
+                // It used to recommend `model-large-q5` on a machine with a
+                // graphics card — the middle model, which the wizard stopped
+                // offering on 13 August and which nothing offers now. The
+                // badge said one thing and the wizard's own card said another,
+                // and worse: `Spravovat modely` ticks every recommended
+                // component that is not on the disk, so opening the list to
+                // look would have queued a gigabyte of a model no screen
+                // mentions.
+                "model-large" => has_nvidia || has_vulkan,
                 "model-turbo" => !(has_nvidia || has_vulkan),
                 "whisper-cuda" => has_nvidia,
                 "whisper-vulkan" => has_vulkan && !has_nvidia,

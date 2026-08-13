@@ -1,10 +1,9 @@
 /** Strings belonging to the `wizard` screen. */
 export const csWizard = {
-  // ------------------------------------------------------------------ 0. welcome
-  "wizard.welcome.titleFirstRun": "První spuštění",
-  "wizard.welcome.titleAddModels": "Doplnit modely",
-  "wizard.welcome.intro":
-    "Před prvním přepisem je potřeba stáhnout nástroje a jazykový model. Stahování trvá několik minut, poté aplikace pracuje bez připojení k internetu.",
+  // ---------------------------------------------- 0. what the machine can do
+  // The welcome screen's own title and introduction went with the screen on
+  // 13 August; what is left is the line of detected hardware, which now stands
+  // under the one question instead of on a page of its own.
   "wizard.welcome.configurationLabel": "Konfigurace",
   "wizard.welcome.gpuNvidia": "Grafická karta NVIDIA",
   "wizard.welcome.gpuVulkan": "Grafická karta (Vulkan)",
@@ -12,7 +11,6 @@ export const csWizard = {
   "wizard.welcome.transcriptionLabel": "Přepis",
   "wizard.welcome.onGpu": "na grafické kartě",
   "wizard.welcome.onCpu": "na procesoru, tedy pomaleji",
-  "wizard.welcome.note": "Podle konfigurace je předvybrána vhodná sada. Změnit ji lze i později.",
 
   // ------------------------------------------------------------------ 1. quality
   "wizard.quality.title": "Rychle, nebo přesně?",
@@ -27,29 +25,11 @@ export const csWizard = {
   "wizard.quality.changeableNote":
     "Model lze změnit i později v nastavení. Už hotové přepisy se tím ale nepřepočítají.",
 
-  // ---------------------------------------------------------------- 2. speakers
-  "wizard.speakers.title": "Přepisujete i rozhovory?",
-  "wizard.speakers.intro":
-    "Pokud mluví víc lidí, aplikace rozdělí text mezi ně.",
-  "wizard.speakers.singleName": "Většinou mluví jeden člověk",
-  "wizard.speakers.singleDescription": "Přednášky, diktování, poznámky. Nevyžaduje žádné doplňky.",
-  "wizard.speakers.multipleName": "Nahrávám i rozhovory",
-  "wizard.speakers.multipleDescription":
-    "Text se rozdělí mezi jednotlivé mluvčí, které pak můžete pojmenovat.",
-
-  // ------------------------------------------------------------ 3. language editing
-  "wizard.editor.title": "Chcete z přepisu hotový dokument?",
-  "wizard.editor.intro":
-    "Volitelný místní model opraví interpunkci, odstavce a zjevné chyby. Zachová původní přepis a nic neposílá ven.",
-  "wizard.editor.lightName": "Úsporná",
-  "wizard.editor.balancedName": "Doporučená",
-  "wizard.editor.bestName": "Nejvyšší kvalita",
-  "wizard.editor.lightDescription": "Interpunkce, věty a odstavce. Dobrá volba pro slabší CPU.",
-  "wizard.editor.balancedDescription":
-    "Lépe opravuje zjevné chyby a drží souvislosti delší výpovědi.",
-  "wizard.editor.bestDescription":
-    "Nejspolehlivější výsledek. Na počítači bez grafiky bude pomalejší.",
-  "wizard.editor.skip": "Přeskočit",
+  // The speaker step and the language-editing step are gone, and so are their
+  // words. Speaker recognition comes down with everything else and is switched
+  // on where the reader has a recording to switch it on for; language editing
+  // is asked for once, on the transcript screen, when a document is first
+  // wanted. Neither is a question for a first run.
 
   // ------------------------------------------------------ 4. choosing and downloading
   "wizard.download.failedTitle": "Stahování selhalo",
@@ -79,7 +59,7 @@ export const csWizard = {
   "wizard.manual.switchToManual": "Vybrat ručně",
   "wizard.manual.groupPrograms": "Programy",
   "wizard.manual.groupModels": "Jazykové modely",
-  "wizard.manual.groupSpeakers": "Rozpoznání mluvčích",
+  "wizard.manual.groupSpeech": "Řeč a mluvčí",
   "wizard.manual.groupEditor": "Jazyková úprava",
 
   // ------------------------------------------------------------- 5. conclusion
@@ -99,10 +79,6 @@ export const csWizard = {
 } as const;
 
 export const csWizardContext: Partial<Record<keyof typeof csWizard, string>> = {
-  "wizard.welcome.titleFirstRun":
-    "Nadpis prvního kroku průvodce, když se průvodce otevřel sám, protože bez stažených součástí nelze přepisovat.",
-  "wizard.welcome.titleAddModels":
-    "Nadpis prvního kroku průvodce, když si ho uživatel otevřel sám z nastavení, aby doplnil další modely.",
   "wizard.welcome.configurationLabel":
     "Popisek karty s hardwarem, který aplikace sama našla. Uživatel ho nezadával.",
   "wizard.welcome.gpuNvidia":
@@ -126,16 +102,6 @@ export const csWizardContext: Partial<Record<keyof typeof csWizard, string>> = {
     "Popis volby. {duration} je odhad doby přepisu, například „asi minutu“ nebo „asi 8 minut“.",
   "wizard.quality.bestSummary":
     "Popis volby. {duration} je odhad doby přepisu, například „asi 35 minut“.",
-
-  "wizard.speakers.singleName": "Název volby: v nahrávce mluví převážně jeden člověk.",
-  "wizard.speakers.multipleName": "Název volby: uživatel nahrává i rozhovory s více mluvčími.",
-
-  "wizard.editor.lightName":
-    "Název volby jazykové úpravy: nejmenší model, nejmenší nároky na výkon.",
-  "wizard.editor.balancedName": "Název volby jazykové úpravy, kterou průvodce doporučuje.",
-  "wizard.editor.bestName": "Název volby jazykové úpravy: největší a nejpomalejší model.",
-  "wizard.editor.lightDescription": "Popis volby. CPU je procesor, zkratku ponech.",
-  "wizard.editor.skip": "Tlačítko, kterým uživatel čtvrtý krok přeskočí a jazykovou úpravu nechce.",
 
   "wizard.download.dismissError": "Tlačítko, kterým uživatel zavře hlášku o selhaném stahování.",
   "wizard.download.recommendedBadge":
@@ -170,8 +136,10 @@ export const csWizardContext: Partial<Record<keyof typeof csWizard, string>> = {
     "Tlačítko do ručního výběru, kde si uživatel odškrtává jednotlivé součásti sám.",
   "wizard.manual.groupPrograms": "Nadpis skupiny v ručním výběru: spustitelné programy, ne modely.",
   "wizard.manual.groupModels": "Nadpis skupiny v ručním výběru: modely pro rozpoznávání řeči.",
-  "wizard.manual.groupSpeakers":
-    "Nadpis skupiny v ručním výběru: součásti, které rozdělí text mezi jednotlivé mluvčí.",
+  "wizard.manual.groupSpeech":
+    "Nadpis skupiny v ručním výběru. Jsou pod ním dvě položky: detekce řeči " +
+    "(kde se v nahrávce mluví) a rozpoznání mluvčích (kdo mluví). Obě rozhodují " +
+    "o zvuku, ne o slovech.",
   "wizard.manual.groupEditor":
     "Nadpis skupiny v ručním výběru: modely, které hotový přepis upraví do čitelného textu.",
 

@@ -364,13 +364,11 @@ button.current > .row-play { color: var(--accent); }
 .player-missing > span { font-size: 13.5px; color: var(--text-quiet); }
 .mini-time.destructive-item { color: var(--danger); }
 
-/* call to action under a settings field */
-.field-prompt {
-  display: flex; align-items: center; justify-content: space-between; gap: 16px;
-  margin-top: 8px; padding: 10px 12px;
-  background: var(--danger-light); border-radius: var(--r-card);
-}
-.field-prompt > span { font-size: 13px; color: var(--danger); }
+/* `.field-prompt` stood here — a red panel with a sentence and a button, and
+   its only user was `Jazyková úprava` saying its model was not downloaded yet.
+   That is an optional feature nobody has asked for, not a fault, and the red
+   said otherwise. It is a plain `settings-action-row` now, which is what this
+   application already uses for a sentence and a button. */
 
 /* Nothing may clip the time bubble, hence no `overflow: hidden` here —
    the waveform stays inside because it is absolutely positioned. */

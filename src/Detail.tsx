@@ -29,7 +29,16 @@ import { localMessage, useProgressMessage, useUserMessage } from "./messages";
 import type { TranslationKey } from "./i18n";
 import { useLabels } from "./labels";
 import { useDialog } from "./useDialog";
-import { CONFIDENCE_THRESHOLD, formatTime, fileName, statusClass } from "./types";
+import {
+  CONFIDENCE_THRESHOLD,
+  EDITOR_MODELS,
+  EDITOR_TIER,
+  formatTime,
+  fileName,
+  qualityChoice,
+  statusClass,
+} from "./types";
+import { useFormats } from "./formats";
 import { forgetSpeakerName, returnSpeakerName, useSpeakerNamePool } from "./speakerNames";
 import { useProgressiveList } from "./progressiveList";
 import ProgressBubble from "./ProgressBubble";
@@ -147,6 +156,8 @@ export default function Detail({
   const userMessage = useUserMessage();
   const progressMessage = useProgressMessage();
   const labels = useLabels();
+  /** For the one sentence that names how large the language editor is. */
+  const { dataSize } = useFormats();
   const [title, setTitle] = useState("");
   const [renamingTitle, setRenamingTitle] = useState(false);
   const [confirmation, setConfirmation] = useState<ConfirmationRequest | null>(null);
@@ -175,12 +186,26 @@ export default function Detail({
   const [aiRunning, setAiRunning] = useState(false);
   const [aiProgress, setAiProgress] = useState<AiEditProgress | null>(null);
   const [aiConfigured, setAiConfigured] = useState(false);
-  const [aiModel, setAiModel] = useState("");
+  /* `aiModel` stood here — which language-editing model was resolved on disk.
+     Its only reader was the missing-model dialog, which used it to guess which
+     of three tiers to ask the component list for. Nothing asks which any more. */
   const [aiReady, setAiReady] = useState(false);
   /** Whether the speaker-separation tools are installed. Its card offers to
    *  fetch them when they are not, rather than failing on the way out. */
   const [speakersReady, setSpeakersReady] = useState(false);
   const [aiDialog, setAiDialog] = useState<"configure" | "preview" | "missing" | null>(null);
+  /** What language editing would cost on this machine, worked out the moment
+   *  somebody first wants a document: which components are missing and how many
+   *  megabytes that is. Which model is not among the questions — the size
+   *  follows the one answer given in the wizard. */
+  const [editorOffer, setEditorOffer] = useState<{
+    ids: string[];
+    megabytes: number;
+    model: string;
+  } | null>(null);
+  /** The offer was accepted and the download is running behind this screen.
+   *  Asking a second time would be asking twice; the dialog says so instead. */
+  const [editorDownloading, setEditorDownloading] = useState(false);
   /* Three modals, three traps. They were the four dialogs Escape did nothing
      in — closable only by clicking the overlay, which is not a thing the
      keyboard can do. One `useDialog` each, because a hook cannot live inside
@@ -382,18 +407,30 @@ export default function Detail({
      winning. */
   const [editingUncertain, setEditingUncertain] = useState<string | null>(null);
   /** The strip of shortcuts under the player. Useful the first few times and
-   *  then just a line of text in the way, so it can be dismissed here. Settings
-   *  used to have a switch that brought it back and no longer does: a control on
-   *  another screen undoing a press made on this one is a setting for a decision
-   *  nobody revisits. Dismissing it is final on this machine now. Kept beside
-   *  the panel's own preference rather than in the database — it is a habit of
-   *  this machine, not of the archive. */
+   *  then just a line of text in the way, so it is dismissed here — and brought
+   *  back here, by a button that appears in the player's row only once the strip
+   *  is gone.
+   *
+   *  Settings used to carry `Zobrazovat tipy nad přepisem`, and it was right to
+   *  delete it: a switch on another screen undoing a press made on this one is a
+   *  setting for a decision nobody revisits. What was wrong was leaving the press
+   *  with no way back at all — the entry that removed the switch called that "the
+   *  trade", and it is not one anybody needs to make. The way back belongs where
+   *  the thing disappeared, and it costs nothing while the strip is up because it
+   *  is not drawn then.
+   *
+   *  Kept in `localStorage` beside the panel's own preference rather than in the
+   *  database: it is a habit of this machine, not of the archive. */
   const [tipsVisible, setTipsVisible] = useState(
     () => localStorage.getItem("rychle-tipy") !== "skryte"
   );
   const hideTips = useCallback(() => {
     localStorage.setItem("rychle-tipy", "skryte");
     setTipsVisible(false);
+  }, []);
+  const showTips = useCallback(() => {
+    localStorage.removeItem("rychle-tipy");
+    setTipsVisible(true);
   }, []);
   // The panel is remembered between recordings: whoever closes it wants quiet.
   const [panelOpen, setPanelOpen] = useState(
@@ -446,7 +483,6 @@ export default function Detail({
       setAiOutputs(aiStatus.outputs);
       setAiRunning(aiStatus.running);
       setAiConfigured(!!settings.editor_model);
-      setAiModel(tools.editor_model_id ?? settings.editor_model);
       setAiReady(!!settings.editor_model && tools.issues_editor.length === 0);
       setSpeakersReady(tools.issues_diarization.length === 0);
       if (aiStatus.running) {
@@ -493,6 +529,28 @@ export default function Detail({
       unlisten?.();
     };
   }, [id, onError, progressMessage]);
+
+  /* The language editor landing while this screen is open. Nothing else on it
+     depends on a download, so the listener exists only while one of ours is
+     running — and if the reader walks away before it finishes, the setting was
+     already written and the next visit reads the files off the disk. */
+  useEffect(() => {
+    if (!editorDownloading) return;
+    let active = true;
+    let unlisten: (() => void) | undefined;
+    listen("download:complete", () => {
+      if (!active) return;
+      setEditorDownloading(false);
+      void load();
+    }).then((stop) => {
+      if (active) unlisten = stop;
+      else stop();
+    });
+    return () => {
+      active = false;
+      unlisten?.();
+    };
+  }, [editorDownloading, load]);
 
   // Events can be emitted between starting the backend thread and resolving
   // the invoke call. Polling the small status object keeps the displayed phase
@@ -1310,6 +1368,46 @@ export default function Detail({
   const diarizeSpeakers = useCallback(() => onDiarize(id), [id, onDiarize]);
 
   // ---------------------------------------------------------------- export
+  /** Ask, once, before the first document.
+   *
+   *  The language editor is the largest thing this application downloads and it
+   *  is wanted by some people and never by others, which is why it left the
+   *  first run: it was 81 % of a first installation for a feature its own screen
+   *  calls optional. It is asked for here instead, at the moment somebody wants
+   *  what it makes, with one sentence naming the size.
+   *
+   *  There is no second question about which model. The tier follows the answer
+   *  the wizard already has, and the runtime follows the drivers — the same rule
+   *  `tools.rs` uses when it looks for `llama-cli`. What is asked is the only
+   *  thing the reader knows better than the machine: whether they want it.
+   */
+  const askForEditor = useCallback(async () => {
+    try {
+      const [components, settings, tools] = await Promise.all([
+        api.catalog(),
+        api.loadSettings(),
+        api.checkTools(),
+      ]);
+      const tier = EDITOR_TIER[qualityChoice(settings)];
+      const runtime = tools.vulkan_driver ? "editor-vulkan" : "editor-cpu";
+      const ids = [tier, runtime].filter(
+        (component) => !components.find((item) => item.id === component)?.complete
+      );
+      setEditorOffer({
+        ids,
+        megabytes: ids.reduce(
+          (total, component) =>
+            total + (components.find((item) => item.id === component)?.megabytes ?? 0),
+          0
+        ),
+        model: EDITOR_MODELS[tier],
+      });
+      setAiDialog("missing");
+    } catch (error) {
+      onError(userMessage(error));
+    }
+  }, [onError, userMessage]);
+
   const openAiAction = useCallback(async () => {
     // A generated document remains useful even if the source transcript or
     // selected model changed later. Let the user inspect and save it first;
@@ -1320,12 +1418,52 @@ export default function Detail({
       return;
     }
     if (!aiConfigured || !aiReady) {
-      setAiDialog("missing");
+      if (editorDownloading) setAiDialog("missing");
+      else await askForEditor();
       return;
     }
     setAiMode("faithful");
     setAiDialog("configure");
-  }, [aiConfigured, aiReady, aiDocument]);
+  }, [aiConfigured, aiReady, aiDocument, askForEditor, editorDownloading]);
+
+  /** Yes. Fetch what is missing and record that the feature is wanted.
+   *
+   *  The download runs behind this screen — `download` in `downloads.rs` starts
+   *  a thread and returns — so the reader goes on reading, and the
+   *  application's own progress bubble reports it with a way to stop.
+   *
+   *  The setting is written now rather than when the files land. It says what
+   *  was asked for; `resolve_editor_model` in `tools.rs` falls back to whatever
+   *  model is actually on the disk, so a name written ahead of its file is not
+   *  a dead end — and a listener that had to survive the reader walking to the
+   *  Archive would not have survived it. */
+  const acceptEditor = useCallback(async () => {
+    if (!editorOffer) return;
+    setAiDialog(null);
+    try {
+      if (editorOffer.ids.length > 0) {
+        await api.download(editorOffer.ids);
+        setEditorDownloading(true);
+      }
+      const settings = await api.loadSettings();
+      await api.saveSettings({ ...settings, editor_model: editorOffer.model });
+      await load();
+      // Everything was already on the disk: there is nothing to wait for, so
+      // the press that asked for a document goes on to ask what kind.
+      if (editorOffer.ids.length === 0) {
+        setAiMode("faithful");
+        setAiDialog("configure");
+      }
+    } catch (error) {
+      /* `download.already_running` is said rather than swallowed. The wizard
+         hides it because there the refused call and the running download are
+         the same batch, watched on the same screen; here they need not be —
+         it may be the reader's own editor download from a minute ago, or a
+         graphics build started in Settings — and a press that produced nothing
+         and said nothing would be the worst of the three. */
+      onError(userMessage(error));
+    }
+  }, [editorOffer, load, onError, userMessage]);
 
   const startAiEdit = useCallback(async () => {
     // Separating speakers is not a language-model pass at all; it shares this
@@ -1364,7 +1502,8 @@ export default function Detail({
     variant: string
   ) => {
     if (!aiConfigured || !aiReady) {
-      setAiDialog("missing");
+      if (editorDownloading) setAiDialog("missing");
+      else await askForEditor();
       return;
     }
     setAiDialog(null);
@@ -1389,7 +1528,7 @@ export default function Detail({
       setAiRunning(false);
       onError(userMessage(error));
     }
-  }, [aiConfigured, aiReady, id, onError, t, userMessage]);
+  }, [aiConfigured, aiReady, askForEditor, editorDownloading, id, onError, t, userMessage]);
 
   const openOriginalPreview = useCallback(async () => {
     setPreviewTab("original");
@@ -1781,6 +1920,26 @@ export default function Detail({
           onSeek={updateCursor}
           trailingControl={(
             <>
+            {/* The way back to the dismissed shortcut strip, drawn only when
+                there is one to come back to. A keyboard, because that is what
+                the strip is about; the same 16 px inline drawing as its two
+                neighbours rather than a `LineIcon`, which is the 22 px mark
+                used inside circles. */}
+            {segments.length > 0 && !tipsVisible && (
+              <button
+                className="icon-button"
+                onClick={showTips}
+                aria-label={t("detail.tips.show")}
+                title={t("detail.tips.show")}
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
+                  <rect x="0.9" y="3.4" width="14.2" height="9.2" rx="2"
+                        stroke="currentColor" strokeWidth="1.4" />
+                  <path d="M3.6 6.2h.01M6.2 6.2h.01M8.8 6.2h.01M11.4 6.2h.01M3.6 8.6h.01M12 8.6h.01M5.4 10.6h5.2"
+                        stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+              </button>
+            )}
             {/* Beside the panel toggle, because both are tools of the screen
                 rather than of playback — and without a target of its own the
                 find bar existed only for whoever knew Ctrl+F. */}
@@ -2533,29 +2692,40 @@ export default function Detail({
         />
       )}
 
+      {/* The one question about language editing, asked where it is wanted.
+          It used to be a notice saying the feature was not ready and a button
+          reading `Vybrat model`, which walked to the component list and asked
+          which of three — a second question about something the first run had
+          already answered, in a screen the reader had not asked to open. Now it
+          is yes or no, with the size in the sentence, and yes starts the
+          download behind this screen.
+
+          Pressed again while that download is running it says so rather than
+          offering again: asked once means once. */}
       {aiDialog === "missing" && (
         <div className="dialog-overlay" role="presentation" onMouseDown={() => setAiDialog(null)}>
           <div ref={missingDialog} className="dialog" role="dialog" aria-modal="true"
                aria-labelledby="ai-missing-title"
                onMouseDown={(event) => event.stopPropagation()}>
-            <h2 id="ai-missing-title">{t("detail.ai.missingTitle")}</h2>
-            <p>{t("detail.ai.missingText")}</p>
+            <h2 id="ai-missing-title">
+              {t(editorDownloading ? "detail.ai.downloadingTitle" : "detail.ai.offerTitle")}
+            </h2>
+            <p>
+              {editorDownloading
+                ? t("detail.ai.downloadingText")
+                : t("detail.ai.offerText", {
+                    size: dataSize(editorOffer?.megabytes ?? 0),
+                  })}
+            </p>
             <div className="dialog-footer">
               <button className="button quiet" onClick={() => setAiDialog(null)}>
                 {t("common.close")}
               </button>
-              <button
-                className="button primary"
-                onClick={() => onToModule(
-                  aiModel.includes("12b")
-                    ? "editor-model-best"
-                    : aiModel.includes("e2b")
-                      ? "editor-model-light"
-                      : "editor-model-balanced"
-                )}
-              >
-                {t("detail.ai.chooseModel")}
-              </button>
+              {!editorDownloading && (
+                <button className="button primary" onClick={() => void acceptEditor()}>
+                  {t("common.download")}
+                </button>
+              )}
             </div>
           </div>
         </div>

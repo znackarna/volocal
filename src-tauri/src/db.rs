@@ -222,6 +222,19 @@ pub struct Settings {
     #[serde(default)]
     pub update_check_automatic: bool,
     pub model: String,
+    /// The answer to the only question the first run asks: `fast` or
+    /// `accurate`. Everything that has a fast and an accurate side follows
+    /// from it — the transcription model the wizard downloads, and the size of
+    /// the language-editing model offered later — so that nothing asks a
+    /// second time.
+    ///
+    /// Empty means nobody has been asked, which is every installation set up
+    /// before 14 August 2026. It is deliberately not guessed here: the window
+    /// reads it against `model`, which is what the same question produced on
+    /// those machines. Serde default rather than a named one, so an older
+    /// settings record still loads.
+    #[serde(default)]
+    pub quality_choice: String,
     /// Optional local language-editing model. Empty means that the feature was
     /// skipped and no background model is downloaded or loaded.
     #[serde(default)]
@@ -276,7 +289,15 @@ pub struct Settings {
     /// the fallback off entirely, leaving nothing to break a loop.
     #[serde(default = "default_temperature_increment", alias = "teplota_krok")]
     pub temperature_increment: f64,
-    /// auto | cuda | vulkan | cpu — which whisper.cpp build to use
+    /// auto | cuda | vulkan | cpu — which whisper.cpp build to use.
+    ///
+    /// Nothing in the window writes anything but `auto` any more: the machine
+    /// picks the backend from its drivers, exactly as the wizard already picks
+    /// the programs, and `Akcelerace zpracování` was removed from Settings on
+    /// 14 August 2026. The field stays because a settings record written
+    /// before that may name a backend, and `choose_compute` still honours it
+    /// where the machine can run it. `Nástroje` shows what actually ran and
+    /// offers the one way back to `auto`.
     #[serde(default = "default_compute", alias = "vypocet")]
     pub compute: String,
     /// Which machine last did the computing. When it changes we offer to
@@ -355,6 +376,8 @@ impl Default for Settings {
             copy_imports: false,
             update_check_automatic: false,
             model: "large-v3".into(),
+            // Nobody has been asked yet; the wizard writes it.
+            quality_choice: String::new(),
             editor_model: String::new(),
             language: "auto".into(),
             // Always on: without it Whisper hallucinates over silence.

@@ -48,32 +48,25 @@ export const csSettings = {
   "settings.editor.title": "Jazyková úprava",
   "settings.editor.description":
     "Vytvoří nový dokument. Nepřepíše původní přepis a časové značky.",
-  "settings.editor.light.title": "Úsporná",
-  "settings.editor.light.description": "Interpunkce, věty a odstavce. Dobrá i pro slabší CPU.",
-  "settings.editor.balanced.title": "Doporučená",
-  "settings.editor.balanced.description": "Lépe opravuje zjevné chyby a drží souvislosti.",
-  "settings.editor.best.title": "Nejvyšší kvalita",
-  "settings.editor.best.description": "Nejspolehlivější, ale na CPU pomalejší.",
-  "settings.editor.missing": "Model jazykové úpravy zatím není stažený.",
+  "settings.editor.download":
+    "Model se stáhne jednou, {size}, a pak pracuje bez připojení k internetu.",
   "settings.editor.enabledNote": "Model se načte až při spuštění úpravy.",
 
-  // Compute backend and the speed test, inside the advanced block.
-  "settings.performance.autoDescription": "Vybere nejrychlejší dostupnou technologii.",
-  "settings.performance.cudaDescription": "Nejrychlejší, když ji počítač má.",
-  "settings.performance.vulkanDescription": "Jakákoli grafická karta, včetně NVIDIA.",
-  "settings.performance.cpuDescription": "Bez grafické karty. Několikanásobně pomalejší.",
-  "settings.performance.defaultDescription": "Sestavení bez zvolené akcelerace.",
-  "settings.performance.compute": "Akcelerace zpracování",
-  "settings.performance.selectedMissing":
-    "Vybraný způsob zpracování zatím není stažený. Přepis zatím běží tím, co je k dispozici.",
-  "settings.performance.notDownloaded": "není stažené",
-  "settings.performance.benchmarkNote":
-    "Test přepíše kousek nahrávky a rovnou nastaví nejrychlejší režim.",
-  "settings.performance.benchmarking": "Měřím…",
-  "settings.performance.benchmark": "Změřit rychlost",
-  "settings.performance.fastest": "nejrychlejší",
-  "settings.performance.benchmarkFailed": "nelze použít — {error}",
-  "settings.performance.benchmarkResult": "{factor}× realtime ({seconds} s)",
+  // What the transcription actually ran on. Not a choice: the machine decides
+  // by its drivers, and this card only says what it decided.
+  "settings.compute.title": "Kde přepis běží",
+  "settings.compute.description":
+    "Aplikace si sama vybere nejrychlejší možnost, kterou tento počítač zvládne.",
+  "settings.compute.running": "Používá se",
+  "settings.compute.pinned":
+    "Dřív tu bylo ručně nastavené {chosen}. Aplikace to respektuje, i když by sama vybrala jinak.",
+  "settings.compute.substituted":
+    "Dřív tu bylo ručně nastavené {chosen}. Tady to spustit nejde, takže přepis běží jinak.",
+  "settings.compute.letItDecide": "Nechat na aplikaci",
+  "settings.compute.graphicsCardIdle":
+    "V počítači je grafická karta, ale sestavení pro ni zatím není stažené.",
+  "settings.compute.noGraphicsCard":
+    "Tento počítač nemá podporovanou grafickou kartu, přepis proto počítá procesor.",
 
   // Folders: where the programs and models live, and which folder is watched.
   "settings.files.locationsTitle": "Umístění nástrojů a modelů",
@@ -268,12 +261,6 @@ export const csSettings = {
 } as const;
 
 export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>> = {
-  "settings.performance.autoDescription":
-    "Popis volby „Rozhodnout automaticky“ na kartě akcelerace.",
-  "settings.performance.vulkanDescription":
-    "Popis volby Vulkan. Vulkan běží na kartách všech výrobců včetně NVIDIE; časný omyl je, že jde jen o náhradu za CUDA. Název NVIDIA se ve větě neskloňuje záměrně.",
-  "settings.performance.defaultDescription":
-    "Popis staršího sestavení whisper.cpp, které nemá zvolenou akceleraci. Ukáže se jen tam, kde takové sestavení je.",
   "settings.tab.transcription": "Název záložky. Jde o převod řeči na text, ne o opisování.",
   "settings.tab.tools":
     "Název záložky, na které je vidět, co je v tomhle počítači nainstalované: " +
@@ -306,24 +293,33 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
 
   "settings.editor.title":
     "Název sekce i popisek přepínače. Jde o dodatečnou úpravu textu jazykovým modelem, ne o editor jako program.",
-  "settings.editor.light.title": "Nejmenší z modelů jazykové úpravy. Šetří paměť a čas.",
-  "settings.editor.balanced.title": "Doporučená volba mezi třemi modely jazykové úpravy.",
-  "settings.editor.light.description": "CPU je procesor počítače.",
+  "settings.editor.download":
+    "Věta vedle tlačítka Stáhnout na kartě Jazyková úprava, když model ještě " +
+    "není v počítači. {size} je velikost i s jednotkou, například „3,3 GB“. " +
+    "Který model to je, se uživatele neptáme — vyplývá z volby z průvodce.",
 
-  "settings.performance.compute":
-    "Popisek nad kartami, na kterých se volí procesor, CUDA nebo Vulkan.",
-  "settings.performance.selectedMissing":
-    "Vybraný způsob zpracování zatím není stažený. Přepis zatím běží tím, co je k dispozici.",
-  "settings.performance.notDownloaded":
-    "Poznámka u položky nabídky: tato varianta v počítači zatím není.",
-  "settings.performance.benchmarking": "Stav tlačítka po dobu měření rychlosti.",
-  "settings.performance.fastest":
-    "Přívlastek za názvem nejrychlejšího změřeného režimu. Vykresluje se za " +
-    "pomlčkou, takže začíná malým písmenem.",
-  "settings.performance.benchmarkFailed":
-    "Výsledek měření u režimu, který se nepodařilo spustit. {error} je hlášení z programu.",
-  "settings.performance.benchmarkResult":
-    "Výsledek měření: {factor}× rychleji než skutečný čas nahrávky, {seconds} je doba testu v sekundách.",
+  "settings.compute.title":
+    "Nadpis karty na záložce Nástroje. Neříká, co si uživatel vybral — vybrat " +
+    "to nejde — ale na čem přepis skutečně počítá.",
+  "settings.compute.description":
+    "Věta pod nadpisem. Vysvětluje, že je to zjištěný stav, ne nastavení.",
+  "settings.compute.running":
+    "Popisek řádku, za kterým je název použitého sestavení: „Grafická karta " +
+    "Nvidia (CUDA)“, „Procesor (CPU)“ a podobně.",
+  "settings.compute.pinned":
+    "Věta pro případ, že je uloženo ruční nastavení z dřívější verze aplikace a " +
+    "tenhle počítač ho spustit umí. {chosen} je název toho nastavení, například " +
+    "„Procesor (CPU)“.",
+  "settings.compute.substituted":
+    "Táž věta pro případ, že tenhle počítač uložené nastavení spustit neumí. " +
+    "{chosen} je název toho nastavení.",
+  "settings.compute.letItDecide":
+    "Tlačítko vedle té věty. Zruší staré ruční nastavení a vrátí rozhodování aplikaci.",
+  "settings.compute.graphicsCardIdle":
+    "Věta vedle tlačítka Stáhnout: grafická karta v počítači je, ale program pro " +
+    "ni chybí, takže se nevyužívá.",
+  "settings.compute.noGraphicsCard":
+    "Věta na počítači bez použitelné grafické karty. Není to chyba, jen konstatování.",
 
   "settings.files.locationsTitle":
     "Nadpis karty na záložce Nástroje. Pod ním jsou dva řádky, Složka nástrojů a " +

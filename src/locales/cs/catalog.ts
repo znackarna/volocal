@@ -38,15 +38,18 @@ export const csCatalog = {
   "catalog.editor-cpu.name": "Jazyková úprava na procesoru",
   "catalog.editor-cpu.description":
     "Univerzální varianta pro počítače bez podporované grafiky.",
-  "catalog.editor-model-light.name": "Úsporná jazyková úprava",
+  // Three modely, které dělají touž práci s různým počtem parametrů. Co která
+  // z nich umí navíc, nikdo neměřil, takže se to tady netvrdí: v popisu je
+  // jméno modelu a nároky, které z jeho velikosti plynou.
+  "catalog.editor-model-light.name": "Jazyková úprava — menší model",
   "catalog.editor-model-light.description":
-    "Gemma 4 E2B. Interpunkce, věty a odstavce i na CPU.",
-  "catalog.editor-model-balanced.name": "Doporučená jazyková úprava",
+    "Gemma 4 E2B. Ze tří nabízených nejmenší, potřebuje nejmíň paměti.",
+  "catalog.editor-model-balanced.name": "Jazyková úprava — střední model",
   "catalog.editor-model-balanced.description":
-    "Gemma 4 E4B. Lépe opravuje zjevné chyby a drží souvislosti.",
-  "catalog.editor-model-best.name": "Nejlepší jazyková úprava",
+    "Gemma 4 E4B. Aplikace ho sama nenabízí; funguje, pokud ho už v počítači máte.",
+  "catalog.editor-model-best.name": "Jazyková úprava — větší model",
   "catalog.editor-model-best.description":
-    "Gemma 4 12B. Nejspolehlivější výsledek, na CPU je pomalejší.",
+    "Gemma 4 12B. Dělá totéž s víc parametry, a potřebuje na to víc paměti.",
 
   // Telling speakers apart.
   "catalog.model-hlasy.name": "Rozpoznání hlasů",
@@ -65,8 +68,17 @@ export const csCatalogContext: Partial<Record<keyof typeof csCatalog, string>> =
     "Položka ke stažení — přepisovací model. Jméno rodiny modelů (large-v3-turbo) se v názvu neuvádí schválně.",
   "catalog.model-large.description":
     "„Nejpřesnější čeština“ platí pro české nahrávky; u jiných jazyků je model taky nejlepší z nabízených.",
+  "catalog.editor-model-light.name":
+    "Položka ke stažení. Modely jazykové úpravy se jmenují podle velikosti, ne " +
+    "podle kvality — o jejich výstupu není nic změřeno.",
   "catalog.editor-model-light.description":
-    "Gemma 4 E2B je název modelu a nepřekládá se. CPU = procesor.",
+    "Gemma 4 E2B je název modelu a nepřekládá se.",
+  "catalog.editor-model-balanced.description":
+    "Gemma 4 E4B je název modelu. Tenhle model aplikace nikde nenabízí, jen " +
+    "ho umí použít, když ho uživatel má z dřívějška.",
+  "catalog.editor-model-best.description":
+    "Gemma 4 12B je název modelu. „Víc parametrů“ je velikost modelu, ne lepší " +
+    "výsledek — to nikdo neměřil.",
   "catalog.model-hlasy.name":
     "Identifikátor položky zůstal český z historických důvodů, název se překládá normálně.",
 };

@@ -3,7 +3,6 @@ import type {
   AiDocument,
   AiEditProgress,
   AiOutput,
-  BenchmarkResult,
   Detail,
   DictionaryEntry,
   DownloadComponent,
@@ -113,8 +112,10 @@ export const api = {
   cancelDownload: () => invoke<void>("cancel_download"),
   createPortableCopy: (path: string) => invoke<number>("create_portable_copy", { path }),
 
-  benchmarkCompute: (recordingId?: string) =>
-    invoke<BenchmarkResult[]>("benchmark_compute", { recordingId: recordingId ?? null }),
+  /* `benchmarkCompute` stood here. Nothing in the window chooses a compute
+     backend any more, so nothing measures one either; `benchmark_compute` is
+     still registered in `main.rs` and is the only instrument this application
+     has for timing a backend, which is why it was kept rather than deleted. */
   machineName: () => invoke<string>("name_machine"),
 
   exportPreview: (id: string, format: string) =>

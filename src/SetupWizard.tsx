@@ -6,6 +6,11 @@ import { LineIcon } from "./icons";
 import { useI18n, type TranslationKey } from "./i18n";
 import { messageCode, useProgressMessage, useUserMessage } from "./messages";
 import { useFormats } from "./formats";
+import {
+  EDITOR_MODELS,
+  UNOFFERED_COMPONENTS,
+  type QualityChoice,
+} from "./types";
 import type { DownloadComponent, ToolCheck, DownloadProgress } from "./types";
 
 interface Props {
@@ -18,7 +23,6 @@ interface Props {
 }
 
 type Quality = "fastest" | "best";
-type EditingQuality = "off" | "light" | "balanced" | "best";
 
 /** The quality choice is mapped to a concrete model only here — nobody should
  *  have to know that "best" means large-v3. Nothing but identifiers and
@@ -41,17 +45,26 @@ type EditingQuality = "off" | "light" | "balanced" | "best";
  *  took. */
 const MODELS: Record<
   Quality,
-  { component: string; settings: string; name: TranslationKey; summary: TranslationKey }
+  {
+    component: string;
+    settings: string;
+    /** What is written down as the answer, for everything that follows it. */
+    choice: QualityChoice;
+    name: TranslationKey;
+    summary: TranslationKey;
+  }
 > = {
   fastest: {
     component: "model-turbo",
     settings: "large-v3-turbo-q5_0",
+    choice: "fast",
     name: "wizard.quality.fastestName",
     summary: "wizard.quality.fastestSummary",
   },
   best: {
     component: "model-large",
     settings: "large-v3",
+    choice: "accurate",
     name: "wizard.quality.bestName",
     summary: "wizard.quality.bestSummary",
   },
@@ -70,29 +83,14 @@ const MODELS: Record<
  *  question finally has an answer, and by then nothing needs downloading. */
 const DIARIZATION_COMPONENTS = ["model-hlasy"];
 
-const EDITOR_MODELS: Record<
-  Exclude<EditingQuality, "off">,
-  { component: string; settings: string; name: TranslationKey; description: TranslationKey }
-> = {
-  light: {
-    component: "editor-model-light",
-    settings: "gemma-4-e2b-q4",
-    name: "wizard.editor.lightName",
-    description: "wizard.editor.lightDescription",
-  },
-  balanced: {
-    component: "editor-model-balanced",
-    settings: "gemma-4-e4b-q4",
-    name: "wizard.editor.balancedName",
-    description: "wizard.editor.balancedDescription",
-  },
-  best: {
-    component: "editor-model-best",
-    settings: "gemma-4-12b-q4",
-    name: "wizard.editor.bestName",
-    description: "wizard.editor.bestDescription",
-  },
-};
+/* The three named tiers of language editing stood here — `Úsporná`,
+   `Doporučená`, `Nejvyšší kvalita`, each with a sentence saying what it does
+   better than the one below it. The table is in `types.ts` now and carries
+   identifiers only, because those sentences were not true in the way a reader
+   would take them: nothing in `docs/history/` has ever compared the three
+   models' output, and the entry that gave them their counted sparkles says in
+   as many words that they "trade nothing; they do the same work with more of
+   it". What differs is how large the file is. */
 
 /** Rough estimate for an hour-long recording, in minutes. Measured on a Radeon
  *  RX 9070; on a CPU it is an order of magnitude different, hence two sets of
@@ -345,6 +343,14 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
           if (landed(MODELS[quality].component)) {
             changesApplied.model = MODELS[quality].settings;
           }
+          /* Written whether or not the model landed, and that is the
+             difference between the two: `model` names a file and must not name
+             one that is missing, while this is the answer to a question the
+             reader has just answered. Everything that follows from it — how
+             large a language-editing model is fetched the first time a
+             document is wanted — follows from the answer, not from the
+             download. */
+          changesApplied.quality_choice = MODELS[quality].choice;
         } else {
           /* The by-hand path used to write `editor_model` and nothing else, and
              that was a way to break a working installation with a download that
@@ -361,11 +367,15 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
           const pickedModel = Object.values(MODELS).find(
             (choice) => manualSelect.has(choice.component) && landed(choice.component)
           );
-          if (pickedModel) changesApplied.model = pickedModel.settings;
-          const selectedEditor = Object.values(EDITOR_MODELS).find(
-            (choice) => manualSelect.has(choice.component) && landed(choice.component)
+          if (pickedModel) {
+            changesApplied.model = pickedModel.settings;
+            // Ticking a model by hand answers the same question the cards ask.
+            changesApplied.quality_choice = pickedModel.choice;
+          }
+          const selectedEditor = Object.keys(EDITOR_MODELS).find(
+            (component) => manualSelect.has(component) && landed(component)
           );
-          if (selectedEditor) changesApplied.editor_model = selectedEditor.settings;
+          if (selectedEditor) changesApplied.editor_model = EDITOR_MODELS[selectedEditor];
         }
         await api.saveSettings(changesApplied);
       } catch {
@@ -843,10 +853,16 @@ function ManualSelection({
   const { t, tDynamic } = useI18n();
   const { dataSize } = useFormats();
 
+  /* Four headings, and the third holds two rows that used to be a heading
+     each: finding where somebody is speaking, and telling whose voice it is.
+     Both decide something about the sound rather than about the words, and
+     `Detekce řeči` had a heading of its own over one 2 MB line. The grouping
+     is the catalogue's — `download.rs` gives both components the group
+     `speech` — so this list and anything else that reads a group agree. */
   const groups: Array<[string, TranslationKey]> = [
     ["program", "wizard.manual.groupPrograms"],
     ["model", "wizard.manual.groupModels"],
-    ["speakers", "wizard.manual.groupSpeakers"],
+    ["speech", "wizard.manual.groupSpeech"],
     ["editor", "wizard.manual.groupEditor"],
   ];
   return (
@@ -857,6 +873,13 @@ function ManualSelection({
           <ul className="components">
             {items
               .filter((p) => p.group === key)
+              /* The two middle models are not offered here either — that is
+                 the owner's call and it makes the rule the same everywhere.
+                 One that is already on the disk stays visible as a ticked,
+                 disabled row: this list is also how somebody reads what this
+                 machine holds, and hiding a gigabyte that is there would make
+                 it lie in the other direction. */
+              .filter((p) => p.complete || !UNOFFERED_COMPONENTS.includes(p.id))
               .map((p) => (
                 <li key={p.id} className={`component ${p.complete ? "done" : ""}`}>
                   <label>

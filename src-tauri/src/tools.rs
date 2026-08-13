@@ -353,6 +353,13 @@ pub fn usable_compute(backend: &str) -> bool {
 }
 
 /// Picks the compute build. "auto" decides by what the machine has.
+///
+/// The substitution below is silent by design — a transcription must run — but
+/// it must not be silent on screen. `ToolCheck::compute` is this function's
+/// answer, not the stored setting, and since `Akcelerace zpracování` left
+/// Settings on 14 August 2026 that is the only thing the reader has: `Nástroje`
+/// shows this value and, when it differs from what is stored or from what the
+/// drivers would allow, says which and why.
 pub fn choose_compute(bin: &Path, choice: &str) -> String {
     let available = available_compute_backends(bin);
     if available.is_empty() {

@@ -22,7 +22,15 @@ import Select from "./Select";
 import { useI18n, type AppLanguage } from "./i18n";
 import { useUserMessage } from "./messages";
 import type { TranslationKey } from "./i18n";
-import { FONTS, MODEL_IDS, applyFonts, applyTheme } from "./types";
+import {
+  EDITOR_MODELS,
+  EDITOR_TIER,
+  FONTS,
+  MODEL_IDS,
+  applyFonts,
+  applyTheme,
+  qualityChoice,
+} from "./types";
 import { useFormats } from "./formats";
 import { useLabels } from "./labels";
 import { SettingsToggle } from "./settings/toggle";
@@ -30,7 +38,6 @@ import { UpdateCheck } from "./settings/updates";
 import type {
   ToolCheck,
   Settings,
-  BenchmarkResult,
   DownloadComponent,
   DictionaryEntry,
 } from "./types";
@@ -58,42 +65,35 @@ interface Props {
   onToModule: (module?: string) => void;
 }
 
-/** Only identifiers here: the names and descriptions are looked up inside the
- *  components, so they follow a language change instead of freezing at import. */
-const EDITOR_CHOICES: ReadonlyArray<{
-  component: string;
-  model: string;
-  titleKey: TranslationKey;
-  descriptionKey: TranslationKey;
-}> = [
-  {
-    component: "editor-model-light",
-    model: "gemma-4-e2b-q4",
-    titleKey: "settings.editor.light.title",
-    descriptionKey: "settings.editor.light.description",
-  },
-  {
-    component: "editor-model-balanced",
-    model: "gemma-4-e4b-q4",
-    titleKey: "settings.editor.balanced.title",
-    descriptionKey: "settings.editor.balanced.description",
-  },
-  {
-    component: "editor-model-best",
-    model: "gemma-4-12b-q4",
-    titleKey: "settings.editor.best.title",
-    descriptionKey: "settings.editor.best.description",
-  },
-];
+/* `EDITOR_CHOICES` stood here: three cards, `Úsporná`, `Doporučená`,
+   `Nejvyšší kvalita`, each with a sentence about what it does better. Two
+   things were wrong with it and only one of them is about layout.
 
-/** Where transcription can run, in the order it is offered. `vychozi` is a
- *  build with no acceleration chosen; it only appears when one is installed. */
-const COMPUTE_CHOICES: ReadonlyArray<{ value: string; descriptionKey: TranslationKey }> = [
-  { value: "auto", descriptionKey: "settings.performance.autoDescription" },
-  { value: "cpu", descriptionKey: "settings.performance.cpuDescription" },
-  { value: "vulkan", descriptionKey: "settings.performance.vulkanDescription" },
-  { value: "cuda", descriptionKey: "settings.performance.cudaDescription" },
-];
+   The owner's decision is that there is one question and everything follows
+   from it — *na začátku si vybere jestli chce rychle nebo přesné výstupy* —
+   so the language editor is no longer something to choose. Its size follows
+   the answer given in the wizard: `EDITOR_TIER` in `types.ts`.
+
+   The other is that those sentences could not be supported. `docs/history/`
+   contains no comparison of the three models' output — the only inference ever
+   recorded was run with the 12B model alone, because it was the only one
+   installed — and the entry that gave the three cards their counted sparkles
+   states outright that they "trade nothing; they do the same work with more of
+   it". `Lépe opravuje zjevné chyby` and `Nejspolehlivější` were therefore the
+   same kind of claim as the middle transcription model's *asi jedna chyba na
+   odstavec*, which was deleted on 13 August for being measured nowhere. They
+   are not replaced with a smaller claim; nothing is claimed, because nothing
+   is known. What is known is how large the file is, and that is what the one
+   sentence before the download says.
+
+   `EditorMark`, the sparkle counted out one to three, went with them. The
+   14 August decision supersedes the 5 August one: a mark that says "more of
+   the same" is right only where there are three things to tell apart. */
+
+/* `COMPUTE_CHOICES` stood here too — four cards choosing where transcription
+   runs. The machine picks its backend from its drivers, exactly as the wizard
+   already picks the programs, so there is nothing to choose. What the card on
+   `Nástroje` does now is say which one actually ran. */
 
 /** Which downloadable module corresponds to which compute backend. */
 const COMPUTE_MODULES: Record<string, string> = {
@@ -114,7 +114,13 @@ const COMPUTE_MODULES: Record<string, string> = {
  *  new installation would open badged as modified.
  *
  *  The two folders in that block are deliberately not here — see the comment
- *  where the block is drawn. */
+ *  where the block is drawn.
+ *
+ *  `compute` left this list with the control it belonged to. A default is only
+ *  worth restoring where the reader can see what it restores, and a badge
+ *  saying `upraveno` about a value with no control on the screen is a badge
+ *  nobody can act on. The one way back to `auto` is on `Nástroje`, beside the
+ *  line that says what actually ran. */
 const ADVANCED_DEFAULTS = {
   beam: 5,
   threshold_silence: 0.6,
@@ -122,7 +128,6 @@ const ADVANCED_DEFAULTS = {
   entropy_threshold: 2.6,
   temperature: 0,
   temperature_increment: 0.2,
-  compute: "auto",
 } as const satisfies Partial<Settings>;
 
 /** The five thresholds, as sliders. `whisper.rs` sends `--no-speech-thold`,
@@ -280,32 +285,6 @@ function Filled({
   );
 }
 
-/** The three language-editing models differ only in how much of the same work
- *  they do, so their marks are the same sparkle counted out: one, two, three.
- *  A picture per tier — a bolt, scales, a target, as the transcription models
- *  have — would promise three different kinds of work, and there is only one.
- *  Sizes and positions are the `editor` icon's own, so the largest of the
- *  three is exactly the icon used everywhere else for this feature. */
-function EditorMark({ model }: { model: string }) {
-  const big = "M12 3l1.1 3.9L17 8l-3.9 1.1L12 13l-1.1-3.9L7 8l3.9-1.1L12 3Z";
-  const right = "M18.5 13l.7 2.3 2.3.7-2.3.7-.7 2.3-.7-2.3-2.3-.7 2.3-.7.7-2.3Z";
-  const left = "M6 14l.9 3.1L10 18l-3.1.9L6 22l-.9-3.1L2 18l3.1-.9L6 14Z";
-  const paths = model.includes("12b")
-    ? [big, right, left]
-    : model.includes("e4b")
-      ? [big, right]
-      : [big];
-
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-         strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      {paths.map((d) => (
-        <path key={d} d={d} />
-      ))}
-    </svg>
-  );
-}
-
 /** Icon reflecting what the model is known for: speed, balance or accuracy.
  *  1.6 stroke on a 22 square, like the rest of the UI. */
 function ModelMark({ id }: { id: string }) {
@@ -387,8 +366,6 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
   const [check, setCheck] = useState<ToolCheck | null>(null);
   const [modules, setModules] = useState<DownloadComponent[]>([]);
   const [saved, setSaved] = useState(false);
-  const [benchmark, setBenchmark] = useState<BenchmarkResult[] | null>(null);
-  const [benchmarking, setBenchmarking] = useState(false);
   const [machine, setMachine] = useState("");
   const [copying, setCopying] = useState(false);
   const [copiedFile, setCopiedFile] = useState("");
@@ -512,20 +489,6 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
     }
   }, [onError, userMessage]);
 
-  const benchmarkVykon = useCallback(async () => {
-    setBenchmarking(true);
-    setBenchmark(null);
-    try {
-      setBenchmark(await api.benchmarkCompute());
-      setN(await api.loadSettings());
-      setCheck(await api.checkTools());
-    } catch (e) {
-      onError(userMessage(e));
-    } finally {
-      setBenchmarking(false);
-    }
-  }, [onError, userMessage]);
-
   useEffect(() => {
     load();
   }, [load]);
@@ -596,18 +559,72 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
   if (!n) return <main className="settings"><p>{t("common.loading")}</p></main>;
 
   const missingRequired = check?.issues ?? [];
-  const downloadedBackends = check?.available_compute_backends ?? [];
-  // The plain build appears only where it exists, so nobody is offered a
-  // choice their installation cannot make.
-  const computeChoices = downloadedBackends.includes("vychozi")
-    ? [...COMPUTE_CHOICES, { value: "vychozi", descriptionKey: "settings.performance.defaultDescription" as TranslationKey }]
-    : COMPUTE_CHOICES;
-  const availableEditorChoices = EDITOR_CHOICES.filter((choice) =>
-    modules.some((module) => module.id === choice.component && module.complete)
-  );
-  const hasEditor = availableEditorChoices.length > 0;
-  const missingCompute =
-    !!n && n.compute !== "auto" && downloadedBackends.length > 0 && !downloadedBackends.includes(n.compute);
+  const installed = (id: string) => modules.some((module) => module.id === id && module.complete);
+  const megabytes = (id: string) => modules.find((module) => module.id === id)?.megabytes ?? 0;
+
+  /* ------------------------------------------------------ language editing
+     Which model, and what is still missing before it can run. The tier comes
+     from the wizard's one question; the runtime comes from the drivers, the
+     same way `tools.rs` looks for `llama-cli`. Nobody is asked either. */
+  const editorTier = EDITOR_TIER[qualityChoice(n)];
+  const editorRuntime = check?.vulkan_driver ? "editor-vulkan" : "editor-cpu";
+  const editorNeeds = [editorTier, editorRuntime].filter((id) => !installed(id));
+  const editorNeedsMb = editorNeeds.reduce((total, id) => total + megabytes(id), 0);
+  /** A model on the disk, the implied tier first — this is what the switch
+   *  turns on. A machine set up before today may hold the middle model and
+   *  nothing else, and that one still works; it is simply never fetched. */
+  const editorOnDisk = [editorTier, ...Object.keys(EDITOR_MODELS)].find(installed);
+  const hasEditor = !!editorOnDisk;
+
+  /** One press: fetch what is missing and record that the feature is wanted.
+   *
+   *  The download runs in the background — `download` in `downloads.rs`
+   *  returns as soon as the thread is started — so the reader stays on this
+   *  screen and the application's own progress bubble reports it. The setting
+   *  is written straight away rather than when the file lands: it says what
+   *  was asked for, `resolve_editor_model` in `tools.rs` falls back to any
+   *  model that is actually there, and a listener that had to survive the
+   *  reader walking to another screen would not. */
+  const downloadEditor = async () => {
+    try {
+      if (editorNeeds.length > 0) await api.download(editorNeeds);
+      await save({ ...n, editor_model: EDITOR_MODELS[editorTier] });
+      setModules(await api.catalog());
+    } catch (e) {
+      onError(userMessage(e));
+    }
+  };
+
+  /* --------------------------------------------------------- where it runs
+     `check.compute` is what `choose_compute` answered, which is the folder the
+     next transcription's `whisper-cli` comes out of — not what is stored. The
+     two differ exactly when the stored one cannot be used, and that is the
+     case worth saying out loud now that nothing on this screen sets it. */
+  const computeRunning = check?.compute ?? "";
+  const onGraphicsCard = computeRunning === "cuda" || computeRunning === "vulkan";
+  const hasGraphicsDriver = !!(check?.nvidia_driver || check?.vulkan_driver);
+  /** A backend named by hand, by a build that still had the control. Nothing
+   *  writes anything but `auto` now, so this is only ever a leftover — and it
+   *  is a leftover that decides where every transcription runs, which is why
+   *  the card says so and offers the way back. */
+  const computePinned = !!n.compute && n.compute !== "auto";
+  /** …and that leftover names something this machine will not run: the driver
+   *  is missing, or the build was never downloaded. `choose_compute` quietly
+   *  used something else, and until now the screen went on showing the choice
+   *  rather than the consequence. */
+  const computeSubstituted = computePinned && n.compute !== computeRunning;
+  const graphicsCardBackend = check?.nvidia_driver ? "cuda" : "vulkan";
+  /** A graphics card is in the machine and the transcription is not using it.
+   *  With nothing pinned, `choose_compute` would have taken it if the build
+   *  were on the disk — so the build is what is missing. */
+  const graphicsCardIdle =
+    !computePinned &&
+    hasGraphicsDriver &&
+    !onGraphicsCard &&
+    !!computeRunning &&
+    !(check?.available_compute_backends ?? []).includes(graphicsCardBackend);
+  const graphicsCardModule = COMPUTE_MODULES[graphicsCardBackend];
+
   /* Whether anything folded away has been moved off its default. The badge and
      the reset button are one question asked twice, so they are one expression:
      a block that says `upraveno` and a button that refuses to do anything
@@ -730,82 +747,119 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
         {check && <ToolDiagnostics k={check} onInfo={onInfo} onError={onError} />}
       </section>}
 
+      {/* Where the transcription actually ran.
+
+          Not a control and deliberately shaped like one of the About page's
+          panels rather than like the four choice cards it replaces. Nobody
+          picks a backend any more, so the only thing left worth knowing is
+          which one is being used — and that is a fact about this machine,
+          which is the tab it is on.
+
+          It says the truth rather than the setting, and those are two
+          different values: `check.compute` is `choose_compute`'s answer, the
+          folder the next `whisper-cli` will come out of, while `n.compute` is
+          whatever was once stored. `choose_compute` substitutes when the
+          stored one cannot run here — CUDA with no NVIDIA driver is the case
+          that was reported — and until now the screen went on badging
+          `používá se` on the card nobody was using. */}
+      {activeTab === "tools" && check && <section className="settings-card-compute">
+        <h2>{t("settings.compute.title")}</h2>
+        <p className="settings-section-description">{t("settings.compute.description")}</p>
+
+        <dl className="about-panel">
+          <div className="about-row">
+            <dt>{t("settings.compute.running")}</dt>
+            <dd>{labels.compute(computeRunning)}</dd>
+          </div>
+        </dl>
+
+        {/* A backend named by hand on some earlier day — the only state on this
+            card anybody can act on, so it is the only one with a button. It is
+            the same shape as `Odebrat` beside the watched folder: a control was
+            removed, and what it could set had to keep a way back, or one press
+            made a year ago would be permanent. Two sentences, because the two
+            cases are not the same thing — one is being honoured and merely
+            hidden, the other is being ignored. */}
+        {computePinned && (
+          <div className="settings-action-row spaced">
+            <InfoNote compact>
+              {t(
+                computeSubstituted
+                  ? "settings.compute.substituted"
+                  : "settings.compute.pinned",
+                { chosen: labels.compute(n.compute) }
+              )}
+            </InfoNote>
+            <button className="button" onClick={() => save({ ...n, compute: "auto" })}>
+              {t("settings.compute.letItDecide")}
+            </button>
+          </div>
+        )}
+
+        {/* A graphics card that is not being used, which on a machine nobody
+            has pinned means its build was never downloaded. */}
+        {graphicsCardIdle && (
+          <div className="settings-action-row spaced">
+            <InfoNote compact>{t("settings.compute.graphicsCardIdle")}</InfoNote>
+            <button className="button" onClick={() => onToModule(graphicsCardModule)}>
+              {t("common.download")}
+            </button>
+          </div>
+        )}
+
+        {!computePinned && !hasGraphicsDriver && (
+          <InfoNote>{t("settings.compute.noGraphicsCard")}</InfoNote>
+        )}
+      </section>}
+
       {activeTab === "transcription" && <section className="settings-card-language-edit">
         {/* The switch governs everything below it, so it belongs beside the
             heading — the same section pattern as Mluvčí and Rychlé tipy. When
             the feature is off the card collapses to that one row instead of
             offering model cards that cannot take effect. */}
         {hasEditor ? (
-          <SettingsToggle
-            title={t("settings.editor.title")}
-            label={t("settings.editor.title")}
-            checked={!!n.editor_model}
-            heading
-            description={t("settings.editor.description")}
-            onChange={(checked) => {
-              if (!checked) {
-                if (n.editor_model) {
-                  localStorage.setItem("last-editor-model", n.editor_model);
-                }
-                save({ ...n, editor_model: "" });
-                return;
+          <>
+            <SettingsToggle
+              title={t("settings.editor.title")}
+              label={t("settings.editor.title")}
+              checked={!!n.editor_model}
+              heading
+              description={t("settings.editor.description")}
+              /* Which model is no longer a question, so turning it on has one
+                 answer: whichever is on the disk, the tier the first-run choice
+                 implies first. `last-editor-model` in `localStorage` used to
+                 remember which of three cards was last picked and is not read
+                 any more — there are no cards to pick. */
+              onChange={(checked) =>
+                save({
+                  ...n,
+                  editor_model: checked ? EDITOR_MODELS[editorOnDisk!] : "",
+                })
               }
-
-              const remembered = localStorage.getItem("last-editor-model");
-              const selected =
-                availableEditorChoices.find((choice) => choice.model === remembered) ??
-                availableEditorChoices.find((choice) => choice.model === "gemma-4-e4b-q4") ??
-                availableEditorChoices[0];
-              if (selected) {
-                localStorage.setItem("last-editor-model", selected.model);
-                save({ ...n, editor_model: selected.model });
-              }
-            }}
-          />
+            />
+            {/* Belongs to the switch above it, so it takes the 8 px an
+                explanation takes under the thing it explains. */}
+            {!!n.editor_model && <InfoNote>{t("settings.editor.enabledNote")}</InfoNote>}
+          </>
         ) : (
           <>
             <h2>{t("settings.editor.title")}</h2>
             <p className="settings-section-description">{t("settings.editor.description")}</p>
-          </>
-        )}
-
-        {hasEditor && !!n.editor_model && (
-          <>
-            <div className="choices model-choices">
-              {availableEditorChoices.map((choice) => (
-                <button
-                  key={choice.model}
-                  className={`choice with-icon ${n.editor_model === choice.model ? "chosen" : ""}`}
-                  onClick={() => {
-                    localStorage.setItem("last-editor-model", choice.model);
-                    save({ ...n, editor_model: choice.model });
-                  }}
-                  aria-pressed={n.editor_model === choice.model}
-                >
-                  <span className="choice-icon" aria-hidden>
-                    <EditorMark model={choice.model} />
-                  </span>
-                  <span className="choice-body">
-                    <span className="choice-title">{t(choice.titleKey)}</span>
-                    <span className="small-text">{t(choice.descriptionKey)}</span>
-                  </span>
-                  {n.editor_model === choice.model && (
-                    <em className="badge">{t("settings.badge.inUse")}</em>
-                  )}
-                </button>
-              ))}
+            {/* One sentence naming the size and one button, the same row the
+                module band uses. It was a red `field-prompt` reading *not
+                downloaded yet* beside a button that walked to the component
+                list to choose a model — a second question about something the
+                first run already answered, and a colour that says something
+                is wrong about a feature that is merely optional. */}
+            <div className="settings-action-row">
+              <InfoNote compact>
+                {t("settings.editor.download", { size: formats.dataSize(editorNeedsMb) })}
+              </InfoNote>
+              <button className="button" onClick={() => void downloadEditor()}>
+                {t("common.download")}
+              </button>
             </div>
-            <InfoNote compact>{t("settings.editor.enabledNote")}</InfoNote>
           </>
-        )}
-
-        {!hasEditor && (
-          <div className="field-prompt">
-            <span>{t("settings.editor.missing")}</span>
-            <button className="button" onClick={() => onToModule("editor-model-balanced")}>
-              {t("common.download")}
-            </button>
-          </div>
         )}
       </section>}
 
@@ -816,20 +870,22 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
           badge and a reset per group, which is how a reader ends up not knowing
           what state the machine is in.
 
-          What is left here is decoding and acceleration, and that is the whole
-          of it. The two folders and `Technické podrobnosti` were in this block
-          and are on `Nástroje` now, because neither is about how a transcript
-          is made — they are about what is installed and where. The block keeps
-          its name: `Pokročilé` is still what it is, and renaming it to
-          `Dekódování` would put a word from whisper.cpp's manual on a screen
-          that does not use one anywhere else.
+          What is left here is decoding, and that is the whole of it. The two
+          folders and `Technické podrobnosti` are on `Nástroje`, because neither
+          is about how a transcript is made — they are about what is installed
+          and where. `Akcelerace zpracování` and `Změřit rychlost` are gone
+          altogether: the machine picks its backend from its drivers, exactly as
+          the wizard already picks the programs, and what it picked is reported
+          on `Nástroje` instead of being offered here as a decision.
 
-          `Zpět na výchozí` covers every value inside the block, which is now
-          every value in `ADVANCED_DEFAULTS` with nothing left over. It never
-          covered the folders — a folder is a place, not a setting, and
-          resetting one would point the application at a directory where nothing
-          has been downloaded — and with them gone that exception is gone with
-          them rather than being kept as a rule nobody can see the reason for. */}
+          The block keeps its name even so. `Pokročilé` is still what it is, and
+          renaming it to `Dekódování` would put a word from whisper.cpp's manual
+          on a screen that does not use one anywhere else.
+
+          `Zpět na výchozí` covers every value inside the block, which is every
+          value in `ADVANCED_DEFAULTS` with nothing left over. It never covered
+          the folders — a folder is a place, not a setting — and it no longer
+          covers `compute`, which has no control here to be reset from. */}
       {activeTab === "transcription" && <section className="settings-card-advanced">
         <SettingsDisclosure
           title={t("settings.advanced.title")}
@@ -880,106 +936,20 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
           </div>
         ))}
 
-        <div className="field">
-          <label>{t("settings.performance.compute")}</label>
-          {/* The same choice cards as the models above. A backend is a thing
-              you pick once and want to see the consequence of, which a
-              collapsed dropdown cannot show — least of all which of them are
-              even on this machine. */}
-          <div className="choices model-choices">
-            {computeChoices.map((choice) => {
-              const missing =
-                choice.value !== "auto" && !downloadedBackends.includes(choice.value);
-              const chosen = n.compute === choice.value;
-              // A card that is not installed does not offer to be chosen — it
-              // offers to be installed. Choosing it would badge it as in use
-              // while the transcription quietly ran somewhere else.
-              return (
-                <button
-                  key={choice.value}
-                  className={`choice with-icon ${chosen ? "chosen" : ""} ${missing ? "missing" : ""}`}
-                  onClick={() =>
-                    missing
-                      ? onToModule(COMPUTE_MODULES[choice.value])
-                      : save({ ...n, compute: choice.value })
-                  }
-                  aria-pressed={missing ? undefined : chosen}
-                >
-                  {/* One mark for all four: the icon is the category's badge,
-                      not what tells them apart — that is the name and the
-                      sentence under it (Jakub's call after seeing four sets
-                      side by side). */}
-                  <span className="choice-icon" aria-hidden>
-                    <LineIcon name="compute" />
-                  </span>
-                  <span className="choice-body">
-                    <span className="choice-title">{labels.compute(choice.value)}</span>
-                    <span className="small-text">
-                      {t(missing ? "settings.performance.notDownloaded" : choice.descriptionKey)}
-                    </span>
-                  </span>
-                  {missing ? (
-                    <em className="badge actions">{t("common.download")}</em>
-                  ) : chosen ? (
-                    <em className="badge">{t("settings.badge.inUse")}</em>
-                  ) : null}
-                </button>
-              );
-            })}
-          </div>
-          {missingCompute && (
-            <InfoNote compact>{t("settings.performance.selectedMissing")}</InfoNote>
-          )}
-        </div>
-
         {/* `Vlákna procesoru` stood here and is gone. Zero — the default and
             what almost every installation carried — already means
             `available_parallelism`, and every measured value above it was
             slower, because whisper.cpp is memory-bound long before it runs out
-            of cores. A number that can only make things worse is not a setting. */}
+            of cores. A number that can only make things worse is not a setting.
 
-        <div className="settings-action-row separated">
-          <InfoNote compact>{t("settings.performance.benchmarkNote")}</InfoNote>
-          <button className="button" onClick={benchmarkVykon} disabled={benchmarking}>
-            {benchmarking
-              ? t("settings.performance.benchmarking")
-              : t("settings.performance.benchmark")}
-          </button>
-        </div>
-
-        {benchmark && (
-          <ul className="benchmark">
-            {benchmark.map((v, index) => (
-              <li key={v.compute} className={v.error ? "no" : "yes"}>
-                <span>
-                  {labels.compute(v.compute)}
-                  {index === 0 && !v.error && (
-                    <span className="fastest">
-                      {" — "}
-                      {t("settings.performance.fastest")}
-                    </span>
-                  )}
-                </span>
-                <span>
-                  {v.error
-                    ? t("settings.performance.benchmarkFailed", {
-                        error: userMessage(v.error),
-                      })
-                    : t("settings.performance.benchmarkResult", {
-                        factor: formatNumber(v.realtime_factor, {
-                          minimumFractionDigits: 1,
-                          maximumFractionDigits: 1,
-                        }),
-                        seconds: formatNumber(v.seconds, {
-                          minimumFractionDigits: 1,
-                          maximumFractionDigits: 1,
-                        }),
-                      })}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
+            `Akcelerace zpracování` stood here too, four choice cards deciding
+            where the work runs, and `Změřit rychlost` under them. Both are
+            gone: the machine reads its own drivers, and a reader who picks a
+            backend can only pick a slower one or one this computer cannot run
+            — which `choose_compute` then quietly replaces, leaving the screen
+            badging `používá se` on something that never ran. What ran is on
+            `Nástroje` now, in a card that can also say when the graphics card
+            was asked for and could not be used. */}
 
         <button
           className="button"

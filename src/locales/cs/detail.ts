@@ -60,7 +60,8 @@ export const csDetail = {
   "detail.tips.tabKey": "F3",
   "detail.tips.tabAction": "další místo ke kontrole",
   "detail.tips.hide": "Skrýt rychlé tipy",
-  "detail.tips.hideHint": "Skrýt. Vrátit se dají v nastavení.",
+  "detail.tips.hideHint": "Skrýt. Vrátit se dají tlačítkem u přehrávače.",
+  "detail.tips.show": "Zobrazit rychlé tipy",
 
   "detail.sidebar.label": "Postranní panel",
 
@@ -121,10 +122,12 @@ export const csDetail = {
     "Tady bylo rozpoznání nejisté. Kliknutím přehrajete a tlačítkem přiřadíte.",
   "detail.unassigned.hearTitle": "Přehrát od tohoto místa",
 
-  "detail.ai.missingTitle": "Jazyková úprava není připravená",
-  "detail.ai.missingText":
-    "Stáhněte si místní model a program pro jazykovou úpravu. Potom bude fungovat bez internetu a text neopustí počítač.",
-  "detail.ai.chooseModel": "Vybrat model",
+  "detail.ai.offerTitle": "Chcete z přepisu hotový dokument?",
+  "detail.ai.offerText":
+    "Text upraví model přímo v počítači, takže nic neodejde ven. Stáhne se jednou, {size}, a stahování běží na pozadí — můžete pracovat dál.",
+  "detail.ai.downloadingTitle": "Model se stahuje",
+  "detail.ai.downloadingText":
+    "Až bude stažený, jazyková úprava se rovnou spustí odsud. Zatím můžete pracovat dál.",
   "detail.ai.configureTitle": "AI vylepšení",
   "detail.ai.configureText": "Vytvoří nový dokument. Původní přepis zůstane beze změny.",
   "detail.ai.modeFaithful": "Věrná úprava",
@@ -266,7 +269,10 @@ export const csDetailContext: Partial<Record<keyof typeof csDetail, string>> = {
   "detail.tips.tabKey": "Název klávesy F3. Na klávesnicích se nepřekládá.",
   "detail.tips.tabAction": "Co udělá F3: skočí na další úsek, kterým si přepis není jistý.",
   "detail.tips.hideHint":
-    "Popisek křížku. Druhá věta říká, že se proužek dá znovu zapnout v nastavení.",
+    "Popisek křížku. Druhá věta říká, kde se proužek dá znovu zapnout — je to " +
+    "tlačítko s klávesnicí v řádku přehrávače, které se objeví, až proužek zmizí.",
+  "detail.tips.show":
+    "Popisek toho tlačítka. Vrátí skrytý proužek s klávesovými zkratkami.",
 
   "detail.sidebar.label": "Popisek postranního panelu pro čtečky obrazovky.",
 
@@ -350,8 +356,15 @@ export const csDetailContext: Partial<Record<keyof typeof csDetail, string>> = {
     "Věta nad seznamem. Vysvětluje, co v něm je a co s tím.",
   "detail.unassigned.hearTitle":
     "Bublina u řádku se vsuvkou. Klepnutí přehraje zvuk od jejího začátku, nejen na ni najede.",
-  "detail.ai.missingTitle":
-    "Nadpis dialogu. „Jazyková úprava“ je úprava textu jazykovým modelem, ne změna jazyka.",
+  "detail.ai.offerTitle":
+    "Nadpis dialogu, který se ptá jednou: chcete jazykovou úpravu? Ptá se ve " +
+    "chvíli, kdy o dokument uživatel poprvé stojí. Který model to bude, se " +
+    "neptáme — vyplývá to z volby z průvodce.",
+  "detail.ai.offerText":
+    "Věta v tom dialogu. {size} je velikost stahovaných součástí i s jednotkou, " +
+    "například „3,3 GB“.",
+  "detail.ai.downloadingTitle":
+    "Nadpis téhož dialogu, když už stahování běží a uživatel zmáčkl tlačítko podruhé.",
   "detail.ai.configureTitle": "Nadpis dialogu, který nastavuje úpravu přepisu jazykovým modelem.",
   "detail.ai.modeFaithful": "Režim úpravy, který nemění formulace, jen je opraví.",
   "detail.ai.modeClean": "Režim úpravy, který text i přeformuluje do čitelnější podoby.",

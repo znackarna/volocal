@@ -104,12 +104,15 @@
 .settings-card-language-edit { order: 3; }
 .settings-card-dictionary { order: 4; }
 .settings-card-advanced { order: 5; }
-/* Nástroje: whether anything needed is missing, and then where the downloaded
-   programs and models are kept. The status band answers the question somebody
-   opens this tab with; the folders are the follow-up. Which file was found
-   where is folded into the foot of the first card, not a third one. */
+/* Nástroje: whether anything needed is missing, then what the transcription
+   actually runs on, and then where the downloaded programs and models are kept.
+   The status band answers the question somebody opens this tab with; the other
+   two are the follow-up, in the order they are asked — what is it using, and
+   where does it keep it. Which file was found where is folded into the foot of
+   the first card, not a fourth one. */
 .settings-card-modules { order: 1; }
-.settings-card-locations { order: 2; }
+.settings-card-compute { order: 2; }
+.settings-card-locations { order: 3; }
 /* Every card on a tab needs a number here, and the recordings folder had none:
    without a rule it takes `order: 0` and sorts above cards that asked for 1, so
    it rendered over the portable-mode banner no matter where the JSX put it.
@@ -424,19 +427,11 @@
 }
 .problems { color: var(--danger); font-size: 13px; padding-left: 18px; }
 
-.benchmark { list-style: none; margin: 14px 0 0; padding: 0; font-size: 13px; }
-.benchmark li {
-  display: flex; justify-content: space-between; gap: 12px;
-  padding: 7px 0; border-bottom: 1px solid var(--line); font-weight: 600;
-}
-.benchmark li:last-child { border-bottom: 0; }
-.benchmark li.yes span:last-child { color: var(--success); font-variant-numeric: tabular-nums; }
-.benchmark li.no span:last-child { color: var(--danger); font-weight: 500; }
-/* The label used to be `content: " — nejrychlejší"` here, which meant a Czech
-   sentence in the English interface — and `i18n:check` cannot see it, because
-   it reads TypeScript. The word is in the dictionary now and the component
-   renders it; this rule only styles it. */
-.benchmark .fastest { color: var(--text-quiet); font-weight: 500; }
+/* `.benchmark` stood here — the list of measured backends under `Změřit
+   rychlost`. Both are gone with `Akcelerace zpracování`: nothing on this screen
+   chooses where the work runs, so nothing measures it either. The card on
+   `Nástroje` says which backend ran, and it is built from `.about-panel`, the
+   panel of facts the About page and the archive's backups already share. */
 
 .preview-font {
   border: 1px solid var(--line); border-radius: var(--r-card);
