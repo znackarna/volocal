@@ -31,6 +31,7 @@ import { useLabels } from "./labels";
 import { useDialog } from "./useDialog";
 import { CONFIDENCE_THRESHOLD, formatTime, fileName, statusClass } from "./types";
 import { forgetSpeakerName, returnSpeakerName, useSpeakerNamePool } from "./speakerNames";
+import { useProgressiveList } from "./progressiveList";
 import ProgressBubble from "./ProgressBubble";
 /* The transcript screen's own parts. They were all in this file until it had
    grown to 3 688 lines; each of these is a piece somebody reads on its own. */
@@ -1188,6 +1189,8 @@ export default function Detail({
      `commitName` puts a name back on it. */
   const [namePool, setNamePool] = useSpeakerNamePool(id, progress?.phase);
 
+  const drawnBlocks = useProgressiveList(segments.length);
+
   const renameLocally = useCallback((key: string, name: string) => {
     setSpeakers((s) => s.map((m) => (m.key === key ? { ...m, name } : m)));
   }, []);
@@ -1915,7 +1918,12 @@ export default function Detail({
             </div>
           )}
 
-          {segments.map((s, i) => {
+          {/* The first screenful, then the rest a frame later. See
+              `useProgressiveList`: on a forty-five minute recording the window
+              was drawing 359 blocks before showing any of them. Slicing keeps
+              the indices, so `segments[i - 1]` below still reaches the real
+              previous block rather than the previous drawn one. */}
+          {segments.slice(0, drawnBlocks).map((s, i) => {
             const previous = segments[i - 1];
             const newSpeakers = s.speakers !== (previous?.speakers ?? null);
             const m = s.speakers ? speakerByKey.get(s.speakers) : undefined;

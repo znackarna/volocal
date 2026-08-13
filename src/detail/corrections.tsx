@@ -291,9 +291,19 @@ export const SegmentRow = memo(function SegmentRow({
       </button>
 
       <p className="segment-text">
+        {/* The spaces are text, not elements. They used to be `<span>` each,
+            which doubled the element count of every transcript for nothing:
+            no rule in the stylesheet reaches them — `.word` is the only
+            selector here — and no code looks for them. A forty-five minute
+            recording is 6845 words, so that was 13 690 elements where 6845
+            and some text nodes will do.
+
+            The `words` array itself keeps the spaces, because `wordOrdinals`
+            is indexed against it and so is `corrected`. Only the rendering
+            changed. */}
         {words.map((s, i) =>
           s.space ? (
-            <span key={i}>{s.text}</span>
+            s.text
           ) : (
             <span
               key={i}
