@@ -218,6 +218,32 @@ pub struct Window {
 
 /// About two seconds, which is where the measurement put the sweet spot.
 const WINDOW: f64 = 2.0;
+
+/// The fewest frames DirectML will run this model's pooling layer on.
+///
+/// Measured against the real CAM++ one frame at a time: 198 comes back as
+/// `E_INVALIDARG` from `/xvector/block1/tdnnd1/cam_layer/AveragePool`, 199 goes
+/// through, and everything above it does too. CAM++ halves the time dimension
+/// before that layer and its pooling window is 100 wide, so 199 — 100 after the
+/// halving, rounded up — is the first length that fits inside it. The processor
+/// runs any length; only the card counts.
+///
+/// **This is what made the card useless for eleven weeks.** [`WINDOW`] seconds
+/// at [`SAMPLE_RATE`] is 32000 samples, which is 198 frames — exactly one
+/// short. DirectML registered, said so in the log, and then refused the first
+/// real batch of every recording, so the work always finished on the processor
+/// at roughly a twelfth of the speed. The fallback wrote a line about it and
+/// the line was read as a quirk of one machine rather than as the normal path.
+const LEAST_FRAMES_THE_CARD_WILL_RUN: usize = 199;
+
+/// The samples those frames need: the first frame is [`FRAME`] long and every
+/// one after it advances by [`SHIFT`].
+///
+/// 32080 against [`WINDOW`]'s 32000 — eighty samples, five milliseconds. Not a
+/// whole frame more, because two seconds already carried half a shift of slack
+/// that the frame count threw away. Five milliseconds is far inside the band
+/// the window length was measured over: 1.5 to 3 seconds all read 86 %.
+const LEAST_SAMPLES_THE_CARD_WILL_RUN: usize = FRAME + (LEAST_FRAMES_THE_CARD_WILL_RUN - 1) * SHIFT;
 /// Windows overlap, so a handover inside a block still leaves whole windows on
 /// both sides of it rather than one straddling window and nothing else.
 const HOP: f64 = 1.0;
@@ -493,8 +519,14 @@ fn build(model: &std::path::Path, on_card: bool) -> Result<ort::session::Session
 /// removes the failure, and it has a second benefit worth having: every window
 /// ends up the same length, so they all travel in one batch, and DirectML is
 /// measurably happier when the shape does not keep changing.
+///
+/// **Growing them to [`WINDOW`] was not enough, and for eleven weeks nobody
+/// could see that it was not.** Two seconds is 198 frames, one short of the 199
+/// the card will run, so every window was refused and every recording's
+/// speakers were found on the processor. See
+/// [`LEAST_FRAMES_THE_CARD_WILL_RUN`].
 pub fn enough_audio(start: f64, end: f64, rate: f64, total: usize) -> (usize, usize) {
-    let need = (WINDOW * rate) as usize;
+    let need = ((WINDOW * rate) as usize).max(LEAST_SAMPLES_THE_CARD_WILL_RUN);
     let mut from = (start * rate).max(0.0) as usize;
     let mut to = ((end * rate) as usize).min(total);
     if total <= need {
@@ -750,8 +782,15 @@ mod tests {
     /// values below come from that run, which is the one that was measured
     /// against the real CAM++ and scored 100 % on five named examples.
     fn reference_signal() -> Vec<f32> {
+        signal(8000)
+    }
+
+    /// The same three tones for as long as asked. Split out so a full-length
+    /// window can be built from the identical formula rather than a second one
+    /// that might drift from it.
+    fn signal(samples: usize) -> Vec<f32> {
         let sr = SAMPLE_RATE as f64;
-        (0..8000)
+        (0..samples)
             .map(|i| {
                 let t = i as f64;
                 (0.5 * (std::f64::consts::TAU * 220.0 * t / sr).sin()
@@ -1090,13 +1129,37 @@ mod tests {
     // ---------------------------------------------------------- enough audio
 
     const RATE: f64 = SAMPLE_RATE as f64;
-    /// What a full window is worth in samples: two seconds at 16 kHz.
-    const FULL: usize = 32_000;
+    /// What a full window is worth in samples.
+    ///
+    /// Two seconds at 16 kHz is 32000, and that is what this said until the
+    /// card was measured: 32000 samples is 198 frames and DirectML will not run
+    /// the pooling layer under 199. The extra 80 samples are five milliseconds,
+    /// and they are the difference between the speakers being found on the card
+    /// and on the processor.
+    const FULL: usize = 32_080;
+
+    /// The number in [`FULL`] is worth pinning on its own: it is derived from
+    /// what the model will accept, and a change to `WINDOW` must not quietly
+    /// take it below that again.
+    #[test]
+    fn a_full_window_is_long_enough_for_the_card() {
+        assert_eq!(FULL, LEAST_SAMPLES_THE_CARD_WILL_RUN);
+        let frames = features(&vec![0.0f32; FULL])
+            .expect("a window of samples")
+            .frames;
+        assert_eq!(frames, LEAST_FRAMES_THE_CARD_WILL_RUN);
+        assert!(
+            (WINDOW * RATE) as usize <= FULL,
+            "the window must never ask for less than the card will run"
+        );
+    }
 
     #[test]
     fn a_window_of_the_right_length_is_taken_as_it_is() {
         let (from, to) = enough_audio(10.0, 12.0, RATE, 16_000 * 60);
-        assert_eq!((from, to), (160_000, 192_000));
+        // Two seconds is 80 samples short of what the card takes, so the cut
+        // reaches 40 samples either side of what was asked for.
+        assert_eq!((from, to), (159_960, 192_040));
         assert_eq!(to - from, FULL);
     }
 
@@ -1205,8 +1268,22 @@ mod tests {
     /// instead of a stopwatch:
     ///
     /// ```text
-    /// cargo test --manifest-path src-tauri/Cargo.toml     ///   voiceprint::tests::it_says_which_one_opened -- --ignored --nocapture
+    /// cargo test --manifest-path src-tauri/Cargo.toml
+    ///   voiceprint::tests::it_says_which_one_opened -- --ignored --nocapture
     /// ```
+    ///
+    /// **Opening is only half the question, and it used to be the only half
+    /// asked.** Registration succeeding says the card was accepted, not that it
+    /// will do the work: what the log recorded on 11 August was DirectML
+    /// registering and then refusing `cam_layer/AveragePool` on the first real
+    /// batch, which is a failure in [`Voices::run`] and never reaches
+    /// [`Voices::open`]. A test that only opened the model reported the good
+    /// half of exactly the machine that had the problem.
+    ///
+    /// So a batch goes through as well, at the length the caller actually
+    /// sends — `enough_audio` grows every short block to a full window
+    /// precisely so the card never sees a short one — and the provider is read
+    /// again afterwards.
     #[test]
     #[ignore = "needs the downloaded model; run by hand to see which provider this machine gets"]
     fn it_says_which_one_opened() {
@@ -1225,11 +1302,43 @@ mod tests {
 
         // The line it writes is the point; `note!` reaches stderr, which
         // `--nocapture` shows.
-        let on_whatever_it_gets = Voices::open(&model);
-        assert!(
-            on_whatever_it_gets.is_ok(),
-            "the model did not open at all: {:?}",
-            on_whatever_it_gets.err()
+        let mut voices = match Voices::open(&model) {
+            Ok(voices) => voices,
+            Err(error) => panic!("the model did not open at all: {error:#}"),
+        };
+        let opened_on_card = voices.on_card;
+
+        // Several windows rather than one, so the batching in `run` is
+        // exercised too and not just a single forward pass.
+        // `FULL` rather than `WINDOW` seconds, because `FULL` is what
+        // `enough_audio` hands over and the difference between the two is the
+        // whole bug: two seconds is one frame short of what the card will run.
+        let batch: Vec<Features> = (0..4)
+            .map(|_| features(&signal(FULL)).expect("a full window is plenty of samples"))
+            .collect();
+        let prints = voices
+            .embed(&batch)
+            .unwrap_or_else(|error| panic!("neither provider could run the model: {error:#}"));
+        assert_eq!(prints.len(), batch.len(), "one voiceprint per window");
+
+        // The assertion worth having. Opening on the processor is a different
+        // answer to a different question — this machine may have no card — but
+        // opening on the card and then finishing on the processor is the
+        // silent twelvefold slowdown this whole arrangement exists to catch.
+        if opened_on_card {
+            assert!(
+                voices.on_card,
+                "the session opened on the graphics card and the work then fell back to the \
+                 processor - the line above says what it refused"
+            );
+        }
+        crate::note!(
+            "speaker model: the work ran on {}",
+            if voices.on_card {
+                "the graphics card"
+            } else {
+                "the processor"
+            }
         );
 
         // And the other half of the fallback: the processor on its own, which
