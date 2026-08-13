@@ -42,7 +42,7 @@ export default function RecordingActionsMenu({
   const labels = useLabels();
   const items: ActionItem[] = [
     { label: t("common.rename"), icon: Icons.rename, action: onRename },
-    ...(status === "hotova"
+    ...(status === "done"
       ? [
           {
             label: t("dialogs.recordingMenu.retranscribe"),

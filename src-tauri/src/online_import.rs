@@ -376,7 +376,7 @@ pub fn import(
         title: recording_title,
         duration,
         created_at: chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
-        status: "nova".into(),
+        status: db::status::NEW.into(),
         model: String::new(),
         language: String::new(),
         language_choice: String::new(),

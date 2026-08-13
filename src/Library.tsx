@@ -535,7 +535,7 @@ export default function Library({
   }, [view]);
 
   const running = useMemo(
-    () => recordings.filter((n) => n.status === "prepisuje"),
+    () => recordings.filter((n) => n.status === "transcribing"),
     [recordings]
   );
 
@@ -1206,7 +1206,7 @@ function Row({
   const progressMessage = useProgressMessage();
   const labels = useLabels();
   const formats = useFormats();
-  const running = recording.status === "prepisuje";
+  const running = recording.status === "transcribing";
   const aiRunning = !!aiProgress && !["complete", "error", "cancelled"].includes(aiProgress.phase);
   const [renaming, setRenaming] = useState(false);
   const last = liveSegments.slice(-3);
@@ -1269,14 +1269,14 @@ function Row({
                 value={labels.model(recording.model)}
               />
             )}
-            {recording.status === "hotova" && (
+            {recording.status === "done" && (
               <RecordingMetadataItem
                 kind="segments"
                 label={t("library.card.segments")}
                 value={formats.segmentCount(recording.segment_count)}
               />
             )}
-            {recording.status === "chyba" && (
+            {recording.status === "error" && (
               <RecordingMetadataItem
                 kind="error"
                 label={t("library.card.error")}
@@ -1298,17 +1298,17 @@ function Row({
           </button>
         ) : (
           <>
-            {recording.status === "nova" && (
+            {recording.status === "new" && (
               <button className="button" onClick={onTranscription}>
                 {t("library.card.transcribe")}
               </button>
             )}
-            {recording.status === "chyba" && (
+            {recording.status === "error" && (
               <button className="button" onClick={onTranscription}>
                 {t("common.retry")}
               </button>
             )}
-            {recording.status === "hotova" && (
+            {recording.status === "done" && (
               <button className="button" onClick={onOpen}>
                 {t("common.open")}
               </button>

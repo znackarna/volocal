@@ -192,7 +192,7 @@ pub fn delete_recording(app: State<'_, AppState>, id: String) -> Reported<()> {
 /// outlives the process, so it is what catches a run interrupted by a crash
 /// before `recover_interrupted` has had its say.
 pub(crate) fn recording_is_busy(running: bool, status: &str) -> bool {
-    running || status == "prepisuje"
+    running || status == db::status::TRANSCRIBING
 }
 
 #[tauri::command]
@@ -210,7 +210,7 @@ pub fn start_transcription(
         if recording_is_busy(running, &n.status) {
             return Err(UserMessage::new("transcription.still_running"));
         }
-        reported(db::set_status(&db, &id, "prepisuje", None))?;
+        reported(db::set_status(&db, &id, db::status::TRANSCRIBING, None))?;
     }
     transcription::start_in_thread(
         window,
@@ -239,7 +239,7 @@ pub fn transcribe_in_language(
             return Err(UserMessage::new("transcription.still_running"));
         }
         reported(db::set_language_choice(&db, &id, &language))?;
-        reported(db::set_status(&db, &id, "prepisuje", None))?;
+        reported(db::set_status(&db, &id, db::status::TRANSCRIBING, None))?;
     }
     transcription::start_in_thread(
         window,
@@ -267,8 +267,8 @@ pub fn cancel_transcription(app: State<'_, AppState>, id: String) -> Reported<()
         app.bezici.forget_cancellation(&id);
         let db = app.db.lock().unwrap();
         if let Ok(recording) = db::recording(&db, &id) {
-            if recording.status == "prepisuje" {
-                reported(db::set_status(&db, &id, "nova", None))?;
+            if recording.status == db::status::TRANSCRIBING {
+                reported(db::set_status(&db, &id, db::status::NEW, None))?;
             }
         }
     }
@@ -281,7 +281,7 @@ pub fn delete_transcription(app: State<'_, AppState>, id: String) -> Reported<()
     let db = app.db.lock().unwrap();
     reported(db::delete_segments(&db, &id))?;
     reported(db::delete_speakers(&db, &id))?;
-    reported(db::set_status(&db, &id, "nova", None))
+    reported(db::set_status(&db, &id, db::status::NEW, None))
 }
 
 /// Renames a recording in the archive; the default comes from the file name.
@@ -325,20 +325,20 @@ mod busy_recording_tests {
     /// two workers held one recording.
     #[test]
     fn a_queued_run_counts_as_busy_although_its_row_does_not_say_so() {
-        assert!(recording_is_busy(true, "hotova"));
-        assert!(recording_is_busy(true, "nova"));
+        assert!(recording_is_busy(true, db::status::DONE));
+        assert!(recording_is_busy(true, db::status::NEW));
     }
 
     /// And the row still earns its place: a run interrupted by a crash is in
     /// no registry, because the registry died with it.
     #[test]
     fn a_row_left_on_prepisuje_counts_as_busy_without_a_worker() {
-        assert!(recording_is_busy(false, "prepisuje"));
+        assert!(recording_is_busy(false, db::status::TRANSCRIBING));
     }
 
     #[test]
     fn a_recording_nobody_is_working_on_is_free() {
-        for status in ["nova", "hotova", "chyba"] {
+        for status in [db::status::NEW, db::status::DONE, db::status::FAILED] {
             assert!(!recording_is_busy(false, status), "{status}");
         }
     }

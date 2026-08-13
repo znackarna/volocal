@@ -92,16 +92,17 @@ by a migration that copies the archive to `…-before-english.db` first and then
 renames inside one transaction. This paragraph said the opposite until
 13 August 2026.
 
-What is still Czech is stored data rather than structure: the four values of
-`recordings.status` (`nova`, `prepisuje`, `hotova`, `chyba`, and the column's
-own `DEFAULT`), and one settings key, `jazyk-rozpoznavani`, written once as a
-marker that an old archive has been through its language migration.
+The four values of `recordings.status` followed on 13 August 2026, at schema 3:
+`new`, `transcribing`, `done`, `error`. `rename_statuses_to_english` in `db.rs`
+maps an older archive on the way in, and `SCHEMA_VERSION` is what makes that
+safe — a build older than the rename refuses the archive by name instead of
+reading it and finding every recording in a status it does not know. The four
+values live in `db::status` rather than as literals, because a status is a
+string on both sides of the IPC boundary and a missed one goes on compiling.
 
-Renaming a stored value means migrating every archive, so it is a change of its
-own with its own test — not something to do while passing. The objection that
-usually stops it does not apply here, though: an archive that has been through
-1.0.5 already cannot be read by a build older than it, which was decided and
-recorded on 12 August.
+One Czech name is left in stored data: the settings key `jazyk-rozpoznavani`,
+written once as a marker that an old archive has been through its language
+migration. It is read by one function and means nothing to anything else.
 
 Settings fields include serde aliases so configuration written by older versions
 still loads.
