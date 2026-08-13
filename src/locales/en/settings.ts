@@ -132,6 +132,7 @@ export const enSettings: Partial<Record<keyof typeof csSettings, string>> = {
   "settings.appearance.themeSystem": "Follow the system",
   "settings.appearance.themeLight": "Light",
   "settings.appearance.themeDark": "Dark",
+  "settings.appearance.fontUi": "Interface type",
   "settings.appearance.fontText": "Transcript font",
   "settings.appearance.fontGroupSerif": "Serif (for reading)",
   "settings.appearance.fontGroupSans": "Sans serif",

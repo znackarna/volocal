@@ -1132,10 +1132,26 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
           />
         </div>
 
-        {/* `Písmo rozhraní` stood here. It set the type of the application's own
-            chrome — menus, buttons, labels — which is the one thing on this
-            screen nobody opened Settings to change; what a reader wants to read
-            comfortably is the transcript, and that is the field below. */}
+        {/* Both fonts, and the reasoning that removed this one was wrong.
+
+            It was taken out as a vanity choice over the chrome — the argument
+            being that what somebody wants to read comfortably is the
+            transcript, which the field below covers. The owner asked for it
+            back the moment he saw the screen without it, and he is right: the
+            application's own type is not decoration to the person who looks at
+            it all day, and *derivable* was never the same as *unwanted*. Only
+            sans faces are offered, because a serif menu is a different claim
+            from a serif transcript. */}
+        <div className="field">
+          <label>{t("settings.appearance.fontUi")}</label>
+          <Select
+            value={n.font_ui}
+            onChange={(v) => save({ ...n, font_ui: v })}
+            items={Object.entries(FONTS)
+              .filter(([, p]) => p.category === "sans")
+              .map(([id]) => ({ value: id, label: labels.fontTitle(id) }))}
+          />
+        </div>
 
         <div className="field">
           <label>{t("settings.appearance.fontText")}</label>

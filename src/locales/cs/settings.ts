@@ -112,6 +112,7 @@ export const csSettings = {
   "settings.appearance.themeSystem": "Podle systému",
   "settings.appearance.themeLight": "Světlý",
   "settings.appearance.themeDark": "Tmavý",
+  "settings.appearance.fontUi": "Písmo rozhraní",
   "settings.appearance.fontText": "Písmo přepisu",
   "settings.appearance.fontGroupSerif": "Patkové (na čtení)",
   "settings.appearance.fontGroupSans": "Bezpatkové",
