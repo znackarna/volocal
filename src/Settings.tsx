@@ -218,13 +218,19 @@ type SettingsTab =
   | "updates"
   | "about";
 
+/* Reading order, and `updates` is last on purpose. It is the rarest thing
+   anybody opens Settings for — pressed a handful of times a year — and it had
+   been sitting between the archive's copies and the page about the
+   application, where its width of visibility did not match how often it is
+   wanted. Last is where a thing goes when it must be findable and is not
+   looked for. */
 const SETTINGS_TABS: SettingsTab[] = [
   "transcription",
   "appearance",
   "tools",
   "files",
-  "updates",
   "about",
+  "updates",
 ];
 /** `appearance` is named by the one card that fills its tab rather than by a
  *  key of its own: a second key holding the same word is a second thing to keep
