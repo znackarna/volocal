@@ -7,9 +7,14 @@ and a Rust backend.
 
 - `src/` contains the React UI, shared TypeScript types, playback code, and the
   typed Tauri API wrapper.
-- `src-tauri/src/main.rs` exposes Tauri commands and owns application state.
-- `src-tauri/src/transcription.rs` runs the ffmpeg, whisper.cpp, and
-  sherpa-onnx pipeline.
+- `src-tauri/src/main.rs` owns application state, the window and the Windows
+  lifecycle. It defines no commands itself.
+- `src-tauri/src/commands/` is where the Tauri commands live, one module per
+  subject: recordings, folders, playback, transcription, dictionary, exports,
+  backups, downloads, AI documents, settings, updates.
+- `src-tauri/src/transcription/` runs the ffmpeg, whisper.cpp, and sherpa-onnx
+  pipeline, split by stage: the job queue, Whisper itself, sentence and block
+  assembly, speakers.
 - `src-tauri/src/ai_edit.rs` runs the local language model: enhancing a
   transcript, summarising it, translating it.
 - `src-tauri/src/online_import.rs` imports audio from a link through yt-dlp.
@@ -76,7 +81,10 @@ Rust exposes English structs and functions over this legacy schema. Settings
 fields include serde aliases so configuration written by older versions still
 loads.
 
-Some existing CSS selectors remain Czech because they are stable presentation
-hooks shared by the current markup and stylesheet. New selectors should use
-English. Rename old selectors only as a dedicated, visually tested migration.
+CSS selectors are English. This paragraph said the opposite until 13 August
+2026, when it turned out the migration it was deferring had already happened:
+374 class names, not one of them Czech. Rename a selector only as a dedicated,
+visually tested change — the reason that rule existed is still good, and the
+stylesheet is one file cut into ordered parts, where moving a rule can change
+which one wins.
 

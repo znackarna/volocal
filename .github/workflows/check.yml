@@ -38,8 +38,8 @@ jobs:
           cache: npm
       - run: npm ci
       # The whole chain, in one command, because it is the same one the local
-      # checklist runs: `i18n:check`, `security:check`, then `tsc --noEmit`,
-      # then the real Vite build. Type checking alone would let a build failure
+      # checklist runs: `i18n:check`, `docs:check`, then `tsc --noEmit`, then
+      # the real Vite build. Type checking alone would let a build failure
       # through — a bad import or an asset that cannot be resolved type-checks
       # fine.
       #
@@ -47,11 +47,13 @@ jobs:
       # missing plural form, a Rust code with no dictionary entry, informal
       # address, and a translation whose Czech source has been reworded since.
       #
-      # `security:check` is the other one, and it is here because SECURITY.md
-      # has gone stale twice — once claiming there was no CSP three days after
-      # one was added, once claiming nothing is compared against a checksum
-      # after the components had been pinned. It compares the claims that quote
-      # the code against the code.
+      # `docs:check` is the other one, and it is here because three documents
+      # were caught describing a repository that had moved in one week:
+      # SECURITY.md claiming there was no CSP three days after one was added,
+      # then claiming nothing is compared against a checksum after the
+      # components had been pinned, and CLAUDE.md citing a selector and a token
+      # that had not existed for days. It refuses a document that names a path,
+      # a class, a token or a test this repository does not have.
       - run: npm run build
       # The frontend had no automatic protection at all until 10 August, which
       # is one reason the regressions it did have — keys, dialogs, the
@@ -145,8 +147,8 @@ jobs:
         if: github.ref_type == 'tag'
         run: node scripts/i18n.mjs check --strict
       # `beforeBuildCommand` in tauri.conf.json is `npm run build`, i.e.
-      # `i18n:check && security:check && tsc --noEmit && vite build`. The
-      # bundler runs it itself; it is not repeated here.
+      # `i18n:check && docs:check && tsc --noEmit && vite build`. The bundler
+      # runs it itself; it is not repeated here.
       #
       # Unsigned, twice over, and both are deliberate.
       #
