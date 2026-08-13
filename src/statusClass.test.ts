@@ -37,7 +37,7 @@ describe("the status dot", () => {
     // Read from disk rather than imported: vitest hands back an empty string
     // for a stylesheet, `?raw` included, because the test environment does not
     // run the CSS pipeline. Tried, and it made the check pass on nothing.
-    const css = readFileSync("src/css/02-knihovna.css", "utf8");
+    const css = readFileSync("src/css/02-library.css", "utf8");
     for (const [status, className] of Object.entries(STATUS_CLASS)) {
       expect(
         css.includes(`.status-mark.${className}`),

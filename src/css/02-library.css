@@ -5,7 +5,7 @@
  * order the rules were in. Moving a rule between them can change the look
  * without changing a value. */
 
-/* ---------------------------------------------------------------- knihovna */
+/* ----------------------------------------------------------------- library */
 
 .library {
   flex: 1; min-height: 0; overflow-y: auto; overflow-anchor: none;

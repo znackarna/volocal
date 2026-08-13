@@ -38,12 +38,12 @@ tidy-up will unify it away.
 - **Dialog width.** 420 px for a question with fields, 520 px for a column of
   choice cards, 840 px only for the reading window. Everything inside a dialog
   starts on the same 26 px left edge.
-- **Fields.** One rule at `.pole input…` — 38 px, `--pozadi`, pill radius. A new
+- **Fields.** One rule at `.field input…` — 38 px, `--ground`, pill radius. A new
   input type is added to that selector, never restyled separately. Label 13.5/650
   with 8 px under it; an explanation belonging to the field above has 8 px, one
   belonging to a whole group has 14 px.
 - **Buttons.** Pill 34 px; circular icon button 32 px (34 px in the detail
-  header, 26 px in `.segment-akce` — both documented). Segmented control: 30 px
+  header, 26 px in `.segment-actions` — both documented). Segmented control: 30 px
   button in a 36 px track (the archive toolbar's 40 px is its neighbour's
   geometry, and says so in a comment).
 - **Type scale.** Screen 28/700, card and dialog heading 19/700, wizard group
