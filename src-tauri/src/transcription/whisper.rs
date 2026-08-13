@@ -165,7 +165,14 @@ pub(crate) fn start_whisper(
     }
     // VAD: without it Whisper repeats one token over silence and swallows the
     // beginning of the speech.
-    if settings.vad && supports("--vad ") {
+    //
+    // Unconditional since 13 August 2026. `settings.vad` used to stand in front
+    // of this, defaulting to true, with a switch in Settings whose own note
+    // read *nechte zapnuté* — the only thing the other position could do is
+    // reproduce a documented defect. The field stays in the settings record so
+    // that configuration written by an older build still loads; nothing reads
+    // it now.
+    if supports("--vad ") {
         if let Some(vad) = &check.model_vad {
             cmd.arg("--vad").arg("--vad-model").arg(vad);
             if supports("--vad-threshold") {

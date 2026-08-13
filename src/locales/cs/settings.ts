@@ -3,11 +3,7 @@ export const csSettings = {
   "settings.title": "Nastavení",
   "settings.groups": "Skupiny nastavení",
   "settings.tab.transcription": "Přepis",
-  "settings.tab.models": "Modely",
-  "settings.tab.performance": "Výkon",
-  "settings.tab.appearance": "Vzhled",
-  "settings.tab.dictionary": "Slovník",
-  "settings.tab.files": "Soubory",
+  "settings.tab.application": "Aplikace",
   "settings.tab.about": "O aplikaci",
   "settings.missingRequired": "Některé povinné modely chybí",
   "settings.language.title": "Jazyk aplikace",
@@ -38,18 +34,6 @@ export const csSettings = {
   "settings.modules.title": "Modely",
   "settings.modules.description":
     "Nástroje a jazykové modely pro lokální přepis. Po stažení zůstávají v počítači.",
-  "settings.modules.status.complete": "připraveno",
-  "settings.modules.status.missing": "chybí",
-  "settings.modules.status.optional": "nestažené",
-  "settings.modules.model": "Model přepisu",
-  "settings.modules.compute": "Výkon",
-  "settings.modules.editor": "Jazyková úprava",
-  "settings.modules.editorReady": "Připravená, vypnutá",
-  "settings.modules.editorMissing": "Nestažená",
-  "settings.modules.speakers": "Rozpoznání mluvčích",
-  "settings.modules.speakersOn": "Zapnuté",
-  "settings.modules.speakersReady": "Připravené, vypnuté",
-  "settings.modules.speakersMissing": "Nestažené",
   "settings.modules.missingRequired.one": "Chybí {count} položka nutné pro přepis.",
   "settings.modules.missingRequired.few": "Chybí {count} položky nutné pro přepis.",
   "settings.modules.missingRequired.many": "Chybí {count} položky nutné pro přepis.",
@@ -71,10 +55,7 @@ export const csSettings = {
   "settings.editor.missing": "Model jazykové úpravy zatím není stažený.",
   "settings.editor.enabledNote": "Model se načte až při spuštění úpravy.",
 
-  // Compute backend, threads and the speed test.
-  "settings.performance.title": "Výkon",
-  "settings.performance.description":
-    "Rychlost se liší několikanásobně podle způsobu zpracování.",
+  // Compute backend and the speed test, inside the advanced block.
   "settings.performance.autoDescription": "Vybere nejrychlejší dostupnou technologii.",
   "settings.performance.cudaDescription": "Nejrychlejší, když ji počítač má.",
   "settings.performance.vulkanDescription": "Jakákoli grafická karta, včetně NVIDIA.",
@@ -84,9 +65,6 @@ export const csSettings = {
   "settings.performance.selectedMissing":
     "Vybraný způsob zpracování zatím není stažený. Přepis zatím běží tím, co je k dispozici.",
   "settings.performance.notDownloaded": "není stažené",
-  "settings.performance.threads": "Vlákna procesoru",
-  "settings.performance.threadsAuto": "automaticky",
-  "settings.performance.threadsNote": "Nula znamená automatickou volbu.",
   "settings.performance.benchmarkNote":
     "Test přepíše kousek nahrávky a rovnou nastaví nejrychlejší režim.",
   "settings.performance.benchmarking": "Měřím…",
@@ -96,7 +74,6 @@ export const csSettings = {
   "settings.performance.benchmarkResult": "{factor}× realtime ({seconds} s)",
 
   // Folders: where the programs and models live, and which folder is watched.
-  "settings.files.locations": "Umístění",
   "settings.files.locationsPortable":
     "Relativní cesty se vztahují ke složce s programem, takže nezáleží na písmenu disku.",
   "settings.files.locationsDescription":
@@ -107,15 +84,12 @@ export const csSettings = {
   "settings.files.watchTitle": "Sledovaná složka",
   "settings.files.watchDescription":
     "Hlídá nové nahrávky ve vybrané složce. V Archivu je nabídne k přepisu.",
-  "settings.files.watchDirectory": "Složka s nahrávkami",
+  "settings.files.watchDirectory": "Umístění",
   "settings.files.watchPlaceholder": "Není vybraná žádná složka",
   "settings.files.watchRemove": "Odebrat",
-  "settings.files.watchToggle": "Sledovat složku",
-  "settings.files.watchToggleNote":
-    "Nabídne nové soubory pro přepis. Neprohledává vnořené složky.",
-  "settings.files.watchAuto": "Automatický přepis",
+  "settings.files.watchAuto": "Přepisovat nové soubory automaticky",
   "settings.files.watchAutoNote":
-    "Přidá nové soubory do archivu a zahájí automatický přepis.",
+    "Bez zapnutí je aplikace jen nabídne v Archivu. Neprohledává vnořené složky.",
 
   "settings.recordings.title": "Složka pro nahrávky",
   "settings.recordings.description":
@@ -130,19 +104,18 @@ export const csSettings = {
     "Archiv vytváří kopie přidaných souborů. Zabere to místo navíc.",
 
   // Fonts and the sample paragraph that shows them off.
+  "settings.appearance.title": "Vzhled",
   "settings.appearance.description":
     "Jazyk, barevný motiv a písmo přepisu.",
   "settings.appearance.theme": "Motiv",
   "settings.appearance.themeSystem": "Podle systému",
   "settings.appearance.themeLight": "Světlý",
   "settings.appearance.themeDark": "Tmavý",
-  "settings.appearance.fontUi": "Písmo rozhraní",
   "settings.appearance.fontText": "Písmo přepisu",
   "settings.appearance.fontGroupSerif": "Patkové (na čtení)",
   "settings.appearance.fontGroupSans": "Bezpatkové",
   "settings.appearance.fontSize": "Velikost textu v přepisu",
   "settings.appearance.fontSizeValue": "{value} px",
-  "settings.appearance.lineHeight": "Řádkování",
   "settings.appearance.previewSpeaker": "Radomil",
   "settings.appearance.previewText":
     "Sešli jsme se ve čtvrtek odpoledne a mluvili spolu skoro dvě hodiny. „Nejdřív si to musíme poslechnout celé,“ řekla — a měla pravdu. Přepis měl nakonec 1 234 slov a nechyběla v něm jediná věta.",
@@ -195,24 +168,19 @@ export const csSettings = {
 
   // What Whisper is told to do.
   "settings.transcription.description":
-    "Zvolte velikost jazykového modelu a kvalitu převodu.",
-  "settings.speech.title": "Jazyk a detekce řeči",
-  "settings.speech.description":
-    "Jakou řečí se v nahrávce mluví a co má Volocal považovat za řeč.",
+    "Model, který nahrávku přepíše, a jazyk, kterým se v ní mluví.",
   "settings.transcription.model": "Model",
   "settings.transcription.modelDescription": "Stažený model.",
   "settings.transcription.modelNote": "Zobrazuje pouze stažené modely.",
-  "settings.transcription.language": "Jazyk",
+  "settings.transcription.language": "Jazyk nahrávky",
   "settings.transcription.languageNote":
     "Předem vybraný jazyk urychlí přepis. U více jazyků nechte automatiku.",
-  "settings.transcription.vad": "Detekce řeči",
-  "settings.transcription.vadNote":
-    "Vynechá ticho a šum a brání zacyklení začátku přepisu. Nechte zapnuté.",
   "settings.transcription.beam": "Důkladnost hledání",
   "settings.transcription.beamNote":
     "Vyšší hodnota zvyšuje přesnost a prodlužuje dobu přepisu.",
 
-  // Telling speakers apart.
+  // Words the transcript gets wrong the same way every time.
+  "settings.dictionary.title": "Slovník",
   "settings.dictionary.description":
     "Slova, která přepis plete pokaždé stejně: jména, místa, odborné výrazy. Opraví se ve všech nových přepisech.",
   "settings.dictionary.newEntry": "Nový výraz",
@@ -227,22 +195,6 @@ export const csSettings = {
   "settings.speakers.toggle": "Rozpoznávat mluvčí",
   "settings.speakers.description":
     "Rozdělí text mezi jednotlivé mluvčí už při prvním přepisu.",
-  "settings.speakers.count": "Počet mluvčích",
-  "settings.speakers.countNote":
-    "Nula znamená automatický odhad. Skutečný počet výsledek výrazně zpřesní.",
-  "settings.speakers.shift": "Hledání změn mluvčího",
-  "settings.speakers.shiftFast": "Rychle",
-  "settings.speakers.shiftFastNote": "hrubší hranice",
-  "settings.speakers.shiftBalanced": "Vyvážené",
-  "settings.speakers.shiftDetailed": "Podrobně",
-  "settings.speakers.shiftDetailedNote": "až dvakrát déle",
-  "settings.speakers.shiftNote":
-    "Podrobnější hledání určí hranice přesněji, ale trvá déle.",
-
-  // The shortcut strip under the player on the transcript screen.
-  "settings.tips.title": "Rychlé tipy",
-  "settings.tips.toggle": "Zobrazovat tipy nad přepisem",
-  "settings.tips.description": "Pruh nápovědy s klávesovými zkratkami pod přehrávačem.",
 
   // Copies of the archive database.
   "settings.backups.title": "Záloha archivu",
@@ -253,7 +205,7 @@ export const csSettings = {
   "settings.backups.count": "Uloženo kopií",
   "settings.backups.directory": "Složka",
   "settings.backups.reveal": "Otevřít složku se zálohami",
-  "settings.backups.restoreTitle": "Obnova zálohy a přenos archivu",
+  "settings.backups.restoreTitle": "Obnovit ze zálohy",
   "settings.backups.emptyList": "Zatím tu není záloha, ke které by se šlo vrátit.",
   "settings.archive.export": "Export archivu",
   "settings.archive.note":
@@ -272,15 +224,15 @@ export const csSettings = {
   "settings.backups.restoreConfirmTitle": "Obnovit archiv ze zálohy?",
   "settings.backups.restoreConfirmText":
     "Archiv se nahradí zálohou z {when}. Současný stav se uloží stranou jako volocal-before-restore.db, takže se k němu jde vrátit. Zvukové soubory na disku zůstanou nedotčené.",
-  "settings.backups.note": "Záloha se vytváří automaticky při spuštění.",
-  "settings.backups.running": "Zálohuji…",
-  "settings.backups.action": "Zálohovat teď",
 
-  // Whisper decoding thresholds, hidden behind a disclosure.
-  "settings.decoding.title": "Jemné ladění přepisu",
-  "settings.decoding.modified": "upraveno",
-  "settings.decoding.note":
-    "Měňte jen při konkrétním problému. Výchozí hodnoty odpovídají nastavení Whisperu.",
+  // Everything folded away at the foot of the transcription tab.
+  "settings.advanced.title": "Pokročilé",
+  "settings.advanced.modified": "upraveno",
+  "settings.advanced.note":
+    "Pro běžný přepis není potřeba nic z toho měnit. Výchozí hodnoty odpovídají nastavení Whisperu.",
+  "settings.advanced.reset": "Zpět na výchozí",
+
+  // Whisper decoding thresholds, inside that block.
   "settings.decoding.silence": "Práh ticha",
   "settings.decoding.silenceNote":
     "Zvyšte, když vzniká text v tichu. Snižte, když mizí tiše pronesená slova.",
@@ -293,7 +245,6 @@ export const csSettings = {
   "settings.decoding.temperatureStep": "Krok teploty",
   "settings.decoding.temperatureStepNote":
     "Při dalším pokusu zvýší teplotu o tuto hodnotu. Nula další pokusy vypne.",
-  "settings.decoding.reset": "Zpět na výchozí",
 
   // Where each tool and model was found on disk.
   "settings.diagnostics.title": "Technické podrobnosti",
@@ -313,8 +264,6 @@ export const csSettings = {
 } as const;
 
 export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>> = {
-  "settings.speech.description":
-    "Úvodní věta karty Jazyk a detekce řeči. „Volocal“ je název aplikace — nechte ho v každém jazyce tak, jak je.",
   "settings.performance.autoDescription":
     "Popis volby „Rozhodnout automaticky“ na kartě akcelerace.",
   "settings.performance.vulkanDescription":
@@ -322,6 +271,8 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
   "settings.performance.defaultDescription":
     "Popis staršího sestavení whisper.cpp, které nemá zvolenou akceleraci. Ukáže se jen tam, kde takové sestavení je.",
   "settings.tab.transcription": "Název záložky. Jde o převod řeči na text, ne o opisování.",
+  "settings.tab.application":
+    "Název záložky, na které je všechno o chodu aplikace samotné — jazyk rozhraní, motiv, písmo, složky a zálohy. Ne o přepisu.",
 
   "settings.badge.inUse":
     "Odznak na kartě modelu, který je právě nastavený. Malé písmeno je záměr.",
@@ -337,23 +288,6 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
   "settings.portable.copyingFile": "{file} je název souboru, který se právě kopíruje.",
   "settings.portable.copied": "{size} je velikost i s jednotkou, například „2,5 GB“.",
 
-  "settings.modules.status.complete": "Odznak dlaždice: modul je stažený a použitelný.",
-  "settings.modules.status.missing": "Odznak dlaždice: bez tohoto modulu přepis neproběhne.",
-  "settings.modules.status.optional":
-    "Odznak dlaždice: nepovinný modul, který zatím nikdo nestáhl.",
-  "settings.modules.model": "Popisek dlaždice. Jde o model Whisperu, který převádí řeč na text.",
-  "settings.modules.compute":
-    "Popisek dlaždice pro výpočetní režim (procesor nebo grafická karta), ne pro rychlost přepisu.",
-  "settings.modules.editor":
-    "Popisek dlaždice. Jazyková úprava je oprava interpunkce a vět místním jazykovým modelem.",
-  "settings.modules.editorReady":
-    "Hodnota dlaždice. Rod se řídí slovy „jazyková úprava“ — proto ženský.",
-  "settings.modules.editorMissing": "Hodnota dlaždice o jazykové úpravě, tedy ženský rod.",
-  "settings.modules.speakers":
-    "Popisek dlaždice pro diarizaci — rozdělení nahrávky mezi jednotlivé mluvčí.",
-  "settings.modules.speakersOn": "Hodnota dlaždice „Rozpoznání mluvčích“, tedy střední rod.",
-  "settings.modules.speakersReady": "Hodnota dlaždice „Rozpoznání mluvčích“, tedy střední rod.",
-  "settings.modules.speakersMissing": "Hodnota dlaždice „Rozpoznání mluvčích“, tedy střední rod.",
   "settings.modules.missingRequired.one":
     "Počítají se chybějící stažené součásti. {count} je jejich počet.",
   "settings.modules.add": "Tlačítko, které vede na obrazovku stahování chybějících součástí.",
@@ -364,16 +298,12 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
   "settings.editor.balanced.title": "Doporučená volba mezi třemi modely jazykové úpravy.",
   "settings.editor.light.description": "CPU je procesor počítače.",
 
-  "settings.performance.title": "Název sekce o rychlosti zpracování.",
   "settings.performance.compute":
     "Popisek nad kartami, na kterých se volí procesor, CUDA nebo Vulkan.",
   "settings.performance.selectedMissing":
     "Vybraný způsob zpracování zatím není stažený. Přepis zatím běží tím, co je k dispozici.",
   "settings.performance.notDownloaded":
     "Poznámka u položky nabídky: tato varianta v počítači zatím není.",
-  "settings.performance.threads": "Kolik vláken procesoru smí přepis využít.",
-  "settings.performance.threadsAuto":
-    "Hodnota vedle popisku, když je počet vláken nastavený na nulu.",
   "settings.performance.benchmarking": "Stav tlačítka po dobu měření rychlosti.",
   "settings.performance.fastest":
     "Přívlastek za názvem nejrychlejšího změřeného režimu. Vykresluje se za " +
@@ -383,10 +313,13 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
   "settings.performance.benchmarkResult":
     "Výsledek měření: {factor}× rychleji než skutečný čas nahrávky, {seconds} je doba testu v sekundách.",
 
-  "settings.files.locations": "Název sekce s cestami ke složkám.",
   "settings.files.choose": "Tlačítko otevírající dialog pro výběr složky. Tři tečky jsou jeden znak.",
+  "settings.files.watchDirectory":
+    "Popisek jediného pole na kartě Sledovaná složka. Karta už je pojmenovaná nadpisem, tohle říká jen „kde“.",
   "settings.files.watchPlaceholder": "Zástupný text v poli, dokud složka není vybraná.",
   "settings.files.watchRemove": "Odebere vybranou složku z nastavení. Nic nemaže na disku.",
+  "settings.files.watchAuto":
+    "Popisek přepínače. Bez něj aplikace nové soubory jen nabídne v Archivu; s ním rovnou spustí přepis.",
 
   "settings.about.publicDomain":
     "Licence SQLite. Není to licence, ale vzdání se práv — dílo je volné pro kohokoli a k čemukoli.",
@@ -417,8 +350,9 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
   "settings.about.updateNotesReopen":
     "Tlačítko v panelu, které ten dialog otevře znovu, když ho někdo zavřel a chce si text přečíst ještě jednou.",
 
+  "settings.appearance.title": "Nadpis karty s jazykem rozhraní, motivem a písmem přepisu.",
   "settings.appearance.description":
-    "Úvodní věta záložky Vzhled. Karta drží jazyk rozhraní, motiv, obě písma, velikost a řádkování; pod nimi je živá ukázka přepisu.",
+    "Úvodní věta té karty. Drží jazyk rozhraní, motiv, písmo přepisu a jeho velikost; pod nimi je živá ukázka přepisu.",
   "settings.appearance.theme":
     "Světlá, nebo tmavá barevnost celého okna.",
   "settings.appearance.themeSystem":
@@ -429,7 +363,6 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
     "Nadpis skupiny v nabídce písem. Patková písma mají na koncích tahů příčky.",
   "settings.appearance.fontGroupSans": "Nadpis skupiny v nabídce písem, protiklad patkových.",
   "settings.appearance.fontSizeValue": "px jsou obrazovkové body.",
-  "settings.appearance.lineHeight": "Mezera mezi řádky textu přepisu.",
   "settings.appearance.previewSpeaker":
     "Jméno mluvčího v ukázce písma. Smyšlené jméno, klidně nahraď obvyklým jménem v cílovém jazyce.",
   "settings.appearance.previewText":
@@ -440,14 +373,14 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
   "settings.transcription.model": "Popisek volby modelu Whisperu pro přepis.",
   "settings.transcription.modelDescription":
     "Náhradní popis modelu, který aplikace nezná podle jména.",
-  "settings.transcription.language": "Popisek volby jazyka nahrávky, ne jazyka aplikace.",
-  "settings.transcription.vad":
-    "Detekce řeči (VAD) pozná, kde se v nahrávce mluví, a zbytek přeskočí.",
+  "settings.transcription.language":
+    "Popisek volby jazyka nahrávky. Slovo „nahrávky“ je v něm schválně: o dvě karty dál stojí Jazyk aplikace a samotné „Jazyk“ se s ním pletlo.",
   "settings.transcription.beam":
     "Beam size Whisperu. Kolik možností si přepis drží, než vybere výsledek.",
 
+  "settings.dictionary.title": "Nadpis karty se seznamem oprav. Stojí na záložce Přepis, poslední.",
   "settings.dictionary.description":
-    "Úvodní věta záložky Slovník. „Přepis“ je tu ten hotový text, ne činnost.",
+    "Úvodní věta té karty. „Přepis“ je tu ten hotový text, ne činnost.",
   "settings.dictionary.newEntry":
     "Popisek řádku, ve kterém se zakládá nová dvojice. „Výraz“, ne „záznam“: záznam je v téhle aplikaci všude jinde nahrávka, takže ve slovníku četl jako nová nahrávka. Výraz je i proto, že ta dvojice může být sousloví, ne jen slovo.",
   "settings.dictionary.find": "Popisek pole: co se v přepisu objevuje špatně.",
@@ -459,15 +392,6 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
   "settings.dictionary.empty": "Text místo seznamu, dokud slovník nemá žádný záznam.",
   "settings.speakers.title": "Nadpis sekce o rozpoznávání mluvčích (diarizaci).",
   "settings.speakers.toggle": "Popisek přepínače diarizace.",
-  "settings.speakers.shift":
-    "Jak často se hledá střídání mluvčích. Technicky posun segmentačního okna.",
-  "settings.speakers.shiftFast": "Volba v nabídce: nejhrubší a nejrychlejší hledání.",
-  "settings.speakers.shiftFastNote": "Poznámka u volby „Rychle“ v nabídce.",
-  "settings.speakers.shiftBalanced": "Volba v nabídce mezi rychlostí a přesností.",
-  "settings.speakers.shiftDetailed": "Volba v nabídce: nejjemnější a nejpomalejší hledání.",
-  "settings.speakers.shiftDetailedNote": "Poznámka u volby „Podrobně“ v nabídce.",
-
-  "settings.tips.title": "Nadpis sekce o pruhu s klávesovými zkratkami.",
 
   "settings.backups.latest": "Popisek údaje: kdy se záloha vytvořila naposledy.",
   "settings.backups.none": "Hodnota vedle „Poslední záloha“, dokud žádná není.",
@@ -475,9 +399,8 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
   "settings.backups.directory": "Popisek údaje: kde zálohy leží. Hodnotou je cesta.",
   "settings.backups.reveal":
     "Bublina nad cestou. Kliknutí otevře složku ve správci souborů daného systému.",
-  "settings.backups.running": "Stav tlačítka po dobu zálohování.",
   "settings.backups.restoreTitle":
-    "Nadpis skrytého bloku. Dvě podstatná jména za sebou, jako ostatní nadpisy na téhle obrazovce, a „obnova“ souhlasí s tlačítkem Obnovit pod ním. Dřív tu stálo „Vrátit se k záloze“, protože obnovit zní jako oprava něčeho rozbitého — nadpis se ale četl jinak, než co dělalo tlačítko. Blok drží obojí: seznam záloh a export s importem archivu.",
+    "Nadpis skrytého bloku se seznamem záloh. Sloveso, protože to je jediné, co se v tom bloku dělá — export a import archivu se přestěhovaly nahoru na kartu a nadpis už nemusí pojmenovat dvě věci najednou.",
   "settings.backups.emptyList":
     "Místo seznamu, dokud žádná záloha není. Blok je vidět i tak, protože načíst archiv ze souboru jde i na čerstvě nainstalovaném počítači.",
   "settings.archive.export":
@@ -503,9 +426,15 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
   "settings.backups.restoreConfirmText":
     "Vysvětlení v tom dotazu. {when} je datum a čas zálohy. Jméno souboru je tam schválně — je to jediná cesta zpátky, kdyby si někdo vybral špatné datum.",
 
-  "settings.decoding.title":
-    "Nadpis skrytého bloku s prahovými hodnotami dekódování Whisperu.",
-  "settings.decoding.modified": "Odznak u nadpisu, když jsou hodnoty jiné než výchozí.",
+  "settings.advanced.title":
+    "Nadpis jediného skrytého bloku na konci záložky Přepis. Drží důkladnost hledání, prahy dekódování, akceleraci a cesty ke složkám.",
+  "settings.advanced.modified":
+    "Odznak u toho nadpisu, když je uvnitř cokoli jiného než výchozí. Malé písmeno je záměr, jako u ostatních odznaků.",
+  "settings.advanced.note":
+    "Úvodní věta uvnitř bloku. Podstatné je, že nic z toho měnit nemusí — a že výchozí hodnoty nejsou naše, ale Whisperu.",
+  "settings.advanced.reset":
+    "Tlačítko vracející na výchozí všechny hodnoty v bloku. Složek se netýká — cesta je místo, ne hodnota.",
+
   "settings.decoding.silence": "Od jaké hodnoty se úsek prohlásí za ticho.",
   "settings.decoding.confidence": "Jak jistý si přepis musí být, aby úsek přijal.",
   "settings.decoding.entropy":
@@ -513,7 +442,6 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
   "settings.decoding.temperature":
     "Teplota vzorkování. Vyšší hodnota znamená víc náhody ve výběru slov.",
   "settings.decoding.temperatureStep": "O kolik se teplota zvýší při dalším pokusu.",
-  "settings.decoding.reset": "Tlačítko vracející všechny hodnoty na výchozí.",
 
   "settings.diagnostics.title": "Nadpis skrytého bloku s cestami k nalezeným souborům.",
   "settings.diagnostics.copy":

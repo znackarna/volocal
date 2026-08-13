@@ -296,52 +296,33 @@ button.current > .row-play { color: var(--accent); }
 }
 
 /* ------------------------------------------------------- modules in settings */
-/* Tiles in the same language as the model cards: icon on a muted
-   square, label and value stacked, a status pill on the right. */
-.module-grid { display: grid; gap: 8px; }
-.module-tile { display: flex; align-items: center; gap: 13px; }
-.module-tile.complete .choice-icon {
-  background: hsl(var(--ds-grass) / 0.14); color: var(--success-text);
-}
-.module-tile.missing .choice-icon {
-  background: var(--danger-light); color: var(--danger);
-}
-.module-title {
-  font-size: 11px; font-weight: 700;
-  letter-spacing: 0.09em; text-transform: uppercase;
-  color: var(--text-quiet);
-}
-/* The same size and weight as a choice card's name. One point apart is not a
-   distinction anyone reads as meaningful — it just looks unresolved. */
-.module-value {
-  font-size: 15px; font-weight: 600; color: var(--text);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-
+/* The tiles are gone with the tab they stood on: four rows that could not be
+   pressed, each repeating a value chosen a card or two higher up. What is left
+   of that card is one line saying whether anything is missing, and the red it
+   says it in. */
 .warning-row { color: var(--danger); }
 
 /* --------------------------------------------------- model choice cards */
 .model-choices { display: grid; gap: 8px; }
-/* Centred, like the module tiles. Aligning to the top put the icon level with
-   the first line while the tile had it level with the whole block, so two rows
-   showing the same thing sat differently. */
+/* Centred rather than aligned to the top: the icon stands level with the whole
+   block, not with its first line. */
 .choice.with-icon { flex-direction: row; align-items: center; gap: 13px; }
-/* A circle, like the module tiles. A rounded square next to round buttons and
-   round status marks read as a third shape for no reason. */
+/* A circle. A rounded square next to round buttons and round status marks read
+   as a third shape for no reason. */
 .choice-icon {
   display: grid; place-items: center; flex: 0 0 auto;
   width: 38px; height: 38px; border-radius: 50%;
   background: var(--muted); color: var(--text-quiet);
 }
 .choice.chosen .choice-icon { background: hsl(var(--ds-petrol) / 0.14); color: var(--accent); }
-/* The text block is the same in both: two lines, three points apart. */
-.choice-body, .module-description {
+/* Two lines, three points apart. */
+.choice-body {
   display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1 1 auto;
 }
 .choice.with-icon .choice-head { align-items: center; justify-content: flex-start; gap: 9px; }
-/* The badge belongs at the right edge in both. Inline after the title it moved
-   with the length of the name, so no two rows had it in the same place. */
-.choice.with-icon > .badge, .module-tile > .badge { flex: 0 0 auto; margin-left: auto; }
+/* The badge belongs at the right edge. Inline after the title it moved with the
+   length of the name, so no two rows had it in the same place. */
+.choice.with-icon > .badge { flex: 0 0 auto; margin-left: auto; }
 
 /* ------------------------------------- audio visualisation in the mini player */
 .mini-player { position: relative; overflow: hidden; }

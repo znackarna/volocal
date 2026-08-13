@@ -136,7 +136,9 @@ export interface Settings {
   font_text: string;
   /** transcript font size, px */
   transcript_font_size: number;
-  /** transcript line height */
+  /** Stored and no longer read: the leading is derived from the size by
+   *  `transcriptLineHeight`. The field stays so that settings written by an
+   *  older build still load and so that nothing has to migrate. */
   transcript_line_height: number;
 }
 
@@ -263,14 +265,28 @@ export function rememberedTheme(): ThemeChoice {
   return stored === "light" || stored === "dark" ? stored : "system";
 }
 
-export function applyFonts(
-  n: Pick<Settings, "font_ui" | "font_text" | "transcript_font_size" | "transcript_line_height">
-) {
+/** The leading that goes with a size, rather than a second thing to decide.
+ *
+ *  Settings had two sliders and one of them is a consequence of the other:
+ *  large type needs proportionally less leading than small type to read as the
+ *  same block, which is why every type scale that ships with one ships with the
+ *  other. The line is drawn through the pair the application shipped with —
+ *  17.5 px at 1.72 — so a transcript nobody ever adjusted does not move; across
+ *  the slider's whole 14–26 px it runs from 1.75 down to 1.65.
+ *
+ *  Kept deliberately gentle. This is one number chosen once, not a curve worth
+ *  fitting: what it has to avoid is a 26 px transcript at a 14 px transcript's
+ *  leading, and it does. */
+export function transcriptLineHeight(size: number): number {
+  return 1.86 - 0.008 * (size || 17.5);
+}
+
+export function applyFonts(n: Pick<Settings, "font_ui" | "font_text" | "transcript_font_size">) {
   const k = document.documentElement.style;
   k.setProperty("--font", FONTS[n.font_ui]?.stack ?? FONTS.geist.stack);
   k.setProperty("--font-body", FONTS[n.font_text]?.stack ?? FONTS.literata.stack);
   k.setProperty("--text-size", `${n.transcript_font_size || 17.5}px`);
-  k.setProperty("--line-height", String(n.transcript_line_height || 1.72));
+  k.setProperty("--line-height", String(transcriptLineHeight(n.transcript_font_size)));
 }
 
 export interface ToolCheck {

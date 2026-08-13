@@ -228,6 +228,10 @@ pub struct Settings {
     pub editor_model: String,
     #[serde(alias = "jazyk")]
     pub language: String,
+    /// Kept so that a settings file written before 13 August 2026 still loads,
+    /// and read by nothing: `whisper.rs` passes `--vad` unconditionally. Off
+    /// was the documented cause of Whisper repeating one token over silence,
+    /// so it was never a choice worth offering.
     pub vad: bool,
     #[serde(alias = "vad_prah")]
     pub vad_threshold: f64,

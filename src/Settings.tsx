@@ -58,14 +58,6 @@ interface Props {
   onToModule: (module?: string) => void;
 }
 
-/** Which shared icon stands for which module row. */
-const MODULE_ICONS = {
-  model: "model",
-  compute: "compute",
-  speakers: "speakers",
-  editor: "editor",
-} as const satisfies Record<string, LineIconName>;
-
 /** Only identifiers here: the names and descriptions are looked up inside the
  *  components, so they follow a language change instead of freezing at import. */
 const EDITOR_CHOICES: ReadonlyArray<{
@@ -110,35 +102,100 @@ const COMPUTE_MODULES: Record<string, string> = {
   cpu: "whisper-cpu",
 };
 
-type ModuleStatus = "complete" | "missing" | "optional";
-type SettingsTab =
-  | "transcription"
-  | "dictionary"
-  | "models"
-  | "performance"
-  | "appearance"
-  | "files"
-  | "about";
+/** What `Pokročilé` puts back, and what tells it whether anything has moved.
+ *
+ *  Every one of these is a value with a right answer that somebody may have a
+ *  reason to disagree with: the beam width, the five thresholds Whisper decides
+ *  a segment by, and where the work runs. The numbers are whisper.cpp's own,
+ *  from `examples/cli/cli.cpp`, except the entropy threshold — 2.6 rather than
+ *  2.4, because on Czech the model looped more often than whisper's own
+ *  threshold was willing to catch. They match `Settings::default` in `db.rs`,
+ *  which is what a fresh installation gets; the two lists have to agree, or a
+ *  new installation would open badged as modified.
+ *
+ *  The two folders in that block are deliberately not here — see the comment
+ *  where the block is drawn. */
+const ADVANCED_DEFAULTS = {
+  beam: 5,
+  threshold_silence: 0.6,
+  threshold_confidence: -1,
+  entropy_threshold: 2.6,
+  temperature: 0,
+  temperature_increment: 0.2,
+  compute: "auto",
+} as const satisfies Partial<Settings>;
 
-/* What is on the machine and how fast it runs used to share one tab. They are
-   two questions — what is installed, and what it should run on — and the tab
-   had to be called `Modely a výkon` to admit it. */
-const SETTINGS_TABS: SettingsTab[] = [
-  "transcription",
-  "models",
-  "performance",
-  "appearance",
-  "dictionary",
-  "files",
-  "about",
+/** The five thresholds, as sliders. `whisper.rs` sends `--no-speech-thold`,
+ *  `--logprob-thold`, `--entropy-thold`, `--temperature` and
+ *  `--temperature-inc` whenever they differ from whisper's defaults, and asks
+ *  nothing else first — which is why they are shown unconditionally. They used
+ *  to appear only while speech detection was on, so a value that was being
+ *  passed to the transcription could be invisible on this screen. */
+const DECODING_FIELDS: ReadonlyArray<{
+  key: "threshold_silence" | "threshold_confidence" | "entropy_threshold"
+    | "temperature" | "temperature_increment";
+  labelKey: TranslationKey;
+  min: number;
+  max: number;
+  step: number;
+  descriptionKey: TranslationKey;
+}> = [
+  {
+    key: "threshold_silence",
+    labelKey: "settings.decoding.silence",
+    min: 0,
+    max: 1,
+    step: 0.05,
+    descriptionKey: "settings.decoding.silenceNote",
+  },
+  {
+    key: "threshold_confidence",
+    labelKey: "settings.decoding.confidence",
+    min: -3,
+    max: 0,
+    step: 0.1,
+    descriptionKey: "settings.decoding.confidenceNote",
+  },
+  {
+    key: "entropy_threshold",
+    labelKey: "settings.decoding.entropy",
+    min: 1,
+    max: 5,
+    step: 0.1,
+    descriptionKey: "settings.decoding.entropyNote",
+  },
+  {
+    key: "temperature",
+    labelKey: "settings.decoding.temperature",
+    min: 0,
+    max: 1,
+    step: 0.1,
+    descriptionKey: "settings.decoding.temperatureNote",
+  },
+  {
+    key: "temperature_increment",
+    labelKey: "settings.decoding.temperatureStep",
+    min: 0,
+    max: 0.5,
+    step: 0.05,
+    descriptionKey: "settings.decoding.temperatureStepNote",
+  },
 ];
+
+/* Three tabs, and they answer three different questions: what comes out of a
+   recording, how the application itself behaves, and what it is made of.
+
+   There were seven. `Modely`, `Výkon`, `Slovník` and `Soubory` were not
+   subjects a reader arrives with — they were the shape of the code. The
+   dictionary belongs to the transcript it corrects, the acceleration and the
+   folders belong to `Pokročilé`, and the four read-only tiles on `Modely` said
+   nothing the status band at the foot of `Přepis` does not say in one line. */
+type SettingsTab = "transcription" | "application" | "about";
+
+const SETTINGS_TABS: SettingsTab[] = ["transcription", "application", "about"];
 const SETTINGS_TAB_KEYS: Record<SettingsTab, TranslationKey> = {
   transcription: "settings.tab.transcription",
-  dictionary: "settings.tab.dictionary",
-  models: "settings.tab.models",
-  performance: "settings.tab.performance",
-  appearance: "settings.tab.appearance",
-  files: "settings.tab.files",
+  application: "settings.tab.application",
   about: "settings.tab.about",
 };
 
@@ -152,12 +209,6 @@ function byModelOrder(a: string, b: string): number {
   };
   return rank(a) - rank(b) || a.localeCompare(b);
 }
-
-const STATUS_BADGES: Record<ModuleStatus, { labelKey: TranslationKey; className: string }> = {
-  complete: { labelKey: "settings.modules.status.complete", className: "complete" },
-  missing: { labelKey: "settings.modules.status.missing", className: "required" },
-  optional: { labelKey: "settings.modules.status.optional", className: "quiet" },
-};
 
 /** Renders a translated sentence whose `{name}` placeholder carries markup.
  *  The sentence stays whole in the dictionary; only its rendering is split, so
@@ -180,34 +231,6 @@ function Filled({
       {children}
       {message.slice(at + marker.length)}
     </>
-  );
-}
-
-/** One row of the module overview. */
-function ModuleTile({
-  icon,
-  title,
-  value,
-  status,
-}: {
-  icon: LineIconName;
-  title: string;
-  value: string;
-  status: ModuleStatus;
-}) {
-  const { t } = useI18n();
-  const badge = STATUS_BADGES[status];
-  return (
-    <div className={`module-tile ${status}`}>
-      <span className="choice-icon" aria-hidden>
-        <LineIcon name={icon} />
-      </span>
-      <span className="module-description">
-        <span className="module-title">{title}</span>
-        <span className="module-value">{value}</span>
-      </span>
-      <em className={`badge ${badge.className}`}>{t(badge.labelKey)}</em>
-    </div>
   );
 }
 
@@ -504,7 +527,18 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
     ) => {
       if (!n) return;
       const selected = await open({ directory: true });
-      if (typeof selected === "string") save({ ...n, [key]: selected });
+      if (typeof selected !== "string") return;
+      /* Choosing a folder to watch is what switching watching on used to mean.
+         There was a `Sledovat složku` switch beside this button, and it could
+         only ever be in one of two states: off with a folder chosen, which is
+         a setting that does nothing and says nothing about why, or on, which
+         is what picking a folder already said. The stored flag stays, because
+         it is what the backend reads; this is the only thing that sets it. */
+      save(
+        key === "watch_folder"
+          ? { ...n, watch_folder: selected, watch_folder_enabled: true }
+          : { ...n, [key]: selected }
+      );
     },
     [n, save]
   );
@@ -518,13 +552,19 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
   const computeChoices = downloadedBackends.includes("vychozi")
     ? [...COMPUTE_CHOICES, { value: "vychozi", descriptionKey: "settings.performance.defaultDescription" as TranslationKey }]
     : COMPUTE_CHOICES;
-  const hasDiarization = (check?.issues_diarization ?? []).length === 0;
   const availableEditorChoices = EDITOR_CHOICES.filter((choice) =>
     modules.some((module) => module.id === choice.component && module.complete)
   );
   const hasEditor = availableEditorChoices.length > 0;
   const missingCompute =
     !!n && n.compute !== "auto" && downloadedBackends.length > 0 && !downloadedBackends.includes(n.compute);
+  /* Whether anything folded away has been moved off its default. The badge and
+     the reset button are one question asked twice, so they are one expression:
+     a block that says `upraveno` and a button that refuses to do anything
+     would be worse than neither. */
+  const advancedChanged = (
+    Object.keys(ADVANCED_DEFAULTS) as Array<keyof typeof ADVANCED_DEFAULTS>
+  ).some((key) => n[key] !== ADVANCED_DEFAULTS[key]);
 
   return (
     <main className="settings">
@@ -554,7 +594,9 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
             onKeyDown={handleTabKeyDown}
           >
             <span>{t(SETTINGS_TAB_KEYS[tab])}</span>
-            {tab === "models" && missingRequired.length > 0 && (
+            {/* The dot follows the status band, which now stands at the foot of
+                the transcription tab rather than on a tab of its own. */}
+            {tab === "transcription" && missingRequired.length > 0 && (
               <span className="settings-tab-alert" aria-label={t("settings.missingRequired")} />
             )}
           </button>
@@ -568,7 +610,7 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
         aria-labelledby={`settings-tab-${activeTab}`}
       >
 
-      {activeTab === "files" && check?.portable && (
+      {activeTab === "application" && check?.portable && (
         <section className="portable-info settings-card-portable">
           <h2>{t("settings.portable.title")}</h2>
           <p>
@@ -591,54 +633,22 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
         </section>
       )}
 
-      {/* Modules do not belong in the main tab list: they are downloaded once
-          and rarely returned to. Here they are within reach and out of the way. */}
-      {activeTab === "models" && <section className="settings-card-modules">
+      {/* One line about everything that has to be on the disk, and one button
+          to the list that puts it there.
+
+          It used to be a tab of its own carrying four read-only tiles — the
+          model, the acceleration, the editor and the speakers — each repeating
+          a value chosen three cards higher up on this same screen. None of them
+          could be pressed. What a reader needs from this subject is whether
+          anything is missing, and the way to fix it if it is; that is a band,
+          not a tab. The button opens the by-hand component list directly (the
+          wizard does that itself when it is opened neither as required nor for
+          one named module). */}
+      {activeTab === "transcription" && <section className="settings-card-modules">
         <h2>{t("settings.modules.title")}</h2>
         <p className="settings-section-description">
           {t("settings.modules.description")}
         </p>
-        <div className="module-grid">
-          <ModuleTile
-            icon={MODULE_ICONS.model}
-            title={t("settings.modules.model")}
-            value={labels.model(n.model)}
-            status="complete"
-          />
-          <ModuleTile
-            icon={MODULE_ICONS.compute}
-            title={t("settings.modules.compute")}
-            value={check ? labels.compute(check.compute) : "—"}
-            status={downloadedBackends.length > 0 ? "complete" : "missing"}
-          />
-          <ModuleTile
-            icon={MODULE_ICONS.editor}
-            title={t("settings.modules.editor")}
-            value={
-              n.editor_model
-                ? (() => {
-                    const choice = EDITOR_CHOICES.find((c) => c.model === n.editor_model);
-                    return choice ? t(choice.titleKey) : n.editor_model;
-                  })()
-                : hasEditor
-                  ? t("settings.modules.editorReady")
-                  : t("settings.modules.editorMissing")
-            }
-            status={hasEditor ? "complete" : "optional"}
-          />
-          <ModuleTile
-            icon={MODULE_ICONS.speakers}
-            title={t("settings.modules.speakers")}
-            value={
-              hasDiarization
-                ? n.diarization
-                  ? t("settings.modules.speakersOn")
-                  : t("settings.modules.speakersReady")
-                : t("settings.modules.speakersMissing")
-            }
-            status={hasDiarization ? "complete" : "optional"}
-          />
-        </div>
 
         <div className="settings-action-row spaced">
           {missingRequired.length > 0 ? (
@@ -657,7 +667,6 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
               : t("settings.modules.manage")}
           </button>
         </div>
-        {check && <ToolDiagnostics k={check} onInfo={onInfo} onError={onError} />}
       </section>}
 
       {activeTab === "transcription" && <section className="settings-card-language-edit">
@@ -739,11 +748,71 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
         )}
       </section>}
 
-      {activeTab === "performance" && <section className="settings-card-performance">
-        <h2>{t("settings.performance.title")}</h2>
-        <p className="settings-section-description">
-          {t("settings.performance.description")}
-        </p>
+      {/* Everything that used to be two tabs, folded into one block at the foot
+          of the one tab it belongs to.
+
+          `Výkon` and the two folders from `Modely` were never subjects anybody
+          arrives with: a reader who opens Settings wants a better transcript,
+          and these are the levers for when the ordinary ones have not given it.
+          One disclosure, one badge saying whether any of it has been moved, and
+          one way back — rather than a badge and a reset per group, which is how
+          a reader ends up not knowing what state the machine is in.
+
+          `Zpět na výchozí` covers the values, not the two folders. A folder is
+          a place, not a setting: resetting it would point the application at a
+          directory where nothing has been downloaded, which is not a default
+          anybody wanted. For the same reason a moved folder does not raise the
+          badge — on an ordinary installation neither path is the built-in
+          relative one, so it would say `upraveno` for everybody. */}
+      {activeTab === "transcription" && <section className="settings-card-advanced">
+        <SettingsDisclosure
+          title={t("settings.advanced.title")}
+          badge={
+            advancedChanged ? (
+              <span className="badge quiet">{t("settings.advanced.modified")}</span>
+            ) : undefined
+          }
+        >
+        <p className="small-text">{t("settings.advanced.note")}</p>
+
+        <div className="field">
+          <label>
+            {t("settings.transcription.beam")} <em className="value">
+              {formatNumber(n.beam)}
+            </em>
+          </label>
+          <input
+            type="range"
+            min={1}
+            max={8}
+            value={n.beam}
+            onChange={(e) => save({ ...n, beam: Number(e.target.value) })}
+          />
+          <p className="small-text">{t("settings.transcription.beamNote")}</p>
+        </div>
+
+        {/* The five thresholds Whisper decides by. They are here whatever else
+            is set, which they were not: they used to be revealed by the speech
+            detection switch, and `whisper.rs` writes `--temperature`,
+            `--logprob-thold`, `--entropy-thold`, `--temperature-inc` and
+            `--no-speech-thold` without ever consulting it. A value that is
+            being sent must be visible. */}
+        {DECODING_FIELDS.map((p) => (
+          <div className="field" key={p.key}>
+            <label>
+              {t(p.labelKey)} <em className="value">{formatNumber(n[p.key])}</em>
+            </label>
+            <input
+              type="range"
+              min={p.min}
+              max={p.max}
+              step={p.step}
+              value={n[p.key]}
+              onChange={(e) => save({ ...n, [p.key]: Number(e.target.value) })}
+            />
+            <p className="small-text">{t(p.descriptionKey)}</p>
+          </div>
+        ))}
 
         <div className="field">
           <label>{t("settings.performance.compute")}</label>
@@ -797,23 +866,11 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
           )}
         </div>
 
-        <div className="field">
-          <label>
-            {t("settings.performance.threads")} <em className="value">
-              {n.threads === 0
-                ? t("settings.performance.threadsAuto")
-                : formatNumber(n.threads)}
-            </em>
-          </label>
-          <input
-            type="number"
-            min={0}
-            max={64}
-            value={n.threads}
-            onChange={(event) => save({ ...n, threads: Number(event.target.value) })}
-          />
-          <InfoNote>{t("settings.performance.threadsNote")}</InfoNote>
-        </div>
+        {/* `Vlákna procesoru` stood here and is gone. Zero — the default and
+            what almost every installation carried — already means
+            `available_parallelism`, and every measured value above it was
+            slower, because whisper.cpp is memory-bound long before it runs out
+            of cores. A number that can only make things worse is not a setting. */}
 
         <div className="settings-action-row separated">
           <InfoNote compact>{t("settings.performance.benchmarkNote")}</InfoNote>
@@ -857,11 +914,15 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
             ))}
           </ul>
         )}
-      </section>}
 
-      {activeTab === "models" && <section className="settings-card-locations">
-        <h2>{t("settings.files.locations")}</h2>
-        <p className="settings-section-description">
+        {/* Both folders are shown and neither is typed.
+
+            They were free-text fields that saved on blur, which means one
+            mistyped character pointed the application at a directory holding
+            none of the tools it had downloaded — and the way back was to
+            remember what the path had been. The picker cannot produce a folder
+            that does not exist, and it is the only way in now. */}
+        <p className="small-text">
           {t(check?.portable
             ? "settings.files.locationsPortable"
             : "settings.files.locationsDescription")}
@@ -872,9 +933,8 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
           <div className="input-row">
             <input
               value={n.bin_directory}
-              onChange={(e) => setN({ ...n, bin_directory: e.target.value })}
-              onBlur={() => save(n)}
-              onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+              readOnly
+              aria-label={t("settings.files.binDirectory")}
             />
             <button className="button" onClick={() => selectDirectory("bin_directory")}>
               {t("settings.files.choose")}
@@ -887,9 +947,8 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
           <div className="input-row">
             <input
               value={n.models_directory}
-              onChange={(e) => setN({ ...n, models_directory: e.target.value })}
-              onBlur={() => save(n)}
-              onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+              readOnly
+              aria-label={t("settings.files.modelsDirectory")}
             />
             <button className="button" onClick={() => selectDirectory("models_directory")}>
               {t("settings.files.choose")}
@@ -897,10 +956,24 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
           </div>
         </div>
 
+        <button
+          className="button"
+          disabled={!advancedChanged}
+          onClick={() => save({ ...n, ...ADVANCED_DEFAULTS })}
+        >
+          {t("settings.advanced.reset")}
+        </button>
+
+        {check && <ToolDiagnostics k={check} onInfo={onInfo} onError={onError} />}
+        </SettingsDisclosure>
       </section>}
 
-      {activeTab === "dictionary" && <section className="settings-card-dictionary">
-        <h2>{t("settings.tab.dictionary")}</h2>
+      {/* The dictionary is not a subject of its own: it is a list of the
+          mistakes this transcript makes, and it belongs beside the model that
+          makes them. It was a tab because it is long, which is a reason to put
+          it last on a tab, not to give it one. */}
+      {activeTab === "transcription" && <section className="settings-card-dictionary">
+        <h2>{t("settings.dictionary.title")}</h2>
         <p className="settings-section-description">{t("settings.dictionary.description")}</p>
 
         <div className="field">
@@ -1000,8 +1073,8 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
         </div>
       </section>}
 
-      {activeTab === "appearance" && <section className="settings-card-appearance">
-        <h2>{t("settings.tab.appearance")}</h2>
+      {activeTab === "application" && <section className="settings-card-appearance">
+        <h2>{t("settings.appearance.title")}</h2>
         <p className="settings-section-description">
           {t("settings.appearance.description")}
         </p>
@@ -1032,16 +1105,10 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
           />
         </div>
 
-        <div className="field">
-          <label>{t("settings.appearance.fontUi")}</label>
-          <Select
-            value={n.font_ui}
-            onChange={(v) => save({ ...n, font_ui: v })}
-            items={Object.entries(FONTS)
-              .filter(([, p]) => p.category === "sans")
-              .map(([id]) => ({ value: id, label: labels.fontTitle(id) }))}
-          />
-        </div>
+        {/* `Písmo rozhraní` stood here. It set the type of the application's own
+            chrome — menus, buttons, labels — which is the one thing on this
+            screen nobody opened Settings to change; what a reader wants to read
+            comfortably is the transcript, and that is the field below. */}
 
         <div className="field">
           <label>{t("settings.appearance.fontText")}</label>
@@ -1088,24 +1155,11 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
           />
         </div>
 
-        <div className="field">
-          <label>
-            {t("settings.appearance.lineHeight")} <em className="value">
-              {formatNumber(n.transcript_line_height, {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}
-            </em>
-          </label>
-          <input
-            type="range"
-            min={1.3}
-            max={2.2}
-            step={0.02}
-            value={n.transcript_line_height}
-            onChange={(e) => save({ ...n, transcript_line_height: Number(e.target.value) })}
-          />
-        </div>
+        {/* `Řádkování` was a second slider, and it is a consequence of the
+            first: large type needs proportionally less leading than small type
+            to read as the same block. `transcriptLineHeight` derives it, and
+            the line it draws passes exactly through the pair that shipped —
+            17.5 px at 1.72 — so nothing moves for anyone who never touched it. */}
 
         <div className="preview-font">
           <div className="preview-speakers">{t("settings.appearance.previewSpeaker")}</div>
@@ -1154,32 +1208,17 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
           <InfoNote>{t("settings.transcription.modelNote")}</InfoNote>
         </div>
 
-        <div className="field">
-          <label>
-            {t("settings.transcription.beam")} <em className="value">
-              {formatNumber(n.beam)}
-            </em>
-          </label>
-          <input
-            type="range"
-            min={1}
-            max={8}
-            value={n.beam}
-            onChange={(e) => save({ ...n, beam: Number(e.target.value) })}
-          />
-          <InfoNote>{t("settings.transcription.beamNote")}</InfoNote>
-        </div>
-      </section>}
+        {/* The recording's own language, on the card with the model that reads
+            it. It had a card of its own, `Jazyk a detekce řeči`, and once the
+            speech-detection switch went there was one field left on it — and a
+            field called `Jazyk` two tabs from a field called `Jazyk aplikace`,
+            with nothing to say which was which. It says so itself now.
 
-      {/* What is in the recording, rather than what reads it (Jakub's ask):
-          which language is spoken, and what counts as speech at all. The fine
-          tuning follows the speech-detection switch, so it belongs in the same
-          card — it is the same subject at a finer grain, and with the switch
-          off it is not shown at all. */}
-      {activeTab === "transcription" && <section className="settings-card-speech">
-        <h2>{t("settings.speech.title")}</h2>
-        <p className="settings-section-description">{t("settings.speech.description")}</p>
-
+            `Detekce řeči` is not gone anywhere else: `whisper.rs` passes
+            `--vad` unconditionally. Off is the documented cause of Whisper
+            repeating one token over silence, the switch's own note said *nechte
+            zapnuté*, and a switch whose only other position is a known defect
+            is not a choice. */}
         <div className="field">
           <label>{t("settings.transcription.language")}</label>
           <Select
@@ -1189,19 +1228,9 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
           />
           <InfoNote>{t("settings.transcription.languageNote")}</InfoNote>
         </div>
-
-        <SettingsToggle
-          title={t("settings.transcription.vad")}
-          label={t("settings.transcription.vad")}
-          checked={n.vad}
-          onChange={(checked) => save({ ...n, vad: checked })}
-          description={t("settings.transcription.vadNote")}
-        />
-
-        {n.vad && <DecodingSettings n={n} save={save} />}
       </section>}
 
-      {activeTab === "files" && <section className="settings-card-watch-folder">
+      {activeTab === "application" && <section className="settings-card-watch-folder">
         <h2>{t("settings.files.watchTitle")}</h2>
         <p className="settings-section-description">
           {t("settings.files.watchDescription")}
@@ -1219,10 +1248,23 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
             <button className="button" onClick={() => selectDirectory("watch_folder")}>
               {t("settings.files.choose")}
             </button>
+            {/* Kept, though the plan for this screen struck it out along with
+                the switch above. With both gone, choosing a folder once would
+                be permanent — there would be no way left to stop watching,
+                which is the same one-way door the recordings folder's
+                `Výchozí` exists to avoid. It appears only when there is
+                something to remove. */}
             {n.watch_folder && (
               <button
                 className="button quiet"
-                onClick={() => save({ ...n, watch_folder: "", watch_folder_enabled: false })}
+                onClick={() =>
+                  save({
+                    ...n,
+                    watch_folder: "",
+                    watch_folder_enabled: false,
+                    watch_folder_auto: false,
+                  })
+                }
               >
                 {t("settings.files.watchRemove")}
               </button>
@@ -1230,33 +1272,30 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
           </div>
         </div>
 
-        <SettingsToggle
-          title={t("settings.files.watchToggle")}
-          label={t("settings.files.watchToggle")}
-          checked={n.watch_folder_enabled}
-          disabled={!n.watch_folder}
-          onChange={(checked) => save({ ...n, watch_folder_enabled: checked })}
-          description={t("settings.files.watchToggleNote")}
-        />
+        {/* One switch where there were two. `Sledovat složku` sat above this
+            one and could only ever repeat what the row above it already said: a
+            folder is chosen, or it is not. The one question left is what to do
+            with what turns up in it — offer it in the Archive, or start.
 
-        {/* Only once the folder is being watched: what to do with what it
-            finds is not a question until it finds anything. */}
-        {n.watch_folder_enabled && (
-          <SettingsToggle
-            title={t("settings.files.watchAuto")}
-            label={t("settings.files.watchAuto")}
-            checked={n.watch_folder_auto}
-            onChange={(checked) => save({ ...n, watch_folder_auto: checked })}
-            description={t("settings.files.watchAutoNote")}
-          />
-        )}
+            Shown whether or not a folder is chosen, rather than appearing with
+            one. A switch that materialises after an unrelated press is a switch
+            nobody knows exists; disabled, it is visible and says what it will
+            be for. */}
+        <SettingsToggle
+          title={t("settings.files.watchAuto")}
+          label={t("settings.files.watchAuto")}
+          checked={n.watch_folder_auto}
+          disabled={!n.watch_folder}
+          onChange={(checked) => save({ ...n, watch_folder_auto: checked })}
+          description={t("settings.files.watchAutoNote")}
+        />
       </section>}
 
       {/* A take from the microphone exists nowhere else, and until now it lived
           in %APPDATA% where nobody looks. The point of this card is that the
           audio the application makes for itself is somewhere its owner can
           find — which is also what lets a factory reset leave it alone. */}
-      {activeTab === "files" && <section className="settings-card-recordings">
+      {activeTab === "application" && <section className="settings-card-recordings">
         <h2>{t("settings.recordings.title")}</h2>
         <p className="settings-section-description">
           {t("settings.recordings.description")}
@@ -1336,11 +1375,16 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
         )}
       </section>}
 
-      {activeTab === "appearance" && <QuickTips />}
+      {/* `Zobrazovat tipy nad přepisem` stood here. The strip it governs is
+          dismissed by its own × on the transcript screen, which is where
+          anybody who wants it gone is looking; a switch on another screen to
+          undo a press made two screens away is a setting for a decision nobody
+          revisits. Dismissing it is final on this machine now, which is the
+          trade: one fewer control against one fewer way back. */}
 
-      {activeTab === "files" && <Backups onError={onError} onInfo={onInfo} />}
+      {activeTab === "application" && <Backups onError={onError} onInfo={onInfo} />}
 
-      {activeTab === "files" && !check?.portable && (
+      {activeTab === "application" && !check?.portable && (
         <section className="settings-card-portable-copy">
           <h2>{t("settings.portable.copyTitle")}</h2>
           <p className="settings-section-description">
@@ -1550,37 +1594,6 @@ function About({
 }
 
 /**
- * The strip of shortcuts under the player on the transcript screen.
- *
- * It can be dismissed there, and this is where it comes back from — otherwise
- * closing it once would be final and nobody would guess where to look.
- */
-function QuickTips() {
-  const { t } = useI18n();
-  const [visible, setVisible] = useState(
-    () => localStorage.getItem("rychle-tipy") !== "skryte"
-  );
-
-  const set = useCallback((wanted: boolean) => {
-    localStorage.setItem("rychle-tipy", wanted ? "viditelne" : "skryte");
-    setVisible(wanted);
-  }, []);
-
-  return (
-    <section className="settings-card-quick-tips">
-      <SettingsToggle
-        title={t("settings.tips.title")}
-        label={t("settings.tips.toggle")}
-        checked={visible}
-        heading
-        onChange={set}
-        description={t("settings.tips.description")}
-      />
-    </section>
-  );
-}
-
-/**
  * Backups of the archive.
  *
  * The whole archive is one SQLite file. It is worth saying out loud where the
@@ -1645,17 +1658,12 @@ function Backups({
 
   useEffect(refresh, [refresh]);
 
-  const backUpNow = useCallback(async () => {
-    setRunning(true);
-    try {
-      await api.backUpNow();
-      refresh();
-    } catch (e) {
-      onError(userMessage(e));
-    } finally {
-      setRunning(false);
-    }
-  }, [onError, refresh, userMessage]);
+  /* `Zálohovat teď` stood here and is gone with its handler. A copy is taken at
+     every start — which is what the card's own description says — so the button
+     made a second copy of an archive that had not changed since the first one,
+     and the only thing it could do that the automatic copy cannot is make three
+     of them in a row. Restoring, exporting and importing are the acts that
+     needed a button. */
 
   /* A name with the day in it, because the folder these land in is the one
      somebody keeps several in. */
@@ -1746,17 +1754,29 @@ function Backups({
         )}
       </dl>
 
+      {/* The archive leaving and arriving, on the face of the card.
+
+          Both were folded away with the list of backups, under a heading that
+          had to name two subjects at once — and they are not the same subject.
+          Going back to a Tuesday is a list to read; sending the archive to
+          another disk is one press. The press is up here; the reading is folded
+          under it. One note for the two of them, because they are one archive
+          going in either direction. */}
       <div className="settings-action-row spaced">
-        <InfoNote compact>{t("settings.backups.note")}</InfoNote>
-        <button className="button" onClick={backUpNow} disabled={running}>
-          {running ? t("settings.backups.running") : t("settings.backups.action")}
-        </button>
+        <InfoNote compact>{t("settings.archive.note")}</InfoNote>
+        <div className="settings-action-row-buttons">
+          <button className="button" onClick={exportArchive} disabled={saving || running}>
+            {saving ? t("settings.archive.exportSaving") : t("settings.archive.export")}
+          </button>
+          <button className="button" onClick={importArchive} disabled={running}>
+            {t("settings.archive.import")}
+          </button>
+        </div>
       </div>
 
       {/* Last band of the card, folded away. Putting a backup back is the
           rarest thing on this screen and the only one that replaces what is
-          there — it belongs under everything that is not, rather than between
-          the summary and the button that merely makes another copy. */}
+          there — it belongs under everything that is not. */}
       {/* Always here, unlike the list inside it. A machine that has just been
           set up has no backups and is exactly the machine somebody wants to
           load an archive into. */}
@@ -1841,36 +1861,6 @@ function Backups({
             dates they came here to look at. */}
         {(status?.count ?? 0) > 0 && <InfoNote>{t("settings.backups.restoreNote")}</InfoNote>}
 
-        {/* The other way an archive arrives. Below the dates, because a reader
-            who came here for a backup should reach the backups first, and this
-            one is the wider door: it takes any archive, including one from a
-            computer that is gone. */}
-        {/* One band, one note, two buttons. They read as a pair — the same
-            archive going out and coming in — and the note has a sentence for
-            each rather than each having a note.
-
-            `separated`, so a line falls between the backups and the archive
-            itself. That is a second rule on this card, which the comment beside
-            `.settings-action-row.separated` warns against — and it is meant
-            here: what that comment objects to is two rules a few lines apart
-            with one row of text between them, on the open face of a card. This
-            one lands under a list, inside a block folded away until somebody
-            opens it. Above the line is going back in time; below it is the
-            archive leaving or arriving.
-
-            The buttons are wrapped because the row is `space-between`: loose,
-            one would go to each end and leave the note stranded between them. */}
-        <div className="settings-action-row separated">
-          <InfoNote compact>{t("settings.archive.note")}</InfoNote>
-          <div className="settings-action-row-buttons">
-            <button className="button" onClick={exportArchive} disabled={saving || running}>
-              {saving ? t("settings.archive.exportSaving") : t("settings.archive.export")}
-            </button>
-            <button className="button" onClick={importArchive} disabled={running}>
-              {t("settings.archive.import")}
-            </button>
-          </div>
-        </div>
       </SettingsDisclosure>
 
       <ConfirmationDialog
@@ -1882,124 +1872,6 @@ function Backups({
   );
 }
 
-/**
- * Thresholds Whisper uses to decide whether it transcribed a segment properly.
- *
- * Tucked behind a disclosure on purpose. Ninety per cent of people never need
- * to touch these, and a badly set temperature can degrade a transcript more
- * than it ever rescues. Whoever does get here is usually chasing a specific
- * problem — a looping sentence or a swallowed quiet voice — and needs to know
- * which lever to pull.
- */
-const DEFAULT_DECODING = {
-  threshold_silence: 0.6,
-  threshold_confidence: -1,
-  entropy_threshold: 2.6,
-  temperature: 0,
-  temperature_increment: 0.2,
-} as const;
-
-function DecodingSettings({
-  n,
-  save,
-}: {
-  n: Settings;
-  save: (n: Settings) => void;
-}) {
-  const { t, formatNumber } = useI18n();
-
-  const isCustom = (Object.keys(DEFAULT_DECODING) as Array<
-    keyof typeof DEFAULT_DECODING
-  >).some((k) => n[k] !== DEFAULT_DECODING[k]);
-
-  const fields: Array<{
-    key: keyof typeof DEFAULT_DECODING;
-    labelKey: TranslationKey;
-    min: number;
-    max: number;
-    step: number;
-    descriptionKey: TranslationKey;
-  }> = [
-    {
-      key: "threshold_silence",
-      labelKey: "settings.decoding.silence",
-      min: 0,
-      max: 1,
-      step: 0.05,
-      descriptionKey: "settings.decoding.silenceNote",
-    },
-    {
-      key: "threshold_confidence",
-      labelKey: "settings.decoding.confidence",
-      min: -3,
-      max: 0,
-      step: 0.1,
-      descriptionKey: "settings.decoding.confidenceNote",
-    },
-    {
-      key: "entropy_threshold",
-      labelKey: "settings.decoding.entropy",
-      min: 1,
-      max: 5,
-      step: 0.1,
-      descriptionKey: "settings.decoding.entropyNote",
-    },
-    {
-      key: "temperature",
-      labelKey: "settings.decoding.temperature",
-      min: 0,
-      max: 1,
-      step: 0.1,
-      descriptionKey: "settings.decoding.temperatureNote",
-    },
-    {
-      key: "temperature_increment",
-      labelKey: "settings.decoding.temperatureStep",
-      min: 0,
-      max: 0.5,
-      step: 0.05,
-      descriptionKey: "settings.decoding.temperatureStepNote",
-    },
-  ];
-
-  return (
-    <SettingsDisclosure
-      title={t("settings.decoding.title")}
-      badge={
-        isCustom ? (
-          <span className="badge quiet">{t("settings.decoding.modified")}</span>
-        ) : undefined
-      }
-    >
-          <p className="small-text">{t("settings.decoding.note")}</p>
-
-          {fields.map((p) => (
-            <div className="field" key={p.key}>
-              <label>
-                {t(p.labelKey)} <em className="value">{formatNumber(n[p.key])}</em>
-              </label>
-              <input
-                type="range"
-                min={p.min}
-                max={p.max}
-                step={p.step}
-                value={n[p.key]}
-                onChange={(e) => save({ ...n, [p.key]: Number(e.target.value) })}
-              />
-              <p className="small-text">{t(p.descriptionKey)}</p>
-            </div>
-          ))}
-
-          <button
-            className="button"
-            disabled={!isCustom}
-            onClick={() => save({ ...n, ...DEFAULT_DECODING })}
-          >
-            {t("settings.decoding.reset")}
-          </button>
-    </SettingsDisclosure>
-  );
-}
 
 function ToolDiagnostics({
   k,

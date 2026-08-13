@@ -382,9 +382,12 @@ export default function Detail({
      winning. */
   const [editingUncertain, setEditingUncertain] = useState<string | null>(null);
   /** The strip of shortcuts under the player. Useful the first few times and
-   *  then just a line of text in the way, so it can be dismissed; Settings
-   *  brings it back. Kept beside the panel's own preference rather than in the
-   *  database — it is a habit of this machine, not of the archive. */
+   *  then just a line of text in the way, so it can be dismissed here. Settings
+   *  used to have a switch that brought it back and no longer does: a control on
+   *  another screen undoing a press made on this one is a setting for a decision
+   *  nobody revisits. Dismissing it is final on this machine now. Kept beside
+   *  the panel's own preference rather than in the database — it is a habit of
+   *  this machine, not of the archive. */
   const [tipsVisible, setTipsVisible] = useState(
     () => localStorage.getItem("rychle-tipy") !== "skryte"
   );

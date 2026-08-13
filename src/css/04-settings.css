@@ -93,31 +93,39 @@
 .settings-panels {
   display: flex; flex-direction: column; gap: 16px;
 }
-/* The transcription tab reads model → what is in the recording → speakers →
-   language editing, whatever order the JSX happens to declare them in. */
+/* Přepis reads what comes out of a recording, in the order somebody wants it:
+   the model and the language, then the speakers, then the language editing,
+   then the corrections, and last the two things that are about the machine
+   rather than the transcript — what is downloaded, and everything folded away.
+   The JSX may declare them in any order it likes; this is the reading order. */
 .settings-card-transcription { order: 1; }
-.settings-card-speech { order: 2; }
-.settings-card-speakers { order: 3; }
-.settings-card-language-edit { order: 4; }
-.settings-card-modules { order: 1; }
-.settings-card-performance { order: 2; }
-.settings-card-locations { order: 3; }
-.settings-card-dictionary { order: 1; }
-.settings-card-appearance { order: 1; }
-.settings-card-quick-tips { order: 2; }
-/* Every card on a tab needs a number here, and this one had none: without a
-   rule it takes `order: 0` and sorts above cards that asked for 1, so the
-   recordings folder rendered over the portable-mode banner no matter where the
-   JSX put it. It is first on this tab by intent, which is why the omission
-   looked right for as long as it did. */
-.settings-card-recordings { order: 1; }
-.settings-card-portable { order: 2; }
-.settings-card-watch-folder { order: 3; }
-.settings-card-backups { order: 4; }
-.settings-card-portable-copy { order: 5; }
+.settings-card-speakers { order: 2; }
+.settings-card-language-edit { order: 3; }
+.settings-card-dictionary { order: 4; }
+.settings-card-modules { order: 5; }
+.settings-card-advanced { order: 6; }
+/* Aplikace: the banner first when there is one, because it says what kind of
+   installation everything under it belongs to. */
+/* Every card on a tab needs a number here, and the recordings folder had none:
+   without a rule it takes `order: 0` and sorts above cards that asked for 1, so
+   it rendered over the portable-mode banner no matter where the JSX put it. */
+.settings-card-portable { order: 1; }
+.settings-card-appearance { order: 2; }
+.settings-card-recordings { order: 3; }
+.settings-card-watch-folder { order: 4; }
+.settings-card-backups { order: 5; }
+.settings-card-portable-copy { order: 6; }
 .settings-card-about { order: 1; }
 .settings-card-abilities { order: 2; }
 .settings-card-credits { order: 3; }
+/* The card whose whole content is one folded-away block. Its disclosure carries
+   the 14 px rule that separates it from whatever stood above it inside a card —
+   and here nothing does, so the rule would be drawn along the card's own top
+   edge, 26 px in from both sides and parallel to the border. Zeroed, and only
+   here: everywhere else that rule is doing its job. */
+.settings-card-advanced > .settings-disclosure {
+  margin-top: 0; padding-top: 0; border-top: 0;
+}
 .settings section {
   background: var(--panel); border: 1px solid var(--line);
   border-radius: var(--r-large); padding: 26px 28px;
@@ -466,10 +474,10 @@
 .detected-value { font-size: 14px; font-weight: 600; }
 
 .choices { display: flex; flex-direction: column; gap: 8px; }
-/* One frame for every row of this kind — a choice card and a status tile
-   alike. They carry different content but must read as one family, so the
-   padding, the radius and the vertical rhythm live here and nowhere else. */
-.choice, .module-tile {
+/* One frame for every row of this kind. They carry different content but must
+   read as one family, so the padding, the radius and the vertical rhythm live
+   here and nowhere else. */
+.choice {
   border: 1px solid var(--line); background: var(--panel);
   border-radius: var(--r-large); padding: 12px 14px;
 }
@@ -1173,6 +1181,13 @@ button.mic-play:disabled { cursor: default; opacity: 0.6; }
 .diagnostics-actions {
   display: flex; gap: 8px; margin-top: 18px; align-self: flex-start;
 }
+/* And a button standing on its own inside a folded block — `Zpět na výchozí`
+   at the foot of `Pokročilé` — for exactly the same reason as the row above.
+   The disclosure is a flex column, so left alone it stretches to the full width
+   of the card, which no other button in Settings does. It stretched before this
+   rule existed, when it was one short block's own reset; at the foot of a block
+   this long it is the last thing the eye lands on. */
+.settings-disclosure-content > .button { align-self: flex-start; }
 
 /* The backups, one row each: when it was taken, how large it is, and the way
    back. The date leads because it is the only thing anybody chooses by; the
