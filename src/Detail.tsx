@@ -30,7 +30,7 @@ import type { TranslationKey } from "./i18n";
 import { useLabels } from "./labels";
 import { useDialog } from "./useDialog";
 import { CONFIDENCE_THRESHOLD, formatTime, fileName, statusClass } from "./types";
-import { forgetSpeakerName, speakerNamesFor } from "./speakerNames";
+import { forgetSpeakerName, useSpeakerNamePool } from "./speakerNames";
 import ProgressBubble from "./ProgressBubble";
 /* The transcript screen's own parts. They were all in this file until it had
    grown to 3 688 lines; each of these is a piece somebody reads on its own. */
@@ -1212,11 +1212,8 @@ export default function Detail({
      under whichever row is being named, never under all of them at once: with
      five voices and five names that would be twenty-five buttons, and only one
      of them is ever the answer to the question in front of you. */
-  const [namePool, setNamePool] = useState<string[]>(() => speakerNamesFor(id));
+  const [namePool, setNamePool] = useSpeakerNamePool(id, progress?.phase);
   const [naming, setNaming] = useState<string | null>(null);
-  useEffect(() => {
-    setNamePool(speakerNamesFor(id));
-  }, [id]);
 
   const takeName = useCallback(
     async (key: string, name: string) => {
