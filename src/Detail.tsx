@@ -30,7 +30,7 @@ import type { TranslationKey } from "./i18n";
 import { useLabels } from "./labels";
 import { useDialog } from "./useDialog";
 import { CONFIDENCE_THRESHOLD, formatTime, fileName, statusClass } from "./types";
-import { forgetSpeakerName, useSpeakerNamePool } from "./speakerNames";
+import { forgetSpeakerName, returnSpeakerName, useSpeakerNamePool } from "./speakerNames";
 import ProgressBubble from "./ProgressBubble";
 /* The transcript screen's own parts. They were all in this file until it had
    grown to 3 688 lines; each of these is a piece somebody reads on its own. */
@@ -1179,6 +1179,15 @@ export default function Detail({
 
   /** What is in the field. Typing is not a decision, so it goes no further
    *  than the screen. */
+  /* The names typed before the run, still waiting for a voice. They appear
+     under whichever row is being named, never under all of them at once: with
+     five voices and five names that would be twenty-five buttons, and only one
+     of them is ever the answer to the question in front of you.
+
+     Declared here rather than beside the naming state below, because
+     `commitName` puts a name back on it. */
+  const [namePool, setNamePool] = useSpeakerNamePool(id, progress?.phase);
+
   const renameLocally = useCallback((key: string, name: string) => {
     setSpeakers((s) => s.map((m) => (m.key === key ? { ...m, name } : m)));
   }, []);
@@ -1197,7 +1206,32 @@ export default function Detail({
   const commitName = useCallback(
     async (key: string, name: string) => {
       if (name === nameAtFocus.current) return;
+      const before = nameAtFocus.current.trim();
       nameAtFocus.current = name;
+      /* Emptying the field is the exact opposite of taking a name off the
+         shortlist, so it goes back on. `forgetSpeakerName` removed it when it
+         landed on this voice — right, because it was in the archive then and
+         offering it again would be offering the same answer twice. Clearing it
+         ends that, and the name is waiting again rather than gone.
+
+         Only emptying, not changing. A name replaced by another was wrong for
+         this voice and may be wrong everywhere; a name deleted is one somebody
+         has decided does not belong here yet, which is what the list is for. */
+      const typed = name.trim();
+      if (!typed && before) {
+        returnSpeakerName(id, before);
+        setNamePool((pool) => (pool.includes(before) ? pool : [...pool, before]));
+      }
+      /* And the other half of the same rule, so the list means one thing: a
+         name is on it when it is not on a voice. Pressing it in the list has
+         always taken it off; typing the same thing by hand did not, and after
+         the line above that became easy to reach — clear the field, watch the
+         name come back, type it again, and it would be offered while it was
+         already in use. */
+      if (typed) {
+        forgetSpeakerName(id, typed);
+        setNamePool((pool) => pool.filter((n) => n !== typed));
+      }
       setAiDocument((document) => (document ? { ...document, stale: true } : null));
       try {
         await api.renameSpeaker(id, key, name);
@@ -1208,17 +1242,16 @@ export default function Detail({
     [id, onError, userMessage]
   );
 
-  /* The names typed before the run, still waiting for a voice. They appear
-     under whichever row is being named, never under all of them at once: with
-     five voices and five names that would be twenty-five buttons, and only one
-     of them is ever the answer to the question in front of you. */
-  const [namePool, setNamePool] = useSpeakerNamePool(id, progress?.phase);
   const [naming, setNaming] = useState<string | null>(null);
 
   const takeName = useCallback(
     async (key: string, name: string) => {
       renameLocally(key, name);
       await commitName(key, name);
+      /* `commitName` does this too, and both are idempotent. It is still here
+         because it does it only when it has something to write: press a name
+         the voice already carries and the write is skipped, and the list would
+         keep offering it. Cheaper to say it twice than to depend on that. */
       forgetSpeakerName(id, name);
       setNamePool((pool) => pool.filter((n) => n !== name));
       setNaming(null);

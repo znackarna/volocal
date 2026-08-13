@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, test } from "vitest";
 import {
   forgetSpeakerName,
   rememberSpeakerNames,
+  returnSpeakerName,
   speakerNamesFor,
   useSpeakerNamePool,
 } from "./speakerNames";
@@ -32,6 +33,54 @@ describe("the shortlist of names typed before a run", () => {
     rememberSpeakerNames(["a"], ["Roman"]);
     rememberSpeakerNames(["a"], []);
     expect(speakerNamesFor("a")).toEqual([]);
+  });
+});
+
+/** Clearing a voice's name field. The reported wish: *the name should be in the
+ *  list again after I delete it, so I do not have to type it out afresh.* */
+describe("a name taken back off a voice", () => {
+  test("comes back to the list it was taken from", () => {
+    rememberSpeakerNames(["a"], ["Roman", "Janka"]);
+    forgetSpeakerName("a", "Roman");
+    expect(speakerNamesFor("a")).toEqual(["Janka"]);
+
+    returnSpeakerName("a", "Roman");
+    expect(speakerNamesFor("a")).toEqual(["Janka", "Roman"]);
+  });
+
+  test("comes back even when the list had been emptied entirely", () => {
+    rememberSpeakerNames(["a"], ["Roman"]);
+    forgetSpeakerName("a", "Roman");
+    expect(speakerNamesFor("a")).toEqual([]);
+
+    returnSpeakerName("a", "Roman");
+    expect(speakerNamesFor("a")).toEqual(["Roman"]);
+  });
+
+  test("is not offered twice over", () => {
+    rememberSpeakerNames(["a"], ["Roman"]);
+    returnSpeakerName("a", "Roman");
+    expect(speakerNamesFor("a")).toEqual(["Roman"]);
+  });
+
+  test("arrives without the spaces around it", () => {
+    returnSpeakerName("a", "  Roman  ");
+    expect(speakerNamesFor("a")).toEqual(["Roman"]);
+    returnSpeakerName("a", "Roman");
+    expect(speakerNamesFor("a")).toEqual(["Roman"]);
+  });
+
+  test("a field that held nothing puts nothing back", () => {
+    returnSpeakerName("a", "   ");
+    returnSpeakerName("a", "");
+    expect(speakerNamesFor("a")).toEqual([]);
+  });
+
+  test("it goes back to its own recording and no other", () => {
+    rememberSpeakerNames(["b"], ["Janka"]);
+    returnSpeakerName("a", "Roman");
+    expect(speakerNamesFor("a")).toEqual(["Roman"]);
+    expect(speakerNamesFor("b")).toEqual(["Janka"]);
   });
 
   test("a shortlist that is not a list at all is no reason to fail", () => {
