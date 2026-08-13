@@ -9,8 +9,8 @@
  * screen whose own part is far above them; they stay where they were rather
  * than being tidied into place. */
 
-@import "./css/01-zaklad.css";
-@import "./css/02-knihovna.css";
+@import "./css/01-base.css";
+@import "./css/02-library.css";
 @import "./css/03-detail.css";
-@import "./css/04-nastaveni.css";
-@import "./css/05-pozdejsi.css";
+@import "./css/04-settings.css";
+@import "./css/05-later.css";
