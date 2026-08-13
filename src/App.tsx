@@ -500,7 +500,7 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadRecordings, loadToolCheck]);
 
-  // ---------------------------------------------------- udalosti z prepisu
+  // -------------------------------------------------- transcription events
   useEffect(() => {
     // `listen` returns a promise. If the component unmounts before it
     // resolves, a naive cleanup unsubscribes nothing and the listener is left
@@ -609,7 +609,7 @@ export default function App() {
     };
   }, [loadRecordings, progressMessage, reportError, userMessage]);
 
-  // ---------------------------------------------------- pretahovani souboru
+  // ------------------------------------------------------ dragging files in
   /** Where the person stands in the archive, for the handlers created above
    *  the folder state itself. A recording added by hand belongs to the folder
    *  that is open — the watched folder deliberately does not go through this,
@@ -848,7 +848,7 @@ export default function App() {
     [recordings, reportError, reportInfo, t, userMessage]
   );
 
-  // ---------------------------------------------------- navigace
+  // -------------------------------------------------- navigation
   const openRecording = useCallback((id: string, time?: number) => {
     setSelectedId(id);
     setSeekTime(time ?? null);
@@ -1184,7 +1184,7 @@ export default function App() {
               loadToolCheck();
             }}
           >
-            {/* Táhla, ne ozubené kolo — to je při 16 px nečitelná drobnokresba. */}
+            {/* Sliders, not a cog: at 16 px a cog is fine detail nobody can read. */}
             <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden>
               <path d="M2 4.5h3.2M8.8 4.5H14M2 11.5h6.2M11.8 11.5H14"
                     fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -1306,8 +1306,8 @@ export default function App() {
       {screen === "detail" && selectedId && (
         <Detail
           /* A new recording means a new screen. Without a key React would
-             jen přepoužil a než dorazí data, svítil by na ní text, stav
-             a křivka té předchozí. */
+             reuse the old one, and until the data arrives it would sit there
+             showing the previous recording's text, status and waveform. */
           key={selectedId}
           id={selectedId}
           seekTime={seekTime}

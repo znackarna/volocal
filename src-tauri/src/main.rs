@@ -21,7 +21,7 @@ use std::sync::{Arc, Mutex};
 use tauri::Manager;
 use user_message::UserMessage;
 
-// ---------------------------------------------------------------- stav aplikace
+// ------------------------------------------------------------ application state
 
 pub(crate) struct AppState {
     pub(crate) db: Mutex<Connection>,

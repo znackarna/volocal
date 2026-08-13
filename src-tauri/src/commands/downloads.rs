@@ -9,7 +9,7 @@ use crate::{db, download};
 use crate::{reported, AppState, Reported};
 use std::sync::atomic::Ordering;
 use tauri::State;
-// ---------------------------------------------------------------- stahovani
+// ---------------------------------------------------------------- downloads
 
 #[tauri::command]
 pub fn catalog(app: State<'_, AppState>) -> Reported<Vec<download::DownloadComponent>> {

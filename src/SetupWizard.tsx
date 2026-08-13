@@ -397,7 +397,7 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
         </div>
       )}
 
-      {/* ------------------------------------------------ 0. uvítání */}
+      {/* ------------------------------------------------ 0. welcome */}
       {step === 0 && (
         <div className="step">
           <p className="step-number">{t("wizard.nav.stepCounter", { step: 1, total: 5 })}</p>
@@ -452,7 +452,7 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
         </div>
       )}
 
-      {/* ------------------------------------------------ 1. kvalita */}
+      {/* ------------------------------------------------ 1. quality */}
       {step === 1 && (
         <div className="step">
           <p className="step-number">{t("wizard.nav.stepCounter", { step: 2, total: 5 })}</p>
@@ -510,7 +510,7 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
         </div>
       )}
 
-      {/* ------------------------------------------------ 2. mluvčí */}
+      {/* ------------------------------------------------ 2. speakers */}
       {step === 2 && (
         <div className="step">
           <p className="step-number">{t("wizard.nav.stepCounter", { step: 3, total: 5 })}</p>

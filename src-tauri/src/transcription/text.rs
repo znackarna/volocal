@@ -5,7 +5,7 @@
 
 use super::*;
 
-// ---------------------------------------------------------------- slovnik
+// ------------------------------------------------------------- dictionary
 
 /// Applies the dictionary to an already stored transcript. Returns the number
 /// of changed segments. Used when someone adds a term afterwards — otherwise

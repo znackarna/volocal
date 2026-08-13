@@ -281,7 +281,7 @@ pub struct Settings {
     #[serde(default, alias = "posledni_stroj")]
     pub last_machine: String,
 
-    // ------- vzhled
+    // ------- appearance
     /// system | light | dark. `system` follows the operating system; the other
     /// two are a decision that overrides it. Serde default, so a settings file
     /// written before this existed reads as `system`.
@@ -1132,7 +1132,7 @@ pub fn save_settings(db: &Connection, settings: &Settings) -> Result<()> {
     Ok(())
 }
 
-// ---------------------------------------------------------------- nahravky
+// -------------------------------------------------------------- recordings
 
 pub fn insert_recording(db: &Connection, recording: &Recording) -> Result<()> {
     db.execute(
@@ -1374,7 +1374,7 @@ pub fn delete_recording(db: &Connection, id: &str) -> Result<()> {
     Ok(())
 }
 
-// ---------------------------------------------------------------- slozky
+// --------------------------------------------------------------- folders
 
 pub fn folders(db: &Connection) -> Result<Vec<Folder>> {
     let mut statement = db.prepare(
@@ -1460,7 +1460,7 @@ pub fn delete_folder(db: &Connection, id: &str) -> Result<()> {
     commit(tx)
 }
 
-// ---------------------------------------------------------------- poznamky a ukoly
+// ----------------------------------------------------------------- notes and tasks
 
 pub fn recording_notes(db: &Connection, recording_id: &str) -> Result<Vec<RecordingNote>> {
     // Notes about the whole recording come first in the order they were
@@ -1527,7 +1527,7 @@ pub fn delete_recording_note(db: &Connection, id: &str) -> Result<()> {
     Ok(())
 }
 
-// ---------------------------------------------------------------- segmenty
+// ---------------------------------------------------------------- segments
 
 pub fn delete_segments(db: &Connection, recording_id: &str) -> Result<()> {
     db.execute(
@@ -1705,7 +1705,7 @@ pub fn set_segment_speaker(db: &Connection, id: &str, speakers: Option<&str>) ->
     Ok(())
 }
 
-// ---------------------------------------------------------------- mluvci
+// -------------------------------------------------------------- speakers
 
 /// Chosen to stay distinguishable to a colour-blind reader and legible on a
 /// light ground.
@@ -1805,7 +1805,7 @@ pub fn merge_speakers(
     Ok(())
 }
 
-// ---------------------------------------------------------------- slovnik
+// ------------------------------------------------------------- dictionary
 
 pub fn dictionary(db: &Connection) -> Result<Vec<DictionaryEntry>> {
     // `napoveda` is not read any more; see the note on the table above.
@@ -1846,7 +1846,7 @@ pub fn delete_dictionary_entry(db: &Connection, id: &str) -> Result<()> {
     Ok(())
 }
 
-// ---------------------------------------------------------------- hledani
+// ----------------------------------------------------------------- search
 
 pub fn search(db: &Connection, query: &str) -> Result<Vec<SearchResult>> {
     let trimmed_query = query.trim();

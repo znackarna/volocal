@@ -9,7 +9,7 @@ use crate::{db, tools};
 use crate::{reported, AppState, Reported};
 use serde::Serialize;
 use tauri::State;
-// ---------------------------------------------------------------- vykon stroje
+// ---------------------------------------------------- what this machine can do
 
 #[derive(Serialize, Clone)]
 pub(crate) struct BenchmarkResult {

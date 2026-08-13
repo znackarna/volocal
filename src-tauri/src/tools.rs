@@ -389,7 +389,7 @@ pub fn compute_directory(bin: &Path, compute: &str) -> PathBuf {
     }
 }
 
-// ---------------------------------------------------------------- stav
+// --------------------------------------------------------------- state
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct ToolCheck {

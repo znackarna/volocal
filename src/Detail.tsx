@@ -402,7 +402,7 @@ export default function Detail({
 
   const listRef = useRef<HTMLDivElement>(null);
 
-  // ---------------------------------------------------------------- nacteni
+  // ---------------------------------------------------------------- loading
   // Everything is gathered first and only then written to state.
   //
   // State used to be set piecemeal between `await`s, which on an hour-long
@@ -551,7 +551,7 @@ export default function Detail({
     return () => setLocalTime(lastPlayedTime.current);
   }, [isCurrentRecording]);
 
-  // ---------------------------------------------------------------- klavesnice
+  // -------------------------------------------------------------- the keyboard
   const uncertainSegments = useMemo(
     () => segments.filter((s) => (s.confidence ?? 1) < CONFIDENCE_THRESHOLD && !s.verified),
     [segments]
@@ -973,7 +973,7 @@ export default function Detail({
     }
   }, [onError, userMessage]);
 
-  // ---------------------------------------------------------------- editace
+  // ---------------------------------------------------------------- editing
   const saveText = useCallback(
     async (segment: Segment, newText: string) => {
       const trimmedText = newText.trim();
@@ -1063,14 +1063,14 @@ export default function Detail({
     }
   }, [dictionarySuggestion, id, load, onError, onInfo, t, tPlural, userMessage]);
 
-  // ---------------------------------------------------------------- mluvci
+  // -------------------------------------------------------------- speakers
   const speakerByKey = useMemo(() => {
     const m = new Map<string, Speaker>();
     speakers.forEach((x) => m.set(x.key, x));
     return m;
   }, [speakers]);
 
-  // ------------------------------------------------------- oprava mluvciho
+  // -------------------------------------------------- correcting a speaker
   //
   // The machine gets a block wrong now and then, and until this existed there
   // was nothing to do about it: naming can join two groups that are one person,
@@ -1633,8 +1633,8 @@ export default function Detail({
               ? t("detail.header.improvedButton")
               : t("detail.header.improveButton")}
           </button>
-          {/* Pět zkratek formátů vedle sebe vypadalo jako panel nástrojů
-              a přebíjelo název souboru. Uložení je přitom jedna akce. */}
+          {/* Five format abbreviations side by side read as a toolbar and
+              overpowered the file name. Saving is one action, not five. */}
           <ExportMenu
             disabled={segments.length === 0}
             onChoose={exportRecording}

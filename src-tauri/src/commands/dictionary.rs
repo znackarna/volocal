@@ -8,7 +8,7 @@ use crate::db;
 use crate::db::{DictionaryEntry, SearchResult};
 use crate::{reported, AppState, Reported};
 use tauri::State;
-// ---------------------------------------------------------------- slovnik
+// ------------------------------------------------------------- dictionary
 
 #[tauri::command]
 pub fn dictionary(app: State<'_, AppState>) -> Reported<Vec<DictionaryEntry>> {
@@ -51,7 +51,7 @@ pub fn delete_dictionary_entry(app: State<'_, AppState>, id: String) -> Reported
     reported(db::delete_dictionary_entry(&db, &id))
 }
 
-// ---------------------------------------------------------------- hledani
+// ----------------------------------------------------------------- search
 
 #[tauri::command]
 pub fn search(app: State<'_, AppState>, query: String) -> Reported<Vec<SearchResult>> {
