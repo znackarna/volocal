@@ -58,7 +58,7 @@ jobs:
 
           Proposed by scripts/update-components.mjs. Every address and digest
           was read from the publisher - GitHub's release asset digest, a
-          Hugging Face LFS object id, or gyan.dev's published .sha256 - and
+          Hugging Face LFS object id - and
           none was computed from a downloaded file. Each new address was
           checked to answer before being written down."
           git push -u origin "$BRANCH"
@@ -70,7 +70,7 @@ jobs:
 
           ## What was checked
 
-          Every address and digest here was **read from the publisher** — GitHub's release asset \`digest\`, a Hugging Face LFS object id, or gyan.dev's published \`.sha256\`. None was computed from a downloaded file: a digest computed by whoever fetched the file only says the file matches itself.
+          Every address and digest here was **read from the publisher** — GitHub's release asset \`digest\` or a Hugging Face LFS object id. None was computed from a downloaded file: a digest computed by whoever fetched the file only says the file matches itself.
 
           Each new address was requested before being written down, so none of them 404s.
 
