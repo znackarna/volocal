@@ -13,6 +13,52 @@ pub(crate) struct SpeakerTurn {
     key: String,
 }
 
+/// How much of this stage's band the log-mel arithmetic takes.
+///
+/// Measured in a release build over 256 windows: **760 ms of features against
+/// 94 ms of model**, so the features are 89 % of the two. Debug says 98.9 %,
+/// which is the same finding through an unoptimised FFT and is not the number
+/// to set anything from — the model is a native library either way and does not
+/// slow down with the profile.
+///
+/// **It used to be 0.3, and it was not wrong when it was written.** The model
+/// then ran on the processor, where it was the expensive half by far. Once the
+/// graphics card took it — 13.7x, [`crate::voiceprint`] — the two swapped
+/// places and nobody moved the number, so the features had 30 % of the bar for
+/// 89 % of the work. That is what a reader saw as a bar that stood still at 10
+/// and then jumped to 34.
+const FEATURES_SHARE: f64 = 0.85;
+
+/// Where the clustering begins, once the voiceprints are in hand. The gap
+/// between this and [`FEATURES_SHARE`] is the model's, and it is small because
+/// the model is fast now.
+const GROUPING_STARTS_AT: f64 = 0.97;
+
+// The order the three stages report in. Checked here rather than in a test,
+// because they are constants: a test asserting a relation between two of them
+// is decided at compile time anyway, and this way it fails the build instead of
+// a run.
+const _: () = assert!(FEATURES_SHARE > 0.0, "the features get a share of the bar");
+const _: () = assert!(
+    FEATURES_SHARE < GROUPING_STARTS_AT,
+    "the model runs after the features and before the grouping"
+);
+const _: () = assert!(GROUPING_STARTS_AT < 1.0, "the grouping gets a share too");
+
+/// How far through this stage's band the bar stands, `done` windows into the
+/// features. A function rather than a line inside the loop so that the test
+/// below exercises the arithmetic the loop actually uses.
+fn features_progress(done: usize, total: usize) -> f64 {
+    FEATURES_SHARE * done as f64 / total.max(1) as f64
+}
+
+/// How many windows to do between reports: about fifty over the loop, whatever
+/// the recording's length. Never zero, because the loop takes `index % this`
+/// and a remainder by zero is a panic rather than a wrong number.
+fn report_every(total: usize) -> usize {
+    (total / 50).max(1)
+}
+
 /// Who speaks when, computed here rather than by a downloaded program.
 ///
 /// Until today this spawned `sherpa-onnx-offline-speaker-diarization.exe`,
@@ -22,13 +68,19 @@ pub(crate) struct SpeakerTurn {
 /// seconds a ten-minute recording used to cost actually went.
 ///
 /// What is left is the second model, in this process and in batches, measured
-/// 8.9x faster on the graphics card than on the processor. And it hands back
+/// 8.9x faster on the graphics card than on the processor — read that number
+/// with [`crate::voiceprint::LEAST_FRAMES_THE_CARD_WILL_RUN`] beside it, since
+/// the card was in fact refusing every batch from then until 13 August, and the
+/// same comparison run once it stopped says 13.7x. And it hands back
 /// the voiceprints themselves, which the executable never could: its stdout was
 /// cluster labels and nothing else. That is what the sidebar needs to let
 /// somebody name two voices and have the rest assigned by similarity.
 ///
 /// `report` is the app handle, the recording id, and the percentage band this
 /// stage occupies.
+///
+/// How that band is divided is measured rather than assumed, and it was wrong
+/// until 13 August: see [`FEATURES_SHARE`].
 pub(crate) fn diarize(
     settings: &Settings,
     check: &tools::ToolCheck,
@@ -60,16 +112,31 @@ pub(crate) fn diarize(
         }
     };
 
-    // Features first, and they are the cheap half: arithmetic over audio that
-    // is already on disk, in the shape whisper was handed.
+    // Features first. They used to be described here as the cheap half, and
+    // that was true while the model ran on the processor. It stopped being true
+    // when the graphics card started doing the work: measured in release over
+    // 256 windows, 760 ms of arithmetic against 94 ms of model.
+    //
+    // So this loop is where a recording now spends nearly all of its
+    // diarization, and until this change it reported nothing at all while doing
+    // it — the bar stood at 10 for as long as the whole stage took, then moved
+    // to 34 and finished almost at once. What was reported as a slow start was
+    // the only part that was ever slow.
     say(0.0);
     let mut heard = Vec::with_capacity(windows.len());
     let mut kept = Vec::with_capacity(windows.len());
+    // Often enough to look alive on a short recording and not so often on a
+    // long one that the window spends its time redrawing: about fifty reports,
+    // whatever the length.
+    let report_every = report_every(windows.len());
     for (index, window) in windows.iter().enumerate() {
         // Cancellation cannot land mid-window, so it is checked between them
         // rather than on every one of a thousand.
         if index % 200 == 0 {
             stop_if_cancelled(task, recording_id)?;
+        }
+        if index % report_every == 0 {
+            say(features_progress(index, windows.len()));
         }
         let (from, to) = crate::voiceprint::enough_audio(
             window.start,
@@ -93,7 +160,7 @@ pub(crate) fn diarize(
         return Ok(Vec::new());
     }
 
-    say(0.3);
+    say(FEATURES_SHARE);
     stop_if_cancelled(task, recording_id)?;
     // The reason goes three places on purpose. It is in the message the reader
     // sees, because "could not be started" without a why is not a report; it is
@@ -110,7 +177,7 @@ pub(crate) fn diarize(
         UserMessage::new("diarization.launch_failed").detail(format!("{error:#}"))
     })?;
 
-    say(0.9);
+    say(GROUPING_STARTS_AT);
     stop_if_cancelled(task, recording_id)?;
     // A count somebody actually said is worth more than any threshold: told it,
     // this is measurably reliable; left to guess, it is the weakest part of the
@@ -603,6 +670,64 @@ mod bridge_tests {
         let mut s = vec![block(0.0, 1.0, None), block(1.0, 1.0, None)];
         assert_eq!(bridge_unknown(&mut s), 0);
         assert_eq!(bridge_unknown(&mut []), 0);
+    }
+}
+
+/// What the bar does while the speakers are being found.
+///
+/// The reported defect was that it stood at 10 for the length of the whole
+/// stage, moved to 34, and then finished at once. Two things caused it: the
+/// features reported nothing at all while they ran, and they had been given
+/// 30 % of the band for what is now 89 % of the work.
+#[cfg(test)]
+mod diarization_progress_tests {
+    use super::*;
+
+    #[test]
+    fn the_features_move_the_bar_the_whole_way_through_themselves() {
+        let total = 1000;
+        // The bar starts where the stage starts and never reaches the model's
+        // share while there is still a window left to do.
+        assert_eq!(features_progress(0, total), 0.0);
+        let mut last = 0.0;
+        for done in (0..total).step_by(report_every(total)) {
+            let now = features_progress(done, total);
+            assert!(
+                now >= last,
+                "the bar never goes backwards: {now} after {last}"
+            );
+            assert!(now < FEATURES_SHARE, "{now} is still inside the features");
+            last = now;
+        }
+        assert!(
+            last > FEATURES_SHARE * 0.9,
+            "and it gets most of the way: {last}"
+        );
+    }
+
+    /// The stride is a divisor, so a recording short enough to make it zero
+    /// would be a panic rather than a wrong number.
+    #[test]
+    fn a_recording_of_almost_nothing_does_not_divide_by_zero() {
+        for total in [0, 1, 2, 49, 50, 51] {
+            assert!(report_every(total) >= 1, "stride for {total} windows");
+            assert_eq!(features_progress(0, total), 0.0);
+        }
+        assert!(features_progress(1, 1) <= FEATURES_SHARE);
+    }
+
+    /// Fifty-ish reports whatever the length: enough to look alive on a short
+    /// recording, not so many on a long one that the window spends its time
+    /// redrawing instead of working.
+    #[test]
+    fn the_bar_moves_about_fifty_times_whatever_the_recording() {
+        for total in [200, 1000, 5000, 20_000] {
+            let reports = (0..total).step_by(report_every(total)).count();
+            assert!(
+                (40..=60).contains(&reports),
+                "{reports} reports for {total} windows"
+            );
+        }
     }
 }
 

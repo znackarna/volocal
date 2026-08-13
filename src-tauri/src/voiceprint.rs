@@ -234,7 +234,7 @@ const WINDOW: f64 = 2.0;
 /// real batch of every recording, so the work always finished on the processor
 /// at roughly a twelfth of the speed. The fallback wrote a line about it and
 /// the line was read as a quirk of one machine rather than as the normal path.
-const LEAST_FRAMES_THE_CARD_WILL_RUN: usize = 199;
+pub(crate) const LEAST_FRAMES_THE_CARD_WILL_RUN: usize = 199;
 
 /// The samples those frames need: the first frame is [`FRAME`] long and every
 /// one after it advances by [`SHIFT`].
