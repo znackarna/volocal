@@ -6,6 +6,30 @@ The reasoning behind individual decisions lives in `docs/history/`, day by day,
 and every published version also has its notes on the
 [releases page](../../releases).
 
+## 1.1.1 — 13 August 2026
+
+A patch for a defect that met **every fresh installation of 1.1.0**, found an
+hour after it went out.
+
+- **The audio component could not be downloaded at all.** `components.json`
+  pinned a numbered archive on gyan.dev's own site, and that host deletes a
+  numbered archive when the next version replaces it — 9.0.1 arrived on
+  12 August and took 9.0 with it, the day before 1.1.0 shipped. Setup ended in
+  *Server odmítl soubor vydat* on the one component the wizard marks required.
+  The same builds by the same author are release assets on `GyanD/codexffmpeg`,
+  where GitHub keeps them, and ffmpeg now comes from there and tracks like every
+  other component. Nothing about the checks moves: the digest GitHub reports for
+  9.0 is the digest that was already pinned, so it is provably the same archive.
+  A weekly job that refreshes the catalogue could not have prevented this — the
+  catalogue is compiled into the binary, so an installed copy keeps whatever
+  address it was built with.
+- **A queue was being reported as a failure.** One download runs at a time, and
+  pressing the button while one is running was answered with a red *Stahování
+  selhalo* over a download that was running perfectly well — and it hid the
+  progress the question was about. The screen now stays where it is and shows
+  what is happening.
+- The wizard was totalling the audio component as 85 MB. It is 106.
+
 ## 1.1.0 — 13 August 2026
 
 A minor version rather than a patch, for two reasons: speaker recognition was
