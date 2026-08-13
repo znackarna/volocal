@@ -43,8 +43,19 @@ fall back to Czech, and are produced in bulk through `npm run i18n:export` and
 `npm run i18n:import`.
 
 Only what the user reads is translated. Identifiers, command and event names,
-comments, log output, prompts for the language model, the contents of exported
-documents, and developer-facing errors stay English.
+comments, log output, the contents of exported documents, and developer-facing
+errors stay English.
+
+The editing prompts in `src-tauri/src/ai_edit.rs` are the exception, and they
+are Czech. They were tuned against Czech transcripts and their examples are
+Czech grammar — in `Mně se líbí, když se setkáte s lidmi` the model must keep
+`setkáte` rather than `setkám`, which cannot be demonstrated in English. What is
+pinned instead is the language of the *answer*: the rule against translating
+opens and closes the prompt, the two positions a model weighs most, because a
+model addressed in Czech once returned an English transcript in Czech.
+[docs/history/2026-08-03.md](docs/history/2026-08-03.md) is that day. Changing
+the prompts to English is therefore a measured experiment — the same recording
+through both, read side by side — and not a tidy-up.
 
 Rust does not know the active language, so it never sends a finished sentence to
 the window. It sends a `UserMessage` — a stable code, its values, and the
