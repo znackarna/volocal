@@ -69,9 +69,16 @@ stahovaných bajtů a porovná ho dřív, než se cokoli rozbalí nebo přesune 
 místo.
 
 Otisk smí do katalogu zapsat jen ten, kdo ho přečetl u vydavatele: Hugging Face
-ho vydává jako LFS oid, GitHub jako `digest` u souboru vydání, gyan.dev jako
-`.sha256` vedle archivu. Spočítat ho z toho, co dorazilo na tento stroj, by
-dokazovalo jen to, že se soubor shoduje sám se sebou.
+ho vydává jako LFS oid, GitHub jako `digest` u souboru vydání. Spočítat ho z
+toho, co dorazilo na tento stroj, by dokazovalo jen to, že se soubor shoduje sám
+se sebou.
+
+FFmpeg se do 13. srpna 2026 stahoval z `www.gyan.dev`, kde je otisk vydáván jako
+`.sha256` vedle archivu. Ten hostitel ale číslované archivy po vydání další
+verze maže, takže připnutá adresa přestala existovat a každá nová instalace
+skončila hláškou *Server odmítl soubor vydat*. Táž sestavení od téhož autora
+leží jako soubory vydání na `GyanD/codexffmpeg`, kde nemizí; ffmpeg se odtud
+stahuje od té doby a otisk se čte z GitHubu jako u ostatních.
 
 **Jedna položka otisk nemá — model rozpoznávání hlasů (`model-hlasy`).** Leží ve
 vydání, které bylo nahráno dřív, než GitHub začal otisky počítat, a novější
@@ -82,8 +89,8 @@ zůstává jedinou zárukou HTTPS. Že to tak zůstane jen u ní, hlídá test
 
 HTTPS je pojistka slušná, ale ne úplná: spojení je šifrované (rustls) a ověřuje
 se certifikát protistrany, takže důvěřujeme provozovatelům `github.com`,
-`api.github.com`, `objects.githubusercontent.com`, `huggingface.co` a
-`www.gyan.dev`, a celému řetězci certifikačních autorit ve vašem systému.
+`api.github.com`, `objects.githubusercontent.com` a `huggingface.co`, a celému
+řetězci certifikačních autorit ve vašem systému.
 
 Aplikace přitom netvrdí víc, než ověřila. Každá dokončená instalace zapíše do
 `installed.json` adresu, otisk toho, co skutečně dorazilo, a `verified` — true
@@ -243,9 +250,16 @@ moved where it belongs.
 
 A digest may only be written into the catalogue by somebody who read it from the
 publisher: Hugging Face serves it as an LFS object id, GitHub as a release
-asset `digest`, gyan.dev as a `.sha256` beside the archive. Computing it from
-whatever arrived on this machine would attest that the file matches itself, and
-nothing more.
+asset `digest`. Computing it from whatever arrived on this machine would attest
+that the file matches itself, and nothing more.
+
+FFmpeg was downloaded from `www.gyan.dev` until 13 August 2026, where the digest
+is published as a `.sha256` beside the archive. That host deletes a numbered
+archive once the next version replaces it, so the pinned address stopped
+existing and every fresh installation ended in *Server odmítl soubor vydat*. The
+same builds by the same author are release assets on `GyanD/codexffmpeg`, where
+they stay; ffmpeg has come from there since, with its digest read from GitHub
+like the rest.
 
 **One entry has no digest — the speaker recognition model (`model-hlasy`).** It
 sits in a release uploaded before GitHub computed asset digests, and there is no
@@ -256,9 +270,8 @@ held by a test — `every_component_carries_a_digest_except_the_one_that_cannot`
 
 HTTPS is a decent guarantee, not a complete one: the connection is encrypted
 (rustls) and the peer's certificate is validated, which means trusting whoever
-operates `github.com`, `api.github.com`, `objects.githubusercontent.com`,
-`huggingface.co` and `www.gyan.dev`, and the whole chain of certificate
-authorities on your system.
+operates `github.com`, `api.github.com`, `objects.githubusercontent.com` and
+`huggingface.co`, and the whole chain of certificate authorities on your system.
 
 The application claims no more than it checked. Every completed installation
 records the address, the digest of what actually arrived, and `verified` — true
