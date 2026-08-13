@@ -19,7 +19,7 @@ a důvody jednotlivých rozhodnutí v [docs/history/](docs/history/README.md).
 
 ## Pro uživatele
 
-1. Spusťte instalátor `Volocal_1.0.10_x64-setup.exe`.
+1. Spusťte instalátor `Volocal_1.1.0_x64-setup.exe`.
 2. Otevřete Volocal.
 3. Při prvním spuštění se ukáže průvodce. Zmáčkněte **Stáhnout a nastavit**.
 4. Přetáhněte nahrávku do okna.
@@ -148,7 +148,7 @@ které vynucuje, že aplikace nesmí nic načíst zvenčí.
 npm run tauri build
 ```
 
-Výsledek je `src-tauri\target\release\bundle\nsis\Volocal_1.0.10_x64-setup.exe`.
+Výsledek je `src-tauri\target\release\bundle\nsis\Volocal_1.1.0_x64-setup.exe`.
 Instalátor obsahuje **jen program** — nástroje a modely si Volocal stahuje sám
 při prvním spuštění, takže má řádově megabajty, ne gigabajty. Instaluje se pro
 přihlášeného uživatele (`installMode: currentUser`), takže nechce práva správce.
