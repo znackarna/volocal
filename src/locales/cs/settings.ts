@@ -3,6 +3,7 @@ export const csSettings = {
   "settings.title": "Nastavení",
   "settings.groups": "Skupiny nastavení",
   "settings.tab.transcription": "Přepis",
+  "settings.tab.tools": "Nástroje",
   "settings.tab.files": "Složky a zálohy",
   "settings.tab.updates": "Aktualizace",
   "settings.tab.about": "Informace",
@@ -75,6 +76,7 @@ export const csSettings = {
   "settings.performance.benchmarkResult": "{factor}× realtime ({seconds} s)",
 
   // Folders: where the programs and models live, and which folder is watched.
+  "settings.files.locationsTitle": "Umístění nástrojů a modelů",
   "settings.files.locationsPortable":
     "Relativní cesty se vztahují ke složce s programem, takže nezáleží na písmenu disku.",
   "settings.files.locationsDescription":
@@ -273,6 +275,10 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
   "settings.performance.defaultDescription":
     "Popis staršího sestavení whisper.cpp, které nemá zvolenou akceleraci. Ukáže se jen tam, kde takové sestavení je.",
   "settings.tab.transcription": "Název záložky. Jde o převod řeči na text, ne o opisování.",
+  "settings.tab.tools":
+    "Název záložky, na které je vidět, co je v tomhle počítači nainstalované: " +
+    "stažené modely a programy, obě složky, kam se ukládají, a cesty k nalezeným " +
+    "souborům. Nástroje jsou programy jako ffmpeg nebo whisper-cli, ne funkce aplikace.",
   "settings.tab.files":
     "Název záložky, na které je složka pro nahrávky, sledovaná složka, zálohy archivu a přenosná kopie. Pojmenuj ji tím, co na ní je — dřív se jmenovala Aplikace a neříkala o žádné z těch věcí nic.",
   "settings.tab.updates":
@@ -319,6 +325,10 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
   "settings.performance.benchmarkResult":
     "Výsledek měření: {factor}× rychleji než skutečný čas nahrávky, {seconds} je doba testu v sekundách.",
 
+  "settings.files.locationsTitle":
+    "Nadpis karty na záložce Nástroje. Pod ním jsou dva řádky, Složka nástrojů a " +
+    "Složka modelů — proto pojmenuj místo, kam se stažené soubory ukládají, ne " +
+    "soubory samotné.",
   "settings.files.choose": "Tlačítko otevírající dialog pro výběr složky. Tři tečky jsou jeden znak.",
   "settings.files.watchDirectory":
     "Popisek jediného pole na kartě Sledovaná složka. Karta už je pojmenovaná nadpisem, tohle říká jen „kde“.",
@@ -434,13 +444,13 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
     "Vysvětlení v tom dotazu. {when} je datum a čas zálohy. Jméno souboru je tam schválně — je to jediná cesta zpátky, kdyby si někdo vybral špatné datum.",
 
   "settings.advanced.title":
-    "Nadpis jediného skrytého bloku na konci záložky Přepis. Drží důkladnost hledání, prahy dekódování, akceleraci a cesty ke složkám.",
+    "Nadpis jediného skrytého bloku na konci záložky Přepis. Drží důkladnost hledání, prahy dekódování a akceleraci; složky a technické podrobnosti se přestěhovaly na záložku Nástroje.",
   "settings.advanced.modified":
     "Odznak u toho nadpisu, když je uvnitř cokoli jiného než výchozí. Malé písmeno je záměr, jako u ostatních odznaků.",
   "settings.advanced.note":
     "Úvodní věta uvnitř bloku. Podstatné je, že nic z toho měnit nemusí — a že výchozí hodnoty nejsou naše, ale Whisperu.",
   "settings.advanced.reset":
-    "Tlačítko vracející na výchozí všechny hodnoty v bloku. Složek se netýká — cesta je místo, ne hodnota.",
+    "Tlačítko vracející na výchozí všechny hodnoty v bloku. Od chvíle, kdy se složky přestěhovaly na Nástroje, jsou v bloku samé hodnoty a žádná výjimka.",
 
   "settings.decoding.silence": "Od jaké hodnoty se úsek prohlásí za ticho.",
   "settings.decoding.confidence": "Jak jistý si přepis musí být, aby úsek přijal.",

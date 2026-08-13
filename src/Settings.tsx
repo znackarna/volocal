@@ -182,9 +182,10 @@ const DECODING_FIELDS: ReadonlyArray<{
   },
 ];
 
-/* Five tabs, each one a subject somebody arrives with: what comes out of a
-   recording, how the application looks, where its files are kept, staying on
-   the current version, and what the application is.
+/* Six tabs, each one a subject somebody arrives with: what comes out of a
+   recording, how the application looks, what is installed on this machine,
+   where its files are kept, staying on the current version, and what the
+   application is.
 
    There were seven, and for one day there were three — `Přepis`, `Aplikace`
    and `O aplikaci`. Jakub looked at those three and said they do not help:
@@ -192,7 +193,15 @@ const DECODING_FIELDS: ReadonlyArray<{
    is something you do rather than something you read about the application. So
    `Vzhled` and `Aktualizace` stand on their own again.
 
-   What the reduction took out stays out. `Modely`, `Výkon`, `Slovník` and
+   `Nástroje` is the sixth, and it is his call too: *Modely bych dal jako
+   Nástroje, zvlášt záložku*. What is installed on this machine, where it lives
+   and which files were found is one subject, and it was spread across the foot
+   of `Přepis` and the inside of `Pokročilé` — where a reader who wants to know
+   whether anything is missing would have to open a block titled *advanced* to
+   find out. It is not the old `Modely` tab coming back: that one carried four
+   read-only tiles repeating values chosen elsewhere, and those stay deleted.
+
+   The rest of what the reduction took out stays out too. `Výkon`, `Slovník` and
    `Soubory` were the shape of the code rather than subjects a reader arrives
    with, and the controls deleted with them were dead, harmful or derivable from
    another one. This is only about how the remaining ones are grouped.
@@ -201,11 +210,18 @@ const DECODING_FIELDS: ReadonlyArray<{
    that name was the recordings folder, the watched folder and the archive's
    copies — and none of them is what a reader would look for behind the word
    `Aplikace`. */
-type SettingsTab = "transcription" | "appearance" | "files" | "updates" | "about";
+type SettingsTab =
+  | "transcription"
+  | "appearance"
+  | "tools"
+  | "files"
+  | "updates"
+  | "about";
 
 const SETTINGS_TABS: SettingsTab[] = [
   "transcription",
   "appearance",
+  "tools",
   "files",
   "updates",
   "about",
@@ -217,6 +233,7 @@ const SETTINGS_TABS: SettingsTab[] = [
 const SETTINGS_TAB_KEYS: Record<SettingsTab, TranslationKey> = {
   transcription: "settings.tab.transcription",
   appearance: "settings.appearance.title",
+  tools: "settings.tab.tools",
   files: "settings.tab.files",
   updates: "settings.tab.updates",
   about: "settings.tab.about",
@@ -621,9 +638,9 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
             onKeyDown={handleTabKeyDown}
           >
             <span>{t(SETTINGS_TAB_KEYS[tab])}</span>
-            {/* The dot follows the status band, which now stands at the foot of
-                the transcription tab rather than on a tab of its own. */}
-            {tab === "transcription" && missingRequired.length > 0 && (
+            {/* The dot follows the status band, which stands on `Nástroje`
+                since that is where what is installed is now read. */}
+            {tab === "tools" && missingRequired.length > 0 && (
               <span className="settings-tab-alert" aria-label={t("settings.missingRequired")} />
             )}
           </button>
@@ -663,15 +680,15 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
       {/* One line about everything that has to be on the disk, and one button
           to the list that puts it there.
 
-          It used to be a tab of its own carrying four read-only tiles — the
-          model, the acceleration, the editor and the speakers — each repeating
-          a value chosen three cards higher up on this same screen. None of them
-          could be pressed. What a reader needs from this subject is whether
-          anything is missing, and the way to fix it if it is; that is a band,
-          not a tab. The button opens the by-hand component list directly (the
-          wizard does that itself when it is opened neither as required nor for
-          one named module). */}
-      {activeTab === "transcription" && <section className="settings-card-modules">
+          The band itself is unchanged; what changed is which tab draws it. It
+          stood at the foot of `Přepis`, one card away from the model chooser it
+          feeds — but whether anything is missing is a fact about this machine,
+          not about how a transcript is made, and it is what `Nástroje` is for.
+          It is still a band and not the old tab: those four read-only tiles are
+          not coming back. The button opens the by-hand component list directly
+          (the wizard does that itself when it is opened neither as required nor
+          for one named module). */}
+      {activeTab === "tools" && <section className="settings-card-modules">
         <h2>{t("settings.modules.title")}</h2>
         <p className="settings-section-description">
           {t("settings.modules.description")}
@@ -694,6 +711,17 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
               : t("settings.modules.manage")}
           </button>
         </div>
+
+        {/* Which file was found where, folded at the foot of the card that says
+            whether they are there at all. It was the last band of `Pokročilé`,
+            where somebody whose transcription will not start had to open a
+            block titled *advanced* to see what the application can see.
+
+            The same shape as the archive card: a `spaced` action row and then
+            one `card-footer` disclosure, which is the pair those two rules were
+            written for — the row gives up its own divider so this is the card's
+            single rule. */}
+        {check && <ToolDiagnostics k={check} onInfo={onInfo} onError={onError} />}
       </section>}
 
       {activeTab === "transcription" && <section className="settings-card-language-edit">
@@ -775,22 +803,27 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
         )}
       </section>}
 
-      {/* Everything that used to be two tabs, folded into one block at the foot
-          of the one tab it belongs to.
+      {/* How a transcript is made when the ordinary controls have not given a
+          good enough one: the beam width, the five thresholds Whisper decides a
+          segment by, and where the work runs. One disclosure, one badge saying
+          whether any of it has been moved, and one way back — rather than a
+          badge and a reset per group, which is how a reader ends up not knowing
+          what state the machine is in.
 
-          `Výkon` and the two folders from `Modely` were never subjects anybody
-          arrives with: a reader who opens Settings wants a better transcript,
-          and these are the levers for when the ordinary ones have not given it.
-          One disclosure, one badge saying whether any of it has been moved, and
-          one way back — rather than a badge and a reset per group, which is how
-          a reader ends up not knowing what state the machine is in.
+          What is left here is decoding and acceleration, and that is the whole
+          of it. The two folders and `Technické podrobnosti` were in this block
+          and are on `Nástroje` now, because neither is about how a transcript
+          is made — they are about what is installed and where. The block keeps
+          its name: `Pokročilé` is still what it is, and renaming it to
+          `Dekódování` would put a word from whisper.cpp's manual on a screen
+          that does not use one anywhere else.
 
-          `Zpět na výchozí` covers the values, not the two folders. A folder is
-          a place, not a setting: resetting it would point the application at a
-          directory where nothing has been downloaded, which is not a default
-          anybody wanted. For the same reason a moved folder does not raise the
-          badge — on an ordinary installation neither path is the built-in
-          relative one, so it would say `upraveno` for everybody. */}
+          `Zpět na výchozí` covers every value inside the block, which is now
+          every value in `ADVANCED_DEFAULTS` with nothing left over. It never
+          covered the folders — a folder is a place, not a setting, and
+          resetting one would point the application at a directory where nothing
+          has been downloaded — and with them gone that exception is gone with
+          them rather than being kept as a rule nobody can see the reason for. */}
       {activeTab === "transcription" && <section className="settings-card-advanced">
         <SettingsDisclosure
           title={t("settings.advanced.title")}
@@ -942,14 +975,36 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
           </ul>
         )}
 
-        {/* Both folders are shown and neither is typed.
+        <button
+          className="button"
+          disabled={!advancedChanged}
+          onClick={() => save({ ...n, ...ADVANCED_DEFAULTS })}
+        >
+          {t("settings.advanced.reset")}
+        </button>
+        </SettingsDisclosure>
+      </section>}
 
-            They were free-text fields that saved on blur, which means one
-            mistyped character pointed the application at a directory holding
-            none of the tools it had downloaded — and the way back was to
-            remember what the path had been. The picker cannot produce a folder
-            that does not exist, and it is the only way in now. */}
-        <p className="small-text">
+      {/* Where the downloaded programs and models are kept.
+
+          Both folders are shown and neither is typed. They were free-text
+          fields that saved on blur, which means one mistyped character pointed
+          the application at a directory holding none of the tools it had
+          downloaded — and the way back was to remember what the path had been.
+          The picker cannot produce a folder that does not exist, and it is the
+          only way in.
+
+          They stood inside `Pokročilé` on `Přepis`, which is the wrong tab and
+          the wrong block: a folder is not a decoding value, nobody who has
+          moved one considers it advanced, and `Zpět na výchozí` two rows below
+          them had to carry a note saying it does not touch them. Here they are
+          a card of their own, next to the band that says what has been
+          downloaded into them. */}
+      {activeTab === "tools" && <section className="settings-card-locations">
+        <h2>{t("settings.files.locationsTitle")}</h2>
+        {/* A card's opening sentence, so it takes the card's own class rather
+            than the `small-text` it wore inside the disclosure. */}
+        <p className="settings-section-description">
           {t(check?.portable
             ? "settings.files.locationsPortable"
             : "settings.files.locationsDescription")}
@@ -982,17 +1037,6 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
             </button>
           </div>
         </div>
-
-        <button
-          className="button"
-          disabled={!advancedChanged}
-          onClick={() => save({ ...n, ...ADVANCED_DEFAULTS })}
-        >
-          {t("settings.advanced.reset")}
-        </button>
-
-        {check && <ToolDiagnostics k={check} onInfo={onInfo} onError={onError} />}
-        </SettingsDisclosure>
       </section>}
 
       {/* The dictionary is not a subject of its own: it is a list of the
