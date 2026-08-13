@@ -19,14 +19,13 @@ export const csWizard = {
   "wizard.quality.introGpu": "Odhady časů platí pro grafickou kartu v tomto počítači.",
   "wizard.quality.introCpu": "Poběží to na procesoru, takže odhady jsou vyšší, než byste čekali.",
   "wizard.quality.fastestName": "Rychlý",
-  "wizard.quality.balancedName": "Vyvážený",
-  "wizard.quality.bestName": "Precizní",
+  "wizard.quality.bestName": "Přesný",
   "wizard.quality.fastestSummary":
-    "Hodinová nahrávka {duration}. Méně spolehlivý u vlastních jmen a odborných výrazů.",
-  "wizard.quality.balancedSummary":
-    "Hodinová nahrávka {duration}. Asi jedna chyba na odstavec. Vhodné pro většinu nahrávek.",
+    "Hodinová nahrávka {duration}. Přepis může být proti zvuku posunutý až o tři sekundy, takže kliknutí na slovo netrefí přesné místo.",
   "wizard.quality.bestSummary":
-    "Hodinová nahrávka {duration}. Nejvyšší dosažitelná přesnost přepisu.",
+    "Hodinová nahrávka {duration}. Kliknutí na slovo přehraje zvuk přesně od něj.",
+  "wizard.quality.changeableNote":
+    "Model lze změnit i později v nastavení. Už hotové přepisy se tím ale nepřepočítají.",
 
   // ---------------------------------------------------------------- 2. speakers
   "wizard.speakers.title": "Přepisujete i rozhovory?",
@@ -117,16 +116,14 @@ export const csWizardContext: Partial<Record<keyof typeof csWizard, string>> = {
   "wizard.welcome.onCpu": "Hodnota pod popiskem „Přepis“. Malé písmeno je záměr.",
 
   "wizard.quality.title":
-    "Nadpis druhého kroku průvodce, nad třemi kartami s volbou kvality. „To“ je přepis, který se chystá. Otázka staví rychlost proti přesnosti; jsou to dva konce jedné volby, ne dvě samostatné vlastnosti. Čárka před „nebo“ je záměr — je to vylučovací poměr, ne výčet.",
+    "Nadpis druhého kroku průvodce, nad dvěma kartami s volbou kvality. „To“ je přepis, který se chystá. Otázka staví rychlost proti přesnosti; jsou to dva konce jedné volby, ne dvě samostatné vlastnosti. Čárka před „nebo“ je záměr — je to vylučovací poměr, ne výčet.",
   "wizard.quality.fastestName":
     "Název volby kvality přepisu, ne název modelu. Nejmenší a nejrychlejší model Whisper.",
-  "wizard.quality.balancedName":
-    "Název volby kvality přepisu: kompromis mezi rychlostí a přesností. Rod se řídí slovem „kvalita“ jen volně, dnes je to střední rod.",
   "wizard.quality.bestName": "Název volby kvality přepisu: nejpřesnější a zároveň nejpomalejší.",
+  "wizard.quality.changeableNote":
+    "Poznámka pod kartami. Říká, že volba není nevratná, ale že se zpětně neprojeví na už hotových přepisech.",
   "wizard.quality.fastestSummary":
     "Popis volby. {duration} je odhad doby přepisu, například „asi minutu“ nebo „asi 8 minut“.",
-  "wizard.quality.balancedSummary":
-    "Popis volby. {duration} je odhad doby přepisu, například „asi 3 minuty“.",
   "wizard.quality.bestSummary":
     "Popis volby. {duration} je odhad doby přepisu, například „asi 35 minut“.",
 

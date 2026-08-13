@@ -17,13 +17,28 @@ interface Props {
   missingModule?: string | null;
 }
 
-type Quality = "fastest" | "balanced" | "best";
+type Quality = "fastest" | "best";
 type EditingQuality = "off" | "light" | "balanced" | "best";
 
 /** The quality choice is mapped to a concrete model only here — nobody should
- *  have to know that "balanced" means large-v3-q5_0. Nothing but identifiers and
+ *  have to know that "best" means large-v3. Nothing but identifiers and
  *  dictionary keys lives in these tables: a module constant is evaluated once,
- *  outside React, so a label stored here could never follow a language change. */
+ *  outside React, so a label stored here could never follow a language change.
+ *
+ *  **Two choices, and the middle one was removed rather than renamed.** The
+ *  wizard used to offer `large-v3-q5_0` between these as *Vyvážený*, described
+ *  as about one mistake per paragraph — a claim measured nowhere in this
+ *  repository. What *is* measured is time alignment, on 13 August: the turbo
+ *  model put a whole block of transcript 3.34 s from where the words are
+ *  spoken, into a gap where nobody was speaking, while `large-v3` was 0.56 s
+ *  out on the same audio. Nobody has ever measured the middle model on that
+ *  axis or any other.
+ *
+ *  So it is not offered. A first run should not ask somebody to choose between
+ *  three things when the difference between two of them cannot be stated. It
+ *  remains installable by hand and selectable in Settings for anyone who wants
+ *  it; what it stops doing is standing in a wizard wearing a number nobody
+ *  took. */
 const MODELS: Record<
   Quality,
   { component: string; settings: string; name: TranslationKey; summary: TranslationKey }
@@ -34,12 +49,6 @@ const MODELS: Record<
     name: "wizard.quality.fastestName",
     summary: "wizard.quality.fastestSummary",
   },
-  balanced: {
-    component: "model-large-q5",
-    settings: "large-v3-q5_0",
-    name: "wizard.quality.balancedName",
-    summary: "wizard.quality.balancedSummary",
-  },
   best: {
     component: "model-large",
     settings: "large-v3",
@@ -48,6 +57,17 @@ const MODELS: Record<
   },
 };
 
+/** Speaker recognition, downloaded without being asked about.
+ *
+ *  It was a step of its own — *Přepisujete i rozhovory?* — governing 28 MB out
+ *  of a gigabyte. A question, a screen and a possible regret to save a
+ *  fortieth of the download is a bad trade, and it is asked at the worst
+ *  possible moment: before the reader has a single recording, when the honest
+ *  answer is *I do not know yet*.
+ *
+ *  The model comes down with everything else and `diarization` stays off. The
+ *  Detail screen already has *Rozpoznat mluvčí* on the recording where the
+ *  question finally has an answer, and by then nothing needs downloading. */
 const DIARIZATION_COMPONENTS = ["model-hlasy"];
 
 const EDITOR_MODELS: Record<
@@ -77,14 +97,30 @@ const EDITOR_MODELS: Record<
 /** Rough estimate for an hour-long recording, in minutes. Measured on a Radeon
  *  RX 9070; on a CPU it is an order of magnitude different, hence two sets of
  *  numbers. Only the number lives here — the phrase around it needs the active
- *  language's plural rules and is assembled by `useFormats`. */
+ *  language's plural rules and is assembled by `useFormats`.
+ *
+ *  Worth knowing before quoting these: *measured* is what the original comment
+ *  said, and no entry in `docs/history/` ever took, checked or contradicted
+ *  them. `benchmark_compute` is the app's own timer and could settle it in
+ *  twenty seconds per backend. Until somebody runs it these are the oldest
+ *  numbers in the interface. */
 function estimatedMinutes(quality: Quality, usesGpu: boolean): number {
   const t: Record<Quality, [number, number]> = {
     fastest: [1, 8],
-    balanced: [3, 25],
     best: [4, 35],
   };
   return t[quality][usesGpu ? 0 : 1];
+}
+
+/** Which model the machine is steered towards.
+ *
+ *  One function, used for both the badge and the initial selection, because
+ *  they used to be computed apart and disagreed: the state started on
+ *  *Vyvážený* while the badge was `usesGpu ? "balanced" : "fastest"`, so a
+ *  computer with no graphics card showed one option chosen and a different one
+ *  recommended — and the backend sided with the badge. */
+function recommendedQuality(usesGpu: boolean): Quality {
+  return usesGpu ? "best" : "fastest";
 }
 
 function DownloadedMark() {
@@ -143,19 +179,29 @@ export function alreadyRunning(error: unknown): boolean {
   return messageCode(error) === "download.already_running";
 }
 
+/* Three screens where there were six, and they are numbered rather than
+   counted at each use: the old code carried `setStep(4)` in five places and a
+   `[0,1,2,3,4]` bar that had to be kept in step with them by hand. */
+const STEP_CHOICE = 0;
+const STEP_DOWNLOAD = 1;
+const STEP_DONE = 2;
+const STEPS = [STEP_CHOICE, STEP_DOWNLOAD, STEP_DONE];
+
 export default function SetupWizard({ onComplete, onBack, required, missingModule }: Props) {
   const { t, tDynamic, tPlural } = useI18n();
   const { approximateMinutes, dataSize } = useFormats();
   const userMessage = useUserMessage();
   const progressMessage = useProgressMessage();
 
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(STEP_CHOICE);
   const [items, setItems] = useState<DownloadComponent[]>([]);
   const [check, setCheck] = useState<ToolCheck | null>(null);
 
-  const [quality, setQuality] = useState<Quality>("balanced");
-  const [wantsSpeakers, setWantsSpeakers] = useState(false);
-  const [editingQuality, setEditingQuality] = useState<EditingQuality>("balanced");
+  /* Null until somebody presses one. The recommendation depends on drivers
+     that are still being read when this screen first renders, so a state that
+     started on a named choice could only ever start on the wrong one — which
+     is exactly how the badge and the selection came to disagree. */
+  const [chosen, setChosen] = useState<Quality | null>(null);
   const [manual, setManual] = useState(false);
   const [manualFrom, setManualFrom] = useState<number | null>(null);
   const [manualSelect, setManualSelect] = useState<Set<string>>(new Set());
@@ -170,7 +216,7 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
   const chooseByHand = useCallback(() => {
     setManualFrom(step);
     setManual(true);
-    setStep(4);
+    setStep(STEP_DOWNLOAD);
   }, [step]);
 
   const load = useCallback(async () => {
@@ -180,14 +226,24 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
       setCheck(kn);
       if (missingModule) {
         // We came from settings for one specific thing. There is no point
-        // walking someone through four steps unrelated to it.
+        // walking someone through a question unrelated to it.
         setManual(true);
         const requested = new Set([missingModule]);
         if (missingModule.startsWith("editor-model-")) {
           requested.add(kn.vulkan_driver ? "editor-vulkan" : "editor-cpu");
         }
         setManualSelect(requested);
-        setStep(4);
+        setStep(STEP_DOWNLOAD);
+      } else if (!required) {
+        /* `Spravovat modely` in Settings arrives here, and it used to arrive at
+           the question. Finishing the wizard writes `model`, `diarization` and
+           `editor_model`, so somebody who opened it to see what was installed
+           and pressed through could return with speaker recognition switched
+           off and a different transcription model, having answered nothing
+           about either. Opening the list instead means looking costs nothing. */
+        setManual(true);
+        setManualSelect(new Set(k.filter((x) => x.recommended && !x.complete).map((x) => x.id)));
+        setStep(STEP_DOWNLOAD);
       } else {
         setManualSelect(new Set(k.filter((x) => x.recommended && !x.complete).map((x) => x.id)));
       }
@@ -202,6 +258,9 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
   }, [load]);
 
   const usesGpu = !!(check?.nvidia_driver || check?.vulkan_driver);
+  /* What is chosen, or what would be if nobody chose. One expression, so the
+     card drawn as selected and the model actually downloaded cannot differ. */
+  const quality = chosen ?? recommendedQuality(usesGpu);
 
   // The user does not pick the programs; the machine picks them from its drivers.
   const root = useMemo(
@@ -217,17 +276,16 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
     const s = new Set(root);
     const m = MODELS[quality].component;
     if (!items.find((p) => p.id === m)?.complete) s.add(m);
-    if (wantsSpeakers) {
-      DIARIZATION_COMPONENTS.filter((id) => !items.find((p) => p.id === id)?.complete).forEach((id) => s.add(id));
-    }
-    if (editingQuality !== "off") {
-      const runtime = check?.vulkan_driver ? "editor-vulkan" : "editor-cpu";
-      const model = EDITOR_MODELS[editingQuality].component;
-      if (!items.find((p) => p.id === runtime)?.complete) s.add(runtime);
-      if (!items.find((p) => p.id === model)?.complete) s.add(model);
-    }
+    DIARIZATION_COMPONENTS.filter((id) => !items.find((p) => p.id === id)?.complete)
+      .forEach((id) => s.add(id));
+    /* The language editor is not here, and that is the largest single change to
+       this screen. It was in the default selection at 5150 MB against 1206 for
+       everything else — 81 % of a first run, for a feature its own screen calls
+       `Volitelný`. It is offered where it is wanted instead: the first time
+       somebody opens a finished transcript, through the `missingModule` path
+       that already exists and already comes straight back here. */
     return [...s];
-  }, [manual, manualSelect, root, quality, wantsSpeakers, editingQuality, items, check?.vulkan_driver]);
+  }, [manual, manualSelect, root, quality, items]);
 
   const totalMb = useMemo(
     () => selected.reduce((a, id) => a + (items.find((p) => p.id === id)?.megabytes ?? 0), 0),
@@ -257,7 +315,7 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
         setRunning(false);
         await dokonci(u.payload ?? []);
         load();
-        setStep(5);
+        setStep(STEP_DONE);
       })
     );
 
@@ -266,7 +324,7 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
       unlisten.forEach((f) => f());
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editingQuality, manual, manualSelect, quality, wantsSpeakers]);
+  }, [manual, manualSelect, quality]);
 
   /** Without this the app would look for a model the user never chose.
    *
@@ -287,13 +345,23 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
           if (landed(MODELS[quality].component)) {
             changesApplied.model = MODELS[quality].settings;
           }
-          changesApplied.diarization =
-            wantsSpeakers && DIARIZATION_COMPONENTS.every(landed);
-          if (editingQuality === "off") changesApplied.editor_model = "";
-          else if (landed(EDITOR_MODELS[editingQuality].component)) {
-            changesApplied.editor_model = EDITOR_MODELS[editingQuality].settings;
-          }
         } else {
+          /* The by-hand path used to write `editor_model` and nothing else, and
+             that was a way to break a working installation with a download that
+             succeeded. `settings.model` defaults to `large-v3`, and `tools.rs`
+             resolves it strictly as `ggml-{model}.bin` with no fallback — so
+             ticking `Rychlý model`, downloading its 575 MB perfectly, and
+             finishing left the app reporting a missing `ggml-large-v3.bin` and
+             reopening this wizard as required. The editor model has such a
+             fallback; the transcription model does not, so it is written here.
+
+             Written only if it landed, and only if it is not already the
+             setting, so opening the list to add something unrelated cannot
+             change which model transcribes. */
+          const pickedModel = Object.values(MODELS).find(
+            (choice) => manualSelect.has(choice.component) && landed(choice.component)
+          );
+          if (pickedModel) changesApplied.model = pickedModel.settings;
           const selectedEditor = Object.values(EDITOR_MODELS).find(
             (choice) => manualSelect.has(choice.component) && landed(choice.component)
           );
@@ -304,14 +372,14 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
         /* settings can still be adjusted by hand */
       }
     },
-    [quality, wantsSpeakers, editingQuality, manual, manualSelect]
+    [quality, manual, manualSelect]
   );
 
   const start = useCallback(async () => {
     setError(null);
     setProgress({});
     setRunning(true);
-    setStep(4);
+    setStep(STEP_DOWNLOAD);
     try {
       // smallest first: the app becomes usable sooner and any failure shows
       // up before half an hour of model downloading
@@ -356,7 +424,7 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
   const retry = useCallback(async () => {
     setError(null);
     setRunning(true);
-    setStep(4);
+    setStep(STEP_DOWNLOAD);
     const retryIds = [...failedIds];
     setProgress((p) => {
       const n = { ...p };
@@ -373,6 +441,30 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
   }, [failedIds, userMessage]);
 
   const complete = selected.filter((id) => progress[id]?.phase === "complete").length;
+
+  /** How much of the download is done, by size rather than by item count.
+   *
+   *  `complete / selected.length` is what the bar used to show, and with the
+   *  batch ordered smallest-first it was wrong in the one direction that
+   *  matters: it ran to the far end quickly and then appeared to stop. This
+   *  weights each item by the megabytes the catalogue claims for it — the same
+   *  number the reader agreed to on the line above — and gives the item in
+   *  flight its own share of that.
+   */
+  const downloadedFraction = useMemo(() => {
+    const sizeOf = (id: string) => items.find((p) => p.id === id)?.megabytes ?? 0;
+    const total = selected.reduce((a, id) => a + sizeOf(id), 0);
+    if (total <= 0) return 0;
+    const done = selected.reduce((a, id) => {
+      const phase = progress[id]?.phase;
+      if (phase === "complete") return a + sizeOf(id);
+      if (phase === "downloading" || phase === "extracting") {
+        return a + (sizeOf(id) * (progress[id]?.percent ?? 0)) / 100;
+      }
+      return a;
+    }, 0);
+    return Math.min(done / total, 1);
+  }, [selected, items, progress]);
   const current = selected.find(
     (id) =>
       progress[id]?.phase === "downloading" ||
@@ -396,15 +488,15 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
 
   return (
     <main className="wizard">
-      {step < 5 && (
+      {step < STEP_DONE && (
         <div className="steps" aria-hidden>
-          {[0, 1, 2, 3, 4].map((i) => (
+          {STEPS.map((i) => (
             <span key={i} className={i <= step ? "finished" : ""} />
           ))}
         </div>
       )}
 
-      {error && step !== 5 && (
+      {error && step !== STEP_DONE && (
         <div className="warning">
           <div>
             <strong>{t("wizard.download.failedTitle")}</strong>
@@ -416,12 +508,27 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
         </div>
       )}
 
-      {/* ------------------------------------------------ 0. welcome */}
-      {step === 0 && (
+      {/* --------------------------------------------- 0. the one question
+
+          Four screens became one. Two of them asked nothing the machine did not
+          already know — the welcome recited detected drivers, and the speaker
+          step governed 28 MB — and the language editor's 5150 MB left the first
+          run altogether. What is left is the only decision that is both
+          consequential and awkward to reverse: changing the transcription model
+          later means transcribing everything again.
+
+          The detected configuration stays, as one line under the question
+          rather than a screen before it. It is context for the estimates, not
+          an announcement. */}
+      {step === STEP_CHOICE && (
         <div className="step">
-          <p className="step-number">{t("wizard.nav.stepCounter", { step: 1, total: 5 })}</p>
-          <h1>{t(required ? "wizard.welcome.titleFirstRun" : "wizard.welcome.titleAddModels")}</h1>
-          <p className="step-intro">{t("wizard.welcome.intro")}</p>
+          <p className="step-number">
+            {t("wizard.nav.stepCounter", { step: 1, total: STEPS.length })}
+          </p>
+          <h1>{t("wizard.quality.title")}</h1>
+          <p className="step-intro">
+            {usesGpu ? t("wizard.quality.introGpu") : t("wizard.quality.introCpu")}
+          </p>
 
           <div className="detected">
             <div>
@@ -452,48 +559,20 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
             </div>
           </div>
 
-          <InfoNote>{t("wizard.welcome.note")}</InfoNote>
-
-          <div className="step-footer">
-            {!required && (
-              <button className="button quiet" onClick={onBack}>
-                {t("common.back")}
-              </button>
-            )}
-            <ManualSelectionButton
-              label={t("wizard.manual.switchToManual")}
-              onClick={chooseByHand}
-            />
-            <button className="button primary" onClick={() => setStep(1)}>
-              {t("common.continue")}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ------------------------------------------------ 1. quality */}
-      {step === 1 && (
-        <div className="step">
-          <p className="step-number">{t("wizard.nav.stepCounter", { step: 2, total: 5 })}</p>
-          <h1>{t("wizard.quality.title")}</h1>
-          <p className="step-intro">
-            {usesGpu ? t("wizard.quality.introGpu") : t("wizard.quality.introCpu")}
-          </p>
-
-          <div className="choices">
-            {(["fastest", "balanced", "best"] as Quality[]).map((k) => {
+          <div className="choices wizard-quality-choices">
+            {(["best", "fastest"] as Quality[]).map((k) => {
               const p = items.find((x) => x.id === MODELS[k].component);
-              const recommended = usesGpu ? "balanced" : "fastest";
               return (
                 <button
                   key={k}
                   className={`choice ${quality === k ? "chosen" : ""}`}
-                  onClick={() => setQuality(k)}
+                  aria-pressed={quality === k}
+                  onClick={() => setChosen(k)}
                 >
                   <span className="choice-head">
                     <span className="choice-title">
                       {t(MODELS[k].name)}
-                      {k === recommended && (
+                      {k === recommendedQuality(usesGpu) && (
                         <em className="badge">{t("wizard.download.recommendedBadge")}</em>
                       )}
                       {p?.complete && (
@@ -514,140 +593,28 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
             })}
           </div>
 
+          <InfoNote>{t("wizard.quality.changeableNote")}</InfoNote>
+
           <div className="step-footer">
-            <button className="button quiet" onClick={() => setStep(0)}>
-              {t("common.back")}
-            </button>
+            {!required && (
+              <button className="button quiet" onClick={onBack}>
+                {t("common.back")}
+              </button>
+            )}
             <ManualSelectionButton
               label={t("wizard.manual.switchToManual")}
               onClick={chooseByHand}
             />
-            <button className="button primary" onClick={() => setStep(2)}>
+            <button className="button primary" onClick={() => setStep(STEP_DOWNLOAD)}>
               {t("common.continue")}
             </button>
           </div>
         </div>
       )}
-
-      {/* ------------------------------------------------ 2. speakers */}
-      {step === 2 && (
+      {/* -------------------------------------- 1. summary and download */}
+      {step === STEP_DOWNLOAD && (
         <div className="step">
-          <p className="step-number">{t("wizard.nav.stepCounter", { step: 3, total: 5 })}</p>
-          <h1>{t("wizard.speakers.title")}</h1>
-          <p className="step-intro">{t("wizard.speakers.intro")}</p>
-
-          <div className="choices">
-            <button
-              className={`choice ${!wantsSpeakers ? "chosen" : ""}`}
-              onClick={() => setWantsSpeakers(false)}
-            >
-              <span className="choice-head">
-                <span className="choice-title">{t("wizard.speakers.singleName")}</span>
-                <span className="choice-size">{dataSize(0)}</span>
-              </span>
-              <span className="small-text">{t("wizard.speakers.singleDescription")}</span>
-            </button>
-
-            <button
-              className={`choice ${wantsSpeakers ? "chosen" : ""}`}
-              onClick={() => setWantsSpeakers(true)}
-            >
-              <span className="choice-head">
-                <span className="choice-title">{t("wizard.speakers.multipleName")}</span>
-                <span className="choice-size">
-                  {dataSize(
-                    DIARIZATION_COMPONENTS.reduce((a, id) => {
-                      const p = items.find((x) => x.id === id);
-                      return a + (p && !p.complete ? p.megabytes : 0);
-                    }, 0)
-                  )}
-                </span>
-              </span>
-              <span className="small-text">{t("wizard.speakers.multipleDescription")}</span>
-            </button>
-          </div>
-
-          <div className="step-footer">
-            <button className="button quiet" onClick={() => setStep(1)}>
-              {t("common.back")}
-            </button>
-            <ManualSelectionButton
-              label={t("wizard.manual.switchToManual")}
-              onClick={chooseByHand}
-            />
-            <button className="button primary" onClick={() => setStep(3)}>
-              {t("common.continue")}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ------------------------------------------ 3. optional language editing */}
-      {step === 3 && (
-        <div className="step">
-          <p className="step-number">{t("wizard.nav.stepCounter", { step: 4, total: 5 })}</p>
-          <h1>{t("wizard.editor.title")}</h1>
-          <p className="step-intro">{t("wizard.editor.intro")}</p>
-
-          <div className="choices">
-            {(["light", "balanced", "best"] as const).map((editorQuality) => {
-              const choice = EDITOR_MODELS[editorQuality];
-              const component = items.find((item) => item.id === choice.component);
-              return (
-                <button
-                  key={editorQuality}
-                  className={`choice ${editingQuality === editorQuality ? "chosen" : ""}`}
-                  onClick={() => setEditingQuality(editorQuality)}
-                  aria-pressed={editingQuality === editorQuality}
-                >
-                  <span className="choice-head">
-                    <span className="choice-title">
-                      {t(choice.name)}
-                      {editorQuality === "balanced" && (
-                        <em className="badge">{t("wizard.download.recommendedBadge")}</em>
-                      )}
-                      {component?.complete && (
-                        <em className="badge">{t("wizard.download.downloadedBadge")}</em>
-                      )}
-                    </span>
-                    <span className="choice-size">
-                      {dataSize(component?.complete ? 0 : component?.megabytes ?? 0)}
-                    </span>
-                  </span>
-                  <span className="small-text">{t(choice.description)}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="step-footer">
-            <button className="button quiet" onClick={() => setStep(2)}>
-              {t("common.back")}
-            </button>
-            <ManualSelectionButton
-              label={t("wizard.manual.switchToManual")}
-              onClick={chooseByHand}
-            />
-            <button
-              className="button quiet"
-              onClick={() => {
-                setEditingQuality("off");
-                setStep(4);
-              }}
-            >
-              {t("wizard.editor.skip")}
-            </button>
-            <button className="button primary" onClick={() => setStep(4)}>
-              {t("common.continue")}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ------------------------------------------------ 4. summary and download */}
-      {step === 4 && (
-        <div className="step">
-          <p className="step-number">{t("wizard.nav.stepCounter", { step: 5, total: 5 })}</p>
+          <p className="step-number">{t("wizard.nav.stepCounter", { step: 2, total: STEPS.length })}</p>
           <h1>{t(running ? "wizard.download.runningTitle" : "wizard.download.reviewTitle")}</h1>
 
           {!running && (
@@ -662,15 +629,16 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
             <>
               <div className="progress-large">
                 <div className="progress-bar">
+                  {/* Weighted by megabytes, not by how many items are done.
+                      Counting items and downloading smallest-first is a bad
+                      pair: for a default first run the four small pieces are a
+                      fifth of the bytes and used to carry the bar to two
+                      thirds, after which the one large model held it still for
+                      the rest of the download. A bar that races and then stops
+                      is worse than no bar. */}
                   <div
                     className="progress-fill"
-                    style={{
-                      width: `${
-                        ((complete + (currentProgress ? currentProgress.percent / 100 : 0)) /
-                          Math.max(selected.length, 1)) *
-                        100
-                      }%`,
-                    }}
+                    style={{ width: `${downloadedFraction * 100}%` }}
                   />
                 </div>
                 <div className="progress-label">
@@ -760,7 +728,7 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
               <div className="step-footer">
                 <button
                   className="button quiet"
-                  onClick={() => missingModule ? onBack() : setStep(manualFrom ?? 3)}
+                  onClick={() => missingModule ? onBack() : setStep(manualFrom ?? STEP_CHOICE)}
                 >
                   {t("common.back")}
                 </button>
@@ -795,7 +763,7 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
       )}
 
       {/* ------------------------------------------------ 5. conclusion */}
-      {step === 5 && (
+      {step === STEP_DONE && (
         <div className={`step ${failedIds.length === 0 ? "step-outro" : ""}`}>
           {failedIds.length === 0 ? (
             <>
@@ -838,7 +806,7 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
                   className="button quiet"
                   onClick={() => {
                     setProgress({});
-                    setStep(4);
+                    setStep(STEP_DOWNLOAD);
                   }}
                 >
                   {t("wizard.done.backToSelection")}
