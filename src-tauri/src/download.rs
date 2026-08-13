@@ -19,7 +19,7 @@ use crate::user_message::UserMessage;
 /// Result of anything that can end up in front of the user.
 type Reported<T> = std::result::Result<T, UserMessage>;
 
-// ---------------------------------------------------------------- katalog
+// ---------------------------------------------------------- the catalogue
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct DownloadComponent {
@@ -62,7 +62,7 @@ enum Source {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 enum Destination {
-    /// Rozbalit archiv a vsechny .exe a .dll slozit do jedne slozky
+    /// Unpack the archive and gather every .exe and .dll into one folder.
     ProgramsInto(String),
     /// Save the downloaded file under the given name.
     AsFile(String),
@@ -150,7 +150,7 @@ fn raw_catalog() -> Vec<DownloadComponent> {
     };
 
     vec![
-        // ---------------------------------------------------------- programy
+        // ---------------------------------------------------------- programs
         k(
             "whisper-vulkan",
             18,
@@ -199,7 +199,7 @@ fn raw_catalog() -> Vec<DownloadComponent> {
             "bin/deno.exe",
             Destination::ProgramsInto("bin".into()),
         ),
-        // ---------------------------------------------------------- modely
+        // ---------------------------------------------------------- models
         k(
             "vad",
             2,
@@ -273,7 +273,7 @@ fn raw_catalog() -> Vec<DownloadComponent> {
             "models/editor/gemma-4-12b-q4.gguf",
             Destination::AsFile("models/editor/gemma-4-12b-q4.gguf".into()),
         ),
-        // ---------------------------------------------------------- mluvci
+        // -------------------------------------------------------- speakers
         // The history of this line, so that nobody walks it back:
         //
         // 1. First it was 3dspeaker ... sv_zh-cn ..., trained on Chinese only.
@@ -331,7 +331,7 @@ pub fn catalog(settings: &crate::db::Settings) -> Vec<DownloadComponent> {
         .collect()
 }
 
-// ---------------------------------------------------------------- udalosti
+// ------------------------------------------------------------------ events
 
 #[derive(Serialize, Clone)]
 pub struct DownloadProgress {
@@ -350,7 +350,7 @@ fn emit_progress(app: &AppHandle, p: DownloadProgress) {
     let _ = app.emit("download:progress", p);
 }
 
-// ---------------------------------------------------------------- stahovani
+// ---------------------------------------------------------------- downloads
 
 /// What is bounded here, and what deliberately is not.
 ///
@@ -508,7 +508,7 @@ fn place_verified(
     Ok(actual)
 }
 
-// ---------------------------------------------------------------- rozbaleni
+// ---------------------------------------------------------------- unpacking
 
 fn extract_zip(archive: &Path, destination: &Path) -> Reported<()> {
     let file = std::fs::File::open(archive)?;
@@ -619,7 +619,7 @@ fn collect_programs(source: &Path, destination: &Path) -> Reported<usize> {
     Ok(count)
 }
 
-// ---------------------------------------------------------------- hlavni beh
+// -------------------------------------------------------------- the main run
 
 /// What is known about one installed component.
 ///

@@ -225,7 +225,7 @@ pub fn markdown(recording: &Recording, segments: &[Segment], speakers: &[Speaker
     v
 }
 
-// ---------------------------------------------------------------- titulky
+// -------------------------------------------------------------- subtitles
 //
 // A transcript segment and a subtitle are not the same thing. A paragraph
 // reads fine in the editor but not as a subtitle: the viewer has a couple of

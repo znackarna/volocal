@@ -5,7 +5,7 @@
 
 use super::*;
 
-// ---------------------------------------------------------------- bezici prace
+// ---------------------------------------------------------------- running jobs
 
 /// Work in progress: which recordings have a worker, and what each one has
 /// running right now.

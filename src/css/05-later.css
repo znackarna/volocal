@@ -621,9 +621,9 @@ button.current > .row-play { color: var(--accent); }
 .backup-path:hover { background: var(--muted); color: var(--text); }
 .backup-path:focus-visible { outline: none; box-shadow: var(--ring); }
 
-/* Mluvci v sidebaru: ukazka hlasu, jmeno, podil casu.
-   Radek je „prehraj – pojmenuj – kolik toho namluvil“, tedy presne ten
-   postup, kterym se rozhoduje, jestli je ten shluk skutecny clovek. */
+/* Speakers in the sidebar: a sample of the voice, the name, the share of the
+   talking. The row is „play — name — how much they said", which is exactly the
+   order somebody decides in whether this cluster is a real person. */
 .speaker-sample {
   flex: 0 0 auto;
   width: 20px;

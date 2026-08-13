@@ -1026,8 +1026,8 @@ export function MiniPlayer({
       </span>
 
       <button className="mini-close" onClick={close} aria-label={t("app.player.stop")}>
-        {/* Stejná kresebná velikost jako u přehrát — menší glyf by
-            opticky odskočil od okraje, i když má stejnou plochu. */}
+        {/* Drawn at the same size as play: a smaller glyph stands off the
+            edge optically, even when it covers the same area. */}
         <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden>
           <path d="M3 3l8 8M11 3l-8 8" stroke="currentColor"
                 strokeWidth="1.7" strokeLinecap="round" />

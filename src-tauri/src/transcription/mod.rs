@@ -21,7 +21,7 @@ use crate::user_message::UserMessage;
 /// Result of anything that can end up in front of the user.
 type Reported<T> = std::result::Result<T, UserMessage>;
 
-// ---------------------------------------------------------------- udalosti
+// ------------------------------------------------------------------ events
 
 #[derive(Serialize, Clone)]
 pub struct TranscriptionProgress {
@@ -80,7 +80,7 @@ pub(crate) use speakers::*;
 pub(crate) use text::*;
 pub(crate) use whisper::*;
 
-// ---------------------------------------------------------------- vstupni bod
+// ---------------------------------------------------------------- entry point
 
 /// Runs a job and turns a panic into a failure the interface can show.
 ///
@@ -433,7 +433,7 @@ fn run(
     }
     stop_if_cancelled(task, recording_id)?;
 
-    // ------------------------------------------------------------ priprava
+    // --------------------------------------------------------- preparation
     status(
         app,
         recording_id,
@@ -547,18 +547,18 @@ fn run(
         return Err(UserMessage::new("transcription.empty_result"));
     }
 
-    // ------------------------------------------------------------ vety
+    // ------------------------------------------------------- sentences
     segments = rebuild_sentences(segments);
 
-    // ------------------------------------------------ zacatek proti zvuku
+    // ---------------------------------------- the start against the audio
     // After the blocks are final, because it is the first word of a block
     // that lights up. The 16 kHz copy whisper was given is still on disk.
     snap_starts_to_sound(&mut segments, &wav);
 
-    // ------------------------------------------------------------ slovnik
+    // --------------------------------------------------------- dictionary
     apply_dictionary(&mut segments, &dictionary);
 
-    // ------------------------------------------------------------ diarizace
+    // ---------------------------------------------------------- diarisation
     if settings.diarization {
         if let Some(issue) = check.issues_diarization.first() {
             status(
@@ -607,7 +607,7 @@ fn run(
         }
     }
 
-    // ------------------------------------------------------------ ulozeni
+    // ------------------------------------------------------------- saving
     stop_if_cancelled(task, recording_id)?;
     status(app, recording_id, "saving", 95, step("saving"));
 
@@ -653,7 +653,7 @@ fn run(
     Ok(segments.len())
 }
 
-// ------------------------------------------------------- zacatek proti zvuku
+// ----------------------------------------------- the start against the audio
 
 /// A word must not light up while nothing can be heard.
 ///

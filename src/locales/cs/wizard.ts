@@ -1,6 +1,6 @@
 /** Strings belonging to the `wizard` screen. */
 export const csWizard = {
-  // ------------------------------------------------------------------ 0. uvítání
+  // ------------------------------------------------------------------ 0. welcome
   "wizard.welcome.titleFirstRun": "První spuštění",
   "wizard.welcome.titleAddModels": "Doplnit modely",
   "wizard.welcome.intro":
@@ -14,7 +14,7 @@ export const csWizard = {
   "wizard.welcome.onCpu": "na procesoru, tedy pomaleji",
   "wizard.welcome.note": "Podle konfigurace je předvybrána vhodná sada. Změnit ji lze i později.",
 
-  // ------------------------------------------------------------------ 1. kvalita
+  // ------------------------------------------------------------------ 1. quality
   "wizard.quality.title": "Rychle, nebo přesně?",
   "wizard.quality.introGpu": "Odhady časů platí pro grafickou kartu v tomto počítači.",
   "wizard.quality.introCpu": "Poběží to na procesoru, takže odhady jsou vyšší, než byste čekali.",
@@ -28,7 +28,7 @@ export const csWizard = {
   "wizard.quality.bestSummary":
     "Hodinová nahrávka {duration}. Nejvyšší dosažitelná přesnost přepisu.",
 
-  // ------------------------------------------------------------------ 2. mluvčí
+  // ---------------------------------------------------------------- 2. speakers
   "wizard.speakers.title": "Přepisujete i rozhovory?",
   "wizard.speakers.intro":
     "Pokud mluví víc lidí, aplikace rozdělí text mezi ně.",
@@ -38,7 +38,7 @@ export const csWizard = {
   "wizard.speakers.multipleDescription":
     "Text se rozdělí mezi jednotlivé mluvčí, které pak můžete pojmenovat.",
 
-  // ------------------------------------------------------------- 3. jazyková úprava
+  // ------------------------------------------------------------ 3. language editing
   "wizard.editor.title": "Chcete z přepisu hotový dokument?",
   "wizard.editor.intro":
     "Volitelný místní model opraví interpunkci, odstavce a zjevné chyby. Zachová původní přepis a nic neposílá ven.",
@@ -52,7 +52,7 @@ export const csWizard = {
     "Nejspolehlivější výsledek. Na počítači bez grafiky bude pomalejší.",
   "wizard.editor.skip": "Přeskočit",
 
-  // ------------------------------------------------------------- 4. výběr a stahování
+  // ------------------------------------------------------ 4. choosing and downloading
   "wizard.download.failedTitle": "Stahování selhalo",
   "wizard.download.dismissError": "Rozumím",
   "wizard.download.recommendedBadge": "doporučeno",
@@ -75,7 +75,7 @@ export const csWizard = {
   "wizard.download.startTranscribing": "Jdeme přepisovat",
   "wizard.download.downloadWithSize": "Stáhnout ({size})",
 
-  // ------------------------------------------------------------------ ruční výběr
+  // ------------------------------------------------------------- choosing by hand
   "wizard.manual.switchToSimple": "Jednoduchý výběr",
   "wizard.manual.switchToManual": "Vybrat ručně",
   "wizard.manual.groupPrograms": "Programy",
@@ -83,7 +83,7 @@ export const csWizard = {
   "wizard.manual.groupSpeakers": "Rozpoznání mluvčích",
   "wizard.manual.groupEditor": "Jazyková úprava",
 
-  // ------------------------------------------------------------------ 5. závěr
+  // ------------------------------------------------------------- 5. conclusion
   "wizard.done.introReady": "Vše je připraveno. Přetažením nahrávky do okna začne přepis.",
   "wizard.done.tabHint":
     "Klávesa {key} přeskakuje na místa s nízkou jistotou přepisu. Kontrola textu tak zabere jen několik minut.",
@@ -95,7 +95,7 @@ export const csWizard = {
   "wizard.done.backToSelection": "Zpět na výběr",
   "wizard.done.continueAnyway": "Pokračovat bez toho",
 
-  // ------------------------------------------------------------------ navigace
+  // ---------------------------------------------------------------- navigation
   "wizard.nav.stepCounter": "Krok {step} z {total}",
 } as const;
 

@@ -13,7 +13,7 @@ use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use tauri::State;
-// ---------------------------------------------------------------- knihovna
+// ----------------------------------------------------------------- library
 
 #[tauri::command]
 pub fn list_recordings(app: State<'_, AppState>) -> Reported<Vec<Recording>> {

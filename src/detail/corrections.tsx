@@ -55,7 +55,7 @@ export function describeEdit(
   return { before, after, narrowed: false };
 }
 
-// ------------------------------------------------- oprava nejisteho mista
+// --------------------------------------------- correcting a doubtful spot
 
 /**
  * An uncertain spot, rewritten where it is listed.
@@ -134,7 +134,7 @@ export function UncertainEditor({
   );
 }
 
-// ---------------------------------------------------------------- jeden usek
+// --------------------------------------------------------------- one segment
 
 /**
  * One transcript segment.

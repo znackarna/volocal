@@ -240,14 +240,14 @@ function EditorMark({ model }: { model: string }) {
 /** Icon reflecting what the model is known for: speed, balance or accuracy.
  *  1.6 stroke on a 22 square, like the rest of the UI. */
 function ModelMark({ id }: { id: string }) {
-  const kresba = id.includes("turbo")
-    ? // blesk — rychlost
+  const drawing = id.includes("turbo")
+    ? // lightning — speed
       "M13 3L5.5 13.2h5L10 21l7.5-10.2h-5L13 3Z"
     : id.includes("q5") || id.includes("q4")
-      ? // váhy — vyváženost
+      ? // scales — a balance struck
         "M12 4v16 M7 20h10 M4 8h16 M4 8l-2.5 6h5L4 8 M20 8l-2.5 6h5L20 8"
       : id.includes("medium") || id.includes("small")
-        ? // menší kruh — omezenější model
+        ? // a smaller circle — a smaller model
           "M12 6a6 6 0 1 0 0 12 6 6 0 0 0 0-12Z"
         : // target — highest accuracy
           "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z M12 11.4a0.6 0.6 0 1 0 0 1.2 0.6 0.6 0 0 0 0-1.2Z";
@@ -264,7 +264,7 @@ function ModelMark({ id }: { id: string }) {
       strokeLinejoin="round"
       aria-hidden
     >
-      {kresba.split(" M").map((segment, i) => (
+      {drawing.split(" M").map((segment, i) => (
         <path key={i} d={i === 0 ? segment : `M${segment}`} />
       ))}
     </svg>
@@ -591,8 +591,8 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
         </section>
       )}
 
-      {/* Moduly nepatří do hlavní nabídky — stahují se jednou a pak se k nim
-          člověk vrací zřídka. Tady jsou po ruce a nepřekáží. */}
+      {/* Modules do not belong in the main tab list: they are downloaded once
+          and rarely returned to. Here they are within reach and out of the way. */}
       {activeTab === "models" && <section className="settings-card-modules">
         <h2>{t("settings.modules.title")}</h2>
         <p className="settings-section-description">
@@ -1122,8 +1122,8 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
 
         <div className="field">
           <label>{t("settings.transcription.model")}</label>
-          {/* Karty místo rozbalovací nabídky: modely se od sebe liší tím,
-              co dělají s časem a přesností, a to se v jednom řádku neřekne. */}
+          {/* Cards rather than a dropdown: what separates these models is what
+              they do with time and accuracy, and that does not fit on a line. */}
           <div className="choices model-choices">
             {(check?.found_models.length
               ? [...check.found_models].sort(byModelOrder)
