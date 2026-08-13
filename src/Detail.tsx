@@ -1499,7 +1499,15 @@ export default function Detail({
     if (box.top >= view.top + margin && box.bottom <= view.bottom - margin) return;
 
     element.scrollIntoView({ behavior: "smooth", block: "center" });
-  }, [active?.id, isPlaying]);
+    /* `drawnBlocks` is in here because on arrival the block being read is
+       usually past the first screenful, has no element yet, and this leaves
+       above without doing anything.
+
+       It is not the difference between working and not — that was the first
+       guess and it was wrong. The audio keeps running, so a few seconds later
+       the reading crosses into the next block, `active` changes, and it lands
+       then. This is the difference between immediate and one block late. */
+  }, [active?.id, isPlaying, drawnBlocks]);
 
   // Language names come from the shared dictionary, so a language change moves
   // them too — a module constant would keep whatever it was born with.

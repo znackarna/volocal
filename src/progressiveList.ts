@@ -23,11 +23,17 @@ export const FIRST_BLOCKS = 40;
  *  that is the trade: the window stops waiting for the end of a recording
  *  before showing the beginning of it.
  *
- *  **What makes this safe here** is that nothing scrolls on arrival. Every
- *  `scrollIntoView` in `Detail.tsx` is inside a handler somebody has to press,
- *  and `seekTime` moves the player's cursor rather than the page. A list that
- *  jumped to a block on opening could not be cut short this way without the
- *  jump missing the blocks that had not been drawn yet.
+ *  **One thing does scroll on arrival, and it has to be told about this.**
+ *  Returning to a transcript that is still playing lands on the block being
+ *  read, which is usually well past the first forty. That effect therefore
+ *  waits on the drawn count as well as on the block itself — without it there
+ *  is no element to find on arrival, and nothing else changes afterwards to
+ *  make it look again.
+ *
+ *  The rest is safe as it stands: every other `scrollIntoView` in `Detail.tsx`
+ *  is inside a handler somebody has to press, and `seekTime` moves the player's
+ *  cursor rather than the page. Anything new that jumps to a block on opening
+ *  has to join the first list rather than the second.
  */
 export function useProgressiveList(total: number): number {
   const [drawn, setDrawn] = useState(FIRST_BLOCKS);
