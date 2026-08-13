@@ -1464,16 +1464,6 @@ export default function Detail({
   //
   // Binary search rather than a scan: this runs on every frame of playback,
   // and segments arrive ordered by their position in the recording.
-  /* Was this recording already playing when the screen opened?
-   *
-   * Read once, at the first render, because the question is what was true on
-   * arrival rather than what is true now. Pressing play while reading is the
-   * other case entirely: there the block is under the reader's hand and moving
-   * the page would be the old bug this file already fixed once.
-   */
-  const cameBackToPlayback = useRef(isPlaying);
-  const landedOnPlayback = useRef(false);
-
   const active = useMemo(() => {
     let low = 0;
     let high = segments.length - 1;
@@ -1502,20 +1492,6 @@ export default function Detail({
     const list = listRef.current;
     if (!element || !list) return;
 
-    /* Coming back to a transcript that is still playing lands where it is
-       reading, and that is a different move from following along.
-
-       It jumps rather than glides: gliding from the top of a forty-five minute
-       transcript to the middle of it is an animation nobody asked to watch. And
-       it does not ask whether the block is already on screen, because on
-       arrival the list is at the top and the answer is always no — asking would
-       only make the rule harder to read. */
-    if (cameBackToPlayback.current && !landedOnPlayback.current) {
-      landedOnPlayback.current = true;
-      element.scrollIntoView({ block: "center" });
-      return;
-    }
-
     const box = element.getBoundingClientRect();
     const view = list.getBoundingClientRect();
     // Band near the edges where a segment counts as "on its way out".
@@ -1523,11 +1499,14 @@ export default function Detail({
     if (box.top >= view.top + margin && box.bottom <= view.bottom - margin) return;
 
     element.scrollIntoView({ behavior: "smooth", block: "center" });
-    /* `drawnBlocks` is in here for one reason and it is not cosmetic. The block
-       being read is usually well past the first screenful, so on arrival there
-       is no element to find yet and this leaves without doing anything. Nothing
-       else would change afterwards — `active` and `isPlaying` both stay as they
-       are — so without this the screen would simply never catch up. */
+    /* `drawnBlocks` is in here because on arrival the block being read is
+       usually past the first screenful, has no element yet, and this leaves
+       above without doing anything.
+
+       It is not the difference between working and not — that was the first
+       guess and it was wrong. The audio keeps running, so a few seconds later
+       the reading crosses into the next block, `active` changes, and it lands
+       then. This is the difference between immediate and one block late. */
   }, [active?.id, isPlaying, drawnBlocks]);
 
   // Language names come from the shared dictionary, so a language change moves
