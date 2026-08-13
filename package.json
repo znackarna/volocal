@@ -11,7 +11,7 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "start": "tauri dev",
-    "installer": "tauri build",
+    "installer": "tauri build --config src-tauri/tauri.ci.conf.json",
     "docs:check": "node scripts/docs-check.mjs",
     "i18n:check": "node scripts/i18n.mjs check",
     "i18n:sync": "node scripts/i18n.mjs sync",
