@@ -52,52 +52,61 @@ spustil, a má přesně jeho oprávnění.
 ### Co v aplikaci opravdu je a je dobré to vědět
 
 Tohle nejsou hypotézy. Jsou to vlastnosti dnešního kódu, ověřené proti němu
-10. srpna 2026.
+13. srpna 2026.
 
-**1. Stažené součásti se zatím neporovnávají s žádným kontrolním součtem.**
+**1. Patnáct z šestnácti stažených součástí se porovnává s otiskem. Šestnáctá
+ne, a je to na ní vidět.**
 
 Volocal si při prvním spuštění stahuje nástroje (FFmpeg, whisper.cpp,
 llama.cpp, yt-dlp, Deno) a modely, rozbaluje je a spouští je jako běžné
 programy pod vaším účtem.
 
-Postup na ověřování připravený je. `src-tauri/src/download.rs` počítá SHA-256
-už během zápisu staženého souboru a porovnává ho dřív, než se cokoli rozbalí
-nebo přesune na místo. Tabulka očekávaných otisků (`EXPECTED_HASHES`) je ale
-**prázdná**, takže dnes se neporovnává nic, a to u žádné součásti. Otisk tam
-smí přibýt teprve tehdy, až ho někdo přečte z vydání toho kterého projektu;
-spočítat ho z toho, co dorazilo na tento stroj, by dokazovalo jen to, že se
-soubor shoduje sám se sebou.
+Odkud se berou a čemu se mají rovnat, stojí v `src-tauri/components.json`.
+Každá položka míří na pevnou adresu jednoho konkrétního souboru — žádné
+`latest`, žádná větev; `src-tauri/src/download.rs` má na to test a se špatnou
+adresou sestavení neprojde. Tentýž soubor počítá SHA-256 už během zápisu
+stahovaných bajtů a porovná ho dřív, než se cokoli rozbalí nebo přesune na
+místo.
 
-Jediná záruka integrity tedy zůstává HTTPS: spojení je šifrované (rustls) a
-ověřuje se certifikát protistrany. To znamená, že důvěřujeme provozovatelům
-`github.com`, `api.github.com`, `objects.githubusercontent.com`,
-`huggingface.co` a `www.gyan.dev`, a celému řetězci certifikačních autorit ve
-vašem systému.
+Otisk smí do katalogu zapsat jen ten, kdo ho přečetl u vydavatele: Hugging Face
+ho vydává jako LFS oid, GitHub jako `digest` u souboru vydání, gyan.dev jako
+`.sha256` vedle archivu. Spočítat ho z toho, co dorazilo na tento stroj, by
+dokazovalo jen to, že se soubor shoduje sám se sebou.
 
-Proti dřívějšímu chování se změnilo jedno: aplikace už netvrdí, že původ
-ověřila.
-Každá dokončená instalace zapíše do `installed.json` adresu, otisk toho, co
-skutečně dorazilo, a `verified: false`, dokud nebylo s čím porovnávat. Samotná
-existence souboru na disku už za doklad původu neplatí. Tento záznam ale zatím
-není v rozhraní nikde vidět.
+**Jedna položka otisk nemá — model rozpoznávání hlasů (`model-hlasy`).** Leží ve
+vydání, které bylo nahráno dřív, než GitHub začal otisky počítat, a novější
+verze neexistuje, takže není co číst. Stáhne se, nainstaluje a zapíše si
+`verified: false`, tedy původ neověřen. Je to dnes jediná součást, u které
+zůstává jedinou zárukou HTTPS. Že to tak zůstane jen u ní, hlídá test
+`every_component_carries_a_digest_except_the_one_that_cannot`.
 
-Nezávisle na otiscích už platí:
+HTTPS je pojistka slušná, ale ne úplná: spojení je šifrované (rustls) a ověřuje
+se certifikát protistrany, takže důvěřujeme provozovatelům `github.com`,
+`api.github.com`, `objects.githubusercontent.com`, `huggingface.co` a
+`www.gyan.dev`, a celému řetězci certifikačních autorit ve vašem systému.
+
+Aplikace přitom netvrdí víc, než ověřila. Každá dokončená instalace zapíše do
+`installed.json` adresu, otisk toho, co skutečně dorazilo, a `verified` — true
+jen tam, kde bylo s čím porovnávat. Samotná existence souboru na disku za doklad
+původu neplatí, takže instalace pořízené dřív, než otisky existovaly, zůstávají
+`false` a samy se nepovýší. Tento záznam ale zatím není v rozhraní nikde vidět.
+
+Nezávisle na otiscích platí:
 
 * archiv, jehož položka by skončila mimo cílovou složku (`..`, absolutní cesta,
   písmeno disku), se odmítne celý — nerozbalí se z něj ani zbytek;
 * přerušené stahování nemůže vypadat jako hotová součást: zapisuje se do
   dočasného souboru a na cílové jméno se přejmenuje až nakonec;
-* kdyby otisk nesouhlasil, dočasný soubor se smaže a předchozí funkční
-  instalace zůstane nedotčená.
+* když otisk nesouhlasí, dočasný soubor se smaže a předchozí funkční instalace
+  zůstane nedotčená.
 
-**Pět položek katalogu se nehledá na pevné adrese, ale regulárním výrazem
-v živých vydáních na GitHubu** (`whisper-cpu`, `whisper-cuda`, `deno`,
-`editor-vulkan`, `editor-cpu`). Šestá, `yt-dlp`, sice pevnou adresu má, ale
-míří na `releases/latest/download/`, takže je to rovněž to, co projekt vydává
-právě teď. Co se u těchto šesti nainstaluje, závisí na tom, co ty projekty
-v daný okamžik publikují; kdyby se přejmenoval nebo podstrčil soubor, který
-vzoru vyhoví, Volocal ho stáhne a spustí. Dokud nejsou připnuté na konkrétní
-verzi, nemůže u nich žádný otisk vzniknout.
+**Novější verzi součásti nevybírá aplikace.** Vzor nad vydáními na GitHubu,
+který tady dřív běžel při samotném stahování, se přestěhoval do
+`scripts/update-components.mjs`. Ten se spouští jednou týdně z
+`.github/workflows/update-components.yml`, najde novější soubor, přečte jeho
+otisk u vydavatele a otevře pull request, který někdo přečte a schválí. Vydání
+bez otisku přeskočí. Sama aplikace jde vždy jen na tu adresu, která je
+v katalogu.
 
 **2. Webview má Content Security Policy. Asset protokol i tak vidí celý disk.**
 
@@ -153,7 +162,7 @@ podvrženého jinak než tím, odkud jste ho stáhli.
 
 * Instalujte jen z oficiálního vydání značkárna s.r.o. a nikde jinde.
 * Nechte první spuštění (kdy se stahují součásti) proběhnout na síti, které
-  věříte. Nejsou to megabajty, které by šlo dodatečně zkontrolovat.
+  věříte. U patnácti součástí to hlídá otisk, u modelu rozpoznávání hlasů ne.
 * Zapněte si šifrování disku (BitLocker), pokud v archivu máte citlivé
   nahrávky. Aplikace archiv sama nešifruje.
 * Než předáte přenosnou kopii dál, přečtěte si `src-tauri/LICENSE.txt` a
@@ -216,53 +225,65 @@ has exactly that user's rights.
 ### What is actually in the application, and worth knowing
 
 These are not hypotheticals. They are properties of today's code, checked
-against it on 10 August 2026.
+against it on 13 August 2026.
 
-**1. Downloaded components are not yet compared against any checksum.**
+**1. Fifteen of the sixteen downloaded components are compared against a
+digest. The sixteenth is not, and it says so.**
 
 On first run Volocal downloads tools (FFmpeg, whisper.cpp, llama.cpp, yt-dlp,
 Deno) and models, unpacks them, and runs them as ordinary programs under your
 account.
 
-The machinery for verifying them is in place. `src-tauri/src/download.rs`
-computes a SHA-256 as the downloaded bytes are written and compares it before
-anything is unpacked or moved where it belongs. But the table of expected
-digests (`EXPECTED_HASHES`) is **empty**, so today nothing is compared, for any
-component. A digest may only be written there once somebody has read it from
-that project's own release; computing it from whatever arrived on this machine
-would attest that the file matches itself, and nothing more.
+Where they come from and what they must hash to is in
+`src-tauri/components.json`. Every entry points at a fixed address naming one
+exact file — no `latest`, no branch; `src-tauri/src/download.rs` has a test for
+that, and a wrong address fails the build. The same file computes a SHA-256 as
+the downloaded bytes are written and compares it before anything is unpacked or
+moved where it belongs.
 
-The single integrity guarantee therefore remains HTTPS: the connection is
-encrypted (rustls) and the peer's certificate is validated. Which means trusting
-whoever operates `github.com`, `api.github.com`,
-`objects.githubusercontent.com`, `huggingface.co` and `www.gyan.dev`, and the
-whole chain of certificate authorities on your system.
+A digest may only be written into the catalogue by somebody who read it from the
+publisher: Hugging Face serves it as an LFS object id, GitHub as a release
+asset `digest`, gyan.dev as a `.sha256` beside the archive. Computing it from
+whatever arrived on this machine would attest that the file matches itself, and
+nothing more.
 
-One thing has changed from the earlier behaviour: the application no longer
-claims the origin was checked. Every completed installation records the address, the
-digest of what actually arrived, and `verified: false` while there was nothing
-to compare against, in `installed.json`. A file sitting in the right place is no
-longer accepted as evidence of where it came from. That record is not yet shown
-anywhere in the interface.
+**One entry has no digest — the speaker recognition model (`model-hlasy`).** It
+sits in a release uploaded before GitHub computed asset digests, and there is no
+newer version to follow, so there is nothing to read. It downloads, installs and
+records itself `verified: false` — origin unverified. It is the one component
+for which HTTPS remains the only guarantee today. That it stays the only one is
+held by a test — `every_component_carries_a_digest_except_the_one_that_cannot`.
 
-Regardless of digests, this already holds:
+HTTPS is a decent guarantee, not a complete one: the connection is encrypted
+(rustls) and the peer's certificate is validated, which means trusting whoever
+operates `github.com`, `api.github.com`, `objects.githubusercontent.com`,
+`huggingface.co` and `www.gyan.dev`, and the whole chain of certificate
+authorities on your system.
+
+The application claims no more than it checked. Every completed installation
+records the address, the digest of what actually arrived, and `verified` — true
+only where there was something to compare against — in `installed.json`. A file
+sitting in the right place is not accepted as evidence of where it came from, so
+installations made before digests existed stay `false` and do not promote
+themselves. That record is not yet shown anywhere in the interface.
+
+Regardless of digests, this holds:
 
 * an archive with an entry that would land outside the destination folder
   (`..`, an absolute path, a drive letter) is refused whole — not even the rest
   of it is unpacked;
 * an interrupted download cannot look like a finished component: bytes go to a
   temporary file that is renamed to the target name only at the end;
-* were a digest not to match, the temporary file is deleted and the previous
+* when a digest does not match, the temporary file is deleted and the previous
   working installation is left untouched.
 
-**Five catalogue entries are not fetched from a fixed address at all but found
-by a regular expression over live GitHub releases** (`whisper-cpu`,
-`whisper-cuda`, `deno`, `editor-vulkan`, `editor-cpu`). A sixth, `yt-dlp`, does
-have a fixed address, but it points at `releases/latest/download/`, so it too is
-whatever that project publishes right now. What gets installed for these six
-depends on what those projects publish at that moment; an asset renamed or
-substituted so that it satisfies the pattern would be downloaded and run. Until
-they are pinned to a version, no digest can exist for them.
+**The application does not choose a newer version of anything.** The regular
+expression over GitHub releases, which used to run here during the download
+itself, now lives in `scripts/update-components.mjs`. It runs once a week from
+`.github/workflows/update-components.yml`, finds the newer file, reads its
+digest from the publisher and opens a pull request for somebody to read and
+approve. A release that publishes no digest is skipped. The application itself
+only ever fetches the address written in the catalogue.
 
 **2. The webview has a Content Security Policy. The asset protocol still sees
 the whole disk.**
@@ -321,7 +342,8 @@ except by where you downloaded it.
 
 * Install only from an official značkárna s.r.o. release, and nowhere else.
 * Let the first run — the one that downloads the components — happen on a
-  network you trust. These are not megabytes anyone can check afterwards.
+  network you trust. A digest guards fifteen of them; the speaker recognition
+  model has none.
 * Turn on disk encryption (BitLocker) if the archive holds sensitive
   recordings. The application does not encrypt it.
 * Before handing a portable copy to somebody, read `src-tauri/LICENSE.txt` and
