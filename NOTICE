@@ -29,8 +29,9 @@ worth knowing about in advance.
 
 --- FFmpeg — GNU GPL v3 ---------------------------------------------------
 
-Volocal si při prvním spuštění stahuje sestavení `ffmpeg-release-essentials.zip`
-z gyan.dev. To sestavení je vydáváno pod GNU General Public License verze 3.
+Volocal si při prvním spuštění stahuje sestavení `ffmpeg-…-essentials_build.zip`
+od Gyana Doshiho, ze souborů vydání `GyanD/codexffmpeg` na GitHubu. To sestavení
+je vydáváno pod GNU General Public License verze 3.
 
   * Instalátor Volocalu FFmpeg NEOBSAHUJE. Stahuje se až při prvním spuštění,
     přímo od autora sestavení, takže samotné předání instalátoru GPL v3
@@ -41,11 +42,11 @@ z gyan.dev. To sestavení je vydáváno pod GNU General Public License verze 3.
     náleží právo na zdrojový kód FFmpegu: https://ffmpeg.org
   * Pro vlastní používání na vlastním počítači z toho neplyne nic navíc.
 
-Volocal downloads the `ffmpeg-release-essentials.zip` build from gyan.dev on
-first run. That build is distributed under the GNU General Public License
-version 3. The installer does NOT contain FFmpeg — it is fetched on first run
-directly from its author, so handing somebody the installer does not trigger
-GPL v3. A portable copy does carry it, because it copies the whole `bin`
+Volocal downloads the `ffmpeg-…-essentials_build.zip` build by Gyan Doshi, from
+the `GyanD/codexffmpeg` release assets on GitHub, on first run. That build is
+distributed under the GNU General Public License version 3. The installer does
+NOT contain FFmpeg — it is fetched on first run directly from its author, so
+handing somebody the installer does not trigger GPL v3. A portable copy does carry it, because it copies the whole `bin`
 directory; passing that copy on is distributing FFmpeg, and GPL v3 applies.
 The recipient is entitled to FFmpeg's source, at https://ffmpeg.org.
 

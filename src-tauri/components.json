@@ -36,9 +36,13 @@
     "track": { "kind": "github", "repo": "ggml-org/whisper.cpp", "asset": "cublas-12.*bin-x64\\.zip$" }
   },
   "ffmpeg": {
-    "url": "https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-9.0-essentials_build.zip",
-    "sha256": "e6b54767a6065919048f1a098eb27211ca4e12b4348a05d88777a5855d0b6e71",
-    "track": { "kind": "gyan", "build": "essentials_build" }
+    "url": "https://github.com/GyanD/codexffmpeg/releases/download/9.0.1/ffmpeg-9.0.1-essentials_build.zip",
+    "sha256": "fec81ae03971d9dd4be3ebe02e263bd2ec1d789483f931bdba5f5715e65da2e9",
+    "track": {
+      "kind": "github",
+      "repo": "GyanD/codexffmpeg",
+      "asset": "^ffmpeg-[0-9.]+-essentials_build\\.zip$"
+    }
   },
   "yt-dlp": {
     "url": "https://github.com/yt-dlp/yt-dlp/releases/download/2026.07.04/yt-dlp.exe",

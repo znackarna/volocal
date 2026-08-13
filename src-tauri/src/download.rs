@@ -80,7 +80,9 @@ enum Destination {
 /// down once somebody has read it from the publisher — never computed from
 /// whatever this machine received, which would attest that a file matches
 /// itself and nothing more. Hugging Face serves it as an LFS object id, GitHub
-/// as a release asset `digest`, gyan.dev as an `.sha256` beside the archive.
+/// as a release asset `digest`. Every component is on one of those two today;
+/// ffmpeg was on gyan.dev's own site, which serves an `.sha256` beside the
+/// archive and deletes the archive when the next version replaces it.
 /// Where a publisher offers none, the entry has none and the component records
 /// itself `origin unverified`.
 #[derive(serde::Deserialize)]
@@ -176,8 +178,11 @@ fn raw_catalog() -> Vec<DownloadComponent> {
             Destination::ProgramsInto("bin/cuda".into()),
         ),
         k(
+            // 106 rather than 85: the number is what the wizard totals up and
+            // shows before anybody agrees to a download, and it had been the
+            // size of an older build for long enough to be wrong by a quarter.
             "ffmpeg",
-            85,
+            106,
             "program",
             true,
             "bin/ffmpeg.exe",

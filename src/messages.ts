@@ -19,6 +19,18 @@ function asUserMessage(value: unknown): UserMessage | null {
     : null;
 }
 
+/** The stable code out of whatever Rust sent, or null if it sent something
+ *  else.
+ *
+ *  For the rare caller that has to *act* on a particular failure rather than
+ *  show it. The code is the stable half of a `UserMessage` — the sentence is
+ *  translated and the detail is technical — so it is the only part worth
+ *  comparing against.
+ */
+export function messageCode(value: unknown): string | null {
+  return asUserMessage(value)?.code ?? null;
+}
+
 /** Archives written before this existed hold a finished Czech sentence in the
  *  error column; newer ones hold a stored `UserMessage`. Both arrive here as a
  *  string, and only one of them is worth parsing. */

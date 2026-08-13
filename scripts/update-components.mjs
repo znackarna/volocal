@@ -10,7 +10,7 @@
  *  stopped following "latest" is that nobody was making it.
  *
  *  THE ONE RULE. A digest is only ever copied from the publisher — GitHub's
- *  release asset `digest`, a Hugging Face LFS object id, gyan.dev's `.sha256`.
+ *  release asset `digest` or a Hugging Face LFS object id.
  *  It is never computed here from a downloaded file. A digest computed by
  *  whoever fetched the file attests that the file matches itself, which is not
  *  a fact about anything. If a publisher offers none, this script leaves the
@@ -81,18 +81,21 @@ async function fromHuggingFace({ repo, file }) {
   };
 }
 
-/** gyan.dev publishes the current version as a bare text file and a `.sha256`
- *  beside every archive. The numbered archive is used rather than the rolling
- *  `-release-` name, which means a different build every few weeks. */
-async function fromGyan({ build }) {
-  const version = await text("https://www.gyan.dev/ffmpeg/builds/release-version");
-  const url = `https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-${version}-${build}.zip`;
-  const sha256 = await text(`${url}.sha256`);
-  if (!/^[0-9a-f]{64}$/.test(sha256)) return { skip: `${url}.sha256 is not a digest` };
-  return { url, sha256, version };
-}
-
-const finders = { github: fromGithub, huggingface: fromHuggingFace, gyan: fromGyan };
+/* There was a third finder here, for gyan.dev's own site, and removing it is
+ * the whole point of the change that did so. It fetched
+ * `builds/release-version` and built a URL for that numbered archive —
+ * deliberately the numbered one rather than the rolling `-release-` name,
+ * which would mean a different build every few weeks.
+ *
+ * That reasoning was right and the host was wrong. gyan.dev deletes a numbered
+ * archive when the next version replaces it, so the pin did not go stale — the
+ * file went missing, and every fresh install met *Server odmítl soubor vydat*
+ * for the one component the wizard calls required. The same builds are release
+ * assets on `GyanD/codexffmpeg`, where GitHub keeps them: 9.0 is still
+ * downloadable there after gyan.dev stopped serving it, byte for byte the same
+ * archive by its digest. So ffmpeg tracks like everything else now.
+ */
+const finders = { github: fromGithub, huggingface: fromHuggingFace };
 
 const components = JSON.parse(readFileSync(path, "utf8"));
 const changed = [];

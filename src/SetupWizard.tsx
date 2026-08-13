@@ -4,7 +4,7 @@ import { api } from "./api";
 import InfoNote from "./InfoNote";
 import { LineIcon } from "./icons";
 import { useI18n, type TranslationKey } from "./i18n";
-import { useProgressMessage, useUserMessage } from "./messages";
+import { messageCode, useProgressMessage, useUserMessage } from "./messages";
 import { useFormats } from "./formats";
 import type { DownloadComponent, ToolCheck, DownloadProgress } from "./types";
 
@@ -124,6 +124,23 @@ function ManualSelectionButton({ label, onClick }: { label: string; onClick: () 
       {label}
     </button>
   );
+}
+
+/** Was the answer "one is already running" rather than a failure?
+ *
+ *  The backend allows one download at a time, and says so by refusing the
+ *  second call. That refusal is not a failure and must not be dressed as one:
+ *  it was arriving on this screen as a red **Stahování selhalo** over a
+ *  download that was running perfectly well, and — worse than the fright — it
+ *  took `running` down with it and hid the progress the reader was asking
+ *  about.
+ *
+ *  So the screen stays where it is. The download that is already going emits
+ *  the same events to the same listener, so watching is the whole of the right
+ *  behaviour; there is nothing to say and nothing to start.
+ */
+export function alreadyRunning(error: unknown): boolean {
+  return messageCode(error) === "download.already_running";
 }
 
 export default function SetupWizard({ onComplete, onBack, required, missingModule }: Props) {
@@ -305,6 +322,7 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
       );
       await api.download(sortedIds);
     } catch (e) {
+      if (alreadyRunning(e)) return;
       setError(userMessage(e));
       setRunning(false);
     }
@@ -348,6 +366,7 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
     try {
       await api.download(retryIds);
     } catch (e) {
+      if (alreadyRunning(e)) return;
       setError(userMessage(e));
       setRunning(false);
     }
