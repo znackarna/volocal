@@ -36,7 +36,7 @@ npm run tauri dev            # first run compiles Rust: 5 to 15 minutes
 ```
 
 ```powershell
-npm run build                # i18n:check, tsc --noEmit, Vite build
+npm run build                # i18n:check, security:check, tsc --noEmit, Vite build
 npm run test                 # the interface and the transcript text
 cargo fmt --all --manifest-path src-tauri/Cargo.toml -- --check
 cargo test --manifest-path src-tauri/Cargo.toml
