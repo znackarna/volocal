@@ -29,7 +29,7 @@ export const csCatalog = {
   "catalog.model-turbo.description": "Několikanásobně rychlejší. Volba pro slabší počítače.",
   "catalog.model-large-q5.name": "Vyvážený model",
   "catalog.model-large-q5.description": "Kvalita skoro jako nejvyšší, třetinová velikost.",
-  "catalog.model-large.name": "Precizní model",
+  "catalog.model-large.name": "Přesný model",
   "catalog.model-large.description": "Nejpřesnější čeština. Vyplatí se na výkonném počítači.",
 
   // Language editing.

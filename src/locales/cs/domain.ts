@@ -12,7 +12,7 @@ export const csDomain = {
   "domain.compute.default": "Výchozí",
   "domain.compute.auto": "Automaticky",
 
-  "domain.model.large-v3": "Precizní",
+  "domain.model.large-v3": "Přesný",
   "domain.model.large-v3-q5_0": "Vyvážený",
   "domain.model.large-v3-turbo-q5_0": "Rychlý",
   "domain.model.large-v3-turbo": "Rychlý (plný)",
@@ -55,7 +55,7 @@ export const csDomainContext: Partial<Record<keyof typeof csDomain, string>> = {
   "domain.compute.vulkan":
     "Vulkan běží na jakékoli grafické kartě, ne jen na AMD. Nepřekládat jako „AMD“.",
   "domain.model.large-v3":
-    "Uživatelské jméno modelu Whisper large-v3. Nejvyšší stupeň ze tří: Precizní, Vyvážený, Rychlý.",
+    "Uživatelské jméno modelu Whisper large-v3. Přesnější z dvojice, kterou nabízí průvodce; tam se jmenuje stejně. Protipól je Rychlý.",
   "domain.model.medium": "Starší generace modelu, ne „střední velikost“.",
   "domain.model.small": "Model jen na rychlý náhled, ne „malý“.",
   "domain.language.auto":
