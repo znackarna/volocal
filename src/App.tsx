@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { open, save } from "@tauri-apps/plugin-dialog";
@@ -7,9 +7,6 @@ import { api } from "./api";
 import { MiniPlayer, usePlayer } from "./player";
 import { MiniRecorder } from "./recorder";
 import Library from "./Library";
-import Detail from "./Detail";
-import SettingsScreen from "./Settings";
-import SetupWizard from "./SetupWizard";
 import ConfirmationDialog from "./ConfirmationDialog";
 import CountdownRing from "./CountdownRing";
 import NameDialog from "./NameDialog";
@@ -50,6 +47,57 @@ import type {
   WatchFolderCandidate,
   Folder,
 } from "./types";
+
+/** The three screens the window does not open on.
+ *
+ *  Everything used to arrive in one 583 kB chunk that the webview parsed and
+ *  ran before it drew anything, and the archive — the only screen a start ever
+ *  shows — is a small part of it. These three are the big absent ones: 68 kB of
+ *  transcript, 45 kB of settings, 17 kB of wizard. What is left to do before
+ *  the first paint is 457 kB rather than 583.
+ *
+ *  **They are fetched a moment later anyway**, by `usePreparedScreens` below,
+ *  so this is not the usual trade of a slow first click for a fast start. The
+ *  work moves after the window rather than out of the application. The same
+ *  idea as `preparePlaybackSource` in `player.tsx`: prepare before it is asked
+ *  for, not when.
+ *
+ *  A previous attempt at deferring the updater is worth remembering here — see
+ *  the note above its import. It bought nothing, because another module
+ *  imported it plainly and it stayed in the main chunk either way. Nothing but
+ *  this file imports these three, which is what makes the split real; the build
+ *  output is where to check that, and it now lists them by name.
+ */
+const Detail = lazy(() => import("./Detail"));
+const SettingsScreen = lazy(() => import("./Settings"));
+const SetupWizard = lazy(() => import("./SetupWizard"));
+
+/** Fetches the deferred screens once the window has something on it.
+ *
+ *  Without this the first press of a recording would wait for its chunk, and
+ *  the fallback below is `null` — so the screen would blank for as long as that
+ *  took. With it the chunk is almost always already there, and the fallback is
+ *  the rare case rather than the normal one.
+ *
+ *  `requestIdleCallback` rather than a timeout, so it lands after the first
+ *  paint rather than after a number somebody picked. The timeout is for a
+ *  webview old enough not to have it, which this one is not; it costs one line.
+ */
+function usePreparedScreens() {
+  useEffect(() => {
+    const fetchThem = () => {
+      void import("./Detail");
+      void import("./Settings");
+      void import("./SetupWizard");
+    };
+    if (typeof window.requestIdleCallback === "function") {
+      const id = window.requestIdleCallback(fetchThem);
+      return () => window.cancelIdleCallback(id);
+    }
+    const id = window.setTimeout(fetchThem, 200);
+    return () => window.clearTimeout(id);
+  }, []);
+}
 
 const SUPPORTED_EXTENSIONS = ["mp3", "wav", "m4a", "aac", "flac", "ogg", "opus", "wma", "mp4", "mkv", "mov", "webm"];
 
@@ -166,6 +214,7 @@ export default function App() {
   const { t, tPlural, tDynamic } = useI18n();
   const labels = useLabels();
   const formats = useFormats();
+  usePreparedScreens();
   const [screen, setScreen] = useState<
     "library" | "detail" | "settings" | "wizard"
   >("library");
@@ -1304,77 +1353,83 @@ export default function App() {
       )}
 
       {screen === "detail" && selectedId && (
-        <Detail
-          /* A new recording means a new screen. Without a key React would
-             reuse the old one, and until the data arrives it would sit there
-             showing the previous recording's text, status and waveform. */
-          key={selectedId}
-          id={selectedId}
-          seekTime={seekTime}
-          progress={progress[selectedId]}
-          liveSegments={liveSegments[selectedId] ?? []}
-          onBack={() => {
-            setScreen("library");
-            loadRecordings();
-          }}
-          onNew={() => {
-            setAddRecordingView("source");
-            setAddRecordingOpen(true);
-          }}
-          onOpenRecorder={() => {
-            setAddRecordingView("microphone");
-            setAddRecordingOpen(true);
-          }}
-          onOpenRecording={openRecording}
-          onExportAudio={() => void exportAudio(selectedId)}
-          folders={folders}
-          onMoveToFolder={(folder) => void moveToFolder(selectedId, folder)}
-          onCreateFolderFor={() =>
-            setFolderDialog({ mode: "create", forRecording: selectedId })
-          }
-          onSettings={() => {
-            setScreen("settings");
-            loadToolCheck();
-          }}
-          onError={reportError}
-          onInfo={reportInfo}
-          onTranscribe={(id, language) => beginTranscription([id], language)}
-          onDiarize={beginDiarization}
-          diarizing={diarizingIds.includes(selectedId)}
-          onToModule={(module) => {
-            setWizardRequired(false);
-            setMissingModule(module ?? null);
-            setWizardReturnScreen("detail");
-            setScreen("wizard");
-          }}
-        />
+        <Suspense fallback={null}>
+          <Detail
+            /* A new recording means a new screen. Without a key React would
+               reuse the old one, and until the data arrives it would sit there
+               showing the previous recording's text, status and waveform. */
+            key={selectedId}
+            id={selectedId}
+            seekTime={seekTime}
+            progress={progress[selectedId]}
+            liveSegments={liveSegments[selectedId] ?? []}
+            onBack={() => {
+              setScreen("library");
+              loadRecordings();
+            }}
+            onNew={() => {
+              setAddRecordingView("source");
+              setAddRecordingOpen(true);
+            }}
+            onOpenRecorder={() => {
+              setAddRecordingView("microphone");
+              setAddRecordingOpen(true);
+            }}
+            onOpenRecording={openRecording}
+            onExportAudio={() => void exportAudio(selectedId)}
+            folders={folders}
+            onMoveToFolder={(folder) => void moveToFolder(selectedId, folder)}
+            onCreateFolderFor={() =>
+              setFolderDialog({ mode: "create", forRecording: selectedId })
+            }
+            onSettings={() => {
+              setScreen("settings");
+              loadToolCheck();
+            }}
+            onError={reportError}
+            onInfo={reportInfo}
+            onTranscribe={(id, language) => beginTranscription([id], language)}
+            onDiarize={beginDiarization}
+            diarizing={diarizingIds.includes(selectedId)}
+            onToModule={(module) => {
+              setWizardRequired(false);
+              setMissingModule(module ?? null);
+              setWizardReturnScreen("detail");
+              setScreen("wizard");
+            }}
+          />
+        </Suspense>
       )}
 
       {screen === "wizard" && (
-        <SetupWizard
-          required={wizardRequired}
-          missingModule={missingModule}
-          onBack={leaveWizard}
-          onComplete={finishWizard}
-        />
+        <Suspense fallback={null}>
+          <SetupWizard
+            required={wizardRequired}
+            missingModule={missingModule}
+            onBack={leaveWizard}
+            onComplete={finishWizard}
+          />
+        </Suspense>
       )}
 
       {screen === "settings" && (
-        <SettingsScreen
-          onComplete={() => {
-            loadToolCheck();
-            loadAppearance();
-            setScreen("library");
-          }}
-          onError={reportError}
-          onInfo={reportInfo}
-          onToModule={(module) => {
-            setWizardRequired(false);
-            setMissingModule(module ?? null);
-            setWizardReturnScreen("settings");
-            setScreen("wizard");
-          }}
-        />
+        <Suspense fallback={null}>
+          <SettingsScreen
+            onComplete={() => {
+              loadToolCheck();
+              loadAppearance();
+              setScreen("library");
+            }}
+            onError={reportError}
+            onInfo={reportInfo}
+            onToModule={(module) => {
+              setWizardRequired(false);
+              setMissingModule(module ?? null);
+              setWizardReturnScreen("settings");
+              setScreen("wizard");
+            }}
+          />
+        </Suspense>
       )}
 
       {(screen === "library" || screen === "detail") && (
