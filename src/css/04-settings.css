@@ -105,10 +105,16 @@
 .settings-card-dictionary { order: 1; }
 .settings-card-appearance { order: 1; }
 .settings-card-quick-tips { order: 2; }
-.settings-card-portable { order: 1; }
-.settings-card-watch-folder { order: 2; }
-.settings-card-backups { order: 3; }
-.settings-card-portable-copy { order: 4; }
+/* Every card on a tab needs a number here, and this one had none: without a
+   rule it takes `order: 0` and sorts above cards that asked for 1, so the
+   recordings folder rendered over the portable-mode banner no matter where the
+   JSX put it. It is first on this tab by intent, which is why the omission
+   looked right for as long as it did. */
+.settings-card-recordings { order: 1; }
+.settings-card-portable { order: 2; }
+.settings-card-watch-folder { order: 3; }
+.settings-card-backups { order: 4; }
+.settings-card-portable-copy { order: 5; }
 .settings-card-about { order: 1; }
 .settings-card-abilities { order: 2; }
 .settings-card-credits { order: 3; }

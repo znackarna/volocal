@@ -1309,43 +1309,23 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
           description={t("settings.speakers.description")}
         />
 
-        {n.diarization && (
-          <div className="field">
-            <label>{t("settings.speakers.count")}</label>
-            <input
-              type="number"
-              min={0}
-              max={12}
-              value={n.speaker_count}
-              onChange={(e) => save({ ...n, speaker_count: Number(e.target.value) })}
-            />
-            <InfoNote>{t("settings.speakers.countNote")}</InfoNote>
-          </div>
-        )}
+        {/* Two controls stood here and both are gone.
 
-        {n.diarization && (
-          <div className="field">
-            <label>{t("settings.speakers.shift")}</label>
-            <Select
-              value={String(n.segmentation_window_shift)}
-              onChange={(v) => save({ ...n, segmentation_window_shift: Number(v) })}
-              items={[
-                {
-                  value: "0.4",
-                  label: t("settings.speakers.shiftFast"),
-                  note: t("settings.speakers.shiftFastNote"),
-                },
-                { value: "0.2", label: t("settings.speakers.shiftBalanced") },
-                {
-                  value: "0.1",
-                  label: t("settings.speakers.shiftDetailed"),
-                  note: t("settings.speakers.shiftDetailedNote"),
-                },
-              ]}
-            />
-            <InfoNote>{t("settings.speakers.shiftNote")}</InfoNote>
-          </div>
-        )}
+            `Počet mluvčích` was overridden every time it could have mattered:
+            with recognition on, the dialog asks before every run and its answer
+            replaces the stored number. The one case where the stored value did
+            apply was the reader pressing `Nevím` — so the answer meaning
+            *estimate it* silently applied whatever number was left in Settings,
+            and a count at or above the number of voice windows collapses the
+            whole recording into a single speaker. Removing it is what makes
+            `Nevím` mean what it says.
+
+            `Hledání změn mluvčího` promised a measurable trade — `Podrobně`
+            carried the note *až dvakrát déle* — and delivered neither half:
+            `segmentation_window_shift` is written here and read by no Rust
+            code, because the sherpa segmentation binary it configured was
+            removed. The field stays in the settings record so an archive
+            written by an older build still loads; nothing sets it. */}
 
         {check && check.issues_diarization.length > 0 && n.diarization && (
           <ul className="problems">
