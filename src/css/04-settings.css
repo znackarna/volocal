@@ -348,11 +348,25 @@
   border: 1px solid var(--line-field); background: var(--ground);
   border-radius: var(--r-pill); padding: 0 15px; outline: none; font-size: 14px;
 }
+/* The rule above is for one-line controls and fixes their height at 38 px. An
+   instruction to a language model is a sentence or three, so it gets a
+   textarea, which cannot share that declaration and repeats the border, the
+   ground and the padding rather than inventing its own. Two differences, both
+   because it is a box and not a line: the card radius, since a pill crops the
+   corners of the first and last line inside it, and a height it can be dragged
+   taller from. Everything a `.field` textarea needs is here — a second one
+   added later belongs to this rule, not beside it. */
+.field textarea {
+  width: 100%; min-height: 76px; resize: vertical;
+  border: 1px solid var(--line-field); background: var(--ground);
+  border-radius: var(--r-card); padding: 9px 14px; outline: none;
+  font-size: 14px; line-height: 1.5;
+}
 /* A field lights up when it is being filled in. A slider is not filled in,
    it is grabbed — so dragging one does not light anything up (Jakub's ask).
    `:focus-visible` further down still gives it a ring on keyboard focus, which
    is the only way to see where the focus stands without a pointer. */
-.field input:not([type="range"]):focus, .field select:focus {
+.field input:not([type="range"]):focus, .field select:focus, .field textarea:focus {
   border-color: var(--accent); box-shadow: var(--ring-field);
 }
 .field input[type="range"] { width: 100%; accent-color: hsl(var(--ds-foreground)); height: auto; }
@@ -507,7 +521,23 @@
 .choice.chosen { border-color: var(--accent-line); background: var(--accent-light); }
 .choice-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
 .choice-title { font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 8px; }
-.choice-size { font-size: 13px; color: var(--text-quiet); white-space: nowrap; font-variant-numeric: tabular-nums; font-weight: 600; }
+/* Every size in this application is one pair: 13 px, 500, `--text-quiet`,
+   `tabular-nums`. *Velikost těch souborů nedávej tučně.*
+
+   500 is chosen against its two neighbours rather than picked off the scale.
+   Prose beside it is 400 — `.small-text` — and the name above it is 600, and a
+   figure somebody scans down a column belongs between them: heavier than a
+   sentence so the column reads as a column, lighter than the name so it
+   supports the thing it belongs to instead of competing with it. At 600 it was
+   the name's own weight, which is what made it loud.
+
+   No exception for the cards, and it was considered: on a `.choice` the size is
+   part of the decision — pressing that card fetches those gigabytes — while in
+   a listing it is reference. But on a card the figure is already privileged by
+   having its own column at the right edge and by being the only number there.
+   Weight is not what makes it findable, and at 600 beside a 15/600 title the
+   two read as equals. */
+.choice-size { font-size: 13px; font-weight: 500; color: var(--text-quiet); white-space: nowrap; font-variant-numeric: tabular-nums; }
 
 .badge {
   font-style: normal; font-size: 11px; font-weight: 700;
@@ -559,11 +589,11 @@
 }
 .download-list li:last-child { border-bottom: 0; }
 .download-list li.done { color: var(--text-quiet); }
-.download-list li.done .download-row-side { color: var(--success); font-weight: 600; }
-.download-list li.failed .download-row-side { color: var(--danger); font-weight: 600; }
+.download-list li.done .download-row-side { color: var(--success); }
+.download-list li.failed .download-row-side { color: var(--danger); }
 .download-row-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .download-row-side {
-  color: var(--text-quiet); font-size: 13px; font-weight: 600;
+  color: var(--text-quiet); font-size: 13px; font-weight: 500;
   font-variant-numeric: tabular-nums; white-space: nowrap;
 }
 /* The switch above it, at the right-hand end where the archive's own sits.
@@ -665,7 +695,7 @@
 /* A column, rather than a value that happens to sit on the right. */
 .component-size {
   min-width: 58px; text-align: right;
-  color: var(--text-quiet); font-size: 13px; font-weight: 600;
+  color: var(--text-quiet); font-size: 13px; font-weight: 500;
   font-variant-numeric: tabular-nums; white-space: nowrap;
 }
 /* The bin, drawn always: hover-to-reveal is undiscoverable for a destructive
@@ -771,6 +801,12 @@
   display: flex; align-items: flex-start; gap: 8px;
   margin-top: 14px !important;
 }
+/* The instruction field stands between the cards and that note, so it takes
+   the same 14 px the note takes above itself, and gives up the 24 px a field
+   carries in Settings — the note below brings its own. Adjacency, like
+   `.choices + .settings-info-note.compact`: a dialog's content blocks do not
+   carry a margin of their own, they say what follows what. */
+.ai-edit-dialog .choices + .field { margin: 14px 0 0; }
 .ai-edit-note-icon { flex: 0 0 auto; margin-top: 1px; color: var(--accent); }
 
 .add-recording-options .small-text { margin: 0; }
@@ -1212,7 +1248,11 @@ button.mic-play:disabled { cursor: default; opacity: 0.6; }
   fill: none; stroke: currentColor; stroke-width: 1.5;
   stroke-linecap: round; stroke-linejoin: round;
 }
-.ai-document-tabs button:first-child svg { fill: currentColor; stroke: none; }
+/* The sparkle is a filled shape, the other three are drawn with a line. It
+   used to be selected as `button:first-child`, which stopped being true when
+   the tab row began leaving the improved transcript out; the icon says which
+   it is (`DocumentViewIcon`). */
+.ai-document-tabs button svg.solid { fill: currentColor; stroke: none; }
 /* This row belongs to the document, not to the dialog: it chooses a version,
    a length, a language — of the thing being read, not which thing to read.
    So it lives on the grey with the document and carries the edge between the
@@ -1223,6 +1263,14 @@ button.mic-play:disabled { cursor: default; opacity: 0.6; }
   border-top: 1px solid var(--line);
 }
 .ai-output-toolbar .select { width: 190px; }
+/* The instruction stands in that same strip, where the other tabs keep their
+   length and their language: it is what this document was asked for. A column
+   rather than a row, because it is a field with a label and a sentence under
+   it, so the strip closes its own 14 px at the bottom instead of leaving that
+   to the text below. */
+.ai-custom-bar { display: block; padding-bottom: 14px; }
+.ai-custom-bar .field { margin-bottom: 0; }
+.ai-custom-bar .field > .small-text { margin-top: 6px; }
 /* 36, the height of the tabs beside it — this strip held three different
    heights until every control in it became the same one. */
 .ai-output-toolbar .select-trigger { height: 36px; background: var(--panel); font-size: 13px; }
