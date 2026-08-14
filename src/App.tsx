@@ -219,7 +219,21 @@ export default function App() {
     "library" | "detail" | "settings" | "wizard"
   >("library");
   const [wizardReturnScreen, setWizardReturnScreen] = useState<"library" | "detail" | "settings">("library");
-  const [wizardRequired, setWizardRequired] = useState(false);
+  /** The first-run question, as a dialog over whatever is on screen.
+   *
+   *  **It is a separate state and not a fourth `screen`, because it is not a
+   *  screen.** It used to be: a required first run replaced the archive with
+   *  the wizard, and the reader met an application they had not seen yet by
+   *  being shown something else instead. The dialog leaves the archive drawn
+   *  behind it — *you have arrived*, with one errand in front of you, rather
+   *  than *you are blocked*.
+   *
+   *  `screen === "wizard"` still exists and is now only ever the by-hand
+   *  component listing, which is a page reached from Settings or from a
+   *  document asking for its model. That is why `required` can be read straight
+   *  off which of the two rendered it, and why `wizardRequired` is gone: it
+   *  said the same thing twice and the two could disagree. */
+  const [setupOpen, setSetupOpen] = useState(false);
   // When settings sends the user to the modules for one specific thing, the
   // wizard preselects it instead of walking through every step.
   const [missingModule, setMissingModule] = useState<string | null>(null);
@@ -540,11 +554,10 @@ export default function App() {
     // constant list compiled into the backend, not something that changes.
     api.catalog().then(setCatalogItems).catch(() => {});
     loadToolCheck().then((k) => {
-      if (k && k.issues.length > 0) {
-        setWizardRequired(true);
-        setWizardReturnScreen("library");
-        setScreen("wizard");
-      }
+      // Over the archive rather than instead of it. The reader sees the
+      // application they have just installed, with the one question they have
+      // to answer standing in front of it.
+      if (k && k.issues.length > 0) setSetupOpen(true);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadRecordings, loadToolCheck]);
@@ -1099,7 +1112,6 @@ export default function App() {
   }, [formats, labels, recordings, selectedId]);
 
   const leaveWizard = useCallback(() => {
-    setWizardRequired(false);
     setMissingModule(null);
     loadToolCheck();
     if (wizardReturnScreen === "library") loadRecordings();
@@ -1111,12 +1123,25 @@ export default function App() {
      that, so it lands in the Archive whatever screen the wizard was opened
      from — `Zpět` is what returns to the origin. */
   const finishWizard = useCallback(() => {
-    setWizardRequired(false);
     setMissingModule(null);
     loadToolCheck();
     loadAppearance();
     loadRecordings();
     setScreen("library");
+  }, [loadAppearance, loadRecordings, loadToolCheck]);
+
+  /** Closing the first-run dialog, whichever button did it.
+   *
+   *  One callback for both `Zavřít` and `Hotovo`, because from out here they
+   *  are the same event: the dialog is gone and whatever it downloaded has to
+   *  be noticed. There is no screen to return to — the archive was never left —
+   *  so this is the whole of it. `loadToolCheck` is what makes the archive's own
+   *  band say what is still missing, or stop saying it. */
+  const closeSetup = useCallback(() => {
+    setSetupOpen(false);
+    loadToolCheck();
+    loadAppearance();
+    loadRecordings();
   }, [loadAppearance, loadRecordings, loadToolCheck]);
 
   return (
@@ -1344,11 +1369,7 @@ export default function App() {
             setAddRecordingView("source");
             setAddRecordingOpen(true);
           }}
-          onFinishSetup={() => {
-            setWizardRequired(true);
-            setWizardReturnScreen("library");
-            setScreen("wizard");
-          }}
+          onFinishSetup={() => setSetupOpen(true)}
         />
       )}
 
@@ -1392,7 +1413,6 @@ export default function App() {
             onDiarize={beginDiarization}
             diarizing={diarizingIds.includes(selectedId)}
             onToModule={(module) => {
-              setWizardRequired(false);
               setMissingModule(module ?? null);
               setWizardReturnScreen("detail");
               setScreen("wizard");
@@ -1401,10 +1421,14 @@ export default function App() {
         </Suspense>
       )}
 
+      {/* The by-hand component listing, as a page. `required` is false by
+          construction here — every way in sets `missingModule` or comes from
+          `Spravovat modely a nástroje` — and the wizard reads it to know it is
+          drawing a page rather than the first-run dialog. */}
       {screen === "wizard" && (
         <Suspense fallback={null}>
           <SetupWizard
-            required={wizardRequired}
+            required={false}
             missingModule={missingModule}
             onBack={leaveWizard}
             onComplete={finishWizard}
@@ -1423,7 +1447,6 @@ export default function App() {
             onError={reportError}
             onInfo={reportInfo}
             onToModule={(module) => {
-              setWizardRequired(false);
               setMissingModule(module ?? null);
               setWizardReturnScreen("settings");
               setScreen("wizard");
@@ -1507,6 +1530,22 @@ export default function App() {
             </div>
           )}
         </footer>
+      )}
+
+      {/* The first run, over whatever is behind it — which is the archive,
+          because that is where a fresh installation lands. It is rendered here
+          with the other dialogs rather than among the screens, since that is
+          what it is; `setupOpen` and `screen === "wizard"` are never both true,
+          the first being the guided question and the second the by-hand list. */}
+      {setupOpen && (
+        <Suspense fallback={null}>
+          <SetupWizard
+            required
+            missingModule={null}
+            onBack={closeSetup}
+            onComplete={closeSetup}
+          />
+        </Suspense>
       )}
 
       {addRecordingOpen && (

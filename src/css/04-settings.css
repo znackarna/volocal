@@ -532,16 +532,17 @@
   max-width: var(--wizard-column, 620px); margin-inline: auto;
 }
 
-.steps { display: flex; gap: 6px; margin-bottom: 28px; }
-.steps span { height: 3px; flex: 1; background: var(--line); border-radius: var(--r-pill); transition: background 0.25s; }
-.steps span.finished { background: var(--accent); }
-
-.step-number { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: var(--text-quiet); margin: 0 0 6px; }
+/* `.steps`, `.step-number`, `.step-intro`, `.step-outro` and its two children
+   stood here — the three-segment bar, the `KROK 1 ZE 3` above the heading, the
+   quiet sentence under it, and the centred conclusion. All six are deleted with
+   the screen they were the furniture of: the guided run is a dialog over the
+   archive now, and a dialog has its own rhythm — 19 px heading, 4 px to its
+   sentence, 18 px to the content, which `.dialog h2`, `.dialog p` and
+   `.dialog h2 + p` already own. A bar counting three screens inside the one
+   thing being counted was ceremony, and centred prose in a dialog reads as a
+   certificate. `.step` and `.step h1` stay: the by-hand listing is still a page
+   and still wants a 28 px heading. */
 .step h1 { font-size: 28px; line-height: 1.15; margin: 0 0 8px; letter-spacing: -0.025em; font-weight: 700; }
-.step-intro { color: var(--text-quiet); margin: 0 0 22px; max-width: 52ch; font-size: 14px; line-height: 1.55; }
-.step-outro { text-align: center; padding-top: 40px; }
-.step-outro .step-intro, .step-outro .small-text { margin-left: auto; margin-right: auto; }
-.step-outro .step-footer { justify-content: center; }
 
 .step-footer {
   display: flex; justify-content: space-between; align-items: center; gap: 10px;
@@ -602,6 +603,31 @@
    Weight is not what makes it findable, and at 600 beside a 15/600 title the
    two read as equals. */
 .choice-size { font-size: 13px; font-weight: 500; color: var(--text-quiet); white-space: nowrap; font-variant-numeric: tabular-nums; }
+/* What a choice costs, as a line inside the card rather than a figure in a
+   column at its edge. The wizard's two quality cards are the only cards that
+   need it: a size alone answers *how many megabytes*, and what somebody
+   choosing a transcription model is weighing is minutes against megabytes,
+   which is one sentence and not two columns.
+
+   It is `.choice-size`'s own type — 13 px, 500, `--text-quiet`, `tabular-nums`,
+   the pair documented above — and deliberately not that class, for the one
+   property it must not take: `.choice-size` is `nowrap`, which is right for a
+   figure in a column and wrong for a sentence that has to wrap at 520 px in
+   whatever language it is read in. */
+.choice-cost { font-size: 13px; font-weight: 500; color: var(--text-quiet); font-variant-numeric: tabular-nums; }
+/* Three points on top of `.choice-body`'s own three, so the card reads as a
+   name over its detail and then two statements of a different kind. At the
+   plain 3 px all four lines sat in one block: the description and the cost are
+   both 13 px and both quiet, and 500 against 400 is the whole of what tells
+   them apart within a line. Six is what separates them as blocks. */
+.choice-cost, .choice-reason { margin-top: 3px; }
+/* Why this card is the one for this computer. It replaced a `doporučeno` badge,
+   and the colour is the badge's accent kept: this is still the application
+   pointing at one of two cards, and losing the accent would have made the
+   recommendation quieter than the sentence above it, which is the wrong way
+   round. 600 rather than the 700 a badge carries — it is a sentence now, and
+   700 over three lines of it reads as shouting. */
+.choice-reason { font-size: 13px; font-weight: 600; color: var(--accent); line-height: 1.45; }
 
 .badge {
   font-style: normal; font-size: 11px; font-weight: 700;
@@ -899,8 +925,22 @@
 /* Two widths: 420 px for a question with a field, 520 px for a column of
    choice cards. 520 is the wider of the two former numbers because the cards
    in the AI dialog carry a badge in a third column (.choice.with-icon > .badge),
-   and the narrower dialog took that width out of their descriptions. */
-.ai-edit-dialog, .add-recording-dialog { max-width: 520px; }
+   and the narrower dialog took that width out of their descriptions.
+
+   The first-run wizard is the third of them and takes the same 520 for the same
+   reason: two stacked cards, each holding a name, a sentence about the model, a
+   line of cost and — on one of them — the reason it is recommended here. It was
+   a 620 px screen, and the 100 px it gives up is width those cards never used:
+   they were a column already, but each was one line of text with a size pinned
+   at the far edge, so the extra width went to the gap between them. */
+.ai-edit-dialog, .add-recording-dialog, .setup-dialog { max-width: 520px; }
+/* The failure banner, when the first-run dialog is drawing one. It stands
+   between the dialog's sentence and its content, and it owns the 18 px below
+   itself rather than above: `.dialog h2 + p` has already placed the gap above
+   it, and no content block in a dialog carries a `margin-top`. 18, not the 20
+   `.warning` gives itself in the archive, because in here the number belongs to
+   the dialog's rhythm and not to the banner. */
+.setup-dialog > .warning { margin-bottom: 18px; }
 .ai-edit-note {
   display: flex; align-items: flex-start; gap: 8px;
   margin-top: 14px !important;

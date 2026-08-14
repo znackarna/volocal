@@ -414,6 +414,65 @@ pub fn choose_compute(bin: &Path, choice: &str) -> String {
     available[0].clone()
 }
 
+// ---------------------------------------------------------------- memory
+
+/// How much memory this computer has, in whole gigabytes, or nothing.
+///
+/// The drivers and the graphics card have been read off this machine since the
+/// wizard was written; memory never was, and the first-run question now names
+/// what it found. **`None` is a real answer and the screen must be able to draw
+/// it** — on a platform this cannot ask, or a call that fails, the sentence
+/// says what it does know and stops, rather than printing a guess that a reader
+/// can check against their own machine in ten seconds and find wrong.
+pub fn total_memory_gb() -> Option<u32> {
+    installed_memory_bytes().and_then(memory_gigabytes)
+}
+
+/// Bytes to the number a reader would use for the same machine.
+///
+/// Rounded rather than truncated, and that is the whole of the arithmetic worth
+/// explaining: Windows reports what the operating system may use, which on a
+/// 16 GB machine is about 15.8 GiB because the firmware and the graphics chip
+/// hold some of it back. Truncating prints `15 GB` on a box that says 16, which
+/// is exactly the kind of number somebody goes looking for the missing part of.
+///
+/// Below half a gigabyte nothing is reported. No computer that could run this
+/// application has that little, so such an answer is a failed reading rather
+/// than a small machine, and a failed reading must not reach the screen.
+fn memory_gigabytes(bytes: u64) -> Option<u32> {
+    const GIB: f64 = 1024.0 * 1024.0 * 1024.0;
+    if bytes < 512 * 1024 * 1024 {
+        return None;
+    }
+    Some((bytes as f64 / GIB).round().max(1.0) as u32)
+}
+
+#[cfg(windows)]
+fn installed_memory_bytes() -> Option<u64> {
+    use windows::Win32::System::SystemInformation::{GlobalMemoryStatusEx, MEMORYSTATUSEX};
+    let mut status = MEMORYSTATUSEX {
+        // The call reads this to know which version of the struct it was given.
+        // Left at zero it fails, which is the one way this can be got wrong.
+        dwLength: std::mem::size_of::<MEMORYSTATUSEX>() as u32,
+        ..Default::default()
+    };
+    // Safe: `status` is a live, correctly sized struct on this stack, and the
+    // call writes only into it. `GetPhysicallyInstalledSystemMemory` was the
+    // other candidate — it reads the memory modules out of SMBIOS and would
+    // give the number on the box exactly — but it fails outright on firmware
+    // whose tables it dislikes, and a fact the screen may not get at all is
+    // worse than one it has to round.
+    unsafe { GlobalMemoryStatusEx(&mut status) }.ok()?;
+    (status.ullTotalPhys > 0).then_some(status.ullTotalPhys)
+}
+
+#[cfg(not(windows))]
+fn installed_memory_bytes() -> Option<u64> {
+    // The application ships for Windows. Everything else builds and reports
+    // nothing, which is a state the screen already has to draw.
+    None
+}
+
 pub fn compute_directory(bin: &Path, compute: &str) -> PathBuf {
     if compute == "vychozi" {
         bin.to_path_buf()
@@ -447,6 +506,10 @@ pub struct ToolCheck {
     pub available_compute_backends: Vec<String>,
     pub nvidia_driver: bool,
     pub vulkan_driver: bool,
+    /// Whole gigabytes of memory, or `None` where it could not be read. The
+    /// first-run question names it; nothing decides anything by it, because
+    /// nothing here has ever measured what a model needs.
+    pub memory_gb: Option<u32>,
     /// The models found in the models folder, without the ggml- prefix.
     pub found_models: Vec<String>,
 
@@ -467,6 +530,7 @@ pub fn check(n: &crate::db::Settings) -> ToolCheck {
     k.webview2_bundled = app_directory().join("webview2").is_dir();
     k.nvidia_driver = has_nvidia();
     k.vulkan_driver = has_vulkan();
+    k.memory_gb = total_memory_gb();
     k.available_compute_backends = available_compute_backends(&bin);
     k.compute = choose_compute(&bin, &n.compute);
 
@@ -1220,5 +1284,45 @@ mod tests {
         // The path is a UUID-named child of the system temp directory created
         // by this test, never a shared model or application directory.
         std::fs::remove_dir_all(directory).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod memory_tests {
+    use super::*;
+
+    /// Windows reports what the operating system may use, not what is in the
+    /// slots. A 16 GB machine answers about 15.8 GiB, and the screen has to say
+    /// 16 — that is the number the reader can check against their own computer.
+    #[test]
+    fn the_reading_is_rounded_to_the_number_on_the_box() {
+        assert_eq!(memory_gigabytes(17_179_869_184), Some(16), "a clean 16 GiB");
+        assert_eq!(
+            memory_gigabytes(17_005_137_920),
+            Some(16),
+            "16 GB with the firmware's share taken out"
+        );
+        assert_eq!(memory_gigabytes(8_465_104_896), Some(8));
+        assert_eq!(memory_gigabytes(34_284_924_928), Some(32));
+    }
+
+    /// A reading that cannot be true is not a small machine; it is a failed
+    /// call. Nothing goes on screen for it.
+    #[test]
+    fn an_unbelievable_reading_is_not_reported() {
+        assert_eq!(memory_gigabytes(0), None);
+        assert_eq!(memory_gigabytes(64 * 1024 * 1024), None);
+    }
+
+    /// The reading itself, on the machine running the tests. It is the half
+    /// that no arithmetic can check: whether the call is wired up at all.
+    #[cfg(windows)]
+    #[test]
+    fn this_machine_says_how_much_memory_it_has() {
+        let gigabytes = total_memory_gb().expect("Windows must be able to answer this");
+        assert!(
+            (1..=4096).contains(&gigabytes),
+            "implausible reading: {gigabytes} GB"
+        );
     }
 }

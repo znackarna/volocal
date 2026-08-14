@@ -325,10 +325,15 @@ button.current > .row-play { color: var(--accent); }
 }
 .choice.with-icon .choice-head { align-items: center; justify-content: flex-start; gap: 9px; }
 /* The badge belongs at the right edge. Inline after the title it moved with the
-   length of the name, so no two rows had it in the same place. The download
-   size on the wizard's two quality cards is the same kind of thing and takes
-   the same place; no card carries both, so both may claim the free space with
-   `margin-left: auto` without having to split it between them. */
+   length of the name, so no two rows had it in the same place. The size on the
+   model and language-editing cards in Settings is the same kind of thing and
+   takes the same place; no card carries both, so both may claim the free space
+   with `margin-left: auto` without having to split it between them.
+
+   The wizard's two quality cards were the third user and are not any more:
+   their size moved into the card as part of a sentence about what the choice
+   costs on this machine — see `.choice-cost`. Nothing else changed for them,
+   and the rule is left as it is because the Settings cards still need it. */
 .choice.with-icon > .badge,
 .choice.with-icon > .choice-size { flex: 0 0 auto; margin-left: auto; }
 

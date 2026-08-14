@@ -318,6 +318,9 @@ export interface ToolCheck {
   available_compute_backends: string[];
   nvidia_driver: boolean;
   vulkan_driver: boolean;
+  /** Whole gigabytes of memory, or `null` where the machine would not say.
+   *  Null is drawn as a shorter sentence, never as a guess. */
+  memory_gb: number | null;
   found_models: string[];
   issues: UserMessage[];
   issues_diarization: UserMessage[];

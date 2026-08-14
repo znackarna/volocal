@@ -8,6 +8,7 @@ import { LineIcon, ModelMark } from "./icons";
 import { useI18n, type TranslationKey } from "./i18n";
 import { messageCode, useProgressMessage, useUserMessage } from "./messages";
 import { useFormats } from "./formats";
+import { useDialog } from "./useDialog";
 import {
   EDITOR_MODELS,
   UNOFFERED_COMPONENTS,
@@ -17,8 +18,15 @@ import type { DownloadComponent, ToolCheck, DownloadProgress } from "./types";
 
 interface Props {
   onComplete: () => void;
+  /** The way out. On the guided run it is also what Escape and the scrim do. */
   onBack: () => void;
-  /** The wizard opened by itself because transcription is impossible without it */
+  /** The wizard opened by itself because transcription is impossible without it.
+   *
+   *  It decides the shell as well as the path: **true is a dialog over the
+   *  archive, false is a screen of its own.** A first run is one question and
+   *  its download, and the archive behind the dialog says *you have arrived*
+   *  where a full screen said *you are blocked*; the by-hand component list is
+   *  a table reached from Settings and keeps the 720 px screen it was given. */
   required: boolean;
   /** id of the module to preselect for installation */
   missingModule?: string | null;
@@ -66,7 +74,24 @@ const MODELS: Record<
     /** What is written down as the answer, for everything that follows it. */
     choice: QualityChoice;
     name: TranslationKey;
-    summary: TranslationKey;
+    /** The model, and what the reader gets — **the catalogue's own sentence**,
+     *  the one the model card in Settings draws.
+     *
+     *  It used to be `wizard.quality.fastestSummary` and `bestSummary`, a pair
+     *  of sentences this screen kept for itself. Two consequences, and both had
+     *  already bitten this branch: the wizard and Settings could describe one
+     *  model two ways — the defect written up on 14 August, when the by-hand
+     *  listing was found still printing a claim deleted from the card two
+     *  commits earlier — and the owner's own wording (`Whisper 3 Large.
+     *  Kvalitnější přepis. Precizní časové značky slov.`) reached every screen
+     *  except the first one anybody sees.
+     *
+     *  So the model's name is on the card after all. The entry that kept it off
+     *  argued `Whisper large-v3-turbo` was noise on a first run, and it was
+     *  right about *that* string; what ships here is the reader's form of the
+     *  name in front of a sentence he wrote, which is what the brief asks the
+     *  card to carry. */
+    description: TranslationKey;
   }
 > = {
   fastest: {
@@ -74,14 +99,14 @@ const MODELS: Record<
     settings: "large-v3-turbo-q5_0",
     choice: "fast",
     name: "wizard.quality.fastestName",
-    summary: "wizard.quality.fastestSummary",
+    description: "domain.modelDescription.large-v3-turbo-q5_0",
   },
   best: {
     component: "model-large",
     settings: "large-v3",
     choice: "accurate",
     name: "wizard.quality.bestName",
-    summary: "wizard.quality.bestSummary",
+    description: "domain.modelDescription.large-v3",
   },
 };
 
@@ -122,16 +147,32 @@ const EDITOR_RUNTIME_COMPONENTS = ["editor-cpu"];
    as many words that they "trade nothing; they do the same work with more of
    it". What differs is how large the file is. */
 
-/** Rough estimate for an hour-long recording, in minutes. Measured on a Radeon
- *  RX 9070; on a CPU it is an order of magnitude different, hence two sets of
- *  numbers. Only the number lives here — the phrase around it needs the active
- *  language's plural rules and is assembled by `useFormats`.
+/** Rough estimate for an hour-long recording, in minutes. Only the number lives
+ *  here — the phrase around it needs the active language's plural rules and is
+ *  assembled by `useFormats`.
  *
- *  Worth knowing before quoting these: *measured* is what the original comment
- *  said, and no entry in `docs/history/` ever took, checked or contradicted
- *  them. `benchmark_compute` is the app's own timer and could settle it in
- *  twenty seconds per backend. Until somebody runs it these are the oldest
- *  numbers in the interface. */
+ *  **These four numbers have never been measured, and the screen now says so.**
+ *  The original comment claimed a Radeon RX 9070 and no entry in
+ *  `docs/history/` ever took, checked or contradicted them; they are the oldest
+ *  figures in the interface. That was tolerable while the screen said nothing
+ *  about the machine. It stopped being tolerable the moment the sentence above
+ *  the cards began naming this computer's graphics card and its memory, because
+ *  a page that demonstrates it has read the hardware is a page whose numbers
+ *  read as having been read off it too.
+ *
+ *  Two ways out were available and one was taken. **Not taken: deriving them
+ *  from what was detected** — memory is now known, and a formula over it would
+ *  have turned four honest guesses into a fabricated model with a number for
+ *  every machine and evidence for none. **Taken: saying it in the copy.**
+ *  `wizard.quality.changeableNote` opens with *Časy jsou hrubý odhad, ne
+ *  měření*, which is the plainest true thing available, and the reason line on
+ *  the recommended card avoids a ratio for the same reason.
+ *
+ *  Settling them is still one command away: `benchmark_compute` is the
+ *  application's own timer and could answer this in twenty seconds a backend.
+ *  It cannot run *here* — it needs an installed model and a recording, and a
+ *  first run has neither — so the measurement belongs on a machine that has
+ *  been through this screen, not on the screen itself. */
 function estimatedMinutes(quality: Quality, usesGpu: boolean): number {
   const t: Record<Quality, [number, number]> = {
     fastest: [1, 8],
@@ -142,11 +183,18 @@ function estimatedMinutes(quality: Quality, usesGpu: boolean): number {
 
 /** Which model the machine is steered towards.
  *
- *  One function, used for both the badge and the initial selection, because
- *  they used to be computed apart and disagreed: the state started on
+ *  One function, used for both the recommendation and the initial selection,
+ *  because they used to be computed apart and disagreed: the state started on
  *  *Vyvážený* while the badge was `usesGpu ? "balanced" : "fastest"`, so a
  *  computer with no graphics card showed one option chosen and a different one
- *  recommended — and the backend sided with the badge. */
+ *  recommended — and the backend sided with the badge.
+ *
+ *  **Memory is read now and is deliberately not one of the inputs.** It is on
+ *  the screen because the reader recognises their own machine in it, which is
+ *  what makes the rest of the sentence credible. Deciding by it would need a
+ *  threshold — how much memory the larger model wants before it is a bad idea —
+ *  and nothing in this repository has ever measured one. A recommendation is
+ *  the one place a guess costs the reader gigabytes. */
 function recommendedQuality(usesGpu: boolean): Quality {
   return usesGpu ? "best" : "fastest";
 }
@@ -193,14 +241,18 @@ export function alreadyRunning(error: unknown): boolean {
 
 /* Three screens where there were six, and they are numbered rather than
    counted at each use: the old code carried `setStep(4)` in five places and a
-   `[0,1,2,3,4]` bar that had to be kept in step with them by hand. */
+   `[0,1,2,3,4]` bar that had to be kept in step with them by hand.
+
+   The `STEPS` array went with the segmented bar and the `Krok 1 ze 3` counter
+   above it. Both drew a walk over an errand that is a question and a download,
+   inside a dialog that is itself the thing being counted; and the download has
+   a progress bar of its own, reporting bytes rather than screens. */
 const STEP_CHOICE = 0;
 const STEP_DOWNLOAD = 1;
 const STEP_DONE = 2;
-const STEPS = [STEP_CHOICE, STEP_DOWNLOAD, STEP_DONE];
 
 export default function SetupWizard({ onComplete, onBack, required, missingModule }: Props) {
-  const { t, tDynamic, tPlural } = useI18n();
+  const { t, tDynamic, tPlural, formatNumber } = useI18n();
   const { approximateMinutes, dataSize } = useFormats();
   const userMessage = useUserMessage();
   const progressMessage = useProgressMessage();
@@ -249,6 +301,20 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
   const [error, setError] = useState<string | null>(null);
 
   const [confirmation, setConfirmation] = useState<ConfirmationRequest | null>(null);
+
+  /** Escape and the focus trap, for the guided run's dialog.
+   *
+   *  **Escape is withheld while a download runs**, which `useDialog` supports
+   *  by taking no `onClose`. The setting this wizard exists to write is written
+   *  by the `download:complete` listener, and that listener lives in this
+   *  component — so a key pressed at the wrong moment would unmount the one
+   *  thing waiting to record which model the reader chose, leaving the bytes on
+   *  the disk and the answer nowhere. `Přerušit` is the way to stop a download
+   *  and it is the only button on screen while one is running.
+   *
+   *  In the by-hand list the ref is attached to nothing and the hook does
+   *  nothing: that mode is a page, and its own dialogs bring their own trap. */
+  const setupDialog = useDialog<HTMLDivElement>(running ? undefined : onBack, !listing);
 
   /** Asks before deleting, and names the space it frees.
    *
@@ -384,6 +450,29 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
      card drawn as selected and the model actually downloaded cannot differ. */
   const quality = chosen ?? recommendedQuality(usesGpu);
 
+  /** What was found in this computer, in one sentence over the two cards.
+   *
+   *  **This is not the status panel coming back.** That block was two framed
+   *  cells restating the line above them and it stays deleted; what stands here
+   *  is the line itself, saying more than it did. The application has read this
+   *  machine's drivers since the wizard was written and asked its question as
+   *  though it knew nothing — *Máte slabší počítač, grafickou kartu, pouze
+   *  16 GB RAM…* is the owner's way of saying so — and the numbers under it are
+   *  only credible because this sentence shows where they come from.
+   *
+   *  Four sentences and not a phrase assembled from parts: the graphics card
+   *  and the memory can each be absent, and a machine that will not say how much
+   *  memory it has gets the shorter sentence rather than a guess. The fifth is
+   *  the fraction of a second before `check` arrives, and it exists so that the
+   *  screen never claims for an instant to have found no graphics card. */
+  const machineSentence = !check
+    ? t("wizard.quality.machineChecking")
+    : check.memory_gb
+      ? t(usesGpu ? "wizard.quality.machineGpuMemory" : "wizard.quality.machineCpuMemory", {
+          memory: t("common.unit.gigabytes", { value: formatNumber(check.memory_gb) }),
+        })
+      : t(usesGpu ? "wizard.quality.machineGpu" : "wizard.quality.machineCpu");
+
   // The user does not pick the programs; the machine picks them from its drivers.
   const root = useMemo(
     () =>
@@ -442,7 +531,14 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
         setRunning(false);
         await dokonci(u.payload ?? []);
         load();
-        setStep(STEP_DONE);
+        /* The conclusion belongs to the guided run and to nothing else. In the
+           by-hand list every row starts its own download, so this event arrives
+           whenever one of fifteen rows finishes — and it was taking the reader
+           off the list they were reading and onto *Vše je připraveno*, a
+           conclusion to a walk they were not on. `load()` above has already
+           refreshed the row's own tick, which is the whole of what that mode
+           has to report. */
+        if (!manual) setStep(STEP_DONE);
       })
     );
 
@@ -630,258 +726,283 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
     return item ? tDynamic(item.name_code, item.id) : id;
   };
 
-  return (
-    /* `wizard-listing` widens the column to the settings column's 720 px — see
-       the rule in `04-settings.css`. It is on the screen and not on the list
-       inside it because the width belongs to the column, and the error banner
-       above the list is a child of that column too. */
-    <main className={`wizard ${manual ? "wizard-listing" : ""}`}>
-      {/* The progress bar of steps, and not in the by-hand list either, for the
-          reason the step counter is not: that mode is one screen reached from
-          elsewhere, so three segments with the first already filled would draw
-          a walk nobody took. */}
-      {step < STEP_DONE && !manual && (
-        <div className="steps" aria-hidden>
-          {STEPS.map((i) => (
-            <span key={i} className={i <= step ? "finished" : ""} />
-          ))}
-        </div>
-      )}
+  /** The failure banner, drawn by whichever shell is on screen.
+   *
+   *  In the dialog it stands between the sentence and the content, so it owns
+   *  the 18 px below itself rather than above — a dialog's content blocks never
+   *  carry a `margin-top`, and `.dialog h2 + p` has already placed the gap
+   *  above it. See `.setup-dialog > .warning`. */
+  const errorBanner = error && step !== STEP_DONE && (
+    <div className="warning">
+      <div>
+        <strong>{t("wizard.download.failedTitle")}</strong>
+        <p className="small-text">{error}</p>
+      </div>
+      <button className="button" onClick={() => setError(null)}>
+        {t("wizard.download.dismissError")}
+      </button>
+    </div>
+  );
 
-      {error && step !== STEP_DONE && (
-        <div className="warning">
-          <div>
-            <strong>{t("wizard.download.failedTitle")}</strong>
-            <p className="small-text">{error}</p>
-          </div>
-          <button className="button" onClick={() => setError(null)}>
-            {t("wizard.download.dismissError")}
-          </button>
-        </div>
-      )}
+  /* -------------------------------------------------- the by-hand listing
 
-      {/* --------------------------------------------- 0. the one question
+     A screen of its own, at the settings column's 720 px, because that is what
+     it is: a table of everything this machine can hold, reached from Settings
+     or from a document asking for its model. Every decision made about it on
+     14 August was about a page — the width, the row, the bin, the lock — and
+     none of them is touched here.
 
-          Four screens became one. Two of them asked nothing the machine did not
-          already know — the welcome recited detected drivers, and the speaker
-          step governed 28 MB — and the language editor's 5150 MB left the first
-          run altogether. What is left is the only decision that is both
-          consequential and awkward to reverse: changing the transcription model
-          later means transcribing everything again.
-
-          The detected configuration is not on it at all any more. It was a
-          two-panel grid under the question — `KONFIGURACE / Grafická karta
-          (Vulkan)` beside `PŘEPIS / na grafické kartě` — and the sentence
-          directly above it already said *odhady časů platí pro grafickou kartu
-          v tomto počítači*. Two panels restating the line above them, on the
-          screen with the fewest words in the application. The sentence stays
-          because it explains why the estimates say what they say; the panels
-          went because they explained nothing.
-
-          `usesGpu` is still read — it picks the recommended card and the two
-          time estimates. What was removed is the announcement, not the
-          detection. Do not put a status panel back here. */}
-      {step === STEP_CHOICE && (
+     It draws one step and only one. It used to share the guided run's
+     `step === STEP_DOWNLOAD` branch and to follow it into `STEP_DONE`, which
+     is how finishing a single row's download landed the reader on *Vše je
+     připraveno* — a conclusion to a walk they were not on, with the list they
+     were reading gone from under them. The listener no longer moves the step
+     in this mode; see the comment on it. */
+  if (manual) {
+    return (
+      <main className="wizard wizard-listing">
+        {errorBanner}
         <div className="step">
-          <p className="step-number">
-            {t("wizard.nav.stepCounter", { step: 1, total: STEPS.length })}
-          </p>
-          <h1>{t("wizard.quality.title")}</h1>
-          <p className="step-intro">
-            {usesGpu ? t("wizard.quality.introGpu") : t("wizard.quality.introCpu")}
-          </p>
-
-          {/* The two cards carry the marks their models carry in Settings —
-              `ModelMark` keyed on the model identifier, so the lightning that
-              means `large-v3-turbo` on the model list means it here too. The
-              pair is honest as a pair: speed against precision is the trade
-              these two make, and it is the one thing about them that has been
-              measured (13 August, time alignment). */}
-          <div className="choices wizard-quality-choices">
-            {(["best", "fastest"] as Quality[]).map((k) => {
-              const p = items.find((x) => x.id === MODELS[k].component);
-              return (
-                <button
-                  key={k}
-                  className={`choice with-icon ${quality === k ? "chosen" : ""}`}
-                  aria-pressed={quality === k}
-                  onClick={() => setChosen(k)}
-                >
-                  <span className="choice-icon" aria-hidden>
-                    <ModelMark id={MODELS[k].settings} />
-                  </span>
-                  <span className="choice-body">
-                    <span className="choice-title">
-                      {t(MODELS[k].name)}
-                      {k === recommendedQuality(usesGpu) && (
-                        <em className="badge">{t("wizard.download.recommendedBadge")}</em>
-                      )}
-                      {/* `.complete`, the grass variant — the badge that means
-                          *you already have this*. It was the plain accent one
-                          beside `doporučeno`, so the two read as the same kind
-                          of statement when one is a recommendation and the
-                          other a fact about the disk. */}
-                      {p?.complete && (
-                        <em className="badge complete">
-                          {t("wizard.download.downloadedBadge")}
-                        </em>
-                      )}
-                    </span>
-                    <span className="small-text">
-                      {t(MODELS[k].summary, {
-                        duration: approximateMinutes(estimatedMinutes(k, usesGpu)),
-                      })}
-                    </span>
-                  </span>
-                  {/* Outside the text block so it lands on the right edge, the
-                      same place the badge takes on a module tile, rather than
-                      drifting with the length of the model's name.
-
-                      Nothing at all when the model is already there. It used to
-                      render `dataSize(0)` — a card wearing a `staženo` badge and
-                      `0 MB` beside it, saying the same thing twice and the
-                      second time as a number that reads like a cost. A size on
-                      this card means *this is what pressing it will fetch*, and
-                      for a model on the disk there is no such number. */}
-                  {!p?.complete && (
-                    <span className="choice-size">{dataSize(p?.megabytes ?? 0)}</span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-
-          <InfoNote>{t("wizard.quality.changeableNote")}</InfoNote>
-
+          <h1>{t("wizard.manual.title")}</h1>
+          <ManualSelection
+            items={items}
+            view={view}
+            onView={setView}
+            progress={progress}
+            onInstall={installOne}
+            onCancel={() => void api.cancelDownload()}
+            onRemove={askToRemove}
+          />
           <div className="step-footer">
-            {!required && (
-              <button className="button quiet" onClick={onBack}>
-                {t("common.back")}
-              </button>
-            )}
-            <button className="button primary" onClick={() => setStep(STEP_DOWNLOAD)}>
-              {t("common.continue")}
+            {/* `Zpět` is the screen this list was opened from — `Spravovat
+                modely a nástroje` on `Nástroje`, or a document asking for its
+                model. `Zavřít` is the other way out and does one thing more:
+                `dokonci([])` turns a model fetched here into the setting that
+                names it, which is what keeps the application from going on
+                demanding one it does not have. */}
+            <button className="button quiet" onClick={onBack}>
+              {t("common.back")}
+            </button>
+            <button
+              className="button primary"
+              onClick={async () => {
+                await dokonci([]);
+                onComplete();
+              }}
+            >
+              {t("common.close")}
             </button>
           </div>
         </div>
-      )}
-      {/* -------------------------------------- 1. summary and download */}
-      {step === STEP_DOWNLOAD && (
-        <div className="step">
-          {/* No step counter in the by-hand list. It counts the guided run, and
-              that mode is now only ever entered from outside the wizard —
-              `Spravovat modely`, or a document asking for its model — so
-              `Krok 2 ze 3` would number a walk the reader never took. While
-              `Vybrat ručně` existed they could arrive here from step 1 and the
-              number meant something; it stopped meaning anything with the
-              button. */}
-          {!manual && (
-            <p className="step-number">
-              {t("wizard.nav.stepCounter", { step: 2, total: STEPS.length })}
-            </p>
-          )}
-          {/* `Co se stáhne` over the by-hand list was a mismatch worth naming
-              rather than tolerating: that list is mostly things already on the
-              disk, and the heading claimed everything under it was about to
-              download. The **heading** is what changes, not the summary line
-              below it — `Stáhne se 0 položek, dohromady 0 MB` is exactly true
-              there and is the running total of what ticking has added up to,
-              which is the one number that list has to keep showing. So the two
-              modes say different things, decided by the same `manual` flag that
-              already hides the step counter and the bar. */}
-          <h1>
-            {t(
-              running
-                ? "wizard.download.runningTitle"
-                : manual
-                  ? "wizard.manual.title"
-                  : "wizard.download.reviewTitle"
-            )}
-          </h1>
+        <ConfirmationDialog
+          query={confirmation}
+          onClose={() => setConfirmation(null)}
+          onError={setError}
+        />
+      </main>
+    );
+  }
 
-          {/* The total belongs to the guided run, which fetches a set it
-              chose. The by-hand list has no set: each row acts for itself, so a
-              count of what is about to happen would be a count of nothing. */}
-          {!running && !manual && (
-            <p className="step-intro">
-              {tPlural("wizard.download.summary", selected.length, {
-                size: dataSize(totalMb),
+  /* ------------------------------------------------------ the guided run
+
+     A dialog over the archive. *Ten průvodce vypadá děsně. Musíme ho udělat
+     znova a asi by to měl být splash screen po spuštění. Nebo takový větší
+     dialog.* — the dialog, of the two he offered: a splash reads as an
+     advertisement and is clicked through unread, and the application drawn
+     behind this one says *you have arrived* where a full screen said *you are
+     blocked*.
+
+     520 px, which `CLAUDE.md` fixes for a column of choice cards, and it is
+     what the cards need rather than what was left over: stacked full width,
+     each has room for a real sentence, which side by side they did not.
+
+     No click-outside close. Every other dialog in the application dismisses on
+     the scrim; this one owns a download and the setting written at the end of
+     it, and a stray click beside it must not be how that ends. `Zavřít` and
+     Escape are the way out — and Escape only while nothing is downloading, see
+     `setupDialog`. */
+  return (
+    <div className="dialog-overlay">
+      <div
+        ref={setupDialog}
+        className="dialog setup-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="setup-dialog-title"
+      >
+        {/* --------------------------------------------- 0. the one question
+
+            Four screens became one. Two of them asked nothing the machine did
+            not already know — the welcome recited detected drivers, and the
+            speaker step governed 28 MB — and the language editor's 5150 MB left
+            the first run altogether. What is left is the only decision that is
+            both consequential and awkward to reverse: changing the
+            transcription model later means transcribing everything again.
+
+            **The sentence under the heading says what is in this computer, and
+            the two-panel grid stays deleted.** They are not the same thing and
+            the difference is the whole of why this screen was rebuilt: the
+            panels were `KONFIGURACE / Grafická karta (Vulkan)` beside `PŘEPIS /
+            na grafické kartě`, two frames restating the line above them. The
+            line is what a reader needs and it now carries the memory as well,
+            because the application has always known this machine and was asking
+            its question as though it knew nothing. Do not put a panel back. */}
+        {step === STEP_CHOICE && (
+          <>
+            <h2 id="setup-dialog-title">{t("wizard.quality.title")}</h2>
+            <p>{machineSentence}</p>
+            {errorBanner}
+
+            {/* *Dvě karty, spíš vertikálně než horizontálně.* The column was
+                already a column — `.choices` has stacked them since it was
+                written — and what was horizontal is the inside of each card: an
+                icon, one line of text, and a size pinned at the far edge. So
+                what this changes is what a card holds, and it holds four things
+                in this order: the name of the choice, the model and what the
+                reader gets (one sentence, the catalogue's own, so this screen
+                and Settings cannot describe one model two ways), what it costs
+                on this machine — the time for an hour of audio and the
+                megabytes — and, on one of them, why it is the one for here.
+
+                The marks are the ones their models carry in Settings:
+                `ModelMark` keyed on the model identifier, so the lightning that
+                means `large-v3-turbo` on the model list means it here too. */}
+            <div className="choices">
+              {(["best", "fastest"] as Quality[]).map((k) => {
+                const p = items.find((x) => x.id === MODELS[k].component);
+                const duration = approximateMinutes(estimatedMinutes(k, usesGpu));
+                return (
+                  <button
+                    key={k}
+                    className={`choice with-icon ${quality === k ? "chosen" : ""}`}
+                    aria-pressed={quality === k}
+                    onClick={() => setChosen(k)}
+                  >
+                    <span className="choice-icon" aria-hidden>
+                      <ModelMark id={MODELS[k].settings} />
+                    </span>
+                    <span className="choice-body">
+                      <span className="choice-title">
+                        {t(MODELS[k].name)}
+                        {/* `.complete`, the grass variant — the badge that
+                            means *you already have this*, and the only badge
+                            left on these cards. */}
+                        {p?.complete && (
+                          <em className="badge complete">
+                            {t("wizard.download.downloadedBadge")}
+                          </em>
+                        )}
+                      </span>
+                      <span className="small-text">{t(MODELS[k].description)}</span>
+                      {/* The cost, in the card rather than in a column at the
+                          right edge. A size alone answered *how many
+                          megabytes*; what somebody choosing here is weighing is
+                          minutes against megabytes, and those two belong in one
+                          sentence. A model already on the disk costs no
+                          download, so the sentence stops after the time — the
+                          badge above has already said why. */}
+                      <span className="choice-cost">
+                        {p?.complete
+                          ? t("wizard.quality.costHave", { duration })
+                          : t("wizard.quality.cost", {
+                              duration,
+                              size: dataSize(p?.megabytes ?? 0),
+                            })}
+                      </span>
+                      {/* The recommendation, as a reason rather than a badge.
+                          `doporučeno` in a pill asserted; this argues, from the
+                          one fact the sentence above the cards has just shown
+                          the reader was actually read off their machine. */}
+                      {k === recommendedQuality(usesGpu) && (
+                        <span className="choice-reason">
+                          {t(usesGpu ? "wizard.quality.reasonGpu" : "wizard.quality.reasonCpu")}
+                        </span>
+                      )}
+                    </span>
+                  </button>
+                );
               })}
+            </div>
+
+            <InfoNote compact>{t("wizard.quality.changeableNote")}</InfoNote>
+
+            <div className="dialog-footer">
+              {/* A way out even on a required first run, which is what the
+                  screen this replaces had in the application bar. The archive
+                  behind the dialog says what is missing and offers to finish
+                  for as long as transcription cannot run, so an errand nobody
+                  can leave would be worse than one they can. */}
+              <button className="button quiet" onClick={onBack}>
+                {t("common.close")}
+              </button>
+              <button className="button primary" onClick={() => setStep(STEP_DOWNLOAD)}>
+                {t("common.continue")}
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* -------------------------------------- 1. summary and download */}
+        {step === STEP_DOWNLOAD && (
+          <>
+            <h2 id="setup-dialog-title">
+              {t(running ? "wizard.download.runningTitle" : "wizard.download.reviewTitle")}
+            </h2>
+            {/* The dialog's one sentence, and on this step it is the total:
+                how many items and how many megabytes, which is what the reader
+                is about to agree to. It is a reduce over the same array the
+                download is built from, so the number agreed to and the number
+                fetched are one expression apart. Where there is nothing to
+                fetch it says so instead — a `Stáhne se 0 položek` over an empty
+                list would be arithmetic about nothing. */}
+            <p>
+              {selected.length === 0
+                ? t("wizard.download.nothingNeeded")
+                : tPlural("wizard.download.summary", selected.length, {
+                    size: dataSize(totalMb),
+                  })}
             </p>
-          )}
+            {errorBanner}
 
-          {running ? (
-            <>
-              <div className="progress-large">
-                <div className="progress-bar">
-                  {/* Weighted by megabytes, not by how many items are done.
-                      Counting items and downloading smallest-first is a bad
-                      pair: for a default first run the four small pieces are a
-                      fifth of the bytes and used to carry the bar to two
-                      thirds, after which the one large model held it still for
-                      the rest of the download. A bar that races and then stops
-                      is worse than no bar. */}
-                  <div
-                    className="progress-fill"
-                    style={{ width: `${downloadedFraction * 100}%` }}
-                  />
+            {running ? (
+              <>
+                <div className="progress-large">
+                  <div className="progress-bar">
+                    {/* Weighted by megabytes, not by how many items are done.
+                        Counting items and downloading smallest-first is a bad
+                        pair: for a default first run the four small pieces are
+                        a fifth of the bytes and used to carry the bar to two
+                        thirds, after which the one large model held it still
+                        for the rest of the download. A bar that races and then
+                        stops is worse than no bar. */}
+                    <div
+                      className="progress-fill"
+                      style={{ width: `${downloadedFraction * 100}%` }}
+                    />
+                  </div>
+                  <div className="progress-label">
+                    <span>
+                      {currentProgress?.phase === "extracting"
+                        ? t("wizard.download.extracting", { name: currentName })
+                        : currentName}
+                    </span>
+                    <span>
+                      {t("wizard.download.itemProgress", {
+                        done: complete,
+                        total: selected.length,
+                      })}
+                    </span>
+                  </div>
+                  {currentProgress && currentProgress.total_mb > 0 && (
+                    <p className="small-text">
+                      {t("wizard.download.megabytesProgress", {
+                        downloaded: currentProgress.downloaded_mb.toFixed(0),
+                        total: currentProgress.total_mb.toFixed(0),
+                      })}
+                    </p>
+                  )}
                 </div>
-                <div className="progress-label">
-                  <span>
-                    {currentProgress?.phase === "extracting"
-                      ? t("wizard.download.extracting", { name: currentName })
-                      : currentName}
-                  </span>
-                  <span>
-                    {t("wizard.download.itemProgress", {
-                      done: complete,
-                      total: selected.length,
-                    })}
-                  </span>
-                </div>
-                {currentProgress && currentProgress.total_mb > 0 && (
-                  <p className="small-text">
-                    {t("wizard.download.megabytesProgress", {
-                      downloaded: currentProgress.downloaded_mb.toFixed(0),
-                      total: currentProgress.total_mb.toFixed(0),
-                    })}
-                  </p>
-                )}
-              </div>
 
-              <DownloadListing
-                ids={selected}
-                items={items}
-                progress={progress}
-                view={view}
-                onView={setView}
-              />
-
-              <div className="step-footer">
-                <button className="button" onClick={() => api.cancelDownload()}>
-                  {t("common.stop")}
-                </button>
-              </div>
-            </>
-          ) : (
-            <>
-              {manual ? (
-                <ManualSelection
-                  items={items}
-                  view={view}
-                  onView={setView}
-                  progress={progress}
-                  onInstall={installOne}
-                  onCancel={() => void api.cancelDownload()}
-                  onRemove={askToRemove}
-                />
-              ) : selected.length === 0 ? (
-                <ul className="summary">
-                  <li>
-                    <span className="small-text">{t("wizard.download.nothingNeeded")}</span>
-                  </li>
-                </ul>
-              ) : (
                 <DownloadListing
                   ids={selected}
                   items={items}
@@ -889,131 +1010,127 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
                   view={view}
                   onView={setView}
                 />
-              )}
 
-              <div className="step-footer">
-                {/* `Zpět` out of the by-hand list is the screen it was opened
-                    from, not the question. Both ways into that mode come from
-                    somewhere — `Spravovat modely` on `Nástroje`, or a document
-                    asking for its model — and dropping the reader at *Rychle,
-                    nebo přesně?* would put them on the one screen the mode
-                    exists to avoid: finishing there writes `model`,
-                    `diarization` and `editor_model` for somebody who opened a
-                    list to look at it.
+                <div className="dialog-footer">
+                  <button className="button" onClick={() => api.cancelDownload()}>
+                    {t("common.stop")}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                {selected.length > 0 && (
+                  <DownloadListing
+                    ids={selected}
+                    items={items}
+                    progress={progress}
+                    view={view}
+                    onView={setView}
+                  />
+                )}
 
-                    It used to read `manualFrom ?? STEP_CHOICE`, and the guided
-                    run was the only caller that ever set `manualFrom`. With
-                    that gone the fallback was all that was left, and the
-                    fallback was the wrong answer. */}
-                <button
-                  className="button quiet"
-                  onClick={() => (manual ? onBack() : setStep(STEP_CHOICE))}
-                >
-                  {t("common.back")}
-                </button>
-                {selected.length === 0 ? (
-                  /* `Jdeme přepisovat` stood here — *to tlačítko je zbytečné* —
-                     and it is `Zavřít` rather than deleted, which was checked
-                     before touching it: this is the only other button on the
-                     screen, so removing it leaves `Zpět` alone and no way to
-                     finish a guided run on a machine that already has
-                     everything. What it does is close the wizard, and closing
-                     is what the finished screen's own button says two steps
-                     further on. Writing the settings on the way out is not a
-                     second action to name: `dokonci([])` records the answer to
-                     the one question, which is true whether or not anything had
-                     to be fetched. */
-                  <button
-                    className="button primary"
-                    onClick={async () => {
-                      await dokonci([]);
-                      onComplete();
-                    }}
-                  >
+                <div className="dialog-footer">
+                  <button className="button quiet" onClick={() => setStep(STEP_CHOICE)}>
+                    {t("common.back")}
+                  </button>
+                  {selected.length === 0 ? (
+                    /* `Jdeme přepisovat` stood here — *to tlačítko je
+                       zbytečné* — and it is `Zavřít` rather than deleted, which
+                       was checked before touching it: removing it leaves `Zpět`
+                       alone and no way to finish a guided run on a machine that
+                       already has everything. Writing the settings on the way
+                       out is not a second action to name: `dokonci([])` records
+                       the answer to the one question, which is true whether or
+                       not anything had to be fetched. */
+                    <button
+                      className="button primary"
+                      onClick={async () => {
+                        await dokonci([]);
+                        onComplete();
+                      }}
+                    >
+                      {t("common.close")}
+                    </button>
+                  ) : (
+                    <button className="button primary" onClick={start}>
+                      {t("wizard.download.downloadWithSize", { size: dataSize(totalMb) })}
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
+          </>
+        )}
+
+        {/* ------------------------------------------------ 2. conclusion */}
+        {step === STEP_DONE && (
+          <>
+            {failedIds.length === 0 ? (
+              <>
+                <h2 id="setup-dialog-title">{t("common.done")}</h2>
+                <p>{t("wizard.done.introReady")}</p>
+                {/* `.step-outro` centred all of this on the screen it replaced.
+                    A dialog is already the middle of the window, and centred
+                    prose inside one reads as a certificate. */}
+                <p className="small-text">
+                  {tabHint[0]}
+                  {/* i18n-ignore: the key is labelled F3 on every keyboard */}
+                  <strong>F3</strong>
+                  {tabHint[1] ?? ""}
+                </p>
+                <div className="dialog-footer">
+                  <button className="button primary" onClick={onComplete}>
                     {t("common.close")}
                   </button>
-                ) : (
-                  <button className="button primary" onClick={start}>
-                    {t("wizard.download.downloadWithSize", { size: dataSize(totalMb) })}
+                </div>
+              </>
+            ) : (
+              <>
+                <h2 id="setup-dialog-title">
+                  {t(canTranscribe ? "wizard.done.almostTitle" : "wizard.done.failedTitle")}
+                </h2>
+                <p>
+                  {canTranscribe ? t("wizard.done.partialIntro") : t("wizard.done.missingIntro")}
+                </p>
+
+                <ul className="summary">
+                  {failedIds.map((id) => (
+                    <li key={id} className="selhala">
+                      <span>{itemName(id)}</span>
+                      <span className="small-text">
+                        {progress[id]?.message ? progressMessage(progress[id].message!) : ""}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+
+                {canTranscribe && <p className="small-text">{t("wizard.done.addLater")}</p>}
+
+                <div className="dialog-footer">
+                  <button
+                    className="button quiet"
+                    onClick={() => {
+                      setProgress({});
+                      setStep(STEP_DOWNLOAD);
+                    }}
+                  >
+                    {t("wizard.done.backToSelection")}
                   </button>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* ------------------------------------------------ 5. conclusion */}
-      {step === STEP_DONE && (
-        <div className={`step ${failedIds.length === 0 ? "step-outro" : ""}`}>
-          {failedIds.length === 0 ? (
-            <>
-              <h1>{t("common.done")}</h1>
-              <p className="step-intro">{t("wizard.done.introReady")}</p>
-              <p className="small-text">
-                {tabHint[0]}
-                {/* i18n-ignore: the key is labelled F3 on every keyboard */}
-                <strong>F3</strong>
-                {tabHint[1] ?? ""}
-              </p>
-              <div className="step-footer">
-                <button className="button primary" onClick={onComplete}>
-                  {t("common.close")}
-                </button>
-              </div>
-            </>
-          ) : (
-            <>
-              <h1>{t(canTranscribe ? "wizard.done.almostTitle" : "wizard.done.failedTitle")}</h1>
-              <p className="step-intro">
-                {canTranscribe ? t("wizard.done.partialIntro") : t("wizard.done.missingIntro")}
-              </p>
-
-              <ul className="summary">
-                {failedIds.map((id) => (
-                  <li key={id} className="selhala">
-                    <span>{itemName(id)}</span>
-                    <span className="small-text">
-                      {progress[id]?.message ? progressMessage(progress[id].message!) : ""}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-
-              {canTranscribe && <p className="small-text">{t("wizard.done.addLater")}</p>}
-
-              <div className="step-footer">
-                <button
-                  className="button quiet"
-                  onClick={() => {
-                    setProgress({});
-                    setStep(STEP_DOWNLOAD);
-                  }}
-                >
-                  {t("wizard.done.backToSelection")}
-                </button>
-                <button
-                  className={`button ${canTranscribe ? "" : "primary"}`}
-                  onClick={retry}
-                >
-                  {t("common.retry")}
-                </button>
-                {canTranscribe && (
-                  <button className="button primary" onClick={onComplete}>
-                    {t("wizard.done.continueAnyway")}
+                  <button className={`button ${canTranscribe ? "" : "primary"}`} onClick={retry}>
+                    {t("common.retry")}
                   </button>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-      )}
-      <ConfirmationDialog
-        query={confirmation}
-        onClose={() => setConfirmation(null)}
-        onError={setError}
-      />
-    </main>
+                  {canTranscribe && (
+                    <button className="button primary" onClick={onComplete}>
+                      {t("wizard.done.continueAnyway")}
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
+          </>
+        )}
+      </div>
+    </div>
   );
 }
 

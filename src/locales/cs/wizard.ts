@@ -10,16 +10,33 @@ export const csWizard = {
 
   // ------------------------------------------------------------------ 1. quality
   "wizard.quality.title": "Rychle, nebo přesně?",
-  "wizard.quality.introGpu": "Odhady časů platí pro grafickou kartu v tomto počítači.",
-  "wizard.quality.introCpu": "Poběží to na procesoru, takže odhady jsou vyšší, než byste čekali.",
+  // What was found in this computer, in one sentence over the two cards. Four
+  // of them, because the graphics card and the memory are two facts that can
+  // each be missing — and a machine that will not say how much memory it has
+  // gets the shorter sentence rather than a number nobody read.
+  //
+  // `wizard.quality.introGpu` and `introCpu` stood here and are retired with
+  // this block. They said the estimates were for the graphics card in this
+  // computer; these say what the computer is.
+  "wizard.quality.machineChecking": "Zjišťuji, co je v tomto počítači.",
+  "wizard.quality.machineGpu":
+    "V tomto počítači je grafická karta, takže přepis poběží na ní.",
+  "wizard.quality.machineGpuMemory":
+    "V tomto počítači je grafická karta a {memory} paměti, takže přepis poběží na kartě.",
+  "wizard.quality.machineCpu":
+    "V tomto počítači není podporovaná grafická karta, takže přepis poběží na procesoru.",
+  "wizard.quality.machineCpuMemory":
+    "V tomto počítači není podporovaná grafická karta a je v něm {memory} paměti, takže přepis poběží na procesoru.",
   "wizard.quality.fastestName": "Rychlý",
   "wizard.quality.bestName": "Přesný",
-  "wizard.quality.fastestSummary":
-    "Hodinová nahrávka {duration}. Přepis může být proti zvuku posunutý až o tři sekundy, takže kliknutí na slovo netrefí přesné místo.",
-  "wizard.quality.bestSummary":
-    "Hodinová nahrávka {duration}. Kliknutí na slovo přehraje zvuk přesně od něj.",
+  "wizard.quality.cost": "Hodinová nahrávka {duration}, ke stažení {size}.",
+  "wizard.quality.costHave": "Hodinová nahrávka {duration}.",
+  "wizard.quality.reasonGpu":
+    "Doporučeno pro tento počítač — na grafické kartě zvládne i větší model hodinu nahrávky bez dlouhého čekání.",
+  "wizard.quality.reasonCpu":
+    "Doporučeno pro tento počítač — bez grafické karty by větší model běžel podstatně déle.",
   "wizard.quality.changeableNote":
-    "Model lze změnit i později v nastavení. Už hotové přepisy se tím ale nepřepočítají.",
+    "Časy jsou hrubý odhad, ne měření. Model lze změnit i později v nastavení, už hotové přepisy se tím ale nepřepočítají.",
 
   // The speaker step and the language-editing step are gone, and so are their
   // words. Speaker recognition comes down with everything else and is switched
@@ -30,7 +47,11 @@ export const csWizard = {
   // ------------------------------------------------------ 4. choosing and downloading
   "wizard.download.failedTitle": "Stahování selhalo",
   "wizard.download.dismissError": "Rozumím",
-  "wizard.download.recommendedBadge": "doporučeno",
+  // `wizard.download.recommendedBadge` — the bare word `doporučeno` in a pill —
+  // is retired. A recommendation that names no reason is an assertion, and this
+  // screen now knows enough about the machine to make it an argument:
+  // `wizard.quality.reasonGpu` and `reasonCpu` say which fact about this
+  // computer the recommendation rests on.
   "wizard.download.downloadedBadge": "staženo",
   "wizard.download.runningTitle": "Probíhá stahování",
   "wizard.download.reviewTitle": "Co se stáhne",
@@ -88,7 +109,10 @@ export const csWizard = {
   "wizard.done.continueAnyway": "Pokračovat bez toho",
 
   // ---------------------------------------------------------------- navigation
-  "wizard.nav.stepCounter": "Krok {step} z {total}",
+  // `wizard.nav.stepCounter` — `Krok {step} z {total}` — is retired with the
+  // segmented bar it stood under. The guided run is a dialog over the archive
+  // now, and a three-segment walk drawn over a two-press errand was ceremony;
+  // the download step has a bar of its own, which reports something real.
 } as const;
 
 export const csWizardContext: Partial<Record<keyof typeof csWizard, string>> = {
@@ -98,15 +122,52 @@ export const csWizardContext: Partial<Record<keyof typeof csWizard, string>> = {
     "Název volby kvality přepisu, ne název modelu. Nejmenší a nejrychlejší model Whisper.",
   "wizard.quality.bestName": "Název volby kvality přepisu: nejpřesnější a zároveň nejpomalejší.",
   "wizard.quality.changeableNote":
-    "Poznámka pod kartami. Říká, že volba není nevratná, ale že se zpětně neprojeví na už hotových přepisech.",
-  "wizard.quality.fastestSummary":
-    "Popis volby. {duration} je odhad doby přepisu, například „asi minutu“ nebo „asi 8 minut“.",
-  "wizard.quality.bestSummary":
-    "Popis volby. {duration} je odhad doby přepisu, například „asi 35 minut“.",
+    "Poznámka pod kartami, dvě věty a obě jsou tam schválně. První: časy na " +
+    "kartách nikdo neměřil, jsou to odhady z roku 2026 a na každém počítači " +
+    "vyjdou jinak — nesmí se z ní stát tvrzení, že jsou změřené. Druhá: volba " +
+    "není nevratná, ale zpětně se neprojeví na už hotových přepisech.",
+  "wizard.quality.machineChecking":
+    "Věta nad kartami, než dorazí odpověď z počítače. Trvá zlomek vteřiny; je " +
+    "tam proto, aby obrazovka po tu chvíli netvrdila, že grafickou kartu " +
+    "nenašla. První osoba jednotného čísla jako u „Připravuji“ a „Načítám“.",
+  "wizard.quality.machineGpu":
+    "Věta nad kartami: co aplikace v tomto počítači našla. Tahle varianta je " +
+    "pro počítač s grafickou kartou, který ale neřekl, kolik má paměti — " +
+    "číslo se v takovém případě nedoplňuje ani neodhaduje, věta se prostě " +
+    "zkrátí. Karta se nejmenuje (NVIDIA, Vulkan): aplikace nikde neříká " +
+    "čtenáři jméno sestavení, protože s ním stejně nic nedělá.",
+  "wizard.quality.machineGpuMemory":
+    "Táž věta, když počítač řekl i kolik má paměti. {memory} je celé číslo " +
+    "s jednotkou, například „16 GB“ — zaokrouhlené na to, co je napsané na " +
+    "krabici. Druhá půlka věty je ta podstatná: říká, proč jsou časy na " +
+    "kartách pod ní takové, jaké jsou.",
+  "wizard.quality.machineCpu":
+    "Táž věta pro počítač bez podporované grafické karty, který neřekl, kolik " +
+    "má paměti. „Podporovaná“ je přesné slovo — karta v počítači být může, ale " +
+    "bez ovladače, se kterým aplikace umí počítat.",
+  "wizard.quality.machineCpuMemory":
+    "Táž věta pro počítač bez podporované grafické karty, který řekl, kolik má " +
+    "paměti. {memory} je celé číslo s jednotkou, například „16 GB“.",
+  "wizard.quality.cost":
+    "Poslední řádek karty: co ta volba stojí na tomhle počítači. {duration} je " +
+    "odhad doby přepisu hodinové nahrávky, například „asi minutu“ nebo „asi 35 " +
+    "minut“ — ta čísla nikdo neměřil, viz poznámku pod kartami. {size} je " +
+    "velikost modelu ke stažení, například „3,0 GB“.",
+  "wizard.quality.costHave":
+    "Týž řádek u modelu, který v počítači už je: velikost se nevypisuje, " +
+    "protože stažení nic nestojí. Že je stažený, říká odznak u názvu.",
+  "wizard.quality.reasonGpu":
+    "Řádek na doporučené kartě, na počítači s grafickou kartou. Nahradil odznak " +
+    "„doporučeno“ — ten jen tvrdil, tohle říká proč, a to proč je fakt o tomhle " +
+    "počítači. „Větší model“ je ten přesný; jmenovat ho tu znovu by opakovalo " +
+    "název karty o tři řádky výš.",
+  "wizard.quality.reasonCpu":
+    "Týž řádek, když v počítači není podporovaná grafická karta, takže se " +
+    "doporučuje rychlý model. „Podstatně déle“ je schválně bez čísla: poměr " +
+    "mezi těmi dvěma časy je odhad jako ony samy, a číslo by z něj udělalo " +
+    "měření.",
 
   "wizard.download.dismissError": "Tlačítko, kterým uživatel zavře hlášku o selhaném stahování.",
-  "wizard.download.recommendedBadge":
-    "Odznak u doporučené volby. Malé písmeno a krátký tvar jsou záměr, je to štítek, ne věta.",
   "wizard.download.downloadedBadge":
     "Odznak u volby, jejíž součásti už jsou na disku. Malé písmeno je záměr.",
   "wizard.download.reviewTitle":
@@ -216,6 +277,4 @@ export const csWizardContext: Partial<Record<keyof typeof csWizard, string>> = {
   "wizard.done.backToSelection": "Tlačítko zpět na pátý krok, kde se vybírá, co se má stáhnout.",
   "wizard.done.continueAnyway":
     "Tlačítko, kterým uživatel zavře průvodce, přestože se něco nestáhlo.",
-
-  "wizard.nav.stepCounter": "Číslo kroku nad nadpisem, například „Krok 2 z 5“.",
 };
