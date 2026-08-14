@@ -164,6 +164,9 @@ export const csErrors = {
   "errors.ai.unknown_translation_language":
     "Jazyková úprava selhala: neznámý cílový jazyk překladu",
   "errors.ai.unknown_output_kind": "Jazyková úprava selhala: neznámý druh jazykového výstupu",
+  "errors.ai.empty_prompt": "Napište prosím pokyn, podle kterého má model dokument vytvořit.",
+  "errors.ai.prompt_too_long":
+    "Pokyn je příliš dlouhý. Vejde se do něj nejvýše {limit} znaků.",
   "errors.ai.server_launch_failed":
     "Jazyková úprava selhala: nelze spustit místní jazykový server",
   "errors.ai.server_exited_while_loading":
@@ -212,6 +215,12 @@ export const csErrorsContext: Partial<Record<keyof typeof csErrors, string>> = {
     "„jen je“ nejde. Nemluv o chybě — je to hranice, ne porucha.",
   "errors.download.remove_failed":
     "Mazání selhalo na úrovni disku. {detail} je hlášení systému, nepřekládá se.",
+  "errors.ai.empty_prompt":
+    "Odmítnutí, když má vzniknout dokument podle vlastního pokynu a pokyn není napsaný. " +
+    "Prázdný pokyn se modelu neposílá. Tlačítko v okně je v takové chvíli vypnuté; tohle je pojistka.",
+  "errors.ai.prompt_too_long":
+    "{limit} je největší povolený počet znaků pokynu, číslo. Pokyn se posílá s každou částí " +
+    "přepisu, proto má strop.",
   "errors.tools.whisper_model_missing":
     "{model} je název přepisovacího modelu, například large-v3. Soubor se jmenuje ggml-<model>.bin, název souboru nepřekládej.",
   "errors.tools.vad_model_missing":

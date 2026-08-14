@@ -239,6 +239,19 @@ pub struct Settings {
     /// skipped and no background model is downloaded or loaded.
     #[serde(default)]
     pub editor_model: String,
+    /// The instruction last written for a custom-prompt document.
+    ///
+    /// One per installation, not one per recording: it says how this person
+    /// wants documents made — minutes with tasks, questions and answers, a
+    /// letter — and the recording they open tomorrow is where they want the
+    /// same thing again. The results are kept per recording and keyed by the
+    /// instruction that made them; this is only what the field is filled with
+    /// when the dialog opens, so nobody has to remember their own wording.
+    ///
+    /// Empty means nobody has written one. Serde default, so a settings record
+    /// written before 14 August 2026 still loads.
+    #[serde(default)]
+    pub custom_prompt: String,
     #[serde(alias = "jazyk")]
     pub language: String,
     /// Kept so that a settings file written before 13 August 2026 still loads,
@@ -380,6 +393,7 @@ impl Default for Settings {
             // Nobody has been asked yet; the wizard writes it.
             quality_choice: String::new(),
             editor_model: String::new(),
+            custom_prompt: String::new(),
             language: "auto".into(),
             // Always on: without it Whisper hallucinates over silence.
             vad: true,
@@ -944,6 +958,28 @@ pub fn open(path: &std::path::Path) -> Result<Connection> {
             PRIMARY KEY (recording_id, kind, variant)
         );
 
+        -- A document made by an instruction the reader wrote themselves.
+        --
+        -- It hangs off the recording rather than off `ai_documents`, which is
+        -- what summaries and translations do. Two reasons: the instruction is
+        -- given about the recording, so the timed transcript is its source;
+        -- and it is asked for from the dialog that offers to make the improved
+        -- transcript, which is exactly the moment when no improved transcript
+        -- exists yet. Hanging it off the document would have made regenerating
+        -- or discarding that document take this one with it.
+        --
+        -- Keyed by the instruction, so rewording asks a new question instead of
+        -- overwriting the answer to the old one.
+        CREATE TABLE IF NOT EXISTS ai_custom_documents (
+            recording_id  TEXT NOT NULL REFERENCES recordings(id) ON DELETE CASCADE,
+            prompt        TEXT NOT NULL,
+            source_hash   TEXT NOT NULL,
+            model         TEXT NOT NULL,
+            text          TEXT NOT NULL,
+            updated_at    TEXT NOT NULL,
+            PRIMARY KEY (recording_id, prompt)
+        );
+
         -- What the watched folder has already been answered about. The record
         -- outlives the archive card: deleting a recording is a decision about
         -- the archive, not an instruction to offer its source file again.
@@ -1007,6 +1043,20 @@ pub struct AiOutput {
     pub model: String,
     pub text: String,
     pub updated_at: String,
+}
+
+/// One answer to one instruction, for one recording.
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct AiCustomDocument {
+    pub recording_id: String,
+    pub prompt: String,
+    pub source_hash: String,
+    pub model: String,
+    pub text: String,
+    pub updated_at: String,
+    /// Whether the transcript has been rewritten since this was made. The row
+    /// cannot know; `ai_edit_status` fills it in, as it does for `AiDocument`.
+    pub stale: bool,
 }
 
 pub fn ai_document(db: &Connection, recording_id: &str) -> Result<Option<AiDocument>> {
@@ -1096,6 +1146,48 @@ pub fn save_ai_output(db: &Connection, output: &AiOutput) -> Result<()> {
             output.model,
             output.text,
             output.updated_at,
+        ],
+    )?;
+    Ok(())
+}
+
+pub fn ai_custom_documents(db: &Connection, recording_id: &str) -> Result<Vec<AiCustomDocument>> {
+    let mut statement = db.prepare(
+        "SELECT recording_id, prompt, source_hash, model, text, updated_at
+         FROM ai_custom_documents WHERE recording_id = ?1 ORDER BY updated_at DESC",
+    )?;
+    let rows = statement.query_map(params![recording_id], |row| {
+        Ok(AiCustomDocument {
+            recording_id: row.get(0)?,
+            prompt: row.get(1)?,
+            source_hash: row.get(2)?,
+            model: row.get(3)?,
+            text: row.get(4)?,
+            updated_at: row.get(5)?,
+            stale: false,
+        })
+    })?;
+    rows.collect::<std::result::Result<Vec<_>, _>>()
+        .map_err(Into::into)
+}
+
+pub fn save_ai_custom_document(db: &Connection, document: &AiCustomDocument) -> Result<()> {
+    db.execute(
+        "INSERT INTO ai_custom_documents
+         (recording_id, prompt, source_hash, model, text, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+         ON CONFLICT(recording_id, prompt) DO UPDATE SET
+           source_hash = excluded.source_hash,
+           model = excluded.model,
+           text = excluded.text,
+           updated_at = excluded.updated_at",
+        params![
+            document.recording_id,
+            document.prompt,
+            document.source_hash,
+            document.model,
+            document.text,
+            document.updated_at,
         ],
     )?;
     Ok(())

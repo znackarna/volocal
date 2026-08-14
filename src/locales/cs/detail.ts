@@ -15,6 +15,8 @@ export const csDetail = {
   "detail.header.improveButton": "Vylepšit",
   "detail.header.improvedButton": "Vylepšený přepis",
   "detail.header.staleHint": "Otevřít uložený výsledek; přepis nebo model se mezitím změnil",
+  "detail.header.speakersMissing":
+    "Součásti pro rozpoznání mluvčích zatím nejsou stažené. Tlačítko otevře jejich stažení.",
   "detail.header.newTranscript": "Nový přepis",
   "detail.header.deleteTranscriptTitle": "Smazat přepis?",
   "detail.header.deleteTranscriptText":
@@ -32,6 +34,7 @@ export const csDetail = {
   "detail.progress.preparingModel": "Připravuji jazykový model",
   "detail.progress.preparingSummary": "Připravuji shrnutí",
   "detail.progress.preparingTranslation": "Připravuji překlad",
+  "detail.progress.preparingCustom": "Připravuji dokument podle vašeho pokynu",
   "detail.progress.cancelTranscription": "Zrušit přepis",
   "detail.progress.cancelDiarization": "Zrušit rozpoznávání mluvčích",
   "detail.progress.cancelAi": "Zrušit jazykové zpracování",
@@ -132,15 +135,10 @@ export const csDetail = {
   "detail.ai.configureText": "Vytvoří nový dokument. Původní přepis zůstane beze změny.",
   "detail.ai.modeFaithful": "Věrná úprava",
   "detail.ai.modeFaithfulDescription": "Opraví interpunkci, odstavce a chyby.",
-  "detail.ai.modeSpeakers": "Rozpoznání mluvčích",
-  "detail.ai.modeSpeakersDescription": "Rozdělí přepis mezi jednotlivé mluvčí podle hlasu.",
-  "detail.ai.modeSpeakersMissing": "Součásti pro rozpoznání mluvčích zatím nejsou stažené.",
-  "detail.ai.modeSpeakersDone": "Spustí rozpoznání znovu od začátku.",
-  "detail.ai.speakersDoneBadge": "hotovo",
-  "detail.ai.startSpeakersAgain": "Rozpoznat znovu",
-  "detail.ai.startSpeakers": "Rozpoznat mluvčí",
   "detail.ai.modeClean": "Vylepšená úprava",
   "detail.ai.modeCleanDescription": "Odstraní zjevná opakování, přeřeknutí a slovní vatu.",
+  "detail.ai.modeCustom": "Vlastní prompt",
+  "detail.ai.modeCustomDescription": "Napíšete vlastní pokyn a model se jím bude řídit.",
   "detail.ai.recommended": "doporučeno",
   "detail.ai.configureNote": "Během úpravy můžete dál číst nebo přehrávat nahrávku.",
   "detail.ai.startEdit": "Vylepšit přepis",
@@ -154,6 +152,7 @@ export const csDetail = {
   "detail.preview.transcriptTab": "Přepis",
   "detail.preview.summaryTab": "Shrnutí",
   "detail.preview.translationTab": "Překlad",
+  "detail.preview.customTab": "Vlastní prompt",
   "detail.preview.versionLabel": "Verze přepisu",
   "detail.preview.versionImproved": "Vylepšený",
   "detail.preview.versionOriginal": "Původní",
@@ -163,6 +162,7 @@ export const csDetail = {
   "detail.preview.regenerateImproved": "Vylepšit znovu",
   "detail.preview.regenerateSummary": "Vytvořit znovu",
   "detail.preview.regenerateTranslation": "Přeložit znovu",
+  "detail.preview.regenerateCustom": "Zpracovat znovu",
   "detail.preview.copyFailed": "Text se nepodařilo zkopírovat do schránky.",
 
   "detail.summaryLength.short": "Stručné",
@@ -185,14 +185,30 @@ export const csDetail = {
   "detail.translation.emptyText": "Překlad zachová odstavce, jména, čísla i popisky mluvčích.",
   "detail.translation.create": "Vytvořit překlad",
 
+  // The label, the example and the sentence about the model stand both in the
+  // dialog and in the tab of the preview window. One key each, so the two
+  // cannot start saying it differently.
+  "detail.custom.label": "Váš pokyn",
+  "detail.custom.placeholder": "Například: Sepište z přepisu zápis z porady s úkoly a termíny.",
+  "detail.custom.privacy":
+    "Pokyn i přepis zpracuje jazykový model přímo ve vašem počítači. Ven neodejde nic.",
+  "detail.custom.create": "Vytvořit dokument",
+  "detail.custom.title": "Dokument podle vašeho pokynu",
+  "detail.custom.subtitle": "Vznikne nový dokument, přepis zůstane beze změny.",
+  "detail.custom.emptyText": "Napište výše, co má model s přepisem udělat.",
+  "detail.custom.staleWarning":
+    "Přepis se od vytvoření tohoto dokumentu změnil. Starší výsledek můžete stále uložit, nebo ho vytvořit znovu.",
+
   "detail.saved.improved": "Vylepšený přepis byl uložen do {path}.",
   "detail.saved.summary": "Shrnutí byl uložen do {path}.",
   "detail.saved.translation": "Překlad byl uložen do {path}.",
+  "detail.saved.custom": "Dokument byl uložen do {path}.",
 
   "detail.copied.improved": "Vylepšený přepis byl zkopírován do schránky.",
   "detail.copied.original": "Původní přepis byl zkopírován do schránky.",
   "detail.copied.summary": "Shrnutí byl zkopírován do schránky.",
   "detail.copied.translation": "Překlad byl zkopírován do schránky.",
+  "detail.copied.custom": "Dokument byl zkopírován do schránky.",
 
   // Single quotes so the typographic and straight quotation marks of the
   // original copy survive without escaping.
@@ -217,9 +233,6 @@ export const csDetail = {
 } as const;
 
 export const csDetailContext: Partial<Record<keyof typeof csDetail, string>> = {
-  "detail.ai.modeSpeakers":
-    "Volba v dialogu vedle úprav textu. Na rozdíl od nich nejde o jazykový model, ale o rozdělení přepisu mezi mluvčí podle hlasu.",
-  "detail.ai.startSpeakers": "Hlavní tlačítko dialogu, když je vybrané rozpoznání mluvčích.",
   "detail.format.txt": "Popis formátu TXT v nabídce uložení: prostý text bez formátování.",
   "detail.format.md": "Popis formátu MD. Název značkovacího jazyka Markdown, nepřekládá se.",
   "detail.format.srt": "Popis formátu SRT: titulky s časy pro přehrávače videa.",
@@ -299,10 +312,6 @@ export const csDetailContext: Partial<Record<keyof typeof csDetail, string>> = {
     "Tlačítko spustí rozpoznání jednotlivých mluvčích v nahrávce (diarizaci).",
   "detail.speakers.diarizeAgain": "Totéž jako „Rozpoznat mluvčí“, ale jednou už rozpoznaní byli.",
   "detail.speakers.diarizing": "Stav během rozpoznávání mluvčích. První osoba, průběh.",
-  "detail.ai.modeSpeakersDone":
-    "Popis karty rozpoznání mluvčích, když už jednou proběhlo.",
-  "detail.ai.speakersDoneBadge": "Odznak na kartě: rozpoznání mluvčích už proběhlo.",
-  "detail.ai.startSpeakersAgain": "Potvrzovací tlačítko, když mluvčí už rozpoznaní byli.",
   "detail.speakers.playSample":
     "Popisek tlačítka, které přehraje kousek řeči daného mluvčího, aby šlo poznat, kdo to je.",
   "detail.speakers.nameLabel":
@@ -368,20 +377,43 @@ export const csDetailContext: Partial<Record<keyof typeof csDetail, string>> = {
   "detail.ai.configureTitle": "Nadpis dialogu, který nastavuje úpravu přepisu jazykovým modelem.",
   "detail.ai.modeFaithful": "Režim úpravy, který nemění formulace, jen je opraví.",
   "detail.ai.modeClean": "Režim úpravy, který text i přeformuluje do čitelnější podoby.",
+  "detail.ai.modeCustom":
+    "Volba, u které pokyn pro model napíše sám uživatel. „Prompt“ je zavedené slovo pro zadání jazykovému modelu a nepřekládá se.",
+  "detail.ai.modeCustomDescription": "Popis karty s vlastním pokynem.",
   "detail.ai.recommended": "Odznak u doporučené volby. Malé písmeno záměrně.",
   "detail.ai.startEdit": "Potvrzovací tlačítko dialogu, spustí jazykovou úpravu.",
+
+  "detail.custom.label": "Popisek pole, do kterého uživatel píše vlastní pokyn pro model.",
+  "detail.custom.placeholder":
+    "Šedý text v prázdném poli pro vlastní pokyn. Ukázka toho, co si lze vyžádat.",
+  "detail.custom.privacy":
+    "Věta pod polem pro vlastní pokyn. Ubezpečení, že model běží v počítači uživatele — právě u vlastního pokynu lidé předpokládají službu na internetu.",
+  "detail.custom.create": "Tlačítko spustí zpracování přepisu podle napsaného pokynu.",
+  "detail.custom.title":
+    "Název dokumentu, který vznikl podle vlastního pokynu. Nadpis okna i prázdné záložky.",
+  "detail.custom.subtitle":
+    "Věta pod tím nadpisem. Říká, že vzniká nový dokument a přepis zůstává nedotčený.",
+  "detail.custom.emptyText": "Pobídka v prázdné záložce: pokyn se píše do pole nad ní.",
+  "detail.custom.staleWarning":
+    "Upozornění nad dokumentem, který vznikl z jiné podoby přepisu, než jaká je v archivu teď.",
+  "detail.header.speakersMissing":
+    "Popisek tlačítka Rozpoznat mluvčí, když k tomu chybí stažené součásti.",
 
   "detail.preview.title": "Nadpis náhledu upravené verze přepisu.",
   "detail.preview.closeLabel": "Popisek křížku, který zavře náhled dokumentu.",
   "detail.preview.transcriptTab": "Záložka náhledu s celým textem přepisu.",
   "detail.preview.summaryTab": "Záložka náhledu se shrnutím obsahu nahrávky.",
   "detail.preview.translationTab": "Záložka náhledu s překladem do jiného jazyka.",
+  "detail.preview.customTab":
+    "Záložka náhledu s dokumentem podle vlastního pokynu uživatele. „Prompt“ se nepřekládá.",
   "detail.preview.versionImproved":
     "Přepínač verze textu: upravená verze. Rod se řídí slovem „přepis“.",
   "detail.preview.versionOriginal":
     "Přepínač verze textu: verze přímo z rozpoznávání řeči. Rod se řídí slovem „přepis“.",
   "detail.preview.discard": "Tlačítko zahodí upravenou verzi přepisu. Původní přepis zůstane.",
   "detail.preview.regenerateSummary": "Tlačítko nechá shrnutí vytvořit znovu.",
+  "detail.preview.regenerateCustom":
+    "Tlačítko spustí zpracování podle téhož pokynu znovu a nahradí předchozí výsledek.",
 
   "detail.summaryLength.short": "Délka shrnutí: nejkratší volba. Rod se řídí slovem „shrnutí“.",
   "detail.summaryLength.shortDescription": "Popisek u volby délky shrnutí. Věta nezačíná.",
@@ -392,6 +424,9 @@ export const csDetailContext: Partial<Record<keyof typeof csDetail, string>> = {
 
   "detail.saved.summary": "Potvrzení po uložení shrnutí. {path} je cesta k souboru.",
   "detail.saved.translation": "Potvrzení po uložení překladu. {path} je cesta k souboru.",
+  "detail.saved.custom":
+    "Potvrzení po uložení dokumentu podle vlastního pokynu. {path} je cesta k souboru.",
+  "detail.copied.custom": "Potvrzení po zkopírování dokumentu podle vlastního pokynu.",
 
   "detail.dictionary.prompt":
     "Nabídka po ruční opravě jednoho slova. {from} je původní slovo, {to} opravené.",

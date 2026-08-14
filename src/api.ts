@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
+  AiCustomDocument,
   AiDocument,
   AiEditProgress,
   AiOutput,
@@ -133,6 +134,7 @@ export const api = {
     invoke<{
       document: AiDocument | null;
       outputs: AiOutput[];
+      custom: AiCustomDocument[];
       running: boolean;
       progress: AiEditProgress | null;
     }>(
@@ -141,7 +143,9 @@ export const api = {
     ),
   startAiEdit: (id: string, mode: "faithful" | "clean") =>
     invoke<void>("start_ai_edit", { id, mode }),
-  startAiOutput: (id: string, kind: "summary" | "translation", variant: string) =>
+  /** For `custom`, `variant` is the instruction itself rather than the name of
+   *  a prepared choice — see `start_ai_output` in `commands/ai.rs`. */
+  startAiOutput: (id: string, kind: "summary" | "translation" | "custom", variant: string) =>
     invoke<void>("start_ai_output", { id, kind, variant }),
   cancelAiEdit: (id: string) => invoke<void>("cancel_ai_edit", { id }),
   deleteAiDocument: (id: string) => invoke<void>("delete_ai_document", { id }),
@@ -151,14 +155,14 @@ export const api = {
     invoke<string>("suggested_ai_name", { id, format }),
   saveAiOutput: (
     id: string,
-    kind: "summary" | "translation",
+    kind: "summary" | "translation" | "custom",
     variant: string,
     format: "txt" | "md",
     path: string
   ) => invoke<string>("save_ai_output", { id, kind, variant, format, path }),
   suggestedAiOutputName: (
     id: string,
-    kind: "summary" | "translation",
+    kind: "summary" | "translation" | "custom",
     variant: string,
     format: "txt" | "md"
   ) => invoke<string>("suggested_ai_output_name", { id, kind, variant, format }),

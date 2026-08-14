@@ -82,6 +82,7 @@ import { MENU_ICONS, TranscriptContextMenu } from "./detail/TranscriptContextMen
 import type { TranscriptMenuItem } from "./detail/TranscriptContextMenu";
 import { MarkedWords, SegmentRow, UncertainEditor, describeEdit } from "./detail/corrections";
 import type {
+  AiCustomDocument,
   AiDocument,
   AiEditProgress,
   AiOutput,
@@ -183,6 +184,14 @@ export default function Detail({
   const [noteTimeDrafts, setNoteTimeDrafts] = useState<Record<string, string>>({});
   const [aiDocument, setAiDocument] = useState<AiDocument | null>(null);
   const [aiOutputs, setAiOutputs] = useState<AiOutput[]>([]);
+  /** Everything this recording has been asked for in somebody's own words,
+   *  each row keyed by the instruction that produced it. */
+  const [aiCustomDocuments, setAiCustomDocuments] = useState<AiCustomDocument[]>([]);
+  /** The instruction in the field right now. It arrives from Settings, where
+   *  the last one written was kept, and goes back there as it is typed. */
+  const [customPrompt, setCustomPrompt] = useState("");
+  /** What Settings last said, so typing is told apart from loading. */
+  const storedPrompt = useRef("");
   const [aiRunning, setAiRunning] = useState(false);
   const [aiProgress, setAiProgress] = useState<AiEditProgress | null>(null);
   const [aiConfigured, setAiConfigured] = useState(false);
@@ -214,7 +223,7 @@ export default function Detail({
   const missingDialog = useDialog<HTMLDivElement>(closeAiDialog, aiDialog === "missing");
   const configureDialog = useDialog<HTMLDivElement>(closeAiDialog, aiDialog === "configure");
   const previewDialog = useDialog<HTMLDivElement>(closeAiDialog, aiDialog === "preview");
-  const [aiMode, setAiMode] = useState<"faithful" | "clean" | "speakers">("faithful");
+  const [aiMode, setAiMode] = useState<"faithful" | "clean" | "custom">("faithful");
   const [previewTab, setPreviewTab] = useState<PreviewTab>("improved");
   const [summaryLength, setSummaryLength] = useState<SummaryLength>("standard");
   const [translationLanguage, setTranslationLanguage] =
@@ -481,8 +490,11 @@ export default function Detail({
       setSourceMissing(!exists);
       setAiDocument(aiStatus.document);
       setAiOutputs(aiStatus.outputs);
+      setAiCustomDocuments(aiStatus.custom);
       setAiRunning(aiStatus.running);
       setAiConfigured(!!settings.editor_model);
+      setCustomPrompt(settings.custom_prompt);
+      storedPrompt.current = settings.custom_prompt;
       setAiReady(!!settings.editor_model && tools.issues_editor.length === 0);
       setSpeakersReady(tools.issues_diarization.length === 0);
       if (aiStatus.running) {
@@ -502,6 +514,30 @@ export default function Detail({
     load();
   }, [load]);
 
+  /* The instruction goes back to Settings as it is typed, not when a run
+     starts. Somebody who writes four sentences, thinks better of it and closes
+     the dialog has still written four sentences, and losing them because they
+     did not press the button is the outcome worth an extra write to avoid.
+     A second of quiet first, so the row is not rewritten per keystroke, and
+     never the value that just came out of Settings. The whole record is read
+     back before it is written, because Settings writes the whole record too
+     and this must not overwrite what is being changed on that screen. */
+  useEffect(() => {
+    if (customPrompt === storedPrompt.current) return;
+    const timer = setTimeout(() => {
+      storedPrompt.current = customPrompt;
+      void (async () => {
+        try {
+          const settings = await api.loadSettings();
+          await api.saveSettings({ ...settings, custom_prompt: customPrompt });
+        } catch (error) {
+          onError(userMessage(error));
+        }
+      })();
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [customPrompt, onError, userMessage]);
+
   useEffect(() => {
     let active = true;
     let unlisten: (() => void) | undefined;
@@ -515,6 +551,7 @@ export default function Detail({
           if (!active) return;
           setAiDocument(status.document);
           setAiOutputs(status.outputs);
+          setAiCustomDocuments(status.custom);
           setAiDialog("preview");
         });
       } else if (event.payload.phase === "error") {
@@ -1427,6 +1464,14 @@ export default function Detail({
       setAiDialog("preview");
       return;
     }
+    /* A document made from somebody's own instruction and no improved
+       transcript: the window is the only way back to it, so the press opens
+       it there rather than at a tab that has nothing to show. */
+    if (aiCustomDocuments.length > 0) {
+      setPreviewTab("custom");
+      setAiDialog("preview");
+      return;
+    }
     if (!aiConfigured || !aiReady) {
       if (editorDownloading) setAiDialog("missing");
       else await askForEditor();
@@ -1434,7 +1479,24 @@ export default function Detail({
     }
     setAiMode("faithful");
     setAiDialog("configure");
-  }, [aiConfigured, aiReady, aiDocument, askForEditor, editorDownloading]);
+  }, [aiConfigured, aiReady, aiCustomDocuments, aiDocument, askForEditor, editorDownloading]);
+
+  /** Speaker recognition, from its own button.
+   *
+   *  It used to be a card in the language-editing dialog, among two ways of
+   *  rewriting the text — and it is not language editing at all: no model is
+   *  loaded, nothing is rewritten, the transcript is divided between the voices
+   *  that produced it. Its own button is what it always was.
+   *
+   *  The components may not be installed. Then the press goes where they are
+   *  fetched, as the card's own `Stáhnout` badge did. */
+  const recognizeSpeakers = useCallback(() => {
+    if (!speakersReady) {
+      onToModule("model-hlasy");
+      return;
+    }
+    diarizeSpeakers();
+  }, [diarizeSpeakers, onToModule, speakersReady]);
 
   /** Yes. Fetch what is missing and record that the feature is wanted.
    *
@@ -1475,20 +1537,12 @@ export default function Detail({
     }
   }, [editorOffer, load, onError, userMessage]);
 
-  const startAiEdit = useCallback(async () => {
-    // Separating speakers is not a language-model pass at all; it shares this
-    // dialog because from the reader's side both are "let the machine work on
-    // this recording". It therefore runs its own way out of here.
-    if (aiMode === "speakers") {
-      setAiDialog(null);
-      if (!speakersReady) {
-        onToModule("model-hlasy");
-        return;
-      }
-      void diarizeSpeakers();
-      return;
-    }
+  /** The improved transcript, in one of the two prepared ways. The mode is
+   *  passed rather than read from state, so the caller — the one place that
+   *  also knows about the third card — says which of the two it means. */
+  const startAiEdit = useCallback(async (mode: "faithful" | "clean") => {
     setAiDialog(null);
+    setPreviewTab("improved");
     setAiRunning(true);
     setAiProgress({
       recording_id: id,
@@ -1497,7 +1551,7 @@ export default function Detail({
       description: localMessage(t("detail.progress.preparingModel")),
     });
     try {
-      await api.startAiEdit(id, aiMode);
+      await api.startAiEdit(id, mode);
       const status = await api.aiEditStatus(id);
       setAiRunning(status.running);
       if (status.progress) setAiProgress(status.progress);
@@ -1505,10 +1559,10 @@ export default function Detail({
       setAiRunning(false);
       onError(userMessage(error));
     }
-  }, [aiMode, diarizeSpeakers, id, onError, onToModule, speakersReady, t, userMessage]);
+  }, [id, onError, t, userMessage]);
 
   const startAiOutput = useCallback(async (
-    kind: "summary" | "translation",
+    kind: "summary" | "translation" | "custom",
     variant: string
   ) => {
     if (!aiConfigured || !aiReady) {
@@ -1525,7 +1579,9 @@ export default function Detail({
       description: localMessage(
         kind === "summary"
           ? t("detail.progress.preparingSummary")
-          : t("detail.progress.preparingTranslation")
+          : kind === "custom"
+            ? t("detail.progress.preparingCustom")
+            : t("detail.progress.preparingTranslation")
       ),
     });
     try {
@@ -1533,12 +1589,35 @@ export default function Detail({
       const status = await api.aiEditStatus(id);
       setAiRunning(status.running);
       setAiOutputs(status.outputs);
+      setAiCustomDocuments(status.custom);
       if (status.progress) setAiProgress(status.progress);
     } catch (error) {
       setAiRunning(false);
       onError(userMessage(error));
     }
   }, [aiConfigured, aiReady, askForEditor, editorDownloading, id, onError, t, userMessage]);
+
+  /** The instruction as it will be stored and looked up: without the spaces
+   *  and newlines a field collects, so the same instruction typed twice is one
+   *  instruction and not two. */
+  const writtenPrompt = customPrompt.trim();
+  /** What this recording already answered to exactly this instruction. Change
+   *  a word of it and this is nothing, which is the honest answer: the text
+   *  below would otherwise be somebody else's question. */
+  const customDocument = aiCustomDocuments.find((document) => document.prompt === writtenPrompt);
+
+  /** Run the reader's own instruction over the transcript.
+   *
+   *  An empty field never starts a run — the buttons that call this are
+   *  disabled without one, and Rust refuses it a second time. Falling back to a
+   *  prepared mode was the alternative and it is worse: a document nobody
+   *  described is a document nobody can trust. */
+  const startCustomDocument = useCallback(() => {
+    const prompt = customPrompt.trim();
+    if (!prompt) return;
+    setPreviewTab("custom");
+    void startAiOutput("custom", prompt);
+  }, [customPrompt, startAiOutput]);
 
   const openOriginalPreview = useCallback(async () => {
     setPreviewTab("original");
@@ -1566,7 +1645,7 @@ export default function Detail({
   );
 
   const saveAiOutput = useCallback(async (
-    kind: "summary" | "translation",
+    kind: "summary" | "translation" | "custom",
     variant: string,
     format: "txt" | "md"
   ) => {
@@ -1578,7 +1657,11 @@ export default function Detail({
       // A whole sentence per kind. Czech declines the verb with the noun, so
       // there is nothing here to assemble from two halves.
       onInfo(t(
-        kind === "summary" ? "detail.saved.summary" : "detail.saved.translation",
+        kind === "summary"
+          ? "detail.saved.summary"
+          : kind === "custom"
+            ? "detail.saved.custom"
+            : "detail.saved.translation",
         { path: destination }
       ));
     } catch (error) {
@@ -1683,7 +1766,9 @@ export default function Detail({
       ? originalPreview
       : previewTab === "summary"
         ? summaryOutput?.text ?? ""
-        : translationOutput?.text ?? "";
+        : previewTab === "custom"
+          ? customDocument?.text ?? ""
+          : translationOutput?.text ?? "";
 
   const copyPreviewText = async () => {
     if (!previewText.trim()) return;
@@ -1698,7 +1783,9 @@ export default function Detail({
             ? "detail.copied.original"
             : previewTab === "summary"
               ? "detail.copied.summary"
-              : "detail.copied.translation"
+              : previewTab === "custom"
+                ? "detail.copied.custom"
+                : "detail.copied.translation"
       ));
     } catch (error) {
       onError(error instanceof ClipboardRefused
@@ -1714,6 +1801,8 @@ export default function Detail({
       await exportRecording(format);
     } else if (previewTab === "summary") {
       await saveAiOutput("summary", summaryLength, format);
+    } else if (previewTab === "custom") {
+      await saveAiOutput("custom", writtenPrompt, format);
     } else {
       await saveAiOutput("translation", translationLanguage, format);
     }
@@ -1812,6 +1901,27 @@ export default function Detail({
             />
           )}
           <MiniRecorder onOpen={onOpenRecorder} />
+          {/* Speaker recognition, beside the other things that are done to this
+              recording rather than among the ways of rewriting its text. It
+              was a card in the dialog next door and it never belonged there:
+              nothing is rewritten, no language model is loaded, the transcript
+              is divided between the voices that produced it. The sidebar's
+              section keeps its own action — that one is the way back out of a
+              corner, next to the speakers it would change; this is the way in.
+              Both say the same words, from the same keys. */}
+          <button
+            className="button"
+            onClick={recognizeSpeakers}
+            disabled={segments.length === 0 || running || diarizing || aiRunning}
+            title={speakersReady ? undefined : t("detail.header.speakersMissing")}
+          >
+            <LineIcon name="speakers" size={15} />
+            {diarizing
+              ? t("detail.speakers.diarizing")
+              : speakers.length > 0
+                ? t("detail.speakers.diarizeAgain")
+                : t("detail.speakers.diarize")}
+          </button>
           <button
             className={`button ai-edit-button ${aiDocument ? "ready" : ""}`}
             onClick={openAiAction}
@@ -2777,29 +2887,43 @@ export default function Detail({
                   <span className="small-text">{t("detail.ai.modeCleanDescription")}</span>
                 </span>
               </button>
-              <button className={`choice with-icon ${aiMode === "speakers" ? "chosen" : ""} ${speakersReady ? "" : "missing"}`}
-                      onClick={() => setAiMode("speakers")}>
+              {/* Where speaker recognition stood. Two prepared ways of
+                  rewriting the text, and then the reader's own — the same
+                  question the other two answer, asked of the person who knows
+                  what they want out of this recording. */}
+              <button className={`choice with-icon ${aiMode === "custom" ? "chosen" : ""}`}
+                      onClick={() => setAiMode("custom")}>
                 <span className="choice-icon" aria-hidden>
-                  <LineIcon name="speakers" />
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+                       stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"
+                       strokeLinejoin="round">
+                    <path d="M4 6h10M4 11h6M4 16h5M19.4 10.1l1.6 1.6-6 6-2.2.6.6-2.2 6-6Z" />
+                  </svg>
                 </span>
                 <span className="choice-body">
-                  <span className="choice-title">{t("detail.ai.modeSpeakers")}</span>
-                  <span className="small-text">
-                    {t(
-                      !speakersReady
-                        ? "detail.ai.modeSpeakersMissing"
-                        : speakers.length > 0
-                          ? "detail.ai.modeSpeakersDone"
-                          : "detail.ai.modeSpeakersDescription"
-                    )}
-                  </span>
+                  <span className="choice-title">{t("detail.ai.modeCustom")}</span>
+                  <span className="small-text">{t("detail.ai.modeCustomDescription")}</span>
                 </span>
-                {!speakersReady && <em className="badge actions">{t("common.download")}</em>}
-                {speakersReady && speakers.length > 0 && (
-                  <em className="badge complete">{t("detail.ai.speakersDoneBadge")}</em>
-                )}
               </button>
             </div>
+            {/* The field appears with the card that needs it, rather than
+                standing empty under two cards it has nothing to do with. */}
+            {aiMode === "custom" && (
+              <div className="field ai-custom-field">
+                <label htmlFor="ai-custom-prompt">{t("detail.custom.label")}</label>
+                <textarea
+                  id="ai-custom-prompt"
+                  rows={3}
+                  value={customPrompt}
+                  placeholder={t("detail.custom.placeholder")}
+                  onChange={(event) => setCustomPrompt(event.target.value)}
+                />
+                {/* `Vlastní prompt` is the phrase that makes people assume a
+                    service somewhere on the internet. It is the one place in
+                    this dialog worth a line saying otherwise. */}
+                <p className="small-text">{t("detail.custom.privacy")}</p>
+              </div>
+            )}
             <p className="small-text ai-edit-note">
               <svg className="ai-edit-note-icon" width="16" height="16" viewBox="0 0 16 16"
                    fill="none" aria-hidden>
@@ -2813,28 +2937,36 @@ export default function Detail({
               <button className="button quiet" onClick={() => setAiDialog(null)}>
                 {t("common.cancel")}
               </button>
-              <button className="button primary" onClick={startAiEdit}>
-                {t(aiMode === "speakers"
-                  ? !speakersReady
-                    ? "common.download"
-                    : speakers.length > 0
-                      ? "detail.ai.startSpeakersAgain"
-                      : "detail.ai.startSpeakers"
-                  : "detail.ai.startEdit")}
+              {/* An instruction nobody wrote is not sent to the model, so the
+                  button that would send it cannot be pressed. */}
+              <button className="button primary"
+                      onClick={() =>
+                        aiMode === "custom" ? startCustomDocument() : void startAiEdit(aiMode)
+                      }
+                      disabled={aiMode === "custom" && !writtenPrompt}>
+                {t(aiMode === "custom" ? "detail.custom.create" : "detail.ai.startEdit")}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {aiDialog === "preview" && aiDocument && (
+      {/* The window opens for a document made from an instruction as well as
+          for the improved transcript: without that, the first is written,
+          shown once and unreachable afterwards. */}
+      {aiDialog === "preview" && (aiDocument || aiCustomDocuments.length > 0) && (
         <div className="dialog-overlay" role="presentation" onMouseDown={() => setAiDialog(null)}>
           <div ref={previewDialog} className="dialog ai-preview-dialog" role="dialog" aria-modal="true"
                aria-labelledby="ai-preview-title" onMouseDown={(event) => event.stopPropagation()}>
             <div className="ai-preview-header">
+              {/* With no improved transcript this window holds one document,
+                  and it is not that one: naming it `Vylepšený přepis` would be
+                  naming the thing the reader did not ask for. */}
               <div>
-                <h2 id="ai-preview-title">{t("detail.preview.title")}</h2>
-                <p>{t("detail.preview.subtitle")}</p>
+                <h2 id="ai-preview-title">
+                  {t(aiDocument ? "detail.preview.title" : "detail.custom.title")}
+                </h2>
+                <p>{t(aiDocument ? "detail.preview.subtitle" : "detail.custom.subtitle")}</p>
               </div>
               <button className="icon-button" onClick={() => setAiDialog(null)}
                       aria-label={t("detail.preview.closeLabel")} title={t("common.close")}>
@@ -2844,33 +2976,53 @@ export default function Detail({
                 </svg>
               </button>
             </div>
-            {aiDocument.stale && (
+            {previewTab !== "custom" && aiDocument?.stale && (
               <div className="ai-preview-warning">{t("detail.preview.staleWarning")}</div>
+            )}
+            {/* A custom document is compared against the transcript alone: no
+                model is named in it, and nothing about it becomes wrong
+                because a different editing model was chosen since. */}
+            {previewTab === "custom" && customDocument?.stale && (
+              <div className="ai-preview-warning">{t("detail.custom.staleWarning")}</div>
             )}
             {/* The header's own buttons, and the playback speeds' own selected
                 state: a row of pills where the chosen one is filled. A
                 segmented control is right in the archive, where it switches how
                 a list is drawn; hanging under a header made of pills it read as
                 a borrowed part. */}
+            {/* The first three tabs are the improved transcript and the two
+                documents derived from it, so they appear with it. The fourth
+                stands on its own: it reads the transcript and can be asked for
+                before anything has been improved. */}
             <nav className="ai-document-tabs" role="tablist"
                  aria-label={t("detail.preview.tabsLabel")}>
-              <button className={previewTab === "improved" || previewTab === "original" ? "active" : ""}
-                      onClick={() => setPreviewTab("improved")} role="tab"
-                      aria-selected={previewTab === "improved" || previewTab === "original"}>
-                <DocumentViewIcon view="improved" />
-                {t("detail.preview.transcriptTab")}
-              </button>
-              <button className={previewTab === "summary" ? "active" : ""}
-                      onClick={() => setPreviewTab("summary")} role="tab"
-                      aria-selected={previewTab === "summary"}>
-                <DocumentViewIcon view="summary" />
-                {t("detail.preview.summaryTab")}
-              </button>
-              <button className={previewTab === "translation" ? "active" : ""}
-                      onClick={() => setPreviewTab("translation")} role="tab"
-                      aria-selected={previewTab === "translation"}>
-                <DocumentViewIcon view="translation" />
-                {t("detail.preview.translationTab")}
+              {aiDocument && (
+                <>
+                  <button className={previewTab === "improved" || previewTab === "original" ? "active" : ""}
+                          onClick={() => setPreviewTab("improved")} role="tab"
+                          aria-selected={previewTab === "improved" || previewTab === "original"}>
+                    <DocumentViewIcon view="improved" />
+                    {t("detail.preview.transcriptTab")}
+                  </button>
+                  <button className={previewTab === "summary" ? "active" : ""}
+                          onClick={() => setPreviewTab("summary")} role="tab"
+                          aria-selected={previewTab === "summary"}>
+                    <DocumentViewIcon view="summary" />
+                    {t("detail.preview.summaryTab")}
+                  </button>
+                  <button className={previewTab === "translation" ? "active" : ""}
+                          onClick={() => setPreviewTab("translation")} role="tab"
+                          aria-selected={previewTab === "translation"}>
+                    <DocumentViewIcon view="translation" />
+                    {t("detail.preview.translationTab")}
+                  </button>
+                </>
+              )}
+              <button className={previewTab === "custom" ? "active" : ""}
+                      onClick={() => setPreviewTab("custom")} role="tab"
+                      aria-selected={previewTab === "custom"}>
+                <DocumentViewIcon view="custom" />
+                {t("detail.preview.customTab")}
               </button>
             </nav>
 
@@ -2923,7 +3075,27 @@ export default function Detail({
               </div>
             )}
 
-            {previewTab === "improved" && (
+            {/* The instruction stands above its answer and stays editable
+                there: rewriting it is how the next document is asked for, and
+                the moment it changes the answer below is no longer to this
+                question — the tab says so by going back to its empty state. */}
+            {previewTab === "custom" && (
+              <div className="ai-output-toolbar ai-custom-bar">
+                <div className="field ai-custom-field">
+                  <label htmlFor="ai-custom-prompt-preview">{t("detail.custom.label")}</label>
+                  <textarea
+                    id="ai-custom-prompt-preview"
+                    rows={2}
+                    value={customPrompt}
+                    placeholder={t("detail.custom.placeholder")}
+                    onChange={(event) => setCustomPrompt(event.target.value)}
+                  />
+                  <p className="small-text">{t("detail.custom.privacy")}</p>
+                </div>
+              </div>
+            )}
+
+            {previewTab === "improved" && aiDocument && (
               <article className="ai-preview-text">
                 {aiDocument.text
                   .split(/\n{2,}/)
@@ -2979,12 +3151,33 @@ export default function Detail({
                 </button>
               </div>
             )}
+            {previewTab === "custom" && customDocument && (
+              <article className="ai-preview-text">
+                {customDocument.text
+                  .split(/\n{2,}/)
+                  .map((paragraph, index) => <p key={index}>{paragraph}</p>)}
+              </article>
+            )}
+            {previewTab === "custom" && !customDocument && (
+              <div className="ai-preview-empty">
+                <span className="ai-preview-empty-icon" aria-hidden>
+                  <DocumentViewIcon view="custom" />
+                </span>
+                <h3>{t("detail.custom.title")}</h3>
+                <p>{t("detail.custom.emptyText")}</p>
+                <button className="button primary" onClick={startCustomDocument}
+                        disabled={!writtenPrompt}>
+                  {t("detail.custom.create")}
+                </button>
+              </div>
+            )}
 
             {(previewTab === "improved" || previewTab === "original"
               || (previewTab === "summary" && summaryOutput)
-              || (previewTab === "translation" && translationOutput)) && (
+              || (previewTab === "translation" && translationOutput)
+              || (previewTab === "custom" && customDocument)) && (
               <div className="dialog-footer ai-preview-actions">
-                {previewTab === "improved" && (
+                {previewTab === "improved" && aiDocument && (
                   <button className="button quiet danger" onClick={async () => {
                     await api.deleteAiDocument(id);
                     setAiDocument(null);
@@ -2995,13 +3188,19 @@ export default function Detail({
                     {t("detail.preview.discard")}
                   </button>
                 )}
-                {previewTab === "improved" && (
+                {previewTab === "improved" && aiDocument && (
                   <button className="button quiet" onClick={() => {
                     setAiMode(aiDocument.mode === "clean" ? "clean" : "faithful");
                     setAiDialog("configure");
                   }}>
                     <RegenerateIcon />
                     {t("detail.preview.regenerateImproved")}
+                  </button>
+                )}
+                {previewTab === "custom" && customDocument && (
+                  <button className="button quiet" onClick={startCustomDocument}>
+                    <RegenerateIcon />
+                    {t("detail.preview.regenerateCustom")}
                   </button>
                 )}
                 {previewTab === "summary" && summaryOutput && (

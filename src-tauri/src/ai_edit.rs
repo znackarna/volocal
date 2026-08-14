@@ -149,6 +149,8 @@ impl AiEditTask {
             percent: 2.0,
             description: UserMessage::new(if kind == "summary" {
                 "ai.preparing_summary"
+            } else if kind == "custom" {
+                "ai.preparing_custom"
             } else {
                 "ai.preparing_translation"
             }),
@@ -166,15 +168,32 @@ impl AiEditTask {
                 recording_id: &recording_id,
                 state: &progress,
             };
-            if let Err(error) = generate_output(
-                &reporter,
-                &db_path,
-                &settings,
-                &kind,
-                &variant,
-                &cancellation,
-                &server,
-            ) {
+            // `variant` names which of a prepared set was asked for — a length,
+            // a language — except for a custom document, where it is the
+            // instruction itself. One column, because to everything that
+            // watches a run (progress, cancelling, the busy lock) they are the
+            // same thing: what this run was asked for.
+            let outcome = if kind == "custom" {
+                generate_custom_document(
+                    &reporter,
+                    &db_path,
+                    &settings,
+                    &variant,
+                    &cancellation,
+                    &server,
+                )
+            } else {
+                generate_output(
+                    &reporter,
+                    &db_path,
+                    &settings,
+                    &kind,
+                    &variant,
+                    &cancellation,
+                    &server,
+                )
+            };
+            if let Err(error) = outcome {
                 let cancelled = cancellation.load(Ordering::Relaxed);
                 reporter.say(
                     if cancelled { "cancelled" } else { "error" },
@@ -509,6 +528,26 @@ fn czech_summary_translation_prompt() -> &'static str {
      Překlad musí znít, jako by od začátku vznikl česky: nepřebírej cizí slovosled, větné \
      kostry ani kalky. Používej konkrétní česká slovesa a činný rod. Pokud je vstup už česky, \
      zachovej ho věcně beze změny. Vrať pouze přeložené shrnutí bez úvodu a komentáře."
+}
+
+/// The reader's own instruction, with the little the model needs around it.
+///
+/// Deliberately thin. The prepared modes above tell the model what to do; here
+/// that is the reader's job, and every sentence written on top of theirs is one
+/// that can contradict it — the rule against translating, which opens and
+/// closes `system_prompt`, would quietly refuse `přelož to do angličtiny`.
+///
+/// What is left is the two things the reader cannot know to ask for: that the
+/// input is a transcript of a recording, and that the answer is read as a
+/// finished document, so a preamble or a Markdown fence is rubbish in it.
+///
+/// Their instruction goes last, at the end of the prompt — the position a model
+/// weighs most, and the same reason the language rule closes `system_prompt`.
+fn custom_document_prompt(instruction: &str) -> String {
+    format!(
+        "Pracuješ s přepisem nahrávky. Řiď se pokynem uživatele a vrať pouze výsledný text, \
+         bez úvodu, bez komentáře a bez Markdownového bloku.\n\nPokyn uživatele:\n{instruction}"
+    )
 }
 
 fn clean_output(output: &str) -> String {
@@ -1077,6 +1116,110 @@ fn generate_output(
             "ai.translation_ready"
         }),
     );
+    Ok(())
+}
+
+/// One document from one instruction the reader wrote.
+///
+/// Its own function rather than a third branch of `generate_output`: what it
+/// reads (the timed transcript, not the improved document), where it writes
+/// (`ai_custom_documents`) and what it may return all differ, and the only
+/// thing left in common would be the server boilerplate.
+fn generate_custom_document(
+    reporter: &Reporter,
+    db_path: &Path,
+    settings: &db::Settings,
+    prompt: &str,
+    cancellation: &AtomicBool,
+    registry: &Arc<Mutex<Option<Child>>>,
+) -> Reported<()> {
+    let recording_id = reporter.recording_id;
+    if settings.editor_model.is_empty() {
+        return Err(UserMessage::new("ai.no_model_selected"));
+    }
+    // The window disables its button on an empty field, so this is the second
+    // lock on the same door: an empty instruction must never reach the model,
+    // which would answer something nobody asked for and store it.
+    let prompt = prompt.trim();
+    if prompt.is_empty() {
+        return Err(UserMessage::new("ai.empty_prompt"));
+    }
+    reporter.say("preparing", 2.0, UserMessage::new("ai.preparing_model"));
+
+    let connection = db::open(db_path)?;
+    // The timed transcript, not the improved document that summaries and
+    // translations derive from. The instruction is given about the recording,
+    // and it is asked for from the dialog that offers to make the improved
+    // transcript — which is exactly when there is none.
+    let source = transcript_source(&connection, recording_id)?;
+    if source.is_empty() {
+        return Err(UserMessage::new("ai.transcript_empty"));
+    }
+    let source_hash = source_hash(&source);
+    let check = tools::check(settings);
+    let server_path = check
+        .editor_server
+        .map(PathBuf::from)
+        .ok_or_else(|| UserMessage::new("ai.server_missing"))?;
+    let resolved_model_id = check
+        .editor_model_id
+        .ok_or_else(|| UserMessage::new("ai.model_missing"))?;
+    let model = check
+        .editor_model
+        .map(PathBuf::from)
+        .ok_or_else(|| UserMessage::new("ai.model_missing"))?;
+
+    reporter.say("preparing", 3.0, UserMessage::new("ai.loading_model"));
+    let uses_vulkan = server_path
+        .parent()
+        .is_some_and(|parent| parent.ends_with("editor-vulkan"));
+    let mut server = start_server(&server_path, &model, uses_vulkan, cancellation, registry)?;
+    let instruction = custom_document_prompt(prompt);
+
+    // A long transcript does not fit in one request, so the instruction is
+    // applied to each part in turn and the answers follow one another — what
+    // the translation does. An instruction that asks for one whole thing then
+    // returns one per part. The summary's two-stage pipeline is the cure, and
+    // it cannot be borrowed: it knows what it is collecting notes for, which is
+    // the one thing this feature deliberately does not know.
+    let chunks = split_chunks(&source);
+    let mut output = Vec::with_capacity(chunks.len());
+    for (index, chunk) in chunks.iter().enumerate() {
+        if cancellation.load(Ordering::Relaxed) {
+            return Err(UserMessage::new("ai.cancelled"));
+        }
+        let step = Step {
+            from: 5.0 + (index as f64 / chunks.len() as f64) * 90.0,
+            to: 5.0 + ((index + 1) as f64 / chunks.len() as f64) * 90.0,
+            caption: chunk_step("ai.custom_chunk", index, chunks.len()),
+        };
+        // No `is_an_edit_of` guard here, unlike the edited transcript. There it
+        // catches a model that translated instead of correcting, because an
+        // edit that keeps none of the wording is a defect by definition. Here
+        // keeping none of the wording may be precisely what was asked for.
+        output.push(reporter.run_step(
+            step,
+            chunk,
+            &instruction,
+            4096,
+            cancellation,
+            &mut server,
+        )?);
+    }
+
+    db::save_ai_custom_document(
+        &connection,
+        &db::AiCustomDocument {
+            recording_id: recording_id.into(),
+            prompt: prompt.into(),
+            source_hash,
+            model: resolved_model_id,
+            text: output.join("\n\n"),
+            updated_at: chrono::Local::now().to_rfc3339(),
+            stale: false,
+        },
+    )?;
+    reporter.say("complete", 100.0, UserMessage::new("ai.custom_ready"));
     Ok(())
 }
 

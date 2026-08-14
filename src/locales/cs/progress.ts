@@ -23,6 +23,7 @@ export const csProgress = {
   "progress.ai.preparing_model": "Připravuji jazykový model",
   "progress.ai.preparing_summary": "Připravuji shrnutí",
   "progress.ai.preparing_translation": "Připravuji překlad",
+  "progress.ai.preparing_custom": "Připravuji dokument podle vašeho pokynu",
   "progress.ai.loading_model": "Načítám jazykový model do paměti",
   "progress.ai.editing_chunk": "Upravuji část {index} z {total}",
   "progress.ai.translating_chunk": "Překládám část {index} z {total}",
@@ -32,7 +33,9 @@ export const csProgress = {
   "progress.ai.summarizing_source": "Sestavuji shrnutí v původním jazyce",
   "progress.ai.translating_summary": "Překládám hotové shrnutí do češtiny",
   "progress.ai.reviewing_summary": "Kontroluji češtinu ve shrnutí",
+  "progress.ai.custom_chunk": "Zpracovávám podle vašeho pokynu část {index} z {total}",
   "progress.ai.document_ready": "Vylepšený přepis je připravený",
+  "progress.ai.custom_ready": "Dokument podle vašeho pokynu je připravený",
   "progress.ai.summary_ready": "Shrnutí je připravené",
   "progress.ai.translation_ready": "Překlad je připravený",
   "progress.ai.cancelled": "Úprava byla zrušena",
@@ -71,6 +74,10 @@ export const csProgressContext: Partial<Record<keyof typeof csProgress, string>>
     "Po překladu do češtiny se každá část ještě čte znovu a opravují se kalky a pády.",
   "progress.ai.translating_summary":
     "Shrnutí vzniklo v jazyce nahrávky a teď se překládá do češtiny.",
+  "progress.ai.custom_chunk":
+    "Dlouhý přepis se i podle vlastního pokynu zpracovává po částech. {index} je pořadí právě zpracované části, {total} jejich celkový počet.",
+  "progress.ai.preparing_custom":
+    "Začátek práce s pokynem, který si uživatel napsal sám. „Váš pokyn“ je jeho vlastní zadání, ne nastavení programu.",
   "progress.ai.cancelled": "Uživatel jazykovou úpravu sám zastavil. Není to chyba.",
   "progress.download.connecting":
     "Krátký popis prvního okamžiku stahování, než přijdou první data.",

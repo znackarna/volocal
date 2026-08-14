@@ -110,6 +110,11 @@ export interface Settings {
   quality_choice: string;
   /** Optional local model used to turn a transcript into a readable document. */
   editor_model: string;
+  /** The instruction last written for a custom-prompt document. One per
+   *  installation: what somebody wants made of a recording is usually what
+   *  they want made of the next one, and a prompt lost is worse than a prompt
+   *  retyped knowingly. Empty means nobody has written one. */
+  custom_prompt: string;
   language: string;
   vad: boolean;
   vad_threshold: number;
@@ -337,6 +342,24 @@ export interface AiOutput {
   model: string;
   text: string;
   updated_at: string;
+}
+
+/** One answer to one instruction somebody wrote, for one recording.
+ *
+ *  Its own shape rather than an `AiOutput` with a `kind`: it is made from the
+ *  timed transcript instead of the improved document, it is keyed by the
+ *  instruction that made it, and it outlives that document being regenerated
+ *  or discarded. */
+export interface AiCustomDocument {
+  recording_id: string;
+  /** The instruction, which is also this document's key. */
+  prompt: string;
+  source_hash: string;
+  model: string;
+  text: string;
+  updated_at: string;
+  /** The transcript has been rewritten since this was made. */
+  stale: boolean;
 }
 
 export interface AiEditProgress {
