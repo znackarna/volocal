@@ -436,6 +436,7 @@ fn main() {
             commands::downloads::catalog,
             commands::downloads::download,
             commands::downloads::cancel_download,
+            commands::downloads::remove_component,
             commands::downloads::create_portable_copy,
             commands::backups::backup_status,
             commands::backups::back_up_now,

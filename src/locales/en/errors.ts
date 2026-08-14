@@ -81,6 +81,11 @@ export const enErrors: Partial<Record<keyof typeof csErrors, string>> = {
   "errors.online_import.no_media_file": "The download finished, but no audio file was found",
   "errors.download.unknown_component": "Unknown module: {component}",
   "errors.download.already_running": "A download is already running.",
+  "errors.download.component_in_use":
+    "This model is in use right now. Pick another one first and it can then be deleted.",
+  "errors.download.cannot_remove":
+    "This item cannot be deleted: it shares its folder with the other programs.",
+  "errors.download.remove_failed": "It could not be deleted: {detail}",
   "errors.download.cancelled": "Cancelled",
   "errors.download.connection_failed": "Could not connect to the server ({url})",
   "errors.download.rejected": "The server refused to hand over the file",

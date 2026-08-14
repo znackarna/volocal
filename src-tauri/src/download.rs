@@ -43,6 +43,12 @@ pub struct DownloadComponent {
     pub recommended: bool,
     /// Already downloaded.
     pub complete: bool,
+    /// Whether the bin may be drawn on this row. False for the two programs
+    /// that unpack into the shared `bin` root, where nothing recorded which
+    /// files were theirs, and for whatever `settings.model` or `editor_model`
+    /// is using right now — see `removable_path` and `component_is_in_use`.
+    /// Answered here so a row shows no bin rather than a bin that refuses.
+    pub removable: bool,
     /// There is a record that this machine checked where the file came from.
     /// `complete` says a file is there; this says somebody vouched for it.
     pub origin_verified: bool,
@@ -153,6 +159,7 @@ fn raw_catalog() -> Vec<DownloadComponent> {
         recommended: false,
         complete: false,
         origin_verified: false,
+        removable: false,
         verification_path: verification_path.into(),
         destination,
     };
@@ -324,6 +331,8 @@ pub fn catalog(settings: &crate::db::Settings) -> Vec<DownloadComponent> {
         .map(|mut k| {
             k.complete = tools::component_path(settings, &k.verification_path).exists();
             k.origin_verified = origin_verified(settings, &k.id);
+            k.removable =
+                k.complete && can_remove(settings, &k.id) && !component_is_in_use(settings, &k.id);
             k.recommended = match k.id.as_str() {
                 "ffmpeg" | "vad" => true,
                 // Which model depends on whether there is anything to compute
@@ -721,6 +730,161 @@ pub fn origin_verified(settings: &crate::db::Settings, id: &str) -> bool {
         .get(id)
         .map(|record| record.verified)
         .unwrap_or(false)
+}
+
+/// Drops one entry and rewrites the file the way `record_installation` writes
+/// it — through a temporary name, so a crash mid-write cannot leave a truncated
+/// record that reads as "nothing is installed". Absent is the right state for a
+/// component whose files have gone: `origin_verified` then says false, which is
+/// what an uninstalled thing is.
+fn forget_installation(path: &Path, id: &str) {
+    let mut records = read_records(path);
+    if records.remove(id).is_none() {
+        return;
+    }
+    let Ok(text) = serde_json::to_string_pretty(&records) else {
+        return;
+    };
+    let temporary = path.with_extension("json.psani");
+    if std::fs::write(&temporary, text).is_ok() {
+        let _ = std::fs::rename(&temporary, path);
+    }
+}
+
+/// What removing a component would delete, or nothing where that cannot be
+/// said exactly.
+///
+/// **`installed.json` is not a manifest, and this is where that shows.** It
+/// records where a component came from — url, digest, whether the origin was
+/// checked, when — which is what it was written for and is not a list of files.
+/// So what a component owns is read off its `destination`, which is what the
+/// installer actually used to place it, and that answers exactly for two of the
+/// three shapes:
+///
+/// - `AsFile(p)` is one file and always removable;
+/// - `ProgramsInto(dir)` unpacks an archive's executables into `dir`. Where
+///   that folder is the component's own — `bin/vulkan`, `bin/cuda`, `bin/cpu`,
+///   `bin/editor-vulkan`, `bin/editor-cpu` — removing it removes exactly what
+///   arrived, dlls included;
+/// - `ProgramsInto("bin")` is the exception and returns `None`. **ffmpeg and
+///   deno unpack into the shared programs root**, mixed in beside `yt-dlp.exe`
+///   and the build folders, and nothing recorded which files were whose.
+///   Deleting the folder would take every other program with it, and deleting
+///   only `verification_path` would leave the libraries behind. Neither is
+///   removal, so neither is offered.
+///
+/// The honest fix for those two is a file list written at install time, which
+/// is a change to what `install_component` records rather than something this
+/// function can work around. They are 106 and 40 MB against models of three and
+/// seven gigabytes, so nothing anybody wants the space back from is behind that
+/// gap — but the gap is real and is named here rather than papered over.
+fn removable_path(
+    settings: &crate::db::Settings,
+    component: &DownloadComponent,
+) -> Option<PathBuf> {
+    let relative = match &component.destination {
+        Destination::AsFile(path) => path.clone(),
+        Destination::ProgramsInto(directory) if directory != "bin" => directory.clone(),
+        Destination::ProgramsInto(_) => return None,
+    };
+    // The same reasoning as the archive unpacker's `..` refusal, and the same
+    // answer: a destination that resolves outside the two folders this
+    // application owns is not somewhere it may delete from. `components.json`
+    // is data a weekly script rewrites, so this is a guard about a wrong
+    // catalogue rather than a hostile one.
+    //
+    // `..` is refused before anything else, and that order is the point.
+    // `Path::starts_with` compares component by component without resolving
+    // anything, so `bin/../../outside.exe` starts with `bin` as far as it is
+    // concerned and the prefix check alone would wave it through — which is
+    // exactly what `a_destination_that_reaches_outside_the_roots_is_refused`
+    // caught while it was being written. Nothing in this catalogue needs `..`,
+    // so the honest rule is that a destination carrying one is malformed.
+    if Path::new(&relative)
+        .components()
+        .any(|part| matches!(part, std::path::Component::ParentDir))
+    {
+        return None;
+    }
+    let resolved = tools::component_path(settings, &relative);
+    let roots = [
+        tools::expand(&settings.bin_directory),
+        tools::expand(&settings.models_directory),
+    ];
+    let inside = roots
+        .iter()
+        .any(|root| resolved.starts_with(root) && resolved != *root);
+    inside.then_some(resolved)
+}
+
+/// Whether the bin may be offered for this component at all. The screen asks
+/// before it draws, so a row shows no bin rather than one that refuses.
+pub fn can_remove(settings: &crate::db::Settings, id: &str) -> bool {
+    raw_catalog()
+        .iter()
+        .find(|x| x.id == id)
+        .and_then(|component| removable_path(settings, component))
+        .is_some()
+}
+
+/// Is this component the one the application is transcribing or editing with?
+///
+/// `settings.model` and `editor_model` name files rather than components, and
+/// `tools.rs` resolves both strictly by name, so the comparison is made on the
+/// file each component installs: `ggml-{model}.bin` for the transcription
+/// model and `editor/{editor_model}.gguf` for the language editor, which is
+/// exactly how `check_tools` and `resolve_editor_model` look for them.
+///
+/// The graphics and processor builds are deliberately **not** here. Removing
+/// the one `choose_compute` picked is recoverable — it simply chooses another,
+/// which is what that function is for, and `Výkon` says on the card when it
+/// has. Losing the model a transcript needs is not recoverable in the same
+/// sense: nothing substitutes for it and the next transcription refuses.
+pub fn component_is_in_use(settings: &crate::db::Settings, id: &str) -> bool {
+    let Some(component) = raw_catalog().into_iter().find(|x| x.id == id) else {
+        return false;
+    };
+    let Destination::AsFile(path) = &component.destination else {
+        return false;
+    };
+    let in_use = [
+        (!settings.model.is_empty()).then(|| format!("models/ggml-{}.bin", settings.model)),
+        (!settings.editor_model.is_empty())
+            .then(|| format!("models/editor/{}.gguf", settings.editor_model)),
+    ];
+    in_use.iter().flatten().any(|wanted| wanted == path)
+}
+
+/// Removes one installed component and forgets its record.
+///
+/// Deliberately not "delete the folder it lives in" — see `removable_path`. A
+/// component that is already gone is a success rather than an error: the caller
+/// asked for it not to be there, and it is not there.
+pub fn remove_component(settings: &crate::db::Settings, id: &str) -> Reported<()> {
+    let component = raw_catalog()
+        .into_iter()
+        .find(|x| x.id == id)
+        .ok_or_else(|| UserMessage::new("download.unknown_component").with("component", id))?;
+
+    let path = removable_path(settings, &component)
+        .ok_or_else(|| UserMessage::new("download.cannot_remove").with("component", id))?;
+
+    if path.is_dir() {
+        std::fs::remove_dir_all(&path).map_err(|e| {
+            UserMessage::new("download.remove_failed")
+                .with("component", id)
+                .with("detail", e.to_string())
+        })?;
+    } else if path.is_file() {
+        std::fs::remove_file(&path).map_err(|e| {
+            UserMessage::new("download.remove_failed")
+                .with("component", id)
+                .with("detail", e.to_string())
+        })?;
+    }
+
+    forget_installation(&record_path(settings), id);
+    Ok(())
 }
 
 pub fn install_component(
@@ -1153,6 +1317,173 @@ mod tests {
 
         assert_eq!(hash, sha256_of(b"abc"));
         assert!(target.exists());
+    }
+
+    /// Settings pointing both roots at a scratch folder, so a test deletes only
+    /// inside its own directory and never inside a real installation.
+    fn machine_at(directory: &Path) -> crate::db::Settings {
+        crate::db::Settings {
+            bin_directory: directory.join("bin").to_string_lossy().to_string(),
+            models_directory: directory.join("models").to_string_lossy().to_string(),
+            model: String::new(),
+            editor_model: String::new(),
+            ..Default::default()
+        }
+    }
+
+    /// The ordinary case, and the one worth the most: a multi-gigabyte model is
+    /// one file, and removing it takes the file and the record together. A
+    /// record left behind would keep `origin_verified` saying this machine
+    /// vouched for something that is not there.
+    #[test]
+    fn removing_a_component_takes_its_file_and_its_record() {
+        let directory = scratch("remove-file");
+        let settings = machine_at(&directory);
+        let model = directory.join("models").join("ggml-large-v3.bin");
+        std::fs::create_dir_all(model.parent().unwrap()).unwrap();
+        std::fs::write(&model, b"weights").unwrap();
+
+        let records = record_path(&settings);
+        record_installation(
+            &records,
+            "model-large",
+            InstallRecord {
+                url: "https://example.invalid/large.bin".into(),
+                sha256: sha256_of(b"weights"),
+                verified: true,
+                when: "2026-08-14".into(),
+            },
+        );
+        assert!(origin_verified(&settings, "model-large"));
+
+        remove_component(&settings, "model-large").expect("removed");
+
+        assert!(!model.exists(), "the file is gone");
+        assert!(
+            !origin_verified(&settings, "model-large"),
+            "and so is the record that vouched for it"
+        );
+    }
+
+    /// A graphics build is a folder of executables and dlls, and removing only
+    /// the one file `verification_path` names would leave hundreds of megabytes
+    /// of libraries behind — the space somebody pressed the bin to get back.
+    #[test]
+    fn removing_a_build_takes_the_whole_folder_it_unpacked_into() {
+        let directory = scratch("remove-folder");
+        let settings = machine_at(&directory);
+        let build = directory.join("bin").join("cuda");
+        std::fs::create_dir_all(&build).unwrap();
+        std::fs::write(build.join("whisper-cli.exe"), b"program").unwrap();
+        std::fs::write(build.join("cublas64_12.dll"), b"library").unwrap();
+
+        remove_component(&settings, "whisper-cuda").expect("removed");
+
+        assert!(!build.exists(), "the folder and everything in it");
+        assert!(
+            directory.join("bin").exists(),
+            "and nothing above it: the other builds live beside this one"
+        );
+    }
+
+    /// Asking for something that is not there is what the caller wanted anyway.
+    /// It is a success rather than an error, so a row whose files were deleted
+    /// by hand does not leave a bin that reports a failure for ever.
+    #[test]
+    fn removing_what_is_not_installed_is_not_a_failure() {
+        let directory = scratch("remove-absent");
+        let settings = machine_at(&directory);
+
+        remove_component(&settings, "model-turbo").expect("nothing to do, and that is fine");
+
+        assert!(!directory
+            .join("models")
+            .join("ggml-large-v3-turbo-q5_0.bin")
+            .exists());
+    }
+
+    /// The two programs that unpack into the shared `bin` root cannot be
+    /// removed, because nothing recorded which of the files in there were
+    /// theirs. Deleting the folder would take every other program with it.
+    /// This is the guard that keeps the bin off those rows.
+    #[test]
+    fn a_component_sharing_the_programs_root_is_not_removable() {
+        let directory = scratch("remove-shared");
+        let settings = machine_at(&directory);
+        let bin = directory.join("bin");
+        std::fs::create_dir_all(&bin).unwrap();
+        std::fs::write(bin.join("ffmpeg.exe"), b"program").unwrap();
+        std::fs::write(bin.join("yt-dlp.exe"), b"another component").unwrap();
+
+        assert!(!can_remove(&settings, "ffmpeg"), "not offered");
+        assert!(
+            remove_component(&settings, "ffmpeg").is_err(),
+            "and refused"
+        );
+        assert!(
+            bin.join("yt-dlp.exe").exists(),
+            "the neighbour that would have gone with the folder is untouched"
+        );
+        assert!(can_remove(&settings, "yt-dlp"), "a single file still is");
+    }
+
+    /// The same reasoning as the archive unpacker's `..` refusal: a destination
+    /// that resolves outside the two folders this application owns is not
+    /// somewhere it may delete from. `components.json` is rewritten weekly by a
+    /// script, so this is a guard about a wrong catalogue rather than a hostile
+    /// one.
+    #[test]
+    fn a_destination_that_reaches_outside_the_roots_is_refused() {
+        let directory = scratch("remove-escape");
+        let settings = machine_at(&directory);
+        let outside = directory.join("outside.exe");
+        std::fs::write(&outside, b"not ours").unwrap();
+
+        let escaping = DownloadComponent {
+            destination: Destination::AsFile("bin/../../outside.exe".into()),
+            ..raw_catalog()
+                .into_iter()
+                .find(|x| x.id == "yt-dlp")
+                .unwrap()
+        };
+
+        assert!(
+            removable_path(&settings, &escaping).is_none(),
+            "the path is refused before anything is deleted"
+        );
+        assert!(
+            outside.exists(),
+            "and the file outside the roots is untouched"
+        );
+    }
+
+    /// Deleting the model a transcript needs leaves `tools.rs` resolving
+    /// `ggml-{model}.bin` for a file that has gone, and nothing substitutes for
+    /// it. The screen draws no bin on that row; this refuses regardless, because
+    /// a screen is a drawing and a guard is a guard.
+    #[test]
+    fn the_model_in_use_is_protected_and_the_others_are_not() {
+        let directory = scratch("remove-in-use");
+        let mut settings = machine_at(&directory);
+        settings.model = "large-v3".into();
+        settings.editor_model = "gemma-4-12b-q4".into();
+
+        assert!(
+            component_is_in_use(&settings, "model-large"),
+            "transcribing with it"
+        );
+        assert!(
+            component_is_in_use(&settings, "editor-model-best"),
+            "and editing with it"
+        );
+        assert!(
+            !component_is_in_use(&settings, "model-turbo"),
+            "a model nothing is using may go"
+        );
+        assert!(
+            !component_is_in_use(&settings, "whisper-cuda"),
+            "and so may a build: choose_compute simply picks another"
+        );
     }
 
     /// `..` in an archive is how an unpacker is talked into writing outside the

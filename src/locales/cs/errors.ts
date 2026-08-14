@@ -116,6 +116,11 @@ export const csErrors = {
   // Downloading modules.
   "errors.download.unknown_component": "Neznámý modul: {component}",
   "errors.download.already_running": "Stahování už běží.",
+  "errors.download.component_in_use":
+    "Tenhle model se právě používá. Vyberte nejdřív jiný, pak půjde smazat.",
+  "errors.download.cannot_remove":
+    "Tuhle položku smazat nejde: sdílí složku s ostatními programy.",
+  "errors.download.remove_failed": "Smazat se nepodařilo: {detail}",
   "errors.download.cancelled": "Zrušeno",
   "errors.download.connection_failed": "Nepodařilo se spojit se serverem ({url})",
   "errors.download.rejected": "Server odmítl soubor vydat",
@@ -197,6 +202,16 @@ export const csErrors = {
 } as const;
 
 export const csErrorsContext: Partial<Record<keyof typeof csErrors, string>> = {
+  "errors.download.component_in_use":
+    "Odmítnutí, když uživatel chce smazat model, kterým se právě přepisuje " +
+    "nebo upravuje text. Věta má říct, co udělat — vybrat jiný — ne jen že to " +
+    "nejde. Na obrazovce se koš u takového řádku nekreslí; tohle je pojistka.",
+  "errors.download.cannot_remove":
+    "Odmítnutí u ffmpeg a Deno. Rozbalují se do společné složky s ostatními " +
+    "programy a nikde není zapsané, které soubory jsou čí, takže smazat " +
+    "„jen je“ nejde. Nemluv o chybě — je to hranice, ne porucha.",
+  "errors.download.remove_failed":
+    "Mazání selhalo na úrovni disku. {detail} je hlášení systému, nepřekládá se.",
   "errors.tools.whisper_model_missing":
     "{model} je název přepisovacího modelu, například large-v3. Soubor se jmenuje ggml-<model>.bin, název souboru nepřekládej.",
   "errors.tools.vad_model_missing":
