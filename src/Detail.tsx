@@ -1460,16 +1460,29 @@ export default function Detail({
       setAiDialog("preview");
       return;
     }
-    /* A document made from somebody's own instruction and no improved
-       transcript: the window is the only way back to it, so the press opens
-       it there rather than at a tab that has nothing to show. */
-    if (aiCustomDocuments.length > 0) {
-      setPreviewTab("custom");
-      setAiDialog("preview");
-      return;
-    }
+    /* This branch used to open the reading window whenever any document made
+       from an instruction was saved, improved transcript or not — and the
+       reported defect is what that costs. Improve a transcript, delete the
+       result, press `Vylepšit`: the press landed in the preview, whose first
+       three tabs are gated on the improved transcript that had just been
+       deleted, so the window opened with `Vlastní prompt` as its only pill and
+       an empty state under it. A transcript never improved at all, but with one
+       custom document saved, met the same thing by the other road.
+
+       **The offer is fixed.** What `Vylepšit` opens cannot depend on what
+       happens to be stored beside the recording, because the button's whole
+       promise is that the three improvements are available. With no improved
+       transcript it goes to the choice, every time.
+
+       The one case that is not about making anything: the model is gone from
+       this machine and something was already made with it. Offering a
+       multi-gigabyte download to somebody who wants to read their own saved
+       text is the wrong answer, so that press opens the window it can. */
     if (!aiConfigured || !aiReady) {
-      if (editorDownloading) setAiDialog("missing");
+      if (aiCustomDocuments.length > 0) {
+        setPreviewTab("custom");
+        setAiDialog("preview");
+      } else if (editorDownloading) setAiDialog("missing");
       else await askForEditor();
       return;
     }
@@ -2926,6 +2939,27 @@ export default function Detail({
               <button className="button quiet" onClick={() => setAiDialog(null)}>
                 {t("common.cancel")}
               </button>
+              {/* The way back to an answer this instruction already has.
+
+                  It is here because `Vylepšit` no longer routes to the reading
+                  window when there is no improved transcript, and without a
+                  second route a saved document would be written, shown once and
+                  unreachable — which is the fault the window was built to fix.
+                  Here rather than on the button that opens this dialog: the
+                  instruction is what the answer is filed under, so the place to
+                  offer it is beside the instruction.
+
+                  Only when the written instruction matches one that was
+                  answered. Regenerating costs minutes of this computer, and the
+                  text is already on the disk. */}
+              {aiMode === "custom" && customDocument && (
+                <button className="button quiet" onClick={() => {
+                  setPreviewTab("custom");
+                  setAiDialog("preview");
+                }}>
+                  {t("detail.custom.openSaved")}
+                </button>
+              )}
               {/* An instruction nobody wrote is not sent to the model, so the
                   button that would send it cannot be pressed. */}
               <button className="button primary"
