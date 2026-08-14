@@ -7,7 +7,7 @@ export const enSettings: Partial<Record<keyof typeof csSettings, string>> = {
   "settings.tab.transcription": "Transcription",
   "settings.tab.interface": "Interface",
   "settings.tab.performance": "Performance",
-  "settings.tab.tools": "Tools",
+  "settings.tab.tools": "Models",
   "settings.tab.files": "Files",
   "settings.tab.updates": "Updates",
   "settings.tab.about": "Information",

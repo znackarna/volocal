@@ -5,7 +5,7 @@ export const csSettings = {
   "settings.tab.transcription": "Přepis",
   "settings.tab.interface": "Rozhraní",
   "settings.tab.performance": "Výkon",
-  "settings.tab.tools": "Nástroje",
+  "settings.tab.tools": "Modely",
   "settings.tab.files": "Soubory",
   "settings.tab.updates": "Aktualizace",
   "settings.tab.about": "Informace",
@@ -268,8 +268,10 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
     "nebo na procesoru. Je to výkon ve smyslu „na čem to poběží“, ne měření.",
   "settings.tab.tools":
     "Název záložky, na které je vidět, co je v tomhle počítači stažené a kam " +
-    "se to ukládá. Nástroje jsou programy jako ffmpeg nebo whisper-cli a " +
-    "modely, které k nim patří, ne funkce aplikace.",
+    "se to ukládá. Jedno slovo, jako všechny ostatní záložky — a schválně to " +
+    "užší z obou: nadpis obrazovky pod ním zní „Modely a nástroje“, protože " +
+    "nadpis má místo a pruh záložek ne. Klíč se pořád jmenuje tools; " +
+    "identifikátor se nepřejmenovává kvůli jednomu slovu na obrazovce.",
   "settings.tab.files":
     "Název záložky, na které je složka pro nahrávky, sledovaná složka, zálohy " +
     "archivu a přenosná kopie. Všechno jsou to soubory a složky na disku. Dřív " +
