@@ -190,8 +190,7 @@ export const csDetail = {
   // cannot start saying it differently.
   "detail.custom.label": "Váš pokyn",
   "detail.custom.placeholder": "Například: Sepište z přepisu zápis z porady s úkoly a termíny.",
-  "detail.custom.privacy":
-    "Pokyn i přepis zpracuje jazykový model přímo ve vašem počítači. Ven neodejde nic.",
+  "detail.custom.privacy": "Pokyn zpracuje jazykový model přímo ve vašem počítači.",
   "detail.custom.create": "Vytvořit dokument",
   "detail.custom.title": "Dokument podle vašeho pokynu",
   "detail.custom.subtitle": "Vznikne nový dokument, přepis zůstane beze změny.",
@@ -387,7 +386,7 @@ export const csDetailContext: Partial<Record<keyof typeof csDetail, string>> = {
   "detail.custom.placeholder":
     "Šedý text v prázdném poli pro vlastní pokyn. Ukázka toho, co si lze vyžádat.",
   "detail.custom.privacy":
-    "Věta pod polem pro vlastní pokyn. Ubezpečení, že model běží v počítači uživatele — právě u vlastního pokynu lidé předpokládají službu na internetu.",
+    "Poznámka s ikonkou „i“ pod polem pro vlastní pokyn. Ubezpečení, že model běží v počítači uživatele — právě u vlastního pokynu lidé předpokládají službu na internetu. Ubezpečení nese samo spojení „přímo ve vašem počítači“ vedle informační ikonky, proto věta nic dalšího netvrdí.",
   "detail.custom.create": "Tlačítko spustí zpracování přepisu podle napsaného pokynu.",
   "detail.custom.title":
     "Název dokumentu, který vznikl podle vlastního pokynu. Nadpis okna i prázdné záložky.",

@@ -357,7 +357,15 @@
    taller from. Everything a `.field` textarea needs is here — a second one
    added later belongs to this rule, not beside it. */
 .field textarea {
-  width: 100%; min-height: 76px; resize: vertical;
+  /* 84 px is three lines at 14/1.5 with the padding, which is what an
+     instruction to a model actually is; 160 is six, and it is a ceiling rather
+     than a preference. The handle may not be able to resize the dialog around
+     it: 160 keeps the tallest dialog holding one of these inside the smallest
+     window the application allows (660 px, `tauri.conf.json`), so the footer
+     cannot be dragged off the bottom of the screen. Past six lines the box
+     scrolls, the way the release notes do at 240. */
+  width: 100%; height: 84px; min-height: 84px; max-height: 160px;
+  resize: vertical;
   border: 1px solid var(--line-field); background: var(--ground);
   border-radius: var(--r-card); padding: 9px 14px; outline: none;
   font-size: 14px; line-height: 1.5;
@@ -725,10 +733,18 @@
   display: flex; align-items: center; justify-content: center;
   padding: 24px;
 }
+/* The dialog owns its size, and the last of those numbers is the one that says
+   so: `calc(100vh - 48px)` is the window less the overlay's own 24 px on each
+   side, so no dialog can reach past the screen it is centred on whatever ends
+   up inside it. It scrolls instead — which puts the footer at the end of a
+   scroll rather than under the bottom edge, where it cannot be pressed at all.
+   The reading window sets its own height above this and never uses the scroll;
+   it is the ceiling for everything else. */
 .dialog {
   background: var(--panel); border: 1px solid var(--line);
   border-radius: var(--r-large); box-shadow: var(--shadow-high);
   padding: 24px 26px; width: 100%; max-width: 420px;
+  max-height: calc(100vh - 48px); overflow-y: auto;
   animation: dialog-nabehne 0.14s ease-out;
 }
 @keyframes dialog-nabehne {
@@ -1270,7 +1286,6 @@ button.mic-play:disabled { cursor: default; opacity: 0.6; }
    to the text below. */
 .ai-custom-bar { display: block; padding-bottom: 14px; }
 .ai-custom-bar .field { margin-bottom: 0; }
-.ai-custom-bar .field > .small-text { margin-top: 6px; }
 /* 36, the height of the tabs beside it — this strip held three different
    heights until every control in it became the same one. */
 .ai-output-toolbar .select-trigger { height: 36px; background: var(--panel); font-size: 13px; }

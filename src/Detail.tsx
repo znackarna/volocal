@@ -2610,7 +2610,7 @@ export default function Detail({
                         className="sticky-editor"
                         value={noteDraft}
                         autoFocus
-                        rows={2}
+                        rows={3}
                         ref={fitNoteTextarea}
                         placeholder={t("detail.notes.placeholder")}
                         onChange={(event) => {
@@ -2919,9 +2919,14 @@ export default function Detail({
                   onChange={(event) => setCustomPrompt(event.target.value)}
                 />
                 {/* `Vlastní prompt` is the phrase that makes people assume a
-                    service somewhere on the internet. It is the one place in
-                    this dialog worth a line saying otherwise. */}
-                <p className="small-text">{t("detail.custom.privacy")}</p>
+                    service somewhere on the internet, and this card is where
+                    somebody meets it first. The info mark is half the sentence:
+                    a circle-i beside `přímo ve vašem počítači` reads as
+                    reassurance without having to claim one.
+
+                    Not compact: it belongs to the field above it, which is the
+                    8 px position `.settings-info-note` already carries. */}
+                <InfoNote>{t("detail.custom.privacy")}</InfoNote>
               </div>
             )}
             <p className="small-text ai-edit-note">
@@ -3085,12 +3090,16 @@ export default function Detail({
                   <label htmlFor="ai-custom-prompt-preview">{t("detail.custom.label")}</label>
                   <textarea
                     id="ai-custom-prompt-preview"
-                    rows={2}
+                    rows={3}
                     value={customPrompt}
                     placeholder={t("detail.custom.placeholder")}
                     onChange={(event) => setCustomPrompt(event.target.value)}
                   />
-                  <p className="small-text">{t("detail.custom.privacy")}</p>
+                  {/* The same note under the same field, from the same key. The
+                      tab is reached after the dialog, but it is also where the
+                      instruction is rewritten, and a reassurance that appears
+                      only the first time is one the reader cannot go back to. */}
+                  <InfoNote>{t("detail.custom.privacy")}</InfoNote>
                 </div>
               </div>
             )}

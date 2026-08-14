@@ -115,6 +115,8 @@ export const enDetail: Partial<Record<keyof typeof csDetail, string>> = {
   "detail.ai.modeFaithfulDescription": "Fixes punctuation, paragraphs and errors.",
   "detail.ai.modeClean": "Enhanced edit",
   "detail.ai.modeCleanDescription": "Removes obvious repetitions, slips and filler words.",
+  "detail.custom.privacy":
+    "The instruction is processed by the language model on your own computer.",
   "detail.ai.recommended": "recommended",
   "detail.ai.configureNote": "You can keep reading or playing the recording while it edits.",
   "detail.ai.startEdit": "Enhance transcript",
