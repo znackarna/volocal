@@ -119,10 +119,8 @@
    unchanged — only their numbers moved up. */
 .settings-card-modules { order: 1; }
 .settings-card-locations { order: 2; }
-/* Last, and folded away: what the application found where. The same place
-   `settings-card-advanced` takes on `Přepis`, because the two are the same kind
-   of block — everything a reader does not need and must be able to reach. */
-.settings-card-diagnostics { order: 3; }
+/* `settings-card-diagnostics` was 3 here and is gone with the block it ordered.
+   Two cards left on this tab and no gap. */
 /* Every card on a tab needs a number here, and the recordings folder had none:
    without a rule it takes `order: 0` and sorts above cards that asked for 1, so
    it rendered over the portable-mode banner no matter where the JSX put it.
@@ -149,15 +147,14 @@
 .settings-card-about { order: 1; }
 .settings-card-abilities { order: 2; }
 .settings-card-credits { order: 3; }
-/* The two cards whose whole content is one folded-away block — `Pokročilé` at
-   the foot of `Přepis` and `Technické podrobnosti` at the foot of `Výkon a
-   modely`. Their disclosure carries the 14 px rule that separates it from
+/* The card whose whole content is one folded-away block — `Pokročilé` at the
+   foot of `Přepis`. Its disclosure carries the 14 px rule that separates it from
    whatever stood above it inside a card, and here nothing does, so the rule
    would be drawn along the card's own top edge, 26 px in from both sides and
-   parallel to the border. Zeroed, and only for these two: everywhere else that
-   rule is doing its job. */
-.settings-card-advanced > .settings-disclosure,
-.settings-card-diagnostics > .settings-disclosure {
+   parallel to the border. Zeroed, and only here: everywhere else that rule is
+   doing its job. `Technické podrobnosti` was the second card on this selector
+   until 14 August 2026. */
+.settings-card-advanced > .settings-disclosure {
   margin-top: 0; padding-top: 0; border-top: 0;
 }
 .settings section {
@@ -257,8 +254,8 @@
    The row is `space-between`, which is right for a note and a button and wrong
    the moment there are two: it would put one button at each end and strand the
    note in the middle of them. Export and import are one choice with two
-   directions and have to sit as one. 8 px is `.diagnostics-actions`' gap, the
-   other place on this screen where two buttons stand together. */
+   directions and have to sit as one. 8 px was `.diagnostics-actions`' gap, the
+   other place two buttons stood together until that block was removed. */
 .settings-action-row-buttons { display: flex; gap: 8px; flex: 0 0 auto; }
 .settings-success { color: var(--success); }
 .field { margin-bottom: 24px; }
@@ -410,45 +407,12 @@
 }
 .portable-info p { margin: 0 0 8px; }
 
-/* What is installed and where. Three columns — mark, what it is, where it is —
-   so the eye can run down either the names or the paths without meeting the
-   other. The tick is the same circular mark the manual download list uses,
-   rather than a character glued to the label with `::before`. */
-/* The same container the archive backups use: one bordered, quietly filled
-   panel whose rows are separated by rules, rather than a bare list leaning on
-   the disclosure's own indent. Both are the same kind of thing — a short
-   table of facts about where things are — and they should not look like two
-   different ideas. */
-.check {
-  list-style: none; margin: 0; overflow: hidden;
-  border: 1px solid var(--line); border-radius: var(--r-card);
-  background: var(--subtle); font-size: 13px; padding: 0;
-}
-.check li {
-  display: grid; grid-template-columns: 22px minmax(0, 190px) minmax(0, 1fr);
-  align-items: center; gap: 12px;
-  min-height: 40px; padding: 6px 14px;
-}
-.check li + li { border-top: 1px solid var(--line); }
-.check-mark {
-  display: grid; place-items: center; width: 22px; height: 22px;
-  border-radius: 50%; background: hsl(var(--ds-grass) / 0.14); color: var(--success-text);
-}
-.check li.no .check-mark { background: var(--danger-light); color: var(--danger); }
-.check-name { font-weight: 600; line-height: 1.35; }
-.check li.no .check-name { color: var(--danger); }
-/* The end of a path is what identifies the file, so the beginning is what
-   gets cut. `direction: rtl` puts the ellipsis there; `bdi` keeps the text
-   itself reading left to right. */
-.check-path {
-  color: var(--text-quiet); font-size: 12.5px;
-  font-family: var(--font-path);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  /* No `unicode-bidi: plaintext` here: it re-derives the direction from the
-     text and moves the ellipsis back to the end, which cuts off the file
-     name — the one part of a path worth reading. */
-  direction: rtl; text-align: left;
-}
+/* `.check` and its four children stood here — the found-paths table inside
+   `Technické podrobnosti`, three columns of mark, name and path. Deleted with
+   that block on 14 August 2026: it was the only thing that ever drew them, and
+   a rule kept for a screen nobody can reach is a rule the next person has to
+   work out the absence of. The circular tick lives on in `.downloaded-mark`,
+   which is where it came from. */
 .problems { color: var(--danger); font-size: 13px; padding-left: 18px; }
 
 /* `.benchmark` stood here — the list of measured backends under `Změřit
@@ -565,6 +529,42 @@
 .summary li.done span:last-child { color: var(--success); font-weight: 600; }
 .summary li.selhala span:last-child { color: var(--danger); }
 
+/* The wizard's download listing: a read-only row that is one line or two, and
+   neither of the two things it resembles.
+
+   Not `.summary`, which is one line and cannot hold a sentence. Not
+   `.component`, which is a control — a checkbox, a hit area, a pointer — and
+   nothing on this screen can be ticked. So the container is `.summary`'s, line
+   for line, and only the row differs: a two-column grid instead of a flex pair,
+   because the name and its sentence are one block against the size rather than
+   two things at opposite ends.
+
+   `align-items: center` and no margins anywhere: the size sits against the whole
+   row in both views, which is the only way it stays right when the row grows a
+   second line. */
+.download-list {
+  list-style: none; margin: 0; padding: 0; overflow: hidden;
+  border: 1px solid var(--line); border-radius: var(--r-large);
+}
+.download-list li {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px;
+  align-items: center;
+  padding: 10px 16px; background: var(--panel); font-size: 14px; font-weight: 500;
+  border-bottom: 1px solid var(--line);
+}
+.download-list li:last-child { border-bottom: 0; }
+.download-list li.done { color: var(--text-quiet); }
+.download-list li.done .download-row-side { color: var(--success); font-weight: 600; }
+.download-list li.failed .download-row-side { color: var(--danger); font-weight: 600; }
+.download-row-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.download-row-side {
+  color: var(--text-quiet); font-size: 13px; font-weight: 600;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+/* The switch above it, at the right-hand end where the archive's own sits.
+   10 px is the gap `.detected` took to what followed it on this screen. */
+.download-view { display: flex; justify-content: flex-end; margin-bottom: 10px; }
+
 .progress-large { margin-bottom: 20px; }
 .progress-large .progress-bar { height: 6px; }
 .progress-large .progress-label { font-size: 13px; margin-top: 7px; }
@@ -575,23 +575,46 @@
    note there; this rule used to restate it and beat it on file order. */
 .manual h2 { margin: 0 0 8px; }
 
-.components { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-.component { border: 1px solid var(--line); background: var(--panel); border-radius: var(--r-card); padding: 12px 15px; }
+/* The by-hand list, rebuilt at `.summary`'s weight rather than shaved.
+   *Ten výpis je zbytečně velký.*
+
+   It was fifteen framed cards with 6 px between them, each 12/15 px with a 22 px
+   mark, a name at 600 and two lines of type — a control surface built when
+   ticking was the wizard's main path and the whole screen. It is one bordered
+   list now, hairline between the rows, taking `.summary`'s own 10/16 padding
+   and 14/500 type: the same shape that answers the same question three screens
+   over — what is coming and how much is it. The container's geometry is
+   `.summary`'s line for line, so the two read as one family. */
+.components {
+  list-style: none; margin: 0; padding: 0; overflow: hidden;
+  border: 1px solid var(--line); border-radius: var(--r-large);
+}
+.component { background: var(--panel); border-bottom: 1px solid var(--line); }
+.component:last-child { border-bottom: 0; }
 .component.done { background: var(--subtle); }
 .component.done .component-text { color: var(--text-quiet); }
-.component label { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: start; cursor: pointer; }
+/* `align-items: center` and nothing nudged. It was `start`, which top-aligned
+   the whole row and then needed a `margin-top: 3px` on the checkbox and an
+   `align-self: center` on the mark to undo itself in two directions — the mark
+   was the one that lost, and sat high on any row whose text ran to two lines.
+   A row centred as a row needs neither exception. */
+.component label {
+  display: grid; grid-template-columns: auto 1fr auto; gap: 12px;
+  align-items: center; padding: 10px 16px; cursor: pointer;
+  font-size: 14px; font-weight: 500;
+}
 .component.done label { cursor: default; }
-.component input { margin-top: 3px; accent-color: var(--accent); }
+.component input { accent-color: var(--accent); }
 .component-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.component-name { font-weight: 600; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.component-name { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .component-size { color: var(--text-quiet); font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* 16 px, the size `.release-notes-mark` uses and for the reason written there:
+   22 was a badge on a row this quiet. It stands in the column the size text
+   stands in, so it is sized against 13 px type rather than against the row. */
 .downloaded-mark {
   display: inline-grid; place-items: center;
-  width: 22px; height: 22px; border-radius: 50%;
+  width: 16px; height: 16px; border-radius: 50%;
   background: hsl(var(--ds-grass) / 0.14); color: var(--success-text);
-  /* Centred against the whole row, not against its first line: the mark is
-     about the component, while the checkbox belongs to the title beside it. */
-  align-self: center;
 }
 
 /* ---------------------------------------------------------------- dialog */
@@ -1206,24 +1229,11 @@ button.mic-play:disabled { cursor: default; opacity: 0.6; }
 
 
 
-/* The two ways out of a problem, side by side: copy what we need, or open the
-   log and read it.
-
-   18 px above them, not the 14 a paragraph would take. A bordered panel ends
-   on a line, and a button 14 px under a line reads as stuck to it — the same
-   amount that looks generous under text looks tight under a frame.
-
-   `align-self` because the disclosure is a flex column: without it they would
-   stretch the full width of the card, which no other button here does. They are
-   the last thing in the block now — the note that used to follow them said the
-   copy goes to the clipboard, under a button that says *copy*.
-
-   This rule was lost once, in a rebase, and nothing said so: `.diagnostics-copy`
-   went on existing while the markup had moved to `.diagnostics-actions`, and
-   the buttons only looked right because `.button` is inline-flex. */
-.diagnostics-actions {
-  display: flex; gap: 8px; margin-top: 18px; align-self: flex-start;
-}
+/* `.diagnostics-actions` stood here — `Zkopírovat údaje` and `Otevřít log`
+   side by side at the foot of `Technické podrobnosti`, and gone with that block.
+   Its 8 px gap is still quoted by `.settings-action-row-buttons` above as the
+   other place two buttons stand together; that reference is now to a rule that
+   was, which is why this note keeps the number. */
 /* And a button standing on its own inside a folded block — `Zpět na výchozí`
    at the foot of `Pokročilé` — for exactly the same reason as the row above.
    The disclosure is a flex column, so left alone it stretches to the full width

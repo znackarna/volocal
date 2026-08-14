@@ -250,18 +250,6 @@ export const csSettings = {
     "Při dalším pokusu zvýší teplotu o tuto hodnotu. Nula další pokusy vypne.",
 
   // Where each tool and model was found on disk.
-  "settings.diagnostics.title": "Technické podrobnosti",
-  "settings.diagnostics.copy": "Zkopírovat údaje",
-  "settings.diagnostics.showLog": "Otevřít log",
-  "settings.diagnostics.noLog": "Log zatím neexistuje.",
-  "settings.diagnostics.copied": "Technické údaje jsou ve schránce.",
-  "settings.diagnostics.copyRefused":
-    "Systém zkopírování odmítl. Zkuste to znovu, nebo pošlete soubor volocal-log.txt.",
-  "settings.diagnostics.copyFailed": "Technické údaje se nepodařilo připravit.",
-  "settings.diagnostics.modelWhisper": "model Whisperu",
-  "settings.diagnostics.modelVad": "model VAD",
-  "settings.diagnostics.diarizationEmbedding": "diarizace (hlasové otisky)",
-  "settings.diagnostics.notFound": "nenalezeno",
 } as const;
 
 export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>> = {
@@ -521,21 +509,4 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
     "Teplota vzorkování. Vyšší hodnota znamená víc náhody ve výběru slov.",
   "settings.decoding.temperatureStep": "O kolik se teplota zvýší při dalším pokusu.",
 
-  "settings.diagnostics.title": "Nadpis skrytého bloku s cestami k nalezeným souborům.",
-  "settings.diagnostics.copy":
-    "Tlačítko pod tím seznamem. Zkopíruje verzi, cesty, nastavení a konec logu, aby to šlo poslat, když se něco pokazí. Krátké schválně — co se kopíruje, říká věta pod ním.",
-  "settings.diagnostics.showLog":
-    "Tlačítko vedle kopírování. Otevře složku a označí v ní soubor s logem — pro případ, že posledních šedesát řádků v hlášení nestačí.",
-  "settings.diagnostics.noLog":
-    "Log se zapisuje až od prvního spuštění, které něco zaznamenalo. Do té doby soubor není.",
-  "settings.diagnostics.copied": "Potvrzení v notifikační liště, že se kopírování povedlo.",
-  "settings.diagnostics.copyRefused":
-    "Schránku odmítl systém, ne aplikace. Proto se nabízí druhá cesta — poslat rovnou soubor s logem.",
-  "settings.diagnostics.copyFailed":
-    "Nepodařilo se ty údaje vůbec sestavit. Jiná chyba než odmítnutá schránka.",
-  "settings.diagnostics.modelWhisper": "Řádek kontroly: soubor s modelem Whisperu.",
-  "settings.diagnostics.modelVad": "Řádek kontroly: model detekce řeči (VAD).",
-  "settings.diagnostics.diarizationEmbedding":
-    "Řádek kontroly: model, který z hlasu spočítá otisk pro porovnání mluvčích.",
-  "settings.diagnostics.notFound": "Hodnota místo cesty, když se soubor nenašel.",
 };

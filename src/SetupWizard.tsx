@@ -24,6 +24,19 @@ interface Props {
 
 type Quality = "fastest" | "best";
 
+/** How much of each row the download listing draws. Remembered in
+ *  `localStorage` under `download-view`, the way the archive remembers its own
+ *  — somebody who prefers one listing gets it on every future setup, and this
+ *  screen is rare enough that re-choosing every time would be the whole of the
+ *  interaction. `compact` is the default and is what an unknown value means. */
+type ListingView = "compact" | "full";
+
+const LISTING_VIEW = "download-view";
+
+function rememberedListingView(): ListingView {
+  return localStorage.getItem(LISTING_VIEW) === "full" ? "full" : "compact";
+}
+
 /** The quality choice is mapped to a concrete model only here — nobody should
  *  have to know that "best" means large-v3. Nothing but identifiers and
  *  dictionary keys lives in these tables: a module constant is evaluated once,
@@ -136,44 +149,41 @@ function recommendedQuality(usesGpu: boolean): Quality {
   return usesGpu ? "best" : "fastest";
 }
 
+/** The tick beside something already on the disk.
+ *
+ *  10 in a 16 px circle, the pair `.release-notes-mark` already uses — the tick
+ *  was 13 in 22 and keeping it would have filled the smaller circle edge to
+ *  edge. Stroke 2 rather than 1.8 for the same reason: a thinner line at a
+ *  smaller size reads as a fainter tick, not a smaller one. */
 function DownloadedMark() {
   const { t } = useI18n();
   const label = t("wizard.download.downloadedLabel");
   return (
     <span className="downloaded-mark" aria-label={label} title={label}>
-      <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden>
-        <path d="M3 7.2 5.7 10 11 4.5" stroke="currentColor" strokeWidth="1.8"
+      <svg width="10" height="10" viewBox="0 0 14 14" fill="none" aria-hidden>
+        <path d="M3 7.2 5.7 10 11 4.5" stroke="currentColor" strokeWidth="2"
               strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     </span>
   );
 }
 
-/** Switching to the by-hand component list.
- *
- *  It used to sit only in the last step's footer, which meant walking through
- *  four questions before reaching it — the wrong order for someone who came
- *  here to add one known module. It is now in every footer up to that point,
- *  drawn identically, so it reads as the same action wherever it appears.
- */
-function ManualSelectionButton({ label, onClick }: { label: string; onClick: () => void }) {
-  return (
-    <button className="button quiet" onClick={onClick}>
-      <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden>
-        <path
-          d="M2 4.5h3.2M8.8 4.5H14M2 11.5h6.2M11.8 11.5H14"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-        />
-        <circle cx="7" cy="4.5" r="1.8" fill="none" stroke="currentColor" strokeWidth="1.5" />
-        <circle cx="10" cy="11.5" r="1.8" fill="none" stroke="currentColor" strokeWidth="1.5" />
-      </svg>
-      {label}
-    </button>
-  );
-}
+/* `ManualSelectionButton` stood here — two sliders, the word `Vybrat ručně`,
+   and a footer slot on both steps of the guided run.
+   *To vybrat ručně už ve wizardu nedává smysl.*
+
+   It contradicted the screen it stood on. This wizard asks one question and
+   everything follows from it; a button beside that question offering to pick
+   twelve components by hand reads as *unless you would rather answer twelve
+   questions instead of one*, which is the arrangement the whole redesign
+   removed. And the list it opened is not lost — it is on `Nástroje`, behind
+   `Spravovat modely`, which is where somebody who wants it goes.
+
+   **The mode it switched into is still here and is still reached twice.**
+   `Spravovat modely` and `missingModule` both open straight onto the list; see
+   `load`. What went is the button, the concept in the guided path, and
+   `chooseByHand` with `manualFrom`, which existed only to remember which
+   question the button had been pressed on. */
 
 /** Was the answer "one is already running" rather than a failure?
  *
@@ -215,22 +225,23 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
      started on a named choice could only ever start on the wrong one — which
      is exactly how the badge and the selection came to disagree. */
   const [chosen, setChosen] = useState<Quality | null>(null);
+  /** Whether this is the by-hand component list rather than the guided run.
+   *
+   *  Nothing on screen sets it any more: it is decided once in `load`, by how
+   *  the wizard was opened, and never toggled. `Spravovat modely` and
+   *  `missingModule` are the two ways in, and both arrive with `required`
+   *  false — so in this mode `Zpět` means the screen the reader came from. */
   const [manual, setManual] = useState(false);
-  const [manualFrom, setManualFrom] = useState<number | null>(null);
   const [manualSelect, setManualSelect] = useState<Set<string>>(new Set());
 
   const [progress, setProgress] = useState<Record<string, DownloadProgress>>({});
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  /** Skip the remaining questions and go straight to the component list.
-   *  Remembers where it was pressed, so `Zpět` from the list returns to the
-   *  question that was being answered rather than to a step nobody walked. */
-  const chooseByHand = useCallback(() => {
-    setManualFrom(step);
-    setManual(true);
-    setStep(STEP_DOWNLOAD);
-  }, [step]);
+  const [view, setView] = useState<ListingView>(rememberedListingView);
+  useEffect(() => {
+    localStorage.setItem(LISTING_VIEW, view);
+  }, [view]);
 
   const load = useCallback(async () => {
     try {
@@ -521,7 +532,11 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
 
   return (
     <main className="wizard">
-      {step < STEP_DONE && (
+      {/* The progress bar of steps, and not in the by-hand list either, for the
+          reason the step counter is not: that mode is one screen reached from
+          elsewhere, so three segments with the first already filled would draw
+          a walk nobody took. */}
+      {step < STEP_DONE && !manual && (
         <div className="steps" aria-hidden>
           {STEPS.map((i) => (
             <span key={i} className={i <= step ? "finished" : ""} />
@@ -609,10 +624,17 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
                   </span>
                   {/* Outside the text block so it lands on the right edge, the
                       same place the badge takes on a module tile, rather than
-                      drifting with the length of the model's name. */}
-                  <span className="choice-size">
-                    {dataSize(p?.complete ? 0 : p?.megabytes ?? 0)}
-                  </span>
+                      drifting with the length of the model's name.
+
+                      Nothing at all when the model is already there. It used to
+                      render `dataSize(0)` — a card wearing a `staženo` badge and
+                      `0 MB` beside it, saying the same thing twice and the
+                      second time as a number that reads like a cost. A size on
+                      this card means *this is what pressing it will fetch*, and
+                      for a model on the disk there is no such number. */}
+                  {!p?.complete && (
+                    <span className="choice-size">{dataSize(p?.megabytes ?? 0)}</span>
+                  )}
                 </button>
               );
             })}
@@ -626,10 +648,6 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
                 {t("common.back")}
               </button>
             )}
-            <ManualSelectionButton
-              label={t("wizard.manual.switchToManual")}
-              onClick={chooseByHand}
-            />
             <button className="button primary" onClick={() => setStep(STEP_DOWNLOAD)}>
               {t("common.continue")}
             </button>
@@ -639,7 +657,18 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
       {/* -------------------------------------- 1. summary and download */}
       {step === STEP_DOWNLOAD && (
         <div className="step">
-          <p className="step-number">{t("wizard.nav.stepCounter", { step: 2, total: STEPS.length })}</p>
+          {/* No step counter in the by-hand list. It counts the guided run, and
+              that mode is now only ever entered from outside the wizard —
+              `Spravovat modely`, or a document asking for its model — so
+              `Krok 2 ze 3` would number a walk the reader never took. While
+              `Vybrat ručně` existed they could arrive here from step 1 and the
+              number meant something; it stopped meaning anything with the
+              button. */}
+          {!manual && (
+            <p className="step-number">
+              {t("wizard.nav.stepCounter", { step: 2, total: STEPS.length })}
+            </p>
+          )}
           <h1>{t(running ? "wizard.download.runningTitle" : "wizard.download.reviewTitle")}</h1>
 
           {!running && (
@@ -689,26 +718,13 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
                 )}
               </div>
 
-              <ul className="summary">
-                {selected.map((id) => {
-                  const p = items.find((x) => x.id === id);
-                  const s = progress[id]?.phase;
-                  return (
-                    <li key={id} className={s === "complete" ? "done" : ""}>
-                      <span>{p ? tDynamic(p.name_code, p.id) : id}</span>
-                      <span className="small-text">
-                        {s === "complete"
-                          ? t("wizard.download.statusDone")
-                          : s === "error"
-                          ? t("wizard.download.statusError")
-                          : s
-                          ? "…"
-                          : t("wizard.download.statusWaiting")}
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
+              <DownloadListing
+                ids={selected}
+                items={items}
+                progress={progress}
+                view={view}
+                onView={setView}
+              />
 
               <div className="step-footer">
                 <button className="button" onClick={() => api.cancelDownload()}>
@@ -731,50 +747,62 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
                     })
                   }
                 />
-              ) : (
+              ) : selected.length === 0 ? (
                 <ul className="summary">
-                  {selected.map((id) => {
-                    const p = items.find((x) => x.id === id);
-                    return (
-                      <li key={id}>
-                        <span>{p ? tDynamic(p.name_code, p.id) : id}</span>
-                        <span className="small-text">{dataSize(p?.megabytes ?? 0)}</span>
-                      </li>
-                    );
-                  })}
-                  {selected.length === 0 && (
-                    <li>
-                      <span className="small-text">{t("wizard.download.nothingNeeded")}</span>
-                    </li>
-                  )}
+                  <li>
+                    <span className="small-text">{t("wizard.download.nothingNeeded")}</span>
+                  </li>
                 </ul>
+              ) : (
+                <DownloadListing
+                  ids={selected}
+                  items={items}
+                  progress={progress}
+                  view={view}
+                  onView={setView}
+                />
               )}
 
               <div className="step-footer">
+                {/* `Zpět` out of the by-hand list is the screen it was opened
+                    from, not the question. Both ways into that mode come from
+                    somewhere — `Spravovat modely` on `Nástroje`, or a document
+                    asking for its model — and dropping the reader at *Rychle,
+                    nebo přesně?* would put them on the one screen the mode
+                    exists to avoid: finishing there writes `model`,
+                    `diarization` and `editor_model` for somebody who opened a
+                    list to look at it.
+
+                    It used to read `manualFrom ?? STEP_CHOICE`, and the guided
+                    run was the only caller that ever set `manualFrom`. With
+                    that gone the fallback was all that was left, and the
+                    fallback was the wrong answer. */}
                 <button
                   className="button quiet"
-                  onClick={() => missingModule ? onBack() : setStep(manualFrom ?? STEP_CHOICE)}
+                  onClick={() => (manual ? onBack() : setStep(STEP_CHOICE))}
                 >
                   {t("common.back")}
                 </button>
-                <ManualSelectionButton
-                  label={t(manual ? "wizard.manual.switchToSimple" : "wizard.manual.switchToManual")}
-                  onClick={() => {
-                    setManual((r) => !r);
-                    setManualFrom(null);
-                  }}
-                />
                 {selected.length === 0 ? (
+                  /* `Jdeme přepisovat` stood here — *to tlačítko je zbytečné* —
+                     and it is `Zavřít` rather than deleted, which was checked
+                     before touching it: this is the only other button on the
+                     screen, so removing it leaves `Zpět` alone and no way to
+                     finish a guided run on a machine that already has
+                     everything. What it does is close the wizard, and closing
+                     is what the finished screen's own button says two steps
+                     further on. Writing the settings on the way out is not a
+                     second action to name: `dokonci([])` records the answer to
+                     the one question, which is true whether or not anything had
+                     to be fetched. */
                   <button
                     className="button primary"
                     onClick={async () => {
-                      // Nothing was selected because everything is already on
-                      // the disk, so nothing is unfinished.
                       await dokonci([]);
                       onComplete();
                     }}
                   >
-                    {t("wizard.download.startTranscribing")}
+                    {t("common.close")}
                   </button>
                 ) : (
                   <button className="button primary" onClick={start}>
@@ -856,6 +884,112 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
   );
 }
 
+/** What is about to be downloaded, read only.
+ *
+ *  Three of the owner's sentences landed on this list in a row and the shape is
+ *  the resolution of all three rather than a compromise between them:
+ *  *ten výpis je zbytečně velký*, then *ty popisky chybí, ten dvouřádkový výpis
+ *  dával smysl*, then *dej tam přepínač na kompaktní a full výpis*.
+ *
+ *  So the row is one line or two, and the reader says which. Compact is the
+ *  name and the size; full adds the catalogue's own sentence, which is the thing
+ *  that says why 2 MB of `Detekce řeči` is on the list at all. Compact is the
+ *  default because the objection to the height came first.
+ *
+ *  **Read-only, and built to look it.** The row it replaces was a control — a
+ *  checkbox, a 22 px status circle, a hit area — from when ticking was this
+ *  screen's main path. Nothing here can be ticked: the guided run downloads what
+ *  the one question implies, and the list is there to be read before agreeing.
+ *  No checkbox, no hover, no pointer.
+ *
+ *  The size is on every row in both views. The total above answers *how much*,
+ *  and only the rows answer *which of these is the big one* — which is the
+ *  question somebody actually has when a listing says 1,2 GB. Nothing complete
+ *  ever reaches this list, so no row can say `0 MB`: `selected` is built from
+ *  `!complete` throughout, and the total is a reduce over the same array, so the
+ *  number agreed to and the number downloaded are one expression apart.
+ *
+ *  While the download runs the size gives way to the status. That keeps compact
+ *  at one line rather than growing a second during the download, and it is the
+ *  honest trade: once the bytes are moving, how big each item was is no longer
+ *  the question and how far it has got is. */
+function DownloadListing({
+  ids,
+  items,
+  progress,
+  view,
+  onView,
+}: {
+  ids: string[];
+  items: DownloadComponent[];
+  progress: Record<string, DownloadProgress>;
+  view: ListingView;
+  onView: (view: ListingView) => void;
+}) {
+  const { t, tDynamic } = useI18n();
+  const { dataSize } = useFormats();
+  const running = ids.some((id) => progress[id]);
+
+  return (
+    <>
+      {/* The archive's control, at the archive's *shape* and not its size. The
+          40 px there is 32 px buttons matched to the filter select beside them
+          and says so in its own comment; there is no such neighbour here, so
+          this is the plain segmented control — 30 px button in a 36 px track,
+          which is what `CLAUDE.md` documents as the default. */}
+      <div className="download-view">
+        <div
+          className="segmented-control"
+          role="group"
+          aria-label={t("wizard.download.viewLabel")}
+        >
+          {(["compact", "full"] as ListingView[]).map((option) => (
+            <button
+              key={option}
+              type="button"
+              className={view === option ? "active" : ""}
+              aria-pressed={view === option}
+              onClick={() => onView(option)}
+            >
+              {t(option === "compact" ? "wizard.download.viewCompact" : "wizard.download.viewFull")}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <ul className={`download-list ${view === "full" ? "full" : ""}`}>
+        {ids.map((id) => {
+          const item = items.find((x) => x.id === id);
+          const phase = progress[id]?.phase;
+          return (
+            <li key={id} className={phase === "complete" ? "done" : phase === "error" ? "failed" : ""}>
+              <span className="download-row-text">
+                <span className="download-row-name">
+                  {item ? tDynamic(item.name_code, item.id) : id}
+                </span>
+                {view === "full" && (
+                  <span className="small-text">{tDynamic(item?.description_code ?? "", "")}</span>
+                )}
+              </span>
+              <span className="download-row-side">
+                {running
+                  ? phase === "complete"
+                    ? t("wizard.download.statusDone")
+                    : phase === "error"
+                      ? t("wizard.download.statusError")
+                      : phase
+                        ? "…"
+                        : t("wizard.download.statusWaiting")
+                  : dataSize(item?.megabytes ?? 0)}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+    </>
+  );
+}
+
 function ManualSelection({
   items,
   selected,
@@ -904,9 +1038,20 @@ function ManualSelection({
                       disabled={p.complete}
                       onChange={() => onToggle(p.id)}
                     />
+                    {/* The sentence under the name is what somebody deciding
+                        needs — a name alone does not say whether `Detekce řeči`
+                        is worth 2 MB. So it stays, and it is dropped on the
+                        rows where there is nothing to decide: a component
+                        already on the disk is a fact, its checkbox is ticked
+                        and disabled, and the second line was describing a
+                        choice nobody has left to make. On a machine that has
+                        been set up that is most of the list, which is where the
+                        height was going. */}
                     <span className="component-text">
                       <span className="component-name">{tDynamic(p.name_code, p.id)}</span>
-                      <span className="small-text">{tDynamic(p.description_code, "")}</span>
+                      {!p.complete && (
+                        <span className="small-text">{tDynamic(p.description_code, "")}</span>
+                      )}
                     </span>
                     <span className="component-size">
                       {p.complete ? <DownloadedMark /> : dataSize(p.megabytes)}

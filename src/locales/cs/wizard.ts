@@ -34,7 +34,7 @@ export const csWizard = {
   "wizard.download.downloadedBadge": "staženo",
   "wizard.download.downloadedLabel": "Staženo",
   "wizard.download.runningTitle": "Probíhá stahování",
-  "wizard.download.reviewTitle": "Kontrola výběru",
+  "wizard.download.reviewTitle": "Co se stáhne",
   "wizard.download.summary.one": "Stáhne se {count} položka, dohromady {size}.",
   "wizard.download.summary.few": "Stáhnou se {count} položky, dohromady {size}.",
   "wizard.download.summary.many": "Stáhne se {count} položky, dohromady {size}.",
@@ -47,12 +47,12 @@ export const csWizard = {
   "wizard.download.statusError": "chyba",
   "wizard.download.statusWaiting": "čeká",
   "wizard.download.nothingNeeded": "Všechno potřebné už máte.",
-  "wizard.download.startTranscribing": "Jdeme přepisovat",
   "wizard.download.downloadWithSize": "Stáhnout ({size})",
+  "wizard.download.viewLabel": "Podrobnost výpisu",
+  "wizard.download.viewCompact": "Stručně",
+  "wizard.download.viewFull": "Podrobně",
 
   // ------------------------------------------------------------- choosing by hand
-  "wizard.manual.switchToSimple": "Jednoduchý výběr",
-  "wizard.manual.switchToManual": "Vybrat ručně",
   "wizard.manual.groupPrograms": "Programy pro přepis",
   "wizard.manual.groupModels": "Jazykové modely pro přepis",
   "wizard.manual.groupSpeech": "Detekce řeči a mluvčích",
@@ -95,7 +95,9 @@ export const csWizardContext: Partial<Record<keyof typeof csWizard, string>> = {
   "wizard.download.downloadedLabel":
     "Popisek pro odečítač obrazovky u zaškrtnutí vedle stažené položky v ručním výběru.",
   "wizard.download.reviewTitle":
-    "Nadpis pátého kroku před spuštěním stahování: přehled toho, co se stáhne.",
+    "Nadpis kroku před spuštěním stahování. Platí pro dvě obrazovky: pro výpis " +
+    "v průvodci, kde se nedá nic měnit, i pro ruční výběr ze Spravovat modely, " +
+    "kde se odškrtává. Proto ne „kontrola výběru“ — v průvodci žádný výběr není.",
   "wizard.download.summary.one":
     "Věta nad seznamem. {size} je celková velikost, například „1,6 GB“.",
   "wizard.download.preparing":
@@ -110,14 +112,16 @@ export const csWizardContext: Partial<Record<keyof typeof csWizard, string>> = {
   "wizard.download.statusWaiting":
     "Stav položky v seznamu stahování: ještě na ni nedošlo. Malé písmeno je záměr.",
   "wizard.download.nothingNeeded": "Ukáže se místo seznamu, když není co stahovat.",
-  "wizard.download.startTranscribing":
-    "Hlavní tlačítko, když už je vše stažené. Zavře průvodce a pustí uživatele do aplikace.",
   "wizard.download.downloadWithSize":
     "Hlavní tlačítko se spustí stahování. {size} je celková velikost výběru, například „1,6 GB“.",
+  "wizard.download.viewLabel":
+    "Popisek přepínače nad výpisem pro odečítač obrazovky. Nezobrazuje se.",
+  "wizard.download.viewCompact":
+    "První poloha přepínače nad výpisem: řádek je jen název a velikost. Výchozí stav.",
+  "wizard.download.viewFull":
+    "Druhá poloha: pod názvem je i věta, co ta položka dělá. Jedno slovo, ať se " +
+    "vejdou vedle sebe.",
 
-  "wizard.manual.switchToSimple": "Tlačítko zpět z ručního výběru součástí do průvodce po krocích.",
-  "wizard.manual.switchToManual":
-    "Tlačítko do ručního výběru, kde si uživatel odškrtává jednotlivé součásti sám.",
   "wizard.manual.groupPrograms":
     "Nadpis skupiny v ručním výběru: spustitelné programy, ne modely. Jsou pod " +
     "ním sestavení whisperu, ffmpeg a stahovač online videí — všechno je to " +

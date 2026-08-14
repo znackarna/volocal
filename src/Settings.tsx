@@ -17,7 +17,6 @@ import type { ConfirmationRequest } from "./ConfirmationDialog";
 import CountdownRing from "./CountdownRing";
 import InfoNote from "./InfoNote";
 import { LineIcon, ModelMark, type LineIconName } from "./icons";
-import { ClipboardRefused, copyPlainText } from "./detail/clipboard";
 import Select from "./Select";
 import { useI18n, type AppLanguage } from "./i18n";
 import { useUserMessage } from "./messages";
@@ -1354,28 +1353,22 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
         </div>
       </section>}
 
-      {/* Which file was found where, folded away at the foot of the tab — the
-          same place and the same shape as `Pokročilé` on `Přepis`, asked for in
-          those words.
+      {/* `Technické podrobnosti` stood here — *dle mého nemají smysl* — a folded
+          card at the foot of this tab holding three things that were never one
+          thing, and the record for 14 August 2026 separates them.
 
-          The two blocks are the same kind of thing: everything a reader does
-          not need and must be able to reach. `Pokročilé` holds the decoding
-          values somebody only opens when a transcript came out wrong; this
-          holds the paths somebody only opens when it did not start at all. A
-          reader who has learnt that the last block on one tab is the one they
-          can ignore has learnt it for both.
+          The found paths went because they are diagnostic output on a settings
+          screen: which `ffmpeg` and which model file the application resolved,
+          read by almost nobody and by nobody who could act on it. `Otevřít log`
+          went with them.
 
-          So it is a card whose whole content is one disclosure, and it takes
-          the rule that zeroes that disclosure's own separator — the card's
-          border already draws that line, 26 px further out and parallel to it.
-          It was the folded footer of the models card, where it wore
-          `card-footer` and sat on the card's single rule; it needs neither now,
-          because the card is the block. */}
-      {activeTab === "tools" && check && (
-        <section className="settings-card-diagnostics">
-          <ToolDiagnostics k={check} onInfo={onInfo} onError={onError} />
-        </section>
-      )}
+          **`Zkopírovat údaje` went too, and it was the different one.** It is
+          not something a reader consults, it is what they are asked to send when
+          something has gone wrong, and losing it turns *can you send me what your
+          machine says?* into *find this file yourself*. It is named in the record
+          with its command and its keys so it can come back in one commit, and it
+          is not quietly relocated here: a button surviving alone on some other
+          card is a decision the owner has not made. */}
 
       {/* The dictionary is not a subject of its own: it is a list of the
           mistakes this transcript makes, and it belongs beside the model that
@@ -2389,94 +2382,3 @@ function Backups({
 }
 
 
-function ToolDiagnostics({
-  k,
-  onInfo,
-  onError,
-}: {
-  k: ToolCheck;
-  onInfo: (message: string) => void;
-  onError: (message: string) => void;
-}) {
-  const { t } = useI18n();
-  const userMessage = useUserMessage();
-  /** Executable names are technical identifiers and stay as they are; the rest
-   *  names what the file is for and is looked up. */
-  const rows: Array<[string, TranslationKey | null, string | null]> = [
-    ["ffmpeg", null, k.ffmpeg],
-    ["ffprobe", null, k.ffprobe],
-    ["whisper-cli", null, k.whisper_cli],
-    ["model_whisper", "settings.diagnostics.modelWhisper", k.model_whisper],
-    ["model_vad", "settings.diagnostics.modelVad", k.model_vad],
-    ["embedding", "settings.diagnostics.diarizationEmbedding", k.embedding_model],
-  ];
-  /* No `card-footer` any more: that variant is for a disclosure folded under
-     other content inside a card, and this one *is* its card, at the foot of
-     `Výkon a modely` exactly as `Pokročilé` is at the foot of `Přepis`. The
-     stylesheet zeroes the separator for both. */
-  return (
-    <SettingsDisclosure title={t("settings.diagnostics.title")}>
-      <ul className="check">
-        {rows.map(([id, titleKey, path]) => (
-          <li key={id} className={path ? "yes" : "no"}>
-            {/* The same circular mark the manual download list uses for a
-                component that is already on the machine. */}
-            <span className="check-mark" aria-hidden>
-              <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
-                {path ? (
-                  <path d="M3 7.2 5.7 10 11 4.5" stroke="currentColor" strokeWidth="1.8"
-                        strokeLinecap="round" strokeLinejoin="round" />
-                ) : (
-                  <path d="M4 4l6 6M10 4l-6 6" stroke="currentColor" strokeWidth="1.8"
-                        strokeLinecap="round" />
-                )}
-              </svg>
-            </span>
-            <span className="check-name">{titleKey ? t(titleKey) : id}</span>
-            {/* The whole path is in the tooltip: the line shows its end, which
-                is the part that says which file this actually is. */}
-            <span className="check-path" title={path ?? undefined}>
-              {path ?? t("settings.diagnostics.notFound")}
-            </span>
-          </li>
-        ))}
-      </ul>
-      {/* What this list shows plus everything around it — the settings as they
-          are stored, the compute that was chosen, the end of the log. The list
-          above answers "is it there"; a problem usually needs "and what was it
-          doing", which no screenshot of this panel can say. */}
-      <div className="diagnostics-actions">
-      <button
-        className="button"
-        onClick={async () => {
-          try {
-            await copyPlainText(await api.diagnosticReport());
-            onInfo(t("settings.diagnostics.copied"));
-          } catch (error) {
-            onError(
-              error instanceof ClipboardRefused
-                ? t("settings.diagnostics.copyRefused")
-                : t("settings.diagnostics.copyFailed")
-            );
-          }
-        }}
-      >
-        {t("settings.diagnostics.copy")}
-      </button>
-        {/* The report holds the last sixty lines. A transcription that ran for
-            an hour leaves more than that, and somebody may simply want to read
-            it themselves. */}
-        <button
-          className="button"
-          onClick={async () => {
-            const file = await api.logFile().catch(() => null);
-            if (!file) return onError(t("settings.diagnostics.noLog"));
-            void revealItemInDir(file).catch((e) => onError(userMessage(e)));
-          }}
-        >
-          {t("settings.diagnostics.showLog")}
-        </button>
-      </div>
-    </SettingsDisclosure>
-  );
-}
