@@ -284,7 +284,7 @@ const DECODING_FIELDS: ReadonlyArray<{
 type SettingsTab =
   | "transcription"
   | "appearance"
-  | "tools"
+  | "performance"
   | "files"
   | "updates"
   | "about";
@@ -298,19 +298,26 @@ type SettingsTab =
 const SETTINGS_TABS: SettingsTab[] = [
   "transcription",
   "appearance",
-  "tools",
+  "performance",
   "files",
   "about",
   "updates",
 ];
-/** `appearance` is named by the one card that fills its tab rather than by a
- *  key of its own: a second key holding the same word is a second thing to keep
- *  in step, and the transcription card already borrows its tab's key in the
- *  other direction. */
+/** Every tab has a key of its own now.
+ *
+ *  `appearance` borrowed `settings.appearance.title` — the card that fills it
+ *  says `Vzhled`, and a second key holding the same word is a second thing to
+ *  keep in step. That was true while the two words were the same word. The tab
+ *  is `Jazyk a vzhled` and the card is still `Vzhled`, so the borrowing became
+ *  the defect it was avoiding: one string doing two jobs that have parted.
+ *
+ *  `transcription` still borrows in the other direction, and that one stands:
+ *  the card and the tab both say `Přepis` because the tab holds the card and
+ *  nothing has come between them. */
 const SETTINGS_TAB_KEYS: Record<SettingsTab, TranslationKey> = {
   transcription: "settings.tab.transcription",
-  appearance: "settings.appearance.title",
-  tools: "settings.tab.tools",
+  appearance: "settings.tab.appearance",
+  performance: "settings.tab.performance",
   files: "settings.tab.files",
   updates: "settings.tab.updates",
   about: "settings.tab.about",
@@ -731,9 +738,9 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
             onKeyDown={handleTabKeyDown}
           >
             <span>{t(SETTINGS_TAB_KEYS[tab])}</span>
-            {/* The dot follows the status band, which stands on `Nástroje`
-                since that is where what is installed is now read. */}
-            {tab === "tools" && missingRequired.length > 0 && (
+            {/* The dot follows the status band, which stands on `Výkon a
+                modely` since that is where what is installed is read. */}
+            {tab === "performance" && missingRequired.length > 0 && (
               <span className="settings-tab-alert" aria-label={t("settings.missingRequired")} />
             )}
           </button>
@@ -781,7 +788,7 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
           not coming back. The button opens the by-hand component list directly
           (the wizard does that itself when it is opened neither as required nor
           for one named module). */}
-      {activeTab === "tools" && <section className="settings-card-modules">
+      {activeTab === "performance" && <section className="settings-card-modules">
         <h2>{t("settings.modules.title")}</h2>
         <p className="settings-section-description">
           {t("settings.modules.description")}
@@ -805,16 +812,6 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
           </button>
         </div>
 
-        {/* Which file was found where, folded at the foot of the card that says
-            whether they are there at all. It was the last band of `Pokročilé`,
-            where somebody whose transcription will not start had to open a
-            block titled *advanced* to see what the application can see.
-
-            The same shape as the archive card: a `spaced` action row and then
-            one `card-footer` disclosure, which is the pair those two rules were
-            written for — the row gives up its own divider so this is the card's
-            single rule. */}
-        {check && <ToolDiagnostics k={check} onInfo={onInfo} onError={onError} />}
       </section>}
 
       {/* Where the transcription computes — the choice, and then what actually
@@ -860,7 +857,7 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
           `check.compute` is `choose_compute`'s answer and `n.compute` is what
           was asked for; where they differ, one sentence says why and, when the
           reason is a build that is not downloaded, offers it. */}
-      {activeTab === "tools" && check && <section className="settings-card-compute">
+      {activeTab === "performance" && check && <section className="settings-card-compute">
         <h2>{t("settings.compute.title")}</h2>
         <p className="settings-section-description">{t("settings.compute.description")}</p>
 
@@ -1180,7 +1177,7 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
           them had to carry a note saying it does not touch them. Here they are
           a card of their own, next to the band that says what has been
           downloaded into them. */}
-      {activeTab === "tools" && <section className="settings-card-locations">
+      {activeTab === "performance" && <section className="settings-card-locations">
         <h2>{t("settings.files.locationsTitle")}</h2>
         {/* A card's opening sentence, so it takes the card's own class rather
             than the `small-text` it wore inside the disclosure. */}
@@ -1218,6 +1215,29 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
           </div>
         </div>
       </section>}
+
+      {/* Which file was found where, folded away at the foot of the tab — the
+          same place and the same shape as `Pokročilé` on `Přepis`, asked for in
+          those words.
+
+          The two blocks are the same kind of thing: everything a reader does
+          not need and must be able to reach. `Pokročilé` holds the decoding
+          values somebody only opens when a transcript came out wrong; this
+          holds the paths somebody only opens when it did not start at all. A
+          reader who has learnt that the last block on one tab is the one they
+          can ignore has learnt it for both.
+
+          So it is a card whose whole content is one disclosure, and it takes
+          the rule that zeroes that disclosure's own separator — the card's
+          border already draws that line, 26 px further out and parallel to it.
+          It was the folded footer of the models card, where it wore
+          `card-footer` and sat on the card's single rule; it needs neither now,
+          because the card is the block. */}
+      {activeTab === "performance" && check && (
+        <section className="settings-card-diagnostics">
+          <ToolDiagnostics k={check} onInfo={onInfo} onError={onError} />
+        </section>
+      )}
 
       {/* The dictionary is not a subject of its own: it is a list of the
           mistakes this transcript makes, and it belongs beside the model that
@@ -1324,17 +1344,32 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
         </div>
       </section>}
 
-      {activeTab === "appearance" && <section className="settings-card-appearance">
-        <h2>{t("settings.appearance.title")}</h2>
-        <p className="settings-section-description">
-          {t("settings.appearance.description")}
-        </p>
+      {/* The application's own language, on a card of its own — the same move
+          `Jazyk nahrávky` made on `Přepis`, built the same way so the two
+          screens read alike. It stood as the first field of the appearance
+          card, which was fair while the tab was called `Vzhled` and had to
+          hold it somewhere; the tab is `Jazyk a vzhled` now and names the two
+          halves it actually has.
+
+          **This is the one control on this screen that is not in the settings
+          record.** It lives in `localStorage["app-language"]` and is written by
+          `setLanguage` from `i18n.tsx`, not by `save(n)` — which is why the
+          card looks like every other card here and works unlike every other
+          one. It does not travel in an exported archive, and it does not come
+          back with an imported one; a machine restored from a backup keeps the
+          language it was already showing. Nothing about this card should be
+          wired into the settings write path to make it look tidier.
+
+          No label above the dropdown: the heading is the label, and `Select`
+          takes the name for screen readers through `description`, exactly as
+          `Jazyk nahrávky` does. */}
+      {activeTab === "appearance" && <section className="settings-card-app-language">
+        <h2>{t("settings.language.title")}</h2>
 
         <div className="field">
-          <label>{t("settings.language.title")}</label>
           <Select
             value={language}
-            description={t("settings.language.label")}
+            description={t("settings.language.title")}
             onChange={(value) => setLanguage(value as AppLanguage)}
             items={[
               { value: "cs", label: t("domain.appLanguage.cs") },
@@ -1343,6 +1378,13 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
           />
           <InfoNote>{t("settings.language.description")}</InfoNote>
         </div>
+      </section>}
+
+      {activeTab === "appearance" && <section className="settings-card-appearance">
+        <h2>{t("settings.appearance.title")}</h2>
+        <p className="settings-section-description">
+          {t("settings.appearance.description")}
+        </p>
 
         <div className="field">
           <label>{t("settings.appearance.theme")}</label>
@@ -2206,8 +2248,12 @@ function ToolDiagnostics({
     ["model_vad", "settings.diagnostics.modelVad", k.model_vad],
     ["embedding", "settings.diagnostics.diarizationEmbedding", k.embedding_model],
   ];
+  /* No `card-footer` any more: that variant is for a disclosure folded under
+     other content inside a card, and this one *is* its card, at the foot of
+     `Výkon a modely` exactly as `Pokročilé` is at the foot of `Přepis`. The
+     stylesheet zeroes the separator for both. */
   return (
-    <SettingsDisclosure title={t("settings.diagnostics.title")} className="card-footer">
+    <SettingsDisclosure title={t("settings.diagnostics.title")}>
       <ul className="check">
         {rows.map(([id, titleKey, path]) => (
           <li key={id} className={path ? "yes" : "no"}>
@@ -2269,7 +2315,6 @@ function ToolDiagnostics({
           {t("settings.diagnostics.showLog")}
         </button>
       </div>
-      <InfoNote>{t("settings.diagnostics.copyNote")}</InfoNote>
     </SettingsDisclosure>
   );
 }

@@ -5,7 +5,8 @@ export const enSettings: Partial<Record<keyof typeof csSettings, string>> = {
   "settings.title": "Settings",
   "settings.groups": "Settings groups",
   "settings.tab.transcription": "Transcription",
-  "settings.tab.tools": "Tools",
+  "settings.tab.appearance": "Language and appearance",
+  "settings.tab.performance": "Performance and models",
   "settings.tab.files": "Folders and backups",
   "settings.tab.updates": "Updates",
   "settings.tab.about": "Information",
@@ -55,7 +56,6 @@ export const enSettings: Partial<Record<keyof typeof csSettings, string>> = {
   "settings.missingRequired": "Some required models are missing",
   "settings.language.title": "App language",
   "settings.language.description": "The change takes effect right away. Transcripts stay in their original language.",
-  "settings.language.label": "Interface language",
   "settings.portable.title": "Portable mode",
   "settings.portable.description": "The app runs from {directory}. Transcripts, programs and models are stored there too. Nothing is written to the system.",
   "settings.portable.machineBundled": "Computer: {machine} · the rendering engine is included",
@@ -127,7 +127,7 @@ export const enSettings: Partial<Record<keyof typeof csSettings, string>> = {
     "The archive keeps copies of the files that are added. It costs the disk space twice.",
   "settings.appearance.title": "Appearance",
   "settings.appearance.description":
-    "Language, colour theme, and the type the transcript is read in.",
+    "The colour theme, and the type the transcript is read in.",
   "settings.appearance.theme": "Theme",
   "settings.appearance.themeSystem": "Follow the system",
   "settings.appearance.themeLight": "Light",
@@ -194,8 +194,6 @@ export const enSettings: Partial<Record<keyof typeof csSettings, string>> = {
   "settings.diagnostics.copy": "Copy the details",
   "settings.diagnostics.showLog": "Open the log",
   "settings.diagnostics.noLog": "There is no log yet.",
-  "settings.diagnostics.copyNote":
-    "Put on the clipboard. Nothing is sent anywhere — where the text goes is up to you.",
   "settings.diagnostics.copied": "The technical details are on the clipboard.",
   "settings.diagnostics.copyRefused":
     "The system refused the clipboard. Try again, or send the volocal-log.txt file.",

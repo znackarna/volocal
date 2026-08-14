@@ -3,14 +3,14 @@ export const csSettings = {
   "settings.title": "Nastavení",
   "settings.groups": "Skupiny nastavení",
   "settings.tab.transcription": "Přepis",
-  "settings.tab.tools": "Nástroje",
+  "settings.tab.appearance": "Jazyk a vzhled",
+  "settings.tab.performance": "Výkon a modely",
   "settings.tab.files": "Složky a zálohy",
   "settings.tab.updates": "Aktualizace",
   "settings.tab.about": "Informace",
   "settings.missingRequired": "Některé povinné modely chybí",
   "settings.language.title": "Jazyk aplikace",
   "settings.language.description": "Změna se projeví hned. Přepisy zůstanou v původním jazyce.",
-  "settings.language.label": "Jazyk rozhraní",
 
 
   // Portable mode and the copy it can make of itself.
@@ -108,7 +108,7 @@ export const csSettings = {
   // Fonts and the sample paragraph that shows them off.
   "settings.appearance.title": "Vzhled",
   "settings.appearance.description":
-    "Jazyk, barevný motiv a písmo přepisu.",
+    "Barevný motiv a písmo, kterým se čte přepis.",
   "settings.appearance.theme": "Motiv",
   "settings.appearance.themeSystem": "Podle systému",
   "settings.appearance.themeLight": "Světlý",
@@ -255,8 +255,6 @@ export const csSettings = {
   "settings.diagnostics.copy": "Zkopírovat údaje",
   "settings.diagnostics.showLog": "Otevřít log",
   "settings.diagnostics.noLog": "Log zatím neexistuje.",
-  "settings.diagnostics.copyNote":
-    "Vloží se do schránky. Nikam se nic neposílá — kam text pošlete, je na vás.",
   "settings.diagnostics.copied": "Technické údaje jsou ve schránce.",
   "settings.diagnostics.copyRefused":
     "Systém zkopírování odmítl. Zkuste to znovu, nebo pošlete soubor volocal-log.txt.",
@@ -269,10 +267,14 @@ export const csSettings = {
 
 export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>> = {
   "settings.tab.transcription": "Název záložky. Jde o převod řeči na text, ne o opisování.",
-  "settings.tab.tools":
-    "Název záložky, na které je vidět, co je v tomhle počítači nainstalované: " +
-    "stažené modely a programy, obě složky, kam se ukládají, a cesty k nalezeným " +
-    "souborům. Nástroje jsou programy jako ffmpeg nebo whisper-cli, ne funkce aplikace.",
+  "settings.tab.appearance":
+    "Název záložky se dvěma kartami: jazyk aplikace a vzhled (motiv, písmo " +
+    "přepisu, jeho velikost). „Jazyk“ je jazyk rozhraní, ne jazyk nahrávky — " +
+    "ten je na záložce Přepis.",
+  "settings.tab.performance":
+    "Název záložky, na které se vybírá, kde přepis počítá, a je vidět, co je " +
+    "v tomhle počítači stažené a kam se to ukládá. Obě poloviny názvu " +
+    "odpovídají kartám na ní. Dřív se jmenovala Nástroje.",
   "settings.tab.files":
     "Název záložky, na které je složka pro nahrávky, sledovaná složka, zálohy archivu a přenosná kopie. Pojmenuj ji tím, co na ní je — dřív se jmenovala Aplikace a neříkala o žádné z těch věcí nic.",
   "settings.tab.updates":
@@ -393,9 +395,11 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
     "Tlačítko v panelu, které ten dialog otevře znovu, když ho někdo zavřel a chce si text přečíst ještě jednou.",
 
   "settings.appearance.title":
-    "Nadpis karty s jazykem rozhraní, motivem a písmem přepisu — a zároveň název záložky, na které ta karta sama stojí. Jedno slovo pro obojí schválně: druhý klíč se stejným slovem je druhá věc, kterou je potřeba držet v souladu.",
+    "Nadpis karty s motivem, písmem přepisu a jeho velikostí. Záložka nad ní " +
+    "se jmenuje jinak — Jazyk a vzhled — protože vedle téhle karty je ještě " +
+    "karta s jazykem aplikace.",
   "settings.appearance.description":
-    "Úvodní věta té karty. Drží jazyk rozhraní, motiv, písmo přepisu a jeho velikost; pod nimi je živá ukázka přepisu.",
+    "Úvodní věta té karty. Drží motiv, písmo přepisu a jeho velikost; pod nimi je živá ukázka přepisu.",
   "settings.appearance.theme":
     "Světlá, nebo tmavá barevnost celého okna.",
   "settings.appearance.themeSystem":
@@ -493,8 +497,6 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
     "Tlačítko vedle kopírování. Otevře složku a označí v ní soubor s logem — pro případ, že posledních šedesát řádků v hlášení nestačí.",
   "settings.diagnostics.noLog":
     "Log se zapisuje až od prvního spuštění, které něco zaznamenalo. Do té doby soubor není.",
-  "settings.diagnostics.copyNote":
-    "Vysvětlení pod tlačítkem. Podstatné je, že aplikace nic neodesílá; text jde do schránky a rozhoduje uživatel.",
   "settings.diagnostics.copied": "Potvrzení v notifikační liště, že se kopírování povedlo.",
   "settings.diagnostics.copyRefused":
     "Schránku odmítl systém, ne aplikace. Proto se nabízí druhá cesta — poslat rovnou soubor s logem.",

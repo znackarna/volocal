@@ -108,22 +108,29 @@
 .settings-card-language-edit { order: 4; }
 .settings-card-dictionary { order: 5; }
 .settings-card-advanced { order: 6; }
-/* Nástroje: whether anything needed is missing, then what the transcription
-   actually runs on, and then where the downloaded programs and models are kept.
-   The status band answers the question somebody opens this tab with; the other
-   two are the follow-up, in the order they are asked — what is it using, and
-   where does it keep it. Which file was found where is folded into the foot of
-   the first card, not a fourth one. */
-.settings-card-modules { order: 1; }
-.settings-card-compute { order: 2; }
+/* Výkon a modely, in the order the tab's own name states: where the work runs,
+   then whether what it needs is downloaded, then where that is kept. The band
+   used to lead and the compute card followed; the owner named the tab and the
+   name settles the order, which is the better rule anyway — a reader arriving
+   at a tab called `Výkon a modely` should meet `Výkon` first. */
+.settings-card-compute { order: 1; }
+.settings-card-modules { order: 2; }
 .settings-card-locations { order: 3; }
+/* Last, and folded away: what the application found where. The same place
+   `settings-card-advanced` takes on `Přepis`, because the two are the same kind
+   of block — everything a reader does not need and must be able to reach. */
+.settings-card-diagnostics { order: 4; }
 /* Every card on a tab needs a number here, and the recordings folder had none:
    without a rule it takes `order: 0` and sorts above cards that asked for 1, so
    it rendered over the portable-mode banner no matter where the JSX put it.
    That includes the two tabs that hold a single card each — alone the number
    changes nothing, and it is what stops the next card added beside them from
    silently jumping to the top. */
-.settings-card-appearance { order: 1; }
+/* Jazyk a vzhled: the two halves the tab is named for, in the order it names
+   them. The language card was the appearance card's first field until the tab
+   stopped being called `Vzhled`. */
+.settings-card-app-language { order: 1; }
+.settings-card-appearance { order: 2; }
 .settings-card-updates { order: 1; }
 /* Složky a zálohy: the banner first when there is one, because it says what
    kind of installation everything under it belongs to; then where recordings
@@ -139,12 +146,15 @@
 .settings-card-about { order: 1; }
 .settings-card-abilities { order: 2; }
 .settings-card-credits { order: 3; }
-/* The card whose whole content is one folded-away block. Its disclosure carries
-   the 14 px rule that separates it from whatever stood above it inside a card —
-   and here nothing does, so the rule would be drawn along the card's own top
-   edge, 26 px in from both sides and parallel to the border. Zeroed, and only
-   here: everywhere else that rule is doing its job. */
-.settings-card-advanced > .settings-disclosure {
+/* The two cards whose whole content is one folded-away block — `Pokročilé` at
+   the foot of `Přepis` and `Technické podrobnosti` at the foot of `Výkon a
+   modely`. Their disclosure carries the 14 px rule that separates it from
+   whatever stood above it inside a card, and here nothing does, so the rule
+   would be drawn along the card's own top edge, 26 px in from both sides and
+   parallel to the border. Zeroed, and only for these two: everywhere else that
+   rule is doing its job. */
+.settings-card-advanced > .settings-disclosure,
+.settings-card-diagnostics > .settings-disclosure {
   margin-top: 0; padding-top: 0; border-top: 0;
 }
 .settings section {
@@ -1201,8 +1211,9 @@ button.mic-play:disabled { cursor: default; opacity: 0.6; }
    amount that looks generous under text looks tight under a frame.
 
    `align-self` because the disclosure is a flex column: without it they would
-   stretch the full width of the card, which no other button here does. The
-   note below keeps its own 8 px — it belongs to these buttons, not the panel.
+   stretch the full width of the card, which no other button here does. They are
+   the last thing in the block now — the note that used to follow them said the
+   copy goes to the clipboard, under a button that says *copy*.
 
    This rule was lost once, in a rebase, and nothing said so: `.diagnostics-copy`
    went on existing while the markup had moved to `.diagnostics-actions`, and
