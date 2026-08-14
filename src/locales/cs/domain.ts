@@ -20,13 +20,13 @@ export const csDomain = {
   "domain.model.medium-q5_0": "Starší (zmenšený)",
   "domain.model.small": "Náhledový",
 
-  "domain.modelDescription.large-v3": "Whisper large-v3. Kliknutí na slovo přehraje zvuk přesně od něj.",
-  "domain.modelDescription.large-v3-q5_0": "Whisper large-v3-q5_0. Třetinová náročnost, aplikace ho sama nenabízí.",
-  "domain.modelDescription.large-v3-turbo-q5_0": "Whisper large-v3-turbo. Přepis může být proti zvuku posunutý až o tři sekundy.",
-  "domain.modelDescription.large-v3-turbo": "Whisper large-v3-turbo. Bez zmenšení, tedy větší soubor.",
-  "domain.modelDescription.medium": "Whisper medium. Starší generace, aplikace ji sama nenabízí.",
-  "domain.modelDescription.medium-q5_0": "Whisper medium-q5_0. Zmenšená starší generace.",
-  "domain.modelDescription.small": "Whisper small. Nejmenší z nalezených, aplikace ho sama nenabízí.",
+  "domain.modelDescription.large-v3": "Whisper 3 Large. Téměř bezchybný přepis. Precizní časové značky slov.",
+  "domain.modelDescription.large-v3-q5_0": "Whisper 3 Large q5_0. Třetinová náročnost, aplikace ho sama nenabízí.",
+  "domain.modelDescription.large-v3-turbo-q5_0": "Whisper 3 Turbo. Rychlejší přepis. Zvuk může získat mírný skluz.",
+  "domain.modelDescription.large-v3-turbo": "Whisper 3 Turbo. Bez zmenšení, tedy větší soubor.",
+  "domain.modelDescription.medium": "Whisper Medium. Starší generace, aplikace ji sama nenabízí.",
+  "domain.modelDescription.medium-q5_0": "Whisper Medium q5_0. Zmenšená starší generace.",
+  "domain.modelDescription.small": "Whisper Small. Nejmenší z nalezených, aplikace ho sama nenabízí.",
 
   // Lower case: these appear inside sentences such as "přepsáno v čeština".
   // The interface capitalizes them through `capitalize` where a list needs it.
@@ -51,7 +51,19 @@ export const csDomain = {
 
 export const csDomainContext: Partial<Record<keyof typeof csDomain, string>> = {
   "domain.model.large-v3":
-    "Uživatelské jméno modelu Whisper large-v3. Přesnější z dvojice, kterou nabízí průvodce; tam se jmenuje stejně. Protipól je Rychlý.",
+    "Uživatelské jméno modelu, který se v popisu pod ním jmenuje Whisper 3 " +
+    "Large. Přesnější z dvojice, kterou nabízí průvodce; tam se jmenuje stejně. " +
+    "Protipól je Rychlý.",
+  "domain.modelDescription.large-v3":
+    "Popis pod názvem karty Přesný. **Napsal to majitel a je to převzaté " +
+    "doslova** — nezjemňuj, nezostřuj, nepřeformulovávej. Whisper 3 Large je " +
+    "název modelu a v každém jazyce zůstává takhle. Pozor: „téměř bezchybný " +
+    "přepis“ nikdo neměřil, viz záznam změn ze 14. srpna 2026; kdo by to chtěl " +
+    "měnit, ať si nejdřív přečte ten den.",
+  "domain.modelDescription.large-v3-turbo-q5_0":
+    "Popis pod názvem karty Rychlý, taky **doslova od majitele**. „Mírný " +
+    "skluz“ je jeho slovo pro to, čemu naměřená hodnota říká 3,34 s — viz " +
+    "záznam změn ze 14. srpna 2026. Nechávej to tak, jak to je.",
   "domain.model.medium": "Starší generace modelu, ne „střední velikost“.",
   "domain.model.small": "Model jen na rychlý náhled, ne „malý“.",
   "domain.language.auto":

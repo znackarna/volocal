@@ -26,11 +26,11 @@ export const csCatalog = {
   "catalog.vad.description":
     "Vynechá ticho a šum. Bez ní se přepis na začátku zasekne v opakování.",
   "catalog.model-turbo.name": "Rychlý model",
-  "catalog.model-turbo.description": "Několikanásobně rychlejší. Volba pro slabší počítače.",
+  "catalog.model-turbo.description": "Whisper 3 Turbo. Rychlejší přepis. Zvuk může získat mírný skluz.",
   "catalog.model-large-q5.name": "Vyvážený model",
-  "catalog.model-large-q5.description": "Kvalita skoro jako nejvyšší, třetinová velikost.",
+  "catalog.model-large-q5.description": "Whisper 3 Large q5_0. Třetinová velikost, aplikace ho sama nenabízí.",
   "catalog.model-large.name": "Přesný model",
-  "catalog.model-large.description": "Nejpřesnější čeština. Vyplatí se na výkonném počítači.",
+  "catalog.model-large.description": "Whisper 3 Large. Téměř bezchybný přepis. Precizní časové značky slov.",
 
   // Language editing.
   "catalog.editor-vulkan.name": "Jazyková úprava na grafické kartě",
@@ -71,9 +71,17 @@ export const csCatalogContext: Partial<Record<keyof typeof csCatalog, string>> =
   "catalog.vad.name":
     "Položka ke stažení. VAD najde v nahrávce místa, kde se skutečně mluví, a ticho vynechá.",
   "catalog.model-turbo.name":
-    "Položka ke stažení — přepisovací model. Jméno rodiny modelů (large-v3-turbo) se v názvu neuvádí schválně.",
+    "Položka ke stažení — přepisovací model. Jméno modelu se v názvu neuvádí " +
+    "schválně; stojí až v popisu pod ním, jako u všech ostatních.",
+  "catalog.model-turbo.description":
+    "Táž věta jako na kartě Rychlý v nastavení, slovo od slova. Od majitele, " +
+    "převzatá doslova — „mírný skluz“ je jeho slovo pro naměřených 3,34 s, viz " +
+    "záznam změn ze 14. srpna 2026.",
   "catalog.model-large.description":
-    "„Nejpřesnější čeština“ platí pro české nahrávky; u jiných jazyků je model taky nejlepší z nabízených.",
+    "Táž věta jako na kartě Přesný v nastavení, schválně slovo od slova — jeden " +
+    "model popsaný na dvou obrazovkách dvakrát jinak je to, co tenhle klíč " +
+    "dělal do 14. srpna 2026. Je od majitele a je převzatá doslova; " +
+    "„téměř bezchybný přepis“ nikdo neměřil, viz záznam změn z toho dne.",
   "catalog.editor-model-light.name":
     "Položka ke stažení. Objevuje se i ve větě „Stahuji {name}“, takže musí " +
     "sama o sobě říct, co to je — proto celé sousloví, ne jen „Menší“. Modely " +
