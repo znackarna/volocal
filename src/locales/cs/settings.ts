@@ -12,7 +12,6 @@ export const csSettings = {
   "settings.language.description": "Změna se projeví hned. Přepisy zůstanou v původním jazyce.",
   "settings.language.label": "Jazyk rozhraní",
 
-  "settings.badge.inUse": "používá se",
 
   // Portable mode and the copy it can make of itself.
   "settings.portable.title": "Přenosný režim",
@@ -48,28 +47,23 @@ export const csSettings = {
   // karty, jedna z nich je vždycky vybraná. Vypínat není co: úprava se spustí
   // jen tehdy, když si u přepisu vyžádáte dokument.
   "settings.editor.title": "Jazyková úprava",
-  "settings.editor.description":
-    "Vytvoří nový dokument. Nepřepíše původní přepis a časové značky.",
+  "settings.editor.description": "Model, který z přepisu udělá čitelný text.",
   "settings.editor.modelSmall": "Menší",
   "settings.editor.modelMiddle": "Střední",
   "settings.editor.modelLarge": "Větší",
-  "settings.editor.note":
-    "Úprava se spustí jen tehdy, když si u přepisu vyžádáte dokument. Model se stáhne jednou — teď, nebo až tehdy — a pak pracuje bez připojení k internetu.",
+  "settings.editor.note": "Úprava se spustí pouze na vyžádání a vytvoří nový dokument.",
 
   // Where the transcription computes. Dvě karty, klidový stav je nevybráno —
   // a pod nimi to, co doopravdy běželo.
   "settings.compute.title": "Výkon",
   "settings.compute.description":
     "Kde se přepis počítá. Volba platí pro další přepisy, hotové nijak nemění.",
-  "settings.compute.running": "Používá se",
   "settings.compute.modeGpu": "Grafická karta (GPU)",
   "settings.compute.modeGpuNote":
     "S grafickou kartou je přepis rychlejší. Kterou knihovnu použít, pozná aplikace sama.",
   "settings.compute.modeCpu": "Procesor (CPU)",
   "settings.compute.modeCpuNote": "Funguje na každém počítači. Přepis ale trvá déle.",
-  "settings.compute.autoNote": "Aplikace automaticky volí výkonnější variantu.",
-  "settings.compute.pinnedNote":
-    "Vybraná varianta platí i tam, kde by aplikace zvolila jinak.",
+  "settings.compute.autoNote": "Aplikace sama zvolí výkonnější variantu.",
   "settings.compute.letItDecide": "Automaticky",
   "settings.compute.graphicsCardIdle":
     "V počítači je grafická karta, ale sestavení pro ni zatím není stažené.",
@@ -286,8 +280,6 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
   "settings.tab.about":
     "Název poslední záložky: co aplikace je, co umí a na čem stojí. Nic se na ní nenastavuje, je jen ke čtení.",
 
-  "settings.badge.inUse":
-    "Odznak na kartě modelu, který je právě nastavený. Malé písmeno je záměr.",
 
   "settings.portable.description":
     "{directory} je cesta ke složce, ze které aplikace běží. Vypisuje se jako kód.",
@@ -306,6 +298,9 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
 
   "settings.editor.title":
     "Název sekce. Jde o dodatečnou úpravu textu jazykovým modelem, ne o editor jako program.",
+  "settings.editor.description":
+    "Věta pod nadpisem karty. Říká, co ten model dělá — obdoba věty „Model, " +
+    "kterým se nahrávky přepisují“ o kus výš.",
   "settings.editor.modelSmall":
     "Název karty pod nadpisem Jazyková úprava. Jedno slovo schválně — noun " +
     "dodává nadpis. V seznamu ke stažení má týž model delší název, protože tam " +
@@ -315,17 +310,16 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
     "aplikace ho sama nenabízí.",
   "settings.editor.modelLarge": "Název druhé karty. Taky jedno slovo.",
   "settings.editor.note":
-    "Věta pod kartami Menší a Větší. Vysvětluje, proč se zatím nic nestahuje a " +
-    "proč tu není žádné vypnutí: jazyková úprava sama od sebe neběží.",
+    "Věta pod kartami Menší a Větší. Nese dvě věci a obě jsou potřeba, takže " +
+    "ji nezkracuj na jednu: nic se nespustí samo (proto tu není žádné vypínání " +
+    "ani se zatím nic nestahuje) a výsledkem je nový dokument, ne přepsaný " +
+    "původní přepis.",
 
   "settings.compute.title":
     "Nadpis karty na záložce Nástroje. Je nad přepínačem i nad řádkem, který " +
     "říká, na čem přepis skutečně počítá.",
   "settings.compute.description":
     "Věta pod nadpisem. Říká, čeho se volba týká — příštích přepisů, ne už hotových.",
-  "settings.compute.running":
-    "Popisek řádku, za kterým je název použitého sestavení: „Grafická karta " +
-    "Nvidia (CUDA)“, „Procesor (CPU)“ a podobně.",
   "settings.compute.modeGpu":
     "Název jedné ze dvou karet. Znamená kartu obecně — jestli se použije CUDA, " +
     "nebo Vulkan, rozhoduje aplikace podle ovladačů a uživatele se neptá. " +
@@ -337,14 +331,14 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
     "stejného důvodu jako u GPU.",
   "settings.compute.modeCpuNote": "Věta pod názvem té karty.",
   "settings.compute.autoNote":
-    "Věta pod oběma kartami. Popisuje klidový stav: když si uživatel nevybere " +
-    "ani jednu, řídí se aplikace ovladači a vezme rychlejší cestu. Není to " +
-    "slib, že aplikace přebije vybranou kartu — vybraná karta platí dál.",
-  "settings.compute.pinnedNote":
-    "Věta vedle tlačítka Automaticky, když je jedna z karet vybraná. Říká, že " +
-    "vybraná varianta má přednost před tím, co by aplikace zvolila sama.",
+    "Vysvětlující věta u přepínače Automaticky. Popisuje, co se děje, když je " +
+    "zapnutý; obě karty nad ním zůstávají vidět a ta z nich, kterou aplikace " +
+    "vybrala, je zvýrazněná. Slovo „sama“ je záměr, ne synonymum k opravě: " +
+    "přepínač vedle té věty se jmenuje Automaticky a „automaticky“ i tady by " +
+    "uživateli vracelo tentýž popisek.",
   "settings.compute.letItDecide":
-    "Tlačítko vedle té věty. Zruší vybranou kartu a vrátí rozhodování aplikaci.",
+    "Popisek přepínače nad oběma kartami. Zapnutý znamená, že vybírá aplikace " +
+    "podle ovladačů; vypnutý platí to, co je vybrané na kartě.",
   "settings.compute.graphicsCardIdle":
     "Věta vedle tlačítka Stáhnout, když si uživatel nevybral ani jednu kartu: " +
     "grafická karta v počítači je, ale program pro ni chybí.",

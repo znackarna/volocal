@@ -1,17 +1,17 @@
-/** Names of things the backend identifies by a stable code: compute backends,
- *  Whisper models, spoken languages, interface fonts.
+/** Names of things the backend identifies by a stable code: Whisper models,
+ *  spoken languages, interface fonts.
  *
  *  These are read with `tDynamic`, because the identifier arrives from Rust at
  *  runtime and cannot be checked against `TranslationKey` at compile time. An
  *  unknown identifier falls back to the raw code rather than to an empty label.
+ *
+ *  The five `domain.compute.*` names were here — `Grafická karta (Vulkan)`,
+ *  `Procesor (CPU)` and the rest — and are gone with the last screen that
+ *  printed one. Nothing names a build to the reader any more: `Výkon` asks for
+ *  the card or the processor, and which build suits the card is
+ *  `choose_compute`'s business rather than a question or a report.
  */
 export const csDomain = {
-  "domain.compute.cuda": "Grafická karta Nvidia (CUDA)",
-  "domain.compute.vulkan": "Grafická karta (Vulkan)",
-  "domain.compute.cpu": "Procesor (CPU)",
-  "domain.compute.default": "Výchozí",
-  "domain.compute.auto": "Automaticky",
-
   "domain.model.large-v3": "Přesný",
   "domain.model.large-v3-q5_0": "Vyvážený",
   "domain.model.large-v3-turbo-q5_0": "Rychlý",
@@ -52,8 +52,6 @@ export const csDomain = {
 } as const;
 
 export const csDomainContext: Partial<Record<keyof typeof csDomain, string>> = {
-  "domain.compute.vulkan":
-    "Vulkan běží na jakékoli grafické kartě, ne jen na AMD. Nepřekládat jako „AMD“.",
   "domain.model.large-v3":
     "Uživatelské jméno modelu Whisper large-v3. Přesnější z dvojice, kterou nabízí průvodce; tam se jmenuje stejně. Protipól je Rychlý.",
   "domain.model.medium": "Starší generace modelu, ne „střední velikost“.",

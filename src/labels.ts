@@ -15,14 +15,9 @@ export function useLabels() {
   const { tDynamic, capitalize, compare } = useI18n();
 
   return useMemo(() => {
-    // Older settings wrote the Czech value for "default"; the dictionary is
-    // keyed in English. Translate it here rather than in every caller.
-    const computeKey = (id: string) => (id === "vychozi" ? "default" : id);
-
     const language = (code: string) => tDynamic(`domain.language.${code}`, code);
 
     return {
-      compute: (id: string) => tDynamic(`domain.compute.${computeKey(id)}`, id),
       model: (id: string) => tDynamic(`domain.model.${id}`, id),
       modelDescription: (id: string, fallback: string) =>
         tDynamic(`domain.modelDescription.${id}`, fallback),

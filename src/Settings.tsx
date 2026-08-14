@@ -668,25 +668,30 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
   const hasGraphicsDriver = !!(check?.nvidia_driver || check?.vulkan_driver);
   const computeChoice = computeMode(n.compute);
   const graphicsCardBackend = check?.nvidia_driver ? "cuda" : "vulkan";
-  /** The graphics card is idle: either automatic would have taken it, or it was
-   *  asked for outright, and in both cases it is not what ran. With the driver
-   *  present that can only mean the build for it was never downloaded — which
-   *  is a thing the reader can fix from here, so the row carries a button. */
-  const graphicsCardIdle =
-    computeChoice !== "cpu" &&
+  /** Whether what was asked for is what ran. `auto` asks for nothing in
+   *  particular and is always honoured; the other two are not, and that is the
+   *  one state on this card worth a sentence. `vychozi` — a flat installation
+   *  with one build and no subfolders — counts as the processor, which is what
+   *  a build nobody chose a backend for is. */
+  const computeHonoured =
+    computeChoice === "auto" || (computeChoice === "gpu" ? onGraphicsCard : !onGraphicsCard);
+  /** Something was picked and is not what ran. The chosen card goes red for it —
+   *  the one case where the card has to contradict the choice drawn on it — and
+   *  the sentence under the cards carries the reason. */
+  const computeRefused = computeChoice !== "auto" && !computeHonoured;
+  /** Which card is highlighted. With the switch on nothing was picked, so it is
+   *  what the drivers settled on — the switch's effect made visible, which is
+   *  the reason the cards stay on screen while it is on. With the switch off it
+   *  is the pick, honoured or not. */
+  const computeShown = computeChoice === "auto" ? (onGraphicsCard ? "gpu" : "cpu") : computeChoice;
+  /** The build for the graphics card was never downloaded, with a driver that
+   *  could have run it. The one reason for a card standing idle that the reader
+   *  can fix from here, so wherever it is said the row carries a button. */
+  const graphicsCardMissing =
     hasGraphicsDriver &&
     !onGraphicsCard &&
     !!computeRunning &&
     !(check?.available_compute_backends ?? []).includes(graphicsCardBackend);
-  /** And the other direction: a machine set up before the processor build
-   *  joined every first run has only the graphics one, so asking for the
-   *  processor there leaves the transcription running on the card. Unreachable
-   *  before this card had a control; one press away now, so it has to be said. */
-  const processorIdle = computeChoice === "cpu" && onGraphicsCard;
-  /** Something was picked and is not what ran. The chosen card says so itself —
-   *  it is the one case where the card has to contradict the choice drawn on
-   *  it, and the sentence under the panel carries the reason. */
-  const computeRefused = computeChoice !== "auto" && (graphicsCardIdle || processorIdle);
 
   /* Whether anything folded away has been moved off its default. The badge and
      the reset button are one question asked twice, so they are one expression:
@@ -831,36 +836,58 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
           The same cards as the transcription model two tabs over, and the
           owner asked for them in those words — *dej tam stejnou kartu jako má
           výběr modelu u přepisu, ne tu trapnou záložku*. Two of them, because
-          there are two places the work can happen; automatic is not a third
-          card but the absence of a pick, said in the note under them and got
-          back to with one button. The panel keeps saying the truth rather than
-          the setting — `check.compute` is `choose_compute`'s answer, `n.compute`
-          is what was asked for — and where they differ, one sentence says why
-          and, when the reason is a build that is not downloaded, offers it. */}
+          there are two places the work can happen.
+
+          Automatic is not a third card and is not a button either — *tu volbu
+          automaticky bych nedělal tlačítkem, ale toggle*, and that is the right
+          shape: a button says *do this now*, a switch says *this is how it is*,
+          and following the drivers is a state rather than an errand. It is on
+          by default and after a reset, because that is the resting state. It
+          sits **under** the two cards — *ten toggle dej pod ty karty* — where it
+          reads as a qualifier on them: these two, and let the application decide
+          which.
+
+          **The cards stay visible and pickable while it is on**, showing which
+          one the drivers settled on. Hiding them would make the switch's effect
+          a mystery, and somebody who only wants to know where their transcript
+          runs would have to flip a switch to find out. Pressing one is the most
+          direct reading of what pressing one means: the switch goes off and
+          that card is taken. Turning the switch off by hand keeps whatever was
+          already running, so nothing jumps.
+
+          `check.compute` is `choose_compute`'s answer and `n.compute` is what
+          was asked for; where they differ, one sentence says why and, when the
+          reason is a build that is not downloaded, offers it. */}
       {activeTab === "tools" && check && <section className="settings-card-compute">
         <h2>{t("settings.compute.title")}</h2>
         <p className="settings-section-description">{t("settings.compute.description")}</p>
 
-        {/* No `používá se` on the chosen card. A card drawn as chosen already
-            says it is the one, and two marks for one fact is noise.
+        {/* No `používá se` on the highlighted card. A card drawn as chosen
+            already says it is the one, and two marks for one fact is noise. The
+            model cards on `Přepis` lost the same badge for the same reason.
 
             What the badge was carrying has to stay, though, and it is the
             opposite case: `choose_compute` substitutes another backend when the
             chosen one cannot be used, and this card exists because that used to
             be silent. So the card is quiet when it agrees and speaks when it
-            does not — the chosen card wears `missing`, the danger colour the
-            module tiles use, and the sentence below the panel gives the reason
-            and the way out. An empty state here is correct; do not fill it. */}
+            does not — the card wears `missing`, the danger colour the module
+            tiles use, and the sentence below gives the reason and the way out.
+            An empty state here is correct; do not fill it.
+
+            While the switch is on, what is highlighted is what ran rather than
+            what was picked, because nothing was picked. That is also why the
+            red state cannot occur there: with nobody's instruction to
+            contradict, `choose_compute`'s answer is simply the answer. */}
         <div className="choices">
           {COMPUTE_CHOICES.map((choice) => {
-            const chosen = computeChoice === choice.value;
+            const shown = computeShown === choice.value;
             return (
               <button
                 key={choice.value}
-                className={`choice with-icon ${chosen ? "chosen" : ""} ${
-                  chosen && computeRefused ? "missing" : ""
+                className={`choice with-icon ${shown ? "chosen" : ""} ${
+                  shown && computeRefused ? "missing" : ""
                 }`}
-                aria-pressed={chosen}
+                aria-pressed={shown}
                 onClick={() => save({ ...n, compute: choice.value })}
               >
                 <span className="choice-icon" aria-hidden>
@@ -875,51 +902,92 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
           })}
         </div>
 
-        {/* What happens when neither is pressed, which is where a fresh
-            installation stands. It says what automatic does, not what the card
-            overrides: a pick made here survives, and the panel below is what
-            says whether it was honoured. */}
-        <InfoNote compact>{t("settings.compute.autoNote")}</InfoNote>
+        {/* The switch reads as a qualifier on what is above it — *and let the
+            application decide which* — which is exactly what it does, so it
+            stands under the cards rather than over them. It also settles what
+            the cards do while it is on: they stay, because somebody can then
+            see where their transcript runs without touching anything.
 
-        {/* Kept, and not as a repeat of the cards: this is the only place that
-            says *which* graphics build the drivers settled on, and it is the
-            answer for a machine on automatic that wants to know where it ended
-            up. `check.compute` is `choose_compute`'s answer, `n.compute` is what
-            was asked for, and the two differ exactly when something could not be
-            honoured. */}
-        <dl className="about-panel">
-          <div className="about-row">
-            <dt>{t("settings.compute.running")}</dt>
-            <dd>{labels.compute(computeRunning)}</dd>
-          </div>
-        </dl>
+            The sentence about the application choosing lives on the control
+            that does the choosing, so it is only ever on screen while it is
+            true. It stood under the cards in every state before this — under a
+            card somebody had deliberately picked it was simply wrong, and the
+            owner struck it out.
 
-        {/* The way back to automatic. The same shape as `Odebrat` beside the
-            watched folder: whatever a control can set has to keep a way back,
-            or one press made a year ago is permanent. */}
-        {computeChoice !== "auto" && (
-          <div className="settings-action-row spaced">
-            <InfoNote compact>{t("settings.compute.pinnedNote")}</InfoNote>
-            <button className="button" onClick={() => save({ ...n, compute: "auto" })}>
-              {t("settings.compute.letItDecide")}
-            </button>
-          </div>
-        )}
+            The plain row and not `heading` — *to automaticky nedávej jako
+            nadpis ale dej to jako text před ten toggle*. `heading` renders an
+            `<h2>` and makes the row a section switch, which would give this card
+            a second heading below its own and claim everything under it as a new
+            section. Same shape as `Přepisovat nové soubory automaticky` and
+            `Kopírovat přidané soubory`: a 15/680 title with the switch opposite
+            it and its sentence underneath. */}
+        <SettingsToggle
+          title={t("settings.compute.letItDecide")}
+          label={t("settings.compute.letItDecide")}
+          checked={computeChoice === "auto"}
+          description={t("settings.compute.autoNote")}
+          /* Off has to leave something sensible chosen, and the only sensible
+             thing is what the machine is already doing. Jumping to the other
+             card, or to an empty state, would make this a switch that changes
+             where the work runs — and it does not; it changes who decides. */
+          onChange={(automatic) =>
+            save({ ...n, compute: automatic ? "auto" : onGraphicsCard ? "gpu" : "cpu" })
+          }
+        />
 
-        {/* The graphics card is not being used. Under `Automaticky` that is a
-            remark; under `Grafická karta` it is a choice that could not be
-            honoured, and the sentence says so — the substitution is silent in
-            `choose_compute` by design, because a transcription must run, and
-            this is the one place it is not silent. */}
-        {graphicsCardIdle && (
+        {/* Under the switch, and only where there is something to say. A
+            `Používá se — Procesor (CPU)` row stood here below a sentence about
+            the application choosing, under a card already drawn as chosen:
+            three statements of one fact, and the owner struck two of them out.
+
+            Picked and running where it was asked to is therefore silent — the
+            highlighted card is the whole answer, and the way back is the switch
+            above rather than a button repeating it. `Vybraná varianta platí i
+            tam, kde by aplikace zvolila jinak` was that button's sentence and
+            went with it: a switch that is visibly off already says nobody is
+            choosing over the reader. */}
+        {computeRefused ? (
+          /* The one case worth ink: the application is contradicting an
+             instruction. `choose_compute` substitutes in silence by design,
+             because a transcription must run, and this is the one place it is
+             said out loud — what ran, and why the pick could not be met. A
+             missing build is offered; a missing driver is not something a
+             download fixes, and that sentence carries no button. */
           <div className="settings-action-row spaced">
             <InfoNote compact>
               {t(
-                computeChoice === "gpu"
-                  ? "settings.compute.graphicsCardRefused"
-                  : "settings.compute.graphicsCardIdle"
+                computeChoice === "cpu"
+                  ? "settings.compute.processorRefused"
+                  : hasGraphicsDriver
+                    ? "settings.compute.graphicsCardRefused"
+                    : "settings.compute.noGraphicsCard"
               )}
             </InfoNote>
+            {(computeChoice === "cpu" || hasGraphicsDriver) && (
+              <button
+                className="button"
+                onClick={() =>
+                  onToModule(
+                    computeChoice === "cpu"
+                      ? COMPUTE_MODULES.cpu
+                      : COMPUTE_MODULES[graphicsCardBackend]
+                  )
+                }
+              >
+                {t("common.download")}
+              </button>
+            )}
+          </div>
+        ) : computeChoice === "auto" && !hasGraphicsDriver ? (
+          /* Nothing is wrong here and nothing was refused; it is a fact about
+             the machine, and the only reason to say it is that the graphics
+             card is one of two cards on the screen. */
+          <InfoNote compact>{t("settings.compute.noGraphicsCard")}</InfoNote>
+        ) : computeChoice === "auto" && graphicsCardMissing ? (
+          /* A card sitting idle with nobody having picked anything means its
+             build was never downloaded — which the reader can fix from here. */
+          <div className="settings-action-row spaced">
+            <InfoNote compact>{t("settings.compute.graphicsCardIdle")}</InfoNote>
             <button
               className="button"
               onClick={() => onToModule(COMPUTE_MODULES[graphicsCardBackend])}
@@ -927,23 +995,7 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
               {t("common.download")}
             </button>
           </div>
-        )}
-
-        {/* And the same thing the other way round, which is what a machine with
-            a graphics card usually has: the wizard downloaded one build, and it
-            was not the processor's. */}
-        {processorIdle && (
-          <div className="settings-action-row spaced">
-            <InfoNote compact>{t("settings.compute.processorRefused")}</InfoNote>
-            <button className="button" onClick={() => onToModule(COMPUTE_MODULES.cpu)}>
-              {t("common.download")}
-            </button>
-          </div>
-        )}
-
-        {computeChoice !== "cpu" && !hasGraphicsDriver && (
-          <InfoNote>{t("settings.compute.noGraphicsCard")}</InfoNote>
-        )}
+        ) : null}
       </section>}
 
       {/* Two cards, `Menší` and `Větší`, one of them always chosen — the same
@@ -1423,10 +1475,13 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
                     {labels.modelDescription(m, t("settings.transcription.modelDescription"))}
                   </span>
                 </span>
-                {/* Outside the text block, so it lands on the right edge like
-                    the status pill on a module tile rather than drifting with
-                    the length of the model's name. */}
-                {n.model === m && <em className="badge">{t("settings.badge.inUse")}</em>}
+                {/* A `používá se` badge stood here, on the card already drawn
+                    as chosen. Checked rather than assumed before deleting it:
+                    the list is `found_models`, so the badge appears exactly on
+                    the card `n.model` names and that card is the chosen one.
+                    Where the stored model is not on the disk at all no card is
+                    chosen — and the badge did not render there either, so it
+                    never said anything the highlight did not. */}
               </button>
             ))}
           </div>

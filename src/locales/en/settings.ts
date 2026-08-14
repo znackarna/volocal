@@ -56,7 +56,6 @@ export const enSettings: Partial<Record<keyof typeof csSettings, string>> = {
   "settings.language.title": "App language",
   "settings.language.description": "The change takes effect right away. Transcripts stay in their original language.",
   "settings.language.label": "Interface language",
-  "settings.badge.inUse": "in use",
   "settings.portable.title": "Portable mode",
   "settings.portable.description": "The app runs from {directory}. Transcripts, programs and models are stored there too. Nothing is written to the system.",
   "settings.portable.machineBundled": "Computer: {machine} · the rendering engine is included",
@@ -77,24 +76,20 @@ export const enSettings: Partial<Record<keyof typeof csSettings, string>> = {
   "settings.modules.add": "Add missing",
   "settings.modules.manage": "Manage models",
   "settings.editor.title": "Language editing",
-  "settings.editor.description": "Creates a new document. It does not rewrite the original transcript or its timestamps.",
+  "settings.editor.description": "The model that turns a transcript into readable text.",
   "settings.editor.modelSmall": "Smaller",
   "settings.editor.modelMiddle": "Middle",
   "settings.editor.modelLarge": "Larger",
-  "settings.editor.note":
-    "Editing runs only when you ask a transcript for a document. The model downloads once — now, or then — and afterwards works without an internet connection.",
+  "settings.editor.note": "Editing runs only when asked for, and produces a new document.",
   "settings.compute.title": "Performance",
   "settings.compute.description":
     "Where transcription computes. The choice applies to further transcripts and changes nothing already finished.",
-  "settings.compute.running": "In use",
   "settings.compute.modeGpu": "Graphics card (GPU)",
   "settings.compute.modeGpuNote":
     "Transcription is faster with a graphics card. Which library to use is something the app works out by itself.",
   "settings.compute.modeCpu": "Processor (CPU)",
   "settings.compute.modeCpuNote": "Works on every computer. Transcription takes longer, though.",
-  "settings.compute.autoNote": "The application automatically picks the faster option.",
-  "settings.compute.pinnedNote":
-    "The selected option applies even where the app would have picked otherwise.",
+  "settings.compute.autoNote": "The application picks the faster option itself.",
   "settings.compute.letItDecide": "Automatic",
   "settings.compute.graphicsCardIdle":
     "There is a graphics card in this computer, but the build for it isn’t downloaded yet.",

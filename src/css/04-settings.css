@@ -190,7 +190,14 @@
 .settings-toggle-title {
   display: block; font-size: 15px; line-height: 1.35; font-weight: 680;
 }
-.field + .settings-toggle:not(.section) {
+/* A plain switch below the controls it qualifies, on the divider between them —
+   `Automaticky` under the two cards on `Výkon`. This is the pairing's own rule,
+   not the section variant's borrowed: a column of choice cards is a block of
+   controls exactly as a field is, so `.choices` joins the selector that already
+   places a plain switch after a field. `.settings-toggle.separated` is 22/20 and
+   is the other case — a switch after free-flowing text, as on `Aktualizace`. */
+.field + .settings-toggle:not(.section),
+.choices + .settings-toggle:not(.section) {
   margin-top: 24px; padding-top: 22px; border-top: 1px solid var(--line);
 }
 .settings-toggle:not(.section) + .field {
@@ -438,11 +445,12 @@
    between the processor and the card and then says, from `.about-panel`, which
    build actually ran — the panel of facts the About page and the archive's
    backups already share. */
-/* The panel under the choice and the note that belongs to it. 14 px, which is
-   what `.choices + .settings-info-note.compact` already takes above it, so the
-   three bands of this card sit on one rhythm — the cards, the sentence about
-   the resting state, and what the machine actually did with it. */
-.settings-card-compute .about-panel { margin-top: 14px; }
+/* A `.about-panel` rule stood here, for a `Používá se` row under the two cards.
+   The row is gone: under a card already drawn as chosen it said the same thing
+   a third time, and where it had something to say — a pick that could not be
+   met — a label and a value were too quiet for it. What is under the cards now
+   is one sentence chosen by the state, and `.choices + .settings-info-note.
+   compact` and `.settings-action-row.spaced` already place both shapes. */
 
 .preview-font {
   border: 1px solid var(--line); border-radius: var(--r-card);

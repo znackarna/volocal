@@ -437,9 +437,12 @@ export const EDITOR_TIER: Record<QualityChoice, string> = {
  *  emptier than it is. */
 export const UNOFFERED_COMPONENTS = ["model-large-q5", "editor-model-balanced"];
 
-/** Identifiers the backend uses for compute backends. Their names live in the
- *  translation dictionary and are read through `useLabels`. */
-export const COMPUTE_IDS = ["cuda", "vulkan", "cpu", "default", "auto"] as const;
+/* `COMPUTE_IDS` stood here, with `labels.compute` beside it in `labels.ts` and
+   the five `domain.compute.*` names in the dictionary — `Grafická karta
+   (Vulkan)`, `Procesor (CPU)` and the rest. Nothing names a build to the reader
+   any more: `Výkon` asks for the card or the processor, and which build suits
+   the card is `choose_compute`'s business. The names went with the last thing
+   that printed one. */
 
 /** Whisper models the interface knows how to name, in the order they are
  *  offered: best first, then the older generation, also best first. Within a
