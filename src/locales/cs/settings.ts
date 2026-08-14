@@ -80,7 +80,7 @@ export const csSettings = {
   "settings.files.locationsPortable":
     "Relativní cesty se vztahují ke složce s programem, takže nezáleží na písmenu disku.",
   "settings.files.locationsDescription":
-    "Programy i modely se stahují samy. Cestu měňte jen v případě potřeby.",
+    "Programy i modely se do složky stahují samy. Cestu měňte jen v případě potřeby.",
   "settings.files.binDirectory": "Složka nástrojů",
   "settings.files.modelsDirectory": "Složka modelů",
   "settings.files.choose": "Vybrat…",
@@ -367,6 +367,11 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
     "Nadpis karty na záložce Nástroje. Pod ním jsou dva řádky, Složka nástrojů a " +
     "Složka modelů — proto pojmenuj místo, kam se stažené soubory ukládají, ne " +
     "soubory samotné.",
+  "settings.files.locationsDescription":
+    "Věta pod nadpisem na běžné instalaci. „Do složky“ a „cestu“ jsou schválně " +
+    "jednotné číslo, i když jsou pod tím dvě pole: každá věc se stahuje do té " +
+    "své a čtenář mění jednu cestu, ne obě najednou. Druhá věta vyká — „měňte“, " +
+    "ne „měň“.",
   "settings.files.choose": "Tlačítko otevírající dialog pro výběr složky. Tři tečky jsou jeden znak.",
   "settings.files.watchDirectory":
     "Popisek jediného pole na kartě Sledovaná složka. Karta už je pojmenovaná nadpisem, tohle říká jen „kde“.",

@@ -102,7 +102,8 @@ export const enSettings: Partial<Record<keyof typeof csSettings, string>> = {
     "This computer has no supported graphics card, so the processor does the transcribing.",
   "settings.files.locationsTitle": "Location of tools and models",
   "settings.files.locationsPortable": "Relative paths are taken from the program folder, so the drive letter doesn’t matter.",
-  "settings.files.locationsDescription": "Programs and models download themselves. Change the path only if you need to.",
+  "settings.files.locationsDescription":
+    "Programs and models download into the folder by themselves. Change the path only if you need to.",
   "settings.files.binDirectory": "Tools folder",
   "settings.files.modelsDirectory": "Models folder",
   "settings.files.choose": "Choose…",
