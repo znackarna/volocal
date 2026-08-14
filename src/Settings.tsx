@@ -1182,14 +1182,15 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
                 <span className="choice-title">{t(EDITOR_CARDS[card.id].title)}</span>
                 <span className="small-text">{tDynamic(card.description_code, "")}</span>
               </span>
-              {/* One slot, two states: a size means pressing this card starts a
-                  download of that many gigabytes — the model, and the runtime
-                  too where that is not there yet. */}
-              <span className="choice-size">
-                {card.needs.length === 0
-                  ? t("wizard.download.downloadedBadge")
-                  : formats.dataSize(card.needsMb)}
-              </span>
+              {/* The same pair as the transcription cards above: the badge
+                  where it is a fact about the disk, the size where pressing the
+                  card starts a download of that many gigabytes — the model, and
+                  the runtime too where that is not there yet. */}
+              {card.needs.length === 0 ? (
+                <em className="badge complete">{t("wizard.download.downloadedBadge")}</em>
+              ) : (
+                <span className="choice-size">{formats.dataSize(card.needsMb)}</span>
+              )}
             </button>
           ))}
         </div>
@@ -1673,17 +1674,23 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
                     )}
                   </span>
                 </span>
-                {/* The same slot the language-editing cards use, with a third
-                    state they do not need: a model can be on its way. While it
-                    is, the card that is in force keeps the highlight — the
-                    setting follows the file, so nothing has changed yet. */}
-                <span className="choice-size">
-                  {card.installed
-                    ? t("wizard.download.downloadedBadge")
-                    : card.id === modelWanted
+                {/* `staženo` is the badge `.complete`, not the size slot
+                    wearing the word. The wizard has always drawn it as a badge
+                    on the same two models, and a fact stated as a pill on one
+                    screen and as quiet right-aligned type on another is the
+                    drift, not a variation. What stays in the size slot is what
+                    is genuinely a size, plus the one state that is neither:
+                    a model on its way, which is progress rather than a fact
+                    about the disk. */}
+                {card.installed ? (
+                  <em className="badge complete">{t("wizard.download.downloadedBadge")}</em>
+                ) : (
+                  <span className="choice-size">
+                    {card.id === modelWanted
                       ? t("settings.transcription.modelDownloading")
                       : formats.dataSize(card.megabytes)}
-                </span>
+                  </span>
+                )}
                 {/* A `používá se` badge stood here, on the card already drawn
                     as chosen. Checked rather than assumed before deleting it:
                     the badge appeared exactly on the card `n.model` names and

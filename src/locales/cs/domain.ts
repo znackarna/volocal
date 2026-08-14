@@ -20,13 +20,13 @@ export const csDomain = {
   "domain.model.medium-q5_0": "Starší (zmenšený)",
   "domain.model.small": "Náhledový",
 
-  "domain.modelDescription.large-v3": "Nejpřesnější čeština, nejnáročnější model.",
-  "domain.modelDescription.large-v3-q5_0": "Srovnatelná kvalita, třetinová náročnost.",
-  "domain.modelDescription.large-v3-turbo-q5_0": "Méně přesný, několikanásobně rychlejší.",
-  "domain.modelDescription.large-v3-turbo": "Rychlý bez zmenšení.",
-  "domain.modelDescription.medium": "Znatelně víc chyb ve jménech, nedoporučuje se.",
-  "domain.modelDescription.medium-q5_0": "Zmenšená starší generace.",
-  "domain.modelDescription.small": "Jen na rychlý náhled, hodně chyb.",
+  "domain.modelDescription.large-v3": "Whisper large-v3. Kliknutí na slovo přehraje zvuk přesně od něj.",
+  "domain.modelDescription.large-v3-q5_0": "Whisper large-v3-q5_0. Třetinová náročnost, aplikace ho sama nenabízí.",
+  "domain.modelDescription.large-v3-turbo-q5_0": "Whisper large-v3-turbo. Přepis může být proti zvuku posunutý až o tři sekundy.",
+  "domain.modelDescription.large-v3-turbo": "Whisper large-v3-turbo. Bez zmenšení, tedy větší soubor.",
+  "domain.modelDescription.medium": "Whisper medium. Starší generace, aplikace ji sama nenabízí.",
+  "domain.modelDescription.medium-q5_0": "Whisper medium-q5_0. Zmenšená starší generace.",
+  "domain.modelDescription.small": "Whisper small. Nejmenší z nalezených, aplikace ho sama nenabízí.",
 
   // Lower case: these appear inside sentences such as "přepsáno v čeština".
   // The interface capitalizes them through `capitalize` where a list needs it.

@@ -649,8 +649,15 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
                       {k === recommendedQuality(usesGpu) && (
                         <em className="badge">{t("wizard.download.recommendedBadge")}</em>
                       )}
+                      {/* `.complete`, the grass variant — the badge that means
+                          *you already have this*. It was the plain accent one
+                          beside `doporučeno`, so the two read as the same kind
+                          of statement when one is a recommendation and the
+                          other a fact about the disk. */}
                       {p?.complete && (
-                        <em className="badge">{t("wizard.download.downloadedBadge")}</em>
+                        <em className="badge complete">
+                          {t("wizard.download.downloadedBadge")}
+                        </em>
                       )}
                     </span>
                     <span className="small-text">
