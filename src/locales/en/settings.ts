@@ -90,7 +90,7 @@ export const enSettings: Partial<Record<keyof typeof csSettings, string>> = {
     "Transcription is faster with a graphics card. Which library to use is something the app works out by itself.",
   "settings.compute.modeCpu": "Processor (CPU)",
   "settings.compute.modeCpuNote": "Works on every computer. Transcription takes longer, though.",
-  "settings.compute.autoNote": "The application picks the faster option itself.",
+  "settings.compute.autoNote": "The application picks the fastest option itself.",
   "settings.compute.letItDecide": "Automatic",
   "settings.compute.graphicsCardIdle":
     "There is a graphics card in this computer, but the build for it isn’t downloaded yet.",
@@ -160,8 +160,7 @@ export const enSettings: Partial<Record<keyof typeof csSettings, string>> = {
   "settings.dictionary.replacePlaceholder": "part of DNA",
   "settings.dictionary.add": "Add",
   "settings.dictionary.empty": "The dictionary is still empty.",
-  "settings.speakers.title": "Speakers",
-  "settings.speakers.toggle": "Speaker recognition",
+  "settings.speakers.title": "Speaker recognition",
   "settings.speakers.description": "Runs speaker recognition during the first transcription.",
   "settings.backups.title": "Archive backup",
   "settings.backups.description": "The archive is a single file. A copy of it is made every time the app starts: the last three are kept, plus one from each of the last seven days.",

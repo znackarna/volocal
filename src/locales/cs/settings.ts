@@ -64,8 +64,8 @@ export const csSettings = {
     "S grafickou kartou je přepis rychlejší. Kterou knihovnu použít, pozná aplikace sama.",
   "settings.compute.modeCpu": "Procesor (CPU)",
   "settings.compute.modeCpuNote": "Funguje na každém počítači. Přepis ale trvá déle.",
-  "settings.compute.autoNote": "Aplikace sama zvolí výkonnější variantu.",
-  "settings.compute.letItDecide": "Automaticky",
+  "settings.compute.autoNote": "Aplikace sama zvolí nejvýkonnější variantu.",
+  "settings.compute.letItDecide": "Automatický výběr",
   "settings.compute.graphicsCardIdle":
     "V počítači je grafická karta, ale sestavení pro ni zatím není stažené.",
   "settings.compute.graphicsCardRefused":
@@ -194,8 +194,7 @@ export const csSettings = {
   "settings.dictionary.add": "Přidat",
   "settings.dictionary.empty": "Slovník je zatím prázdný.",
 
-  "settings.speakers.title": "Mluvčí",
-  "settings.speakers.toggle": "Rozlišení mluvčích",
+  "settings.speakers.title": "Rozlišení mluvčích",
   "settings.speakers.description":
     "Spustí rozlišení mluvčích během prvního přepisu.",
 
@@ -331,14 +330,19 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
     "stejného důvodu jako u GPU.",
   "settings.compute.modeCpuNote": "Věta pod názvem té karty.",
   "settings.compute.autoNote":
-    "Vysvětlující věta u přepínače Automaticky. Popisuje, co se děje, když je " +
-    "zapnutý; obě karty nad ním zůstávají vidět a ta z nich, kterou aplikace " +
-    "vybrala, je zvýrazněná. Slovo „sama“ je záměr, ne synonymum k opravě: " +
-    "přepínač vedle té věty se jmenuje Automaticky a „automaticky“ i tady by " +
-    "uživateli vracelo tentýž popisek.",
+    "Vysvětlující věta u přepínače Automatický výběr. Popisuje, co se děje, " +
+    "když je zapnutý; obě karty nad ním zůstávají vidět a ta z nich, kterou " +
+    "aplikace vybrala, je zvýrazněná. Dvě slova drž tak, jak jsou. „Sama“ je " +
+    "záměr, ne synonymum k opravě: přepínač vedle té věty se jmenuje " +
+    "Automatický výběr a „automaticky“ i ve větě by uživateli vracelo tentýž " +
+    "popisek. A „nejvýkonnější“ je superlativ schválně — nad tou větou stojí " +
+    "dvě karty a aplikace z nich bere tu horní, takže druhý stupeň by neměl " +
+    "k čemu srovnávat.",
   "settings.compute.letItDecide":
-    "Popisek přepínače nad oběma kartami. Zapnutý znamená, že vybírá aplikace " +
-    "podle ovladačů; vypnutý platí to, co je vybrané na kartě.",
+    "Popisek přepínače pod oběma kartami. Zapnutý znamená, že vybírá aplikace " +
+    "podle ovladačů; vypnutý platí to, co je vybrané na kartě. „Výběr“ je " +
+    "podstatné jméno, ne příslovce: je to popisek ovladače, ne odpověď na " +
+    "otázku jak.",
   "settings.compute.graphicsCardIdle":
     "Věta vedle tlačítka Stáhnout, když si uživatel nevybral ani jednu kartu: " +
     "grafická karta v počítači je, ale program pro ni chybí.",
@@ -464,12 +468,10 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
   "settings.dictionary.add": "Tlačítko, které přidá nový záznam do slovníku.",
   "settings.dictionary.empty": "Text místo seznamu, dokud slovník nemá žádný záznam.",
   "settings.speakers.title":
-    "Nadpis karty o rozpoznávání mluvčích (diarizaci). Podstatné jméno, protože " +
-    "přepínač pod ním je ta činnost — stejná dvojice jako Model přepisu nad " +
-    "svými kartami.",
-  "settings.speakers.toggle":
-    "Popisek přepínače diarizace, pod nadpisem Mluvčí. Opakování slova " +
-    "„mluvčích“ v popisku a ve větě pod ním je záměr autora, nespojuj to.",
+    "Nadpis karty o rozpoznávání mluvčích (diarizaci) a zároveň jméno " +
+    "přepínače, který na téhle kartě stojí vedle nadpisu — jeden klíč pro " +
+    "obojí, protože je to jeden řádek. Věta pod ním opakuje „mluvčích“ " +
+    "schválně: nese navíc kdy se to spustí, a bez podmětu by to nešlo říct.",
   "settings.speakers.description":
     "Věta pod přepínačem. Odlišuje tenhle přepínač od tlačítka Rozpoznat " +
     "mluvčí u konkrétní nahrávky: tohle běží jako součást přepisu, tamto až " +

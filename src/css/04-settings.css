@@ -174,12 +174,12 @@
   max-width: 62ch; margin: 8px 0 24px;
   color: var(--text-quiet); font-size: 14px; line-height: 1.55;
 }
-/* A card's first control under a heading with no sentence between them, whether
-   that control is a field or a plain switch — `Rozlišení mluvčích` under
-   `Mluvčí`. The same 24 px, because it is the same relation and the switch's
-   own weight is not what sets the gap. */
-.settings section > h2 + .field,
-.settings section > h2 + .settings-toggle:not(.section) { margin-top: 24px; }
+/* A card's first field under a heading with no sentence between them.
+   `.settings-toggle:not(.section)` was on this selector for an hour, for
+   `Rozlišení mluvčích` under a `Mluvčí` heading; that arrangement is gone —
+   the phrase is the heading now and the switch is on it — and the selector is
+   narrow again rather than left waiting for a caller that no longer exists. */
+.settings section > h2 + .field { margin-top: 24px; }
 /* A card whose content follows its heading with no introductory sentence
    between them takes the same 24 px that a field does. Without this the list
    sat on the heading, because `h2` carries no bottom margin of its own — the

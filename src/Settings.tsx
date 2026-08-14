@@ -1843,21 +1843,29 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
       </section>}
 
       {activeTab === "transcription" && <section className="settings-card-speakers">
-        {/* Three lines, and the card had room for two.
-            *Mluvčí / Rozlišení mluvčích / Spustí rozlišení mluvčích během
-            prvního přepisu.*
+        {/* Back to the `heading` variant, and the round trip is the record.
 
-            The `heading` variant renders the title as the card's `<h2>` and
-            keeps `label` for screen readers only, so `Rozlišení mluvčích` had
-            nowhere to be drawn. The card takes its own heading and the switch
-            becomes the plain row — subject above, action below — which is the
-            shape `Model přepisu` and `Výkon` have converged on today and the
-            reason the three lines fit without inventing a fourth. */}
-        <h2>{t("settings.speakers.title")}</h2>
+            An hour ago this card was given three lines — `Mluvčí`, then
+            `Rozlišení mluvčích` on the switch, then the sentence — and the card
+            was rebuilt to hold them. The owner then moved the longer phrase up
+            into the heading and dropped the bare noun: *Rozlišení mluvčích
+            použij MÍSTO toho jednoduchého nadpisu.* That leaves two lines, and
+            a switch row with nothing distinct left to call itself.
+
+            So the heading is the switch row again, which is what this variant
+            is for: `<h2>` and the control on one line, the sentence under both.
+            The alternative — keeping a separate `<h2>` and letting the switch
+            carry no visible label — would have drawn an empty caption column
+            beside the heading and made the row taller for nothing.
+
+            One key does both jobs now. `settings.speakers.title` is the heading
+            and the switch's name for screen readers; `settings.speakers.toggle`
+            held the middle line and is retired with it. */}
         <SettingsToggle
-          title={t("settings.speakers.toggle")}
-          label={t("settings.speakers.toggle")}
+          title={t("settings.speakers.title")}
+          label={t("settings.speakers.title")}
           checked={n.diarization}
+          heading
           onChange={(checked) => save({ ...n, diarization: checked })}
           description={t("settings.speakers.description")}
         />
