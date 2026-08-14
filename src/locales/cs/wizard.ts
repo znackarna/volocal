@@ -32,7 +32,6 @@ export const csWizard = {
   "wizard.download.dismissError": "Rozumím",
   "wizard.download.recommendedBadge": "doporučeno",
   "wizard.download.downloadedBadge": "staženo",
-  "wizard.download.downloadedLabel": "Staženo",
   "wizard.download.runningTitle": "Probíhá stahování",
   "wizard.download.reviewTitle": "Co se stáhne",
   "wizard.download.summary.one": "Stáhne se {count} položka, dohromady {size}.",
@@ -48,12 +47,15 @@ export const csWizard = {
   "wizard.download.statusWaiting": "čeká",
   "wizard.download.nothingNeeded": "Všechno potřebné už máte.",
   "wizard.download.downloadWithSize": "Stáhnout ({size})",
+  "wizard.download.percent": "{percent} %",
   "wizard.download.viewLabel": "Podrobnost výpisu",
   "wizard.download.viewCompact": "Stručný výpis",
   "wizard.download.viewFull": "Podrobný výpis",
 
   // ------------------------------------------------------------- choosing by hand
   "wizard.manual.title": "Modely a nástroje",
+  "wizard.manual.install": "Stáhnout",
+  "wizard.manual.reinstall": "Stáhnout znovu",
   "wizard.manual.remove": "Smazat",
   "wizard.manual.removeTitle": "Smazat {name}?",
   "wizard.manual.removeText":
@@ -97,8 +99,6 @@ export const csWizardContext: Partial<Record<keyof typeof csWizard, string>> = {
     "Odznak u doporučené volby. Malé písmeno a krátký tvar jsou záměr, je to štítek, ne věta.",
   "wizard.download.downloadedBadge":
     "Odznak u volby, jejíž součásti už jsou na disku. Malé písmeno je záměr.",
-  "wizard.download.downloadedLabel":
-    "Popisek pro odečítač obrazovky u zaškrtnutí vedle stažené položky v ručním výběru.",
   "wizard.download.reviewTitle":
     "Nadpis výpisu v průvodci před spuštěním stahování. Nic se v něm nedá " +
     "měnit, takže ne „kontrola výběru“ — žádný výběr tam není. Ruční výpis ze " +
@@ -130,6 +130,17 @@ export const csWizardContext: Partial<Record<keyof typeof csWizard, string>> = {
     "Druhá poloha téhož přepínače, taky jen jako popisek: pod názvem je navíc " +
     "věta, co ta položka dělá.",
 
+  "wizard.manual.install":
+    "Popisek kolečka na řádku výpisu, které stáhne jednu položku. Nezobrazuje " +
+    "se jako text — je v bublině a čte ho odečítač obrazovky. Sloveso.",
+  "wizard.manual.reinstall":
+    "Týž popisek, když už položka stažená je: kolečko pod kurzorem nabídne " +
+    "stáhnout ji znovu. Je to jediná oprava, kterou tahle obrazovka má pro " +
+    "soubor, co se stáhl poškozený — proto „znovu“, ne „aktualizovat“: nová " +
+    "verze se tím nezíská, komponenty jsou připíchnuté v components.json.",
+  "wizard.download.percent":
+    "Průběh stahování na řádku, místo velikosti. Mezera před procentem je " +
+    "česká typografie; v angličtině se nepíše.",
   "wizard.manual.remove":
     "Popisek koše na řádku výpisu. Nezobrazuje se jako text — je v bublině a " +
     "čte ho odečítač obrazovky — a je i na potvrzovacím tlačítku v dialogu, " +

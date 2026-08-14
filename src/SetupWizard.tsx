@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { api } from "./api";
 import ConfirmationDialog from "./ConfirmationDialog";
@@ -151,24 +151,11 @@ function recommendedQuality(usesGpu: boolean): Quality {
   return usesGpu ? "best" : "fastest";
 }
 
-/** The tick beside something already on the disk.
- *
- *  10 in a 16 px circle, the pair `.release-notes-mark` already uses — the tick
- *  was 13 in 22 and keeping it would have filled the smaller circle edge to
- *  edge. Stroke 2 rather than 1.8 for the same reason: a thinner line at a
- *  smaller size reads as a fainter tick, not a smaller one. */
-function DownloadedMark() {
-  const { t } = useI18n();
-  const label = t("wizard.download.downloadedLabel");
-  return (
-    <span className="downloaded-mark" aria-label={label} title={label}>
-      <svg width="10" height="10" viewBox="0 0 14 14" fill="none" aria-hidden>
-        <path d="M3 7.2 5.7 10 11 4.5" stroke="currentColor" strokeWidth="2"
-              strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    </span>
-  );
-}
+/* `DownloadedMark` stood here — the green tick as a component of its own,
+   drawn in the size column of the by-hand list. The row's mark is a control
+   now and draws the tick, the download arrow and the stop square itself,
+   choosing between them by state, so a component that could only ever draw one
+   of the three had nothing left to do. `.downloaded-mark` went with it. */
 
 /* `ManualSelectionButton` stood here — two sliders, the word `Vybrat ručně`,
    and a footer slot on both steps of the guided run.
@@ -234,7 +221,16 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
    *  `missingModule` are the two ways in, and both arrive with `required`
    *  false — so in this mode `Zpět` means the screen the reader came from. */
   const [manual, setManual] = useState(false);
-  const [manualSelect, setManualSelect] = useState<Set<string>>(new Set());
+  /** What this visit to the by-hand list actually fetched.
+   *
+   *  It was `manualSelect`, the set of ticked rows, and it fed three things:
+   *  the download, the total, and `dokonci`, which turns a downloaded model
+   *  into the setting that names it. The first two are gone with the ticking.
+   *  The third is not — a transcription model fetched here must still become
+   *  `settings.model`, or the application goes on demanding one it does not
+   *  have — so the same question is asked of a different source: **what did you
+   *  fetch**, rather than what did you tick. */
+  const [startedHere, setStartedHere] = useState<Set<string>>(new Set());
 
   const [progress, setProgress] = useState<Record<string, DownloadProgress>>({});
   const [running, setRunning] = useState(false);
@@ -264,7 +260,9 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
         action: async () => {
           await api.removeComponent(component.id);
           setItems(await api.catalog());
-          setManualSelect((current) => {
+          // Deleting a component this visit had fetched un-records it, so
+          // `dokonci` does not go on to name a model that is no longer there.
+          setStartedHere((current) => {
             const next = new Set(current);
             next.delete(component.id);
             return next;
@@ -273,6 +271,25 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
       });
     },
     [t, tDynamic, dataSize]
+  );
+
+  /** Fetch one component, on its own.
+   *
+   *  The list has no batch to add to any more, so this is `api.download` with
+   *  a single id — the same call the guided run makes with a set. A refusal
+   *  because something else is already downloading is reported rather than
+   *  swallowed: on this screen the reader pressed a specific row and silence
+   *  would read as the press having missed. */
+  const installOne = useCallback(
+    async (component: DownloadComponent) => {
+      try {
+        await api.download([component.id]);
+        setStartedHere((current) => new Set(current).add(component.id));
+      } catch (error) {
+        setError(userMessage(error));
+      }
+    },
+    [userMessage]
   );
 
   const [view, setView] = useState<ListingView>(rememberedListingView);
@@ -288,12 +305,24 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
       if (missingModule) {
         // We came from settings for one specific thing. There is no point
         // walking someone through a question unrelated to it.
+        /* Straight to the list, and it starts the download rather than
+           ticking a box and waiting to be told to. A screen opened *for* one
+           component that then asks the reader to confirm the component is a
+           screen asking a question it already has the answer to. */
         setManual(true);
-        const requested = new Set([missingModule]);
+        const requested = [missingModule];
         if (missingModule.startsWith("editor-model-")) {
-          requested.add(kn.vulkan_driver ? "editor-vulkan" : "editor-cpu");
+          requested.push(kn.vulkan_driver ? "editor-vulkan" : "editor-cpu");
         }
-        setManualSelect(requested);
+        const wanted = requested.filter((id) => !k.find((x) => x.id === id)?.complete);
+        if (wanted.length > 0) {
+          try {
+            await api.download(wanted);
+            setStartedHere(new Set(wanted));
+          } catch (error) {
+            setError(userMessage(error));
+          }
+        }
         setStep(STEP_DOWNLOAD);
       } else if (!required) {
         /* `Spravovat modely` in Settings arrives here, and it used to arrive at
@@ -303,10 +332,7 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
            off and a different transcription model, having answered nothing
            about either. Opening the list instead means looking costs nothing. */
         setManual(true);
-        setManualSelect(new Set(k.filter((x) => x.recommended && !x.complete).map((x) => x.id)));
         setStep(STEP_DOWNLOAD);
-      } else {
-        setManualSelect(new Set(k.filter((x) => x.recommended && !x.complete).map((x) => x.id)));
       }
     } catch (e) {
       setError(userMessage(e));
@@ -333,7 +359,9 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
   );
 
   const selected = useMemo(() => {
-    if (manual) return [...manualSelect];
+    // The by-hand list gathers nothing: each row starts its own download and
+    // reports its own progress, so there is no pending set to total up.
+    if (manual) return [];
     const s = new Set(root);
     const m = MODELS[quality].component;
     if (!items.find((p) => p.id === m)?.complete) s.add(m);
@@ -349,7 +377,7 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
        straight back here. What does come down is the 45 MB runtime above, so
        that a model arriving later has something to run in. */
     return [...s];
-  }, [manual, manualSelect, root, quality, items]);
+  }, [manual, root, quality, items]);
 
   const totalMb = useMemo(
     () => selected.reduce((a, id) => a + (items.find((p) => p.id === id)?.megabytes ?? 0), 0),
@@ -388,7 +416,7 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
       unlisten.forEach((f) => f());
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [manual, manualSelect, quality]);
+  }, [manual, quality]);
 
   /** Without this the app would look for a model the user never chose.
    *
@@ -431,7 +459,7 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
              setting, so opening the list to add something unrelated cannot
              change which model transcribes. */
           const pickedModel = Object.values(MODELS).find(
-            (choice) => manualSelect.has(choice.component) && landed(choice.component)
+            (choice) => startedHere.has(choice.component) && landed(choice.component)
           );
           if (pickedModel) {
             changesApplied.model = pickedModel.settings;
@@ -444,7 +472,7 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
              `resolve_editor_model` in `tools.rs` falls back through. Whichever
              it picks, both files are on the disk and the other stays usable. */
           const selectedEditor = Object.keys(EDITOR_MODELS).find(
-            (component) => manualSelect.has(component) && landed(component)
+            (component) => startedHere.has(component) && landed(component)
           );
           if (selectedEditor) changesApplied.editor_model = EDITOR_MODELS[selectedEditor];
         }
@@ -453,7 +481,7 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
         /* settings can still be adjusted by hand */
       }
     },
-    [quality, manual, manualSelect]
+    [quality, manual, startedHere]
   );
 
   const start = useCallback(async () => {
@@ -732,7 +760,10 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
             )}
           </h1>
 
-          {!running && (
+          {/* The total belongs to the guided run, which fetches a set it
+              chose. The by-hand list has no set: each row acts for itself, so a
+              count of what is about to happen would be a count of nothing. */}
+          {!running && !manual && (
             <p className="step-intro">
               {tPlural("wizard.download.summary", selected.length, {
                 size: dataSize(totalMb),
@@ -798,17 +829,11 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
               {manual ? (
                 <ManualSelection
                   items={items}
-                  selected={manualSelect}
                   view={view}
                   onView={setView}
-                  onToggle={(id) =>
-                    setManualSelect((s) => {
-                      const n = new Set(s);
-                      if (n.has(id)) n.delete(id);
-                      else n.add(id);
-                      return n;
-                    })
-                  }
+                  progress={progress}
+                  onInstall={installOne}
+                  onCancel={() => void api.cancelDownload()}
                   onRemove={askToRemove}
                 />
               ) : selected.length === 0 ? (
@@ -1104,23 +1129,177 @@ function DownloadListing({
   );
 }
 
-function ManualSelection({
-  items,
-  selected,
-  onToggle,
-  onRemove,
+/** One row of the by-hand list: what it is, how big, and the one thing you can
+ *  do about it.
+ *
+ *  **The mark is the action.** A checkbox and a `Stáhnout` button at the foot
+ *  gathered ticks and started them together, which is a batch flow — and a
+ *  batch is only worth its ceremony when the items belong together. These do
+ *  not: somebody opens this list to add one thing. Pressing the circle fetches
+ *  that component and nothing else, which is what the model cards on `Přepis`
+ *  already do and what makes the whole application one idea.
+ *
+ *  Three states in one 26 px column, so nothing shifts as a row changes:
+ *
+ *  - **not installed** — the accent circle with a downward arrow. Pressing it
+ *    starts that download;
+ *  - **installed** — the green tick. Under the pointer it becomes the arrow
+ *    with a turn in it and offers to fetch the component again, which is the
+ *    only repair this screen has for a file that arrived broken. Its
+ *    `aria-label` changes with it, because a control whose meaning changes on
+ *    hover and whose name does not is a control a screen reader lies about;
+ *  - **running** — a ring that fills, and pressing it stops the download.
+ *    `cancel_download` is the same flag the wizard's own Stop uses.
+ *
+ *  The one state with no action is an installed component the application is
+ *  transcribing or editing with. `replaceable` comes from Rust and is false
+ *  there: renaming a fresh file over one whisper has open is how a model is
+ *  lost mid-run. That row keeps the tick and does not react — no dead button,
+ *  the same rule the bin follows.
+ */
+function ComponentRow({
+  item,
   view,
-  onView,
+  progress,
+  onInstall,
+  onCancel,
+  onRemove,
 }: {
-  items: DownloadComponent[];
-  selected: Set<string>;
-  onToggle: (id: string) => void;
-  onRemove: (component: DownloadComponent) => void;
+  item: DownloadComponent;
   view: ListingView;
-  onView: (view: ListingView) => void;
+  progress?: DownloadProgress;
+  onInstall: (component: DownloadComponent) => void;
+  onCancel: () => void;
+  onRemove: (component: DownloadComponent) => void;
 }) {
   const { t, tDynamic } = useI18n();
   const { dataSize } = useFormats();
+  const running = !!progress && progress.phase !== "complete" && progress.phase !== "error";
+  const acts = running || !item.complete || item.replaceable;
+
+  const label = running
+    ? t("common.stop")
+    : item.complete
+      ? t("wizard.manual.reinstall")
+      : t("wizard.manual.install");
+
+  return (
+    <li className={`component ${item.complete ? "done" : ""}`}>
+      <div className="component-row">
+        {acts ? (
+          <button
+            type="button"
+            className={`component-mark ${running ? "running" : item.complete ? "have" : "get"}`}
+            aria-label={label}
+            title={label}
+            onClick={() => (running ? onCancel() : onInstall(item))}
+            style={running ? { "--done": `${progress?.percent ?? 0}%` } as CSSProperties : undefined}
+          >
+            <ComponentMarkGlyph running={running} complete={item.complete} />
+          </button>
+        ) : (
+          <span className="component-mark have static" aria-label={t("wizard.download.downloadedBadge")}>
+            <ComponentMarkGlyph running={false} complete />
+          </span>
+        )}
+
+        <span className="component-text">
+          <span className="component-name">{tDynamic(item.name_code, item.id)}</span>
+          {view === "full" && (
+            <span className="small-text">{tDynamic(item.description_code, "")}</span>
+          )}
+        </span>
+
+        {/* While it runs the size gives way to how far it has got: once the
+            bytes are moving, how big it was is not the question. */}
+        <span className="component-size">
+          {running
+            ? t("wizard.download.percent", { percent: progress?.percent ?? 0 })
+            : dataSize(item.megabytes)}
+        </span>
+
+        {item.removable ? (
+          <button
+            type="button"
+            className="component-remove"
+            aria-label={t("wizard.manual.remove")}
+            title={t("wizard.manual.remove")}
+            onClick={() => onRemove(item)}
+          >
+            <LineIcon name="remove" size={16} />
+          </button>
+        ) : (
+          <span className="component-remove-space" aria-hidden />
+        )}
+      </div>
+    </li>
+  );
+}
+
+/** The tick, the arrow, or the arrow with a turn — decided by state, drawn on
+ *  one 14×14 grid so the three sit at the same optical weight in the circle. */
+function ComponentMarkGlyph({ running, complete }: { running: boolean; complete: boolean }) {
+  if (running) {
+    return (
+      <svg width="10" height="10" viewBox="0 0 14 14" fill="none" aria-hidden>
+        <rect x="3.5" y="3.5" width="7" height="7" rx="1" fill="currentColor" />
+      </svg>
+    );
+  }
+  if (complete) {
+    return (
+      <>
+        <svg className="mark-rest" width="10" height="10" viewBox="0 0 14 14" fill="none" aria-hidden>
+          <path d="M3 7.2 5.7 10 11 4.5" stroke="currentColor" strokeWidth="2"
+                strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        {/* The redownload, shown in place of the tick under the pointer: the
+            same arrow as the install glyph with a turn added, so the two read
+            as the same action rather than two ideas. */}
+        <svg className="mark-hover" width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden>
+          <path d="M11.5 6a4.6 4.6 0 1 0-.6 3.4" stroke="currentColor" strokeWidth="1.7"
+                strokeLinecap="round" />
+          <path d="M11.6 2.4v3.4H8.2" stroke="currentColor" strokeWidth="1.7"
+                strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </>
+    );
+  }
+  return (
+    <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden>
+      <path d="M7 2.2v7.2M4 6.6 7 9.6l3-3M3 11.8h8" stroke="currentColor" strokeWidth="1.7"
+            strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/** The by-hand list: everything the catalogue holds, grouped, with one action
+ *  on each row.
+ *
+ *  It used to carry a selection — a checkbox per row, a running total, and a
+ *  `Stáhnout` at the foot that started what had been ticked. All three are
+ *  gone with the ticking. Nothing gathers a batch any more, so a total of what
+ *  has been gathered describes a thing that does not happen, and two ways to
+ *  start one download is worse than either.
+ */
+function ManualSelection({
+  items,
+  view,
+  onView,
+  progress,
+  onInstall,
+  onCancel,
+  onRemove,
+}: {
+  items: DownloadComponent[];
+  view: ListingView;
+  onView: (view: ListingView) => void;
+  progress: Record<string, DownloadProgress>;
+  onInstall: (component: DownloadComponent) => void;
+  onCancel: () => void;
+  onRemove: (component: DownloadComponent) => void;
+}) {
+  const { t } = useI18n();
 
   /* Four headings, and the third holds two rows that used to be a heading
      each: finding where somebody is speaking, and telling whose voice it is.
@@ -1137,12 +1316,7 @@ function ManualSelection({
   return (
     <div className="manual">
       {/* The same control and the same stored preference as the wizard's own
-          listing — `ListingSwitch`, `localStorage["download-view"]`. Somebody
-          who reads listings with their sentences wants them in both places, and
-          a reader who learns the switch on one screen already knows it on the
-          other. The two lists differ in what they have to: this one has a
-          checkbox per row and the other has nothing to press. They must not
-          differ in what the switch means. */}
+          listing — `ListingSwitch`, `localStorage["download-view"]`. */}
       <ListingSwitch view={view} onView={onView} />
       {groups.map(([key, titleKey]) => (
         <div key={key}>
@@ -1152,90 +1326,21 @@ function ManualSelection({
               .filter((p) => p.group === key)
               /* The two middle models are not offered here either — that is
                  the owner's call and it makes the rule the same everywhere.
-                 One that is already on the disk stays visible as a ticked,
-                 disabled row: this list is also how somebody reads what this
-                 machine holds, and hiding a gigabyte that is there would make
-                 it lie in the other direction. */
+                 One that is already on the disk stays visible: this list is
+                 also how somebody reads what this machine holds, and hiding a
+                 gigabyte that is there would make it lie in the other
+                 direction. */
               .filter((p) => p.complete || !UNOFFERED_COMPONENTS.includes(p.id))
               .map((p) => (
-                <li key={p.id} className={`component ${p.complete ? "done" : ""}`}>
-                  <label>
-                    {/* Two marks, chosen by state, in one column of one width.
-                        *Checkbox nedává smysl u stažených, tam to má být to
-                        zelené kolečko s fajfkou.* A ticked, disabled checkbox
-                        was a control pretending to be a fact — it looked
-                        pressable and refused — while the green circle says the
-                        one true thing about that row: this is here.
-
-                        The column is 18 px whichever mark is in it. A checkbox
-                        and a circle at their natural widths differ by a few
-                        pixels, and a list whose text left edge moved with each
-                        row's install state would read as a rendering fault. */}
-                    <span className="component-mark">
-                      {p.complete ? (
-                        <DownloadedMark />
-                      ) : (
-                        <input
-                          type="checkbox"
-                          checked={selected.has(p.id)}
-                          onChange={() => onToggle(p.id)}
-                        />
-                      )}
-                    </span>
-                    {/* Every row is the same shape, and the reader decides which
-                        shape that is. It used to draw the sentence and the size
-                        only for components that were *not* installed, so on a
-                        machine that is set up the one missing thing had two
-                        lines and everything else had one — two row shapes
-                        chosen by install state, which reads as a rendering
-                        fault rather than a distinction. The switch above decides
-                        it now, for every row alike: full has the sentence, and
-                        an installed component keeps it, because *what is this
-                        3 GB thing I already have* is a fair question. */}
-                    <span className="component-text">
-                      <span className="component-name">{tDynamic(p.name_code, p.id)}</span>
-                      {view === "full" && (
-                        <span className="small-text">{tDynamic(p.description_code, "")}</span>
-                      )}
-                    </span>
-                    {/* The size on every row, downloaded or not — it was the
-                        tick's slot, and the tick has moved to the mark column
-                        where it belongs. What a component takes up is the
-                        question somebody has when they are looking for space
-                        to get back, and it is exactly the row with the bin on
-                        it that they need it for. */}
-                    <span className="component-size">{dataSize(p.megabytes)}</span>
-                    {/* The bin, and only where deleting means something exact.
-                        `removable` is answered in Rust: false while nothing is
-                        installed, false for the model being transcribed or
-                        edited with, and false for ffmpeg and Deno, which unpack
-                        into the shared programs root where nothing recorded
-                        whose files are whose. **No dead button** — a row that
-                        cannot be deleted has no bin rather than one that
-                        refuses when pressed. */}
-                    {p.removable && (
-                      <button
-                        type="button"
-                        className="component-remove"
-                        aria-label={t("wizard.manual.remove")}
-                        title={t("wizard.manual.remove")}
-                        onClick={(event) => {
-                          // Inside a `<label>`, so a press would otherwise also
-                          // reach the checkbox it wraps. It cannot: the mark on
-                          // a removable row is the green circle, not an input.
-                          // Stopped anyway, because the day this list draws a
-                          // checkbox beside a bin the defect would be a deleted
-                          // component and a silently ticked row.
-                          event.preventDefault();
-                          event.stopPropagation();
-                          onRemove(p);
-                        }}
-                      >
-                        <LineIcon name="remove" size={16} />
-                      </button>
-                    )}
-                  </label>
-                </li>
+                <ComponentRow
+                  key={p.id}
+                  item={p}
+                  view={view}
+                  progress={progress[p.id]}
+                  onInstall={onInstall}
+                  onCancel={onCancel}
+                  onRemove={onRemove}
+                />
               ))}
           </ul>
         </div>

@@ -49,6 +49,17 @@ pub struct DownloadComponent {
     /// is using right now — see `removable_path` and `component_is_in_use`.
     /// Answered here so a row shows no bin rather than a bin that refuses.
     pub removable: bool,
+    /// Whether this component may be fetched again over itself. False only for
+    /// the model a transcription or a document is using right now: the
+    /// installer renames a fresh file into place, and doing that under a
+    /// running whisper is the one way to lose a model mid-run.
+    ///
+    /// **Not the same question as `removable`**, which is why it is a second
+    /// flag rather than a reuse. ffmpeg and Deno cannot be deleted — their
+    /// files cannot be told apart in the shared `bin` root — but replacing them
+    /// is exactly what `install_component` does anyway, so they are replaceable
+    /// and not removable. Nothing is the other way round.
+    pub replaceable: bool,
     /// There is a record that this machine checked where the file came from.
     /// `complete` says a file is there; this says somebody vouched for it.
     pub origin_verified: bool,
@@ -160,6 +171,7 @@ fn raw_catalog() -> Vec<DownloadComponent> {
         complete: false,
         origin_verified: false,
         removable: false,
+        replaceable: false,
         verification_path: verification_path.into(),
         destination,
     };
@@ -333,6 +345,7 @@ pub fn catalog(settings: &crate::db::Settings) -> Vec<DownloadComponent> {
             k.origin_verified = origin_verified(settings, &k.id);
             k.removable =
                 k.complete && can_remove(settings, &k.id) && !component_is_in_use(settings, &k.id);
+            k.replaceable = !component_is_in_use(settings, &k.id);
             k.recommended = match k.id.as_str() {
                 "ffmpeg" | "vad" => true,
                 // Which model depends on whether there is anything to compute

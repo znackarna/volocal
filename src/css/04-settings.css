@@ -591,79 +591,87 @@
    note there; this rule used to restate it and beat it on file order. */
 .manual h2 { margin: 0 0 8px; }
 
-/* The by-hand list. The same row as `.download-list` above, plus the two
-   columns this one needs — the mark it is chosen with and the bin it is removed
-   with. That is the answer to *rozsypaná písmenková polévka*: the vocabulary was
-   already in this file and this list was not using it.
+/* The by-hand list. The same row as `.download-list` above, plus the two things
+   this one has: a mark that is also the action, and a bin.
 
-   `.check` and `.choice` were the other candidates and neither fits. `.check`
-   is a read-only panel of facts on `--subtle`, and it was deleted with
-   `Technické podrobnosti` this morning. `.choice` frames every row, which is
-   what this list was doing when it was called too big. `.summary` — through
-   `.download-list`, which is `.summary`'s container with a two-line row — is
-   the one built for a column of things with a value beside each, and the two
-   listings now differ only where they must.
-
-   Four columns, every one fixed or shared so the eye can run down any of them:
-   18 px of mark, the text, a size column with one right edge, and 26 px of bin
-   **reserved on every row whether or not there is a bin in it**. Nothing moves
-   as the pointer travels. */
+   **One ground for the whole list.** The group sat in a container while each row
+   carried its own shade, so the rows and the thing holding them competed —
+   *tady to pozadí u modelu je špatně*. Installed rows had been the grey ones,
+   which put the most contrast on what needs the least attention. The container
+   draws the border and every row inside it is `--panel`; what is installed is
+   said by the green mark, which is the column that exists to say it. */
 .components {
   list-style: none; margin: 0; padding: 0; overflow: hidden;
   border: 1px solid var(--line); border-radius: var(--r-large);
+  background: var(--panel);
 }
-.component { background: var(--panel); border-bottom: 1px solid var(--line); }
+.component { border-bottom: 1px solid var(--line); }
 .component:last-child { border-bottom: 0; }
-/* One ground for every row. Installed rows sat on `--subtle` and the rest on
-   `--panel`, which gave the most contrast on the screen to the one row that is
-   *not* yet chosen — the opposite of what that contrast should mean, and half
-   of why the list read as unsettled. Installed is said by the green mark, which
-   is the column that exists to say it. */
-.component label {
-  display: grid; grid-template-columns: 18px minmax(0, 1fr) auto 26px; gap: 12px;
-  align-items: center; min-height: 44px; padding: 9px 16px; cursor: pointer;
+/* Four columns, each fixed or shared so the eye runs down any of them: the mark,
+   the text, a size column with one right edge, and the bin — whose 26 px is
+   reserved on every row whether or not there is a bin in it. */
+.component-row {
+  display: grid; grid-template-columns: 26px minmax(0, 1fr) auto 26px; gap: 12px;
+  align-items: center; min-height: 44px; padding: 9px 16px;
   font-size: 14px;
 }
-.component.done label { cursor: default; }
-.component input { accent-color: var(--accent); }
-/* One width for two marks. A checkbox and the 16 px circle differ by a few
-   pixels at their natural sizes, and a list whose text left edge moved with each
-   row's install state would read as a rendering fault rather than as a
-   distinction. 18 px is the wider of the two — the checkbox — so neither is
-   cropped. */
-.component-mark { display: grid; place-items: center; width: 18px; }
+/* The mark, at the bin's diameter so the row is bracketed by two circles of one
+   size. Three states share it and none of them changes its geometry, which is
+   what keeps the text edge still as a row goes from offer to progress to fact. */
+.component-mark {
+  position: relative;
+  display: grid; place-items: center; width: 26px; height: 26px; padding: 0;
+  border: 0; border-radius: 50%; cursor: pointer;
+  transition: background var(--hover-duration) var(--hover-ease),
+    color var(--hover-duration) var(--hover-ease);
+}
+.component-mark.static { cursor: default; }
+/* Not here yet: the accent, because fetching it is the ordinary thing to do on
+   this screen and the accent is what this application uses for the ordinary
+   thing to do. */
+.component-mark.get { background: var(--accent-light); color: var(--accent); }
+.component-mark.get:hover { background: var(--accent); color: #fff; }
+/* Here: the grass tint the tick has worn since it was `.downloaded-mark`. */
+.component-mark.have { background: hsl(var(--ds-grass) / 0.14); color: var(--success-text); }
+.component-mark.have:hover:not(.static) { background: var(--accent-light); color: var(--accent); }
+/* The tick gives way to the turning arrow under the pointer. Both are drawn and
+   one is hidden, rather than swapped in JavaScript: a mark that re-renders on
+   hover flickers, and the pair has to cross-fade to read as one control
+   changing rather than two controls trading places. */
+.component-mark .mark-hover { display: none; }
+.component-mark.have:hover:not(.static) .mark-rest { display: none; }
+.component-mark.have:hover:not(.static) .mark-hover { display: block; }
+/* Running: the ring fills as the bytes arrive, and the glyph is a stop square.
+   A conic gradient rather than a spinner, because the number is known — a
+   spinner would say *something is happening* where the row can say how much. */
+.component-mark.running {
+  background:
+    conic-gradient(var(--accent) var(--done, 0%), var(--accent-light) 0);
+  color: var(--accent);
+}
+.component-mark.running::after {
+  content: ""; position: absolute; inset: 3px;
+  border-radius: 50%; background: var(--panel);
+}
+.component-mark.running svg { position: relative; z-index: 1; }
 .component-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 /* The name leads and the sentence supports it. Both sat within a point of each
-   other, so fifteen rows of two lines had no first thing to read. 600 against
-   13 px quiet is the pair a name over its detail takes everywhere else here. */
+   other, so fifteen rows of two lines had no first thing to read. */
 .component-name {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
   font-weight: 600;
 }
 .component-text .small-text { line-height: 1.45; }
-/* A column, rather than a value that happens to sit on the right. The shared
-   minimum plus `tabular-nums` puts every digit under the one above it, across
-   the groups as well as within them — the same reason every other number read
-   down a column in this file has it. */
+/* A column, rather than a value that happens to sit on the right. */
 .component-size {
   min-width: 58px; text-align: right;
   color: var(--text-quiet); font-size: 13px; font-weight: 600;
   font-variant-numeric: tabular-nums; white-space: nowrap;
 }
-/* 16 px, the size `.release-notes-mark` uses and for the reason written there:
-   22 was a badge on a row this quiet. */
-.downloaded-mark {
-  display: inline-grid; place-items: center;
-  width: 16px; height: 16px; border-radius: 50%;
-  background: hsl(var(--ds-grass) / 0.14); color: var(--success-text);
-}
-/* The bin, **drawn always**. It appeared on hover, which is undiscoverable —
-   nobody sweeps a list to find what it might be hiding — and revealing it moved
-   the size column as the pointer travelled. Quiet by default and `--text` under
-   the pointer, which is `.icon-button`'s own behaviour and the right weight for
-   something that must be findable without being the first thing the eye lands
-   on. The danger colour stays on hover, where the intent is already formed.
-   26 px is `.segment-actions`' icon button, the small one. */
+/* The bin, drawn always: hover-to-reveal is undiscoverable for a destructive
+   action, and revealing it moved the size column as the pointer travelled.
+   Quiet by default, the danger colour under the pointer where the intent is
+   already formed. */
 .component-remove {
   display: grid; place-items: center; width: 26px; height: 26px; padding: 0;
   border: 0; border-radius: var(--r-card); background: none; cursor: pointer;
@@ -672,6 +680,7 @@
     color var(--hover-duration) var(--hover-ease);
 }
 .component-remove:hover { background: var(--danger-light); color: var(--danger); }
+.component-remove-space { display: block; width: 26px; }
 
 /* ---------------------------------------------------------------- dialog */
 

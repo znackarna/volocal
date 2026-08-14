@@ -363,6 +363,12 @@ export interface DownloadComponent {
    *  programs that unpack into the shared `bin` root where nothing recorded
    *  whose files are whose. The row draws no bin rather than one that refuses. */
   removable: boolean;
+  /** Whether it may be fetched again over itself. False only for the model a
+   *  transcription or a document is using right now — renaming a fresh file
+   *  over one whisper has open is how a model is lost mid-run. **Not the same
+   *  question as `removable`**: ffmpeg and Deno cannot be deleted but replace
+   *  perfectly well, so they are replaceable and not removable. */
+  replaceable: boolean;
 }
 
 export interface DownloadProgress {
