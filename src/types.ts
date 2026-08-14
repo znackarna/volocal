@@ -225,6 +225,41 @@ export const THEME_KEY = "theme";
 
 export type ThemeChoice = "system" | "light" | "dark";
 
+/** When a server was last asked whether there is a newer Volocal, RFC 3339.
+ *
+ *  Here rather than in the settings record, and the reason is worth keeping.
+ *  Writing it as a setting made pressing `Zkontrolovat aktualizace` answer
+ *  `Uloženo` — *nic se přece neukládá* — because the confirmation belongs to
+ *  the settings record being written and the reader had asked a different
+ *  question. The fix is not a flag on that write but a rule about what the
+ *  record is: **it holds what the reader decided.** A moment the application
+ *  notes down for itself is not a decision, so it is not in there, and the next
+ *  such value cannot trip the confirmation either without somebody deliberately
+ *  putting it back among the settings.
+ *
+ *  It is also the more honest home. A settings record travels — into a portable
+ *  copy, into a backup and back out of one — and a restored archive claiming a
+ *  check that never happened on the machine reading it would be a lie the
+ *  reader cannot see. This is a fact about one installation.
+ *
+ *  Both ways of asking write it: the button on `Aktualizace` and the automatic
+ *  check on start. Which one looked is not a distinction the row's reader has.
+ */
+export const UPDATE_CHECKED_AT = "update-checked-at";
+
+/** Empty where nothing has ever asked, which is what a fresh installation is
+ *  and what the row says in words rather than with a dash. */
+export function lastUpdateCheck(): string {
+  return localStorage.getItem(UPDATE_CHECKED_AT) ?? "";
+}
+
+/** After an answer came back, and never after a failure: a server that could
+ *  not be reached told this computer nothing, and a moment stamped on that
+ *  would read as *asked, and all is well*. */
+export function noteUpdateCheck() {
+  localStorage.setItem(UPDATE_CHECKED_AT, new Date().toISOString());
+}
+
 /** One `MediaQueryList`, kept.
  *
  *  `matchMedia` returns a *new* object on every call, and `removeEventListener`

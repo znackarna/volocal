@@ -6,9 +6,8 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from "react";
-import { getVersion } from "@tauri-apps/api/app";
 import { open, save } from "@tauri-apps/plugin-dialog";
-import { revealItemInDir } from "@tauri-apps/plugin-opener";
+import { openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
 import { listen } from "@tauri-apps/api/event";
 import { api } from "./api";
 import { RecordingCalendar, RecordingMetadataItem } from "./Library";
@@ -1463,25 +1462,45 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
               placeholders; a second visible label above one of two boxes on
               the same line reads as two separate fields. */}
           <div className="input-row dictionary-row">
-            <input
-              id="dictionary-find"
-              value={entryFind}
-              onChange={(event) => setEntryFind(event.target.value)}
-              placeholder={t("settings.dictionary.findPlaceholder")}
-              aria-label={t("settings.dictionary.find")}
-              spellCheck={false}
-            />
-            <span className="dictionary-arrow" aria-hidden>→</span>
-            <input
-              value={entryReplace}
-              onChange={(event) => setEntryReplace(event.target.value)}
-              placeholder={t("settings.dictionary.replacePlaceholder")}
-              aria-label={t("settings.dictionary.replace")}
-              spellCheck={false}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") void addEntry();
-              }}
-            />
+            {/* The same two marks the saved rows carry. The arrow was here too,
+                and *tu šipku ze slovníku dejme pryč* leaves none of them in the
+                card: the composer is where somebody learns what the two boxes
+                are for, so it is the last place that should say it differently
+                from the list it fills. */}
+            <span className="dictionary-pair">
+              <span className="dictionary-mark wrong" aria-hidden>
+                <svg width="10" height="10" viewBox="0 0 14 14" fill="none">
+                  <path d="M3.5 3.5l7 7M10.5 3.5l-7 7" stroke="currentColor"
+                        strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              </span>
+              <input
+                id="dictionary-find"
+                value={entryFind}
+                onChange={(event) => setEntryFind(event.target.value)}
+                placeholder={t("settings.dictionary.findPlaceholder")}
+                aria-label={t("settings.dictionary.find")}
+                spellCheck={false}
+              />
+            </span>
+            <span className="dictionary-pair">
+              <span className="dictionary-mark right" aria-hidden>
+                <svg width="10" height="10" viewBox="0 0 14 14" fill="none">
+                  <path d="M3 7.2 5.7 10 11 4.5" stroke="currentColor" strokeWidth="2"
+                        strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </span>
+              <input
+                value={entryReplace}
+                onChange={(event) => setEntryReplace(event.target.value)}
+                placeholder={t("settings.dictionary.replacePlaceholder")}
+                aria-label={t("settings.dictionary.replace")}
+                spellCheck={false}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") void addEntry();
+                }}
+              />
+            </span>
             <button
               className="button primary"
               onClick={() => void addEntry()}
@@ -1495,41 +1514,85 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
         <div className="dictionary-saved">
           {dictionary.length > 0 ? (
             <>
-              {/* A saved row is two bare words and a switch; without a
-                  heading the reader has to work out which half is the error
-                  and which is the fix. The header sits on the same grid as
-                  the rows, so each label stands over its own column. */}
+              {/* A saved row is two bare words; without a heading the reader
+                  has to work out which half is the error and which is the fix.
+                  The marks in the rows below say that too, and say it per row,
+                  but they say *wrong* and *right* — this says which of the two
+                  the application heard and which one it will write, which is
+                  the sentence somebody needs the first time.
+
+                  Three spans on the shared grid: a heading for each column and
+                  the bin's column left empty. Each one starts at its column's
+                  own edge, which is the mark's edge — the mark is part of what
+                  the heading names, so a heading indented to the text would
+                  leave the circle hanging outside the column it belongs to. */}
               <div className="dictionary-head" aria-hidden>
                 <span>{t("settings.dictionary.find")}</span>
-                <span />
                 <span>{t("settings.dictionary.replace")}</span>
                 <span />
               </div>
               <ul className="dictionary-list">
               {dictionary.map((entry) => (
                 <li key={entry.id}>
-                  <input
-                    value={entry.find}
-                    onChange={(event) => editEntry(entry.id, { find: event.target.value })}
-                    onBlur={() => void saveEntry(entry)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") event.currentTarget.blur();
-                    }}
-                    aria-label={t("settings.dictionary.find")}
-                    spellCheck={false}
-                  />
-                  <span className="dictionary-arrow" aria-hidden>→</span>
-                  <input
-                    value={entry.replace}
-                    onChange={(event) => editEntry(entry.id, { replace: event.target.value })}
-                    onBlur={() => void saveEntry(entry)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") event.currentTarget.blur();
-                    }}
-                    aria-label={t("settings.dictionary.replace")}
-                    spellCheck={false}
-                  />
-                  <span className="dictionary-row-actions">
+                  {/* A mark in front of each half instead of an arrow between
+                      them — *tu šipku ze slovníku dejme pryč, je zbytečná*. An
+                      arrow says *this becomes that* and leaves the reader to
+                      decode it from the direction it points; a red cross and a
+                      green tick say *this one is wrong* and *this one is right*
+                      on the fields themselves, so a row is legible from either
+                      end rather than only from the left.
+
+                      They are marks and not buttons: no hover, no pointer, and
+                      `aria-hidden`, because the row's only action is the bin
+                      and the meaning is already on each input as its
+                      `aria-label`. The glyphs differ as well as the colours —
+                      red against green alone is not a distinction every reader
+                      has. */}
+                  <span className="dictionary-pair">
+                    <span className="dictionary-mark wrong" aria-hidden>
+                      <svg width="10" height="10" viewBox="0 0 14 14" fill="none">
+                        <path d="M3.5 3.5l7 7M10.5 3.5l-7 7" stroke="currentColor"
+                              strokeWidth="2" strokeLinecap="round" />
+                      </svg>
+                    </span>
+                    <input
+                      value={entry.find}
+                      onChange={(event) => editEntry(entry.id, { find: event.target.value })}
+                      onBlur={() => void saveEntry(entry)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") event.currentTarget.blur();
+                      }}
+                      aria-label={t("settings.dictionary.find")}
+                      spellCheck={false}
+                    />
+                  </span>
+                  <span className="dictionary-pair">
+                    {/* The same tick as the release notes' list and the
+                        listing's installed mark, at the same 10 px: one drawing
+                        for *this is the good one* wherever the application says
+                        it. */}
+                    <span className="dictionary-mark right" aria-hidden>
+                      <svg width="10" height="10" viewBox="0 0 14 14" fill="none">
+                        <path d="M3 7.2 5.7 10 11 4.5" stroke="currentColor" strokeWidth="2"
+                              strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </span>
+                    <input
+                      value={entry.replace}
+                      onChange={(event) => editEntry(entry.id, { replace: event.target.value })}
+                      onBlur={() => void saveEntry(entry)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") event.currentTarget.blur();
+                      }}
+                      aria-label={t("settings.dictionary.replace")}
+                      spellCheck={false}
+                    />
+                  </span>
+                  {/* The bin, the same drawing and the same box as the row it
+                      now shares its shape with. A cross stood here, which is
+                      the mark for closing something; deleting is a bin
+                      everywhere else in the application, and the two acts are
+                      different enough that they must not wear one mark. */}
                   <button
                     type="button"
                     className="dictionary-remove"
@@ -1537,12 +1600,8 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
                     aria-label={t("common.delete")}
                     onClick={() => void removeEntry(entry.id)}
                   >
-                    <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden>
-                      <path d="M3 3l8 8M11 3l-8 8" fill="none" stroke="currentColor"
-                            strokeWidth="1.7" strokeLinecap="round" />
-                    </svg>
+                    <LineIcon name="remove" size={16} />
                   </button>
-                  </span>
                 </li>
                 ))}
               </ul>
@@ -2058,6 +2117,7 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
       {activeTab === "updates" && (
         <section className="settings-card-updates">
           <h2>{t("settings.tab.updates")}</h2>
+          <p className="settings-section-description">{t("settings.updates.description")}</p>
           <UpdateCheck
             onError={onError}
             onInfo={onInfo}
@@ -2067,12 +2127,23 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
         </section>
       )}
 
-      {activeTab === "about" && <About />}
+      {activeTab === "about" && <About onError={onError} />}
 
       </div>
     </main>
   );
 }
+
+/** Where the application comes from, for the one row on `Informace` that leaves
+ *  this computer when it is pressed.
+ *
+ *  The same host the updater already asks — `tauri.conf.json` points at
+ *  `github.com/znackarna/volocal/releases` — so this is not a second address to
+ *  keep in step with anything, it is the page above the one the application has
+ *  been fetching from all along.
+ *
+ *  i18n-ignore: an address, the same in every language */
+const WEBSITE = "https://github.com/znackarna/volocal";
 
 /**
  * What the application is, what it does, and what it is made of.
@@ -2082,17 +2153,18 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
  * here is a setting or an action — it is the one page that exists to be read,
  * which is why the update check moved off it and onto a tab of its own.
  */
-function About() {
+function About({ onError }: { onError: (message: string) => void }) {
   const { t } = useI18n();
-  const [version, setVersion] = useState("");
+  /* The one thing on this page that can fail. Without a way to say so, a
+     refused `openUrl` is a row that does nothing when it is pressed, which is
+     indistinguishable from a row that is not a control at all. */
+  const userMessage = useUserMessage();
 
-  // From the bundle rather than typed here: `tauri.conf.json` already carries
-  // the number, and a second copy is the one that would be wrong on release
-  // day. `core:default` grants `core:app:allow-version`, so no capability
-  // changed for this.
-  useEffect(() => {
-    getVersion().then(setVersion).catch(() => setVersion(""));
-  }, []);
+  /* The version stood here in a row of its own and is on `Aktualizace` now.
+     It belongs on the tab where it can be acted on — the button under it
+     fetches a newer one — and this page is the one page that exists only to be
+     read. What was moved rather than removed: nothing else on this tab names
+     the number, and the licence sentence beside it never did. */
 
   /* Project and licence names are proper nouns — the same string in every
      language — so they stand here rather than in the dictionary, where a
@@ -2179,18 +2251,44 @@ function About() {
         <dl className="about-panel about-panel-marked">
           <div className="about-row">
             <dt>
-              <span className="about-mark"><LineIcon name="tag" size={17} /></span>
-              {t("settings.about.version")}
-            </dt>
-            <dd>{version || "—"}</dd>
-          </div>
-          <div className="about-row">
-            <dt>
               <span className="about-mark"><LineIcon name="author" size={17} /></span>
               {t("settings.about.author")}
             </dt>
             {/* i18n-ignore: a company name, and it mirrors src-tauri/Cargo.toml */}
             <dd>značkárna s.r.o.</dd>
+          </div>
+          <div className="about-row">
+            <dt>
+              <span className="about-mark"><LineIcon name="link" size={17} /></span>
+              {t("settings.about.website")}
+            </dt>
+            <dd>
+              {/* A button and not an `<a href>`, deliberately. An anchor the
+                  webview follows would open the page inside the application
+                  window — no address bar, no back, nothing to close — which is
+                  a room somebody cannot leave. `openUrl` hands it to whatever
+                  browser this computer already uses, where all of that is.
+
+                  The whole address, scheme included. Trimming `https://` makes
+                  the row show something that is not what it opens, and this
+                  panel is the application stating facts about itself.
+
+                  The failure is reported rather than swallowed, the same way
+                  `revealItemInDir` reports its own on the backups card. A `void`
+                  on this promise is exactly how it came to do nothing at all
+                  when the capability had not been granted yet: the rejection
+                  went nowhere and the row simply did not respond. */}
+              <button
+                type="button"
+                className="about-link"
+                onClick={() =>
+                  void openUrl(WEBSITE).catch((e) => onError(userMessage(e)))
+                }
+              >
+                {/* i18n-ignore: an address, the same in every language */}
+                {WEBSITE}
+              </button>
+            </dd>
           </div>
         </dl>
       </section>

@@ -18,6 +18,12 @@ export function SettingsToggle({
   separated = false,
 }: {
   title?: string;
+  /** Required, and it stays required. It was briefly made optional so that
+   *  `Automatická kontrola` could take its sentence from a line elsewhere on
+   *  the card; the owner turned that down, and the rule it broke is worth
+   *  keeping in the type: **every switch says under its own heading what
+   *  turning it on does.** A screen where some do and some do not reads as an
+   *  accident, and the reader has to look around to find the missing half. */
   description: ReactNode;
   label: string;
   checked: boolean;

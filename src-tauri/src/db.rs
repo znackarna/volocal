@@ -221,6 +221,18 @@ pub struct Settings {
     /// only ever asks — nothing is downloaded or installed without a press.
     #[serde(default)]
     pub update_check_automatic: bool,
+    /* An `update_checked_at` was added here and taken out again the same day.
+    The moment of the last check is on screen, but it is not a setting: nobody
+    chose it, no Rust reads it, and a settings record travels — into a portable
+    copy, out to a backup and back again — so a restored archive would have
+    claimed a check that never happened on the machine reading it. It lives in
+    `localStorage` now (`types.ts`, `UPDATE_CHECKED_AT`), which also keeps it
+    out of the write that raises the *Uloženo* confirmation.
+
+    The rule that came out of it, and the reason this note is here rather than
+    in a commit message: this struct holds what the reader decided. Saving it
+    is confirmed on screen because a decision was made. Anything the
+    application notes down for itself does not belong in it. */
     pub model: String,
     /// The answer to the only question the first run asks: `fast` or
     /// `accurate`. Everything that has a fast and an accurate side follows

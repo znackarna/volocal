@@ -116,6 +116,24 @@ export const LINE_ICONS = {
    *  kept*, which is the card below this one and a different question. */
   disk:
     "M12 3.5c-4.1 0-7.5 1.2-7.5 2.6v11.8c0 1.4 3.4 2.6 7.5 2.6s7.5-1.2 7.5-2.6V6.1c0-1.4-3.4-2.6-7.5-2.6Z M4.5 6.1c0 1.4 3.4 2.6 7.5 2.6s7.5-1.2 7.5-2.6 M4.5 12c0 1.4 3.4 2.6 7.5 2.6s7.5-1.2 7.5-2.6",
+  /** A clock face with two hands, for the row saying when a server was last
+   *  asked about a newer version.
+   *
+   *  Two subpaths, which is `video`'s complexity beside it, and the shape needs
+   *  no more: a circle and two hands is the one drawing everybody reads as a
+   *  time without a caption. Deliberately not a calendar — the row's answer is
+   *  a moment with an hour in it, and a calendar would promise a day. */
+  clock: "M12 4.5a7.5 7.5 0 1 0 0 15 7.5 7.5 0 0 0 0-15 M12 8.1v4.2l2.9 1.7",
+  /** A page with an arrow leaving it, for the row that opens the project's
+   *  pages in the system browser.
+   *
+   *  The arrow out is the point rather than decoration: it is the promise that
+   *  pressing this does not replace what is on screen. A globe was drawn first
+   *  and thrown away — it says *the internet*, which the row's own words
+   *  already say, and its meridians are five subpaths that turn to grain at
+   *  17 px, which is the lesson `graphicsCard` was redrawn for. */
+  link:
+    "M13.5 4.5h6v6 M19.5 4.5 11.5 12.5 M17 13.5v5A1.5 1.5 0 0 1 15.5 20h-10A1.5 1.5 0 0 1 4 18.5v-10A1.5 1.5 0 0 1 5.5 7h5",
   /** A closed padlock, for a row in the module listing that cannot be deleted.
    *
    *  Two subpaths — the body and the shackle — which is the complexity of

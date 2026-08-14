@@ -733,17 +733,30 @@
    which put the most contrast on what needs the least attention. The container
    draws the border and every row inside it is `--panel`; what is installed is
    said by the green mark, which is the column that exists to say it. */
-.components {
+/* The dictionary's saved entries join these four rules rather than copying
+   their values — *použijme na slovník stejné řádky jako mají položky v kartě
+   modely*. It is a list of items that grows, with a bin at the right, which is
+   this row's geometry and not the two-fact summary panel's. Its own file is
+   `05-later.css`, which only sets what genuinely differs: the columns, because
+   a dictionary row carries a pair of fields and an arrow where a component row
+   carries a mark, a name and a size. Everything else — the ground, the
+   hairlines, the 44 px, the 16 px edge, the bin — is one declaration for both,
+   so neither can drift. */
+.components,
+.dictionary-list {
   list-style: none; margin: 0; padding: 0; overflow: hidden;
   border: 1px solid var(--line); border-radius: var(--r-large);
   background: var(--panel);
 }
-.component { border-bottom: 1px solid var(--line); }
-.component:last-child { border-bottom: 0; }
+.component,
+.dictionary-list li { border-bottom: 1px solid var(--line); }
+.component:last-child,
+.dictionary-list li:last-child { border-bottom: 0; }
 /* Four columns, each fixed or shared so the eye runs down any of them: the mark,
    the text, a size column with one right edge, and the bin — whose 26 px is
    reserved on every row whether or not there is a bin in it. */
-.component-row {
+.component-row,
+.dictionary-list li {
   display: grid; grid-template-columns: 26px minmax(0, 1fr) auto 26px; gap: 12px;
   align-items: center; min-height: 44px; padding: 9px 16px;
   font-size: 14px;
@@ -813,14 +826,20 @@
    action, and revealing it moved the size column as the pointer travelled.
    Quiet by default, the danger colour under the pointer where the intent is
    already formed. */
-.component-remove {
+/* 26 px, and the dictionary's bin is the same button: it stood at 28 because
+   it ended a 34 px field row, and it does not end one any more — it ends a
+   44 px listing row, which is where 26 comes from. Two bins one row apart at
+   two diameters is the drift this selector exists to prevent. */
+.component-remove,
+.dictionary-remove {
   display: grid; place-items: center; width: 26px; height: 26px; padding: 0;
   border: 0; border-radius: var(--r-card); background: none; cursor: pointer;
   color: var(--text-quiet);
   transition: background var(--hover-duration) var(--hover-ease),
     color var(--hover-duration) var(--hover-ease);
 }
-.component-remove:hover { background: var(--danger-light); color: var(--danger); }
+.component-remove:hover,
+.dictionary-remove:hover { background: var(--danger-light); color: var(--danger); }
 /* The lock, in the bin's own column and at the bin's own 26 px, so a row that
    cannot be deleted lines up with the rows that can. Quiet rather than red: it
    states a fact, it does not warn. No hover and no pointer — it is not a
@@ -1004,11 +1023,21 @@ button.mic-play:disabled { cursor: default; opacity: 0.6; }
 .mic-status, .about-status { font-size: 13.5px; font-weight: 600; }
 .mic-status.failed, .about-status.failed { color: var(--danger); }
 .about-status { margin: 12px 0 0; }
-/* The update block is the whole of its own card now, so it takes the 24 px a
-   card's first block after its heading takes — the same amount as `h2 + .field`
-   and `h2 + .about-abilities` above. It carried 22 as the last band of the
-   About card, where it followed a panel rather than a heading. */
-.settings section > h2 + .about-updates { margin-top: 24px; }
+/* `.settings section > h2 + .about-updates` stood here with 24 px, for the day
+   this block followed the card's heading directly. It follows the card's
+   opening sentence now, and `.settings-section-description` already ends with
+   the same 24 — one amount from one declaration, rather than a rule that can
+   only ever be right while nothing is said between the two. */
+/* The two facts, then the terms the press is made on, then the errand.
+
+   22 px under the panel and no rule with it, which is `.settings-action-row.
+   spaced` exactly — its comment is written for this case: content under
+   something already framed, where a hairline would draw the panel's own
+   boundary a second time. Then 12 px from the note to the button it qualifies,
+   which is `.about-status`'s own distance from the row above it two rules up:
+   one line of small text against the block it belongs to, twice in one card. */
+.about-updates > .about-panel + .settings-info-note { margin-top: 22px; }
+.about-updates > .settings-info-note + .about-updates-actions { margin-top: 12px; }
 .about-updates-actions { display: flex; gap: 10px; }
 /* The explanation belongs to the whole block above it, not to one button. */
 .about-updates .settings-section-description { margin: 14px 0 0; }

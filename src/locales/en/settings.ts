@@ -17,9 +17,14 @@ export const enSettings: Partial<Record<keyof typeof csSettings, string>> = {
   "settings.about.author": "Author",
   "settings.about.updateCheck": "Check for updates",
   "settings.about.updateNote": "The application looks for a new version only when you ask it to.",
-  "settings.about.updateAuto": "Automatic updates",
   "settings.about.updateAutoDescription":
-    "Looks for a newer version on start. It downloads one only with your permission.",
+    "It looks for a newer version on start. It downloads one only when you ask it to.",
+  "settings.about.website": "Website",
+  "settings.updates.description":
+    "Which version you are running, and when the application last asked whether there is a newer one.",
+  "settings.updates.lastCheck": "Last check",
+  "settings.updates.lastCheckNever": "No check has been made yet",
+  "settings.about.updateAuto": "Automatic check",
   "settings.about.updateChecking": "Checking…",
   "settings.about.updateCurrent": "You have the newest version.",
   "settings.about.updateFound": "Version {version} is available.",

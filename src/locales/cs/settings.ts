@@ -137,9 +137,14 @@ export const csSettings = {
   "settings.about.author": "Autor",
   "settings.about.updateCheck": "Zkontrolovat aktualizace",
   "settings.about.updateNote": "Aplikace hledá novou verzi pouze na vaši žádost.",
-  "settings.about.updateAuto": "Automatické aktualizace",
   "settings.about.updateAutoDescription":
-    "Po spuštění hledá novější verzi. Stáhne ji až na vaše svolení.",
+    "Po spuštění hledá novější verzi. Stáhne ji na vaši žádost.",
+  "settings.about.website": "Stránky",
+  "settings.updates.description":
+    "Která verze u vás běží a kdy se aplikace naposledy ptala, jestli je novější.",
+  "settings.updates.lastCheck": "Poslední kontrola",
+  "settings.updates.lastCheckNever": "Zatím neproběhla žádná kontrola",
+  "settings.about.updateAuto": "Automatická kontrola",
   "settings.about.updateChecking": "Kontroluji…",
   "settings.about.updateCurrent": "Máte nejnovější verzi.",
   "settings.about.updateFound": "K dispozici je verze {version}.",
@@ -408,11 +413,36 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
   "settings.about.abilityReview":
     "Nejistý je přepis, ne čtenář — model sám označí místa s nízkou jistotou.",
   "settings.about.updateNote":
-    "Vysvětlení pod tlačítkem. Aplikace slibuje, že sama nikam neposílá nic; tohle je jediné místo, kde se ptá vnějšího serveru, a jen na výslovné vyžádání.",
+    "Věta s ⓘ nad tlačítkem Zkontrolovat aktualizace. Patří tomu tlačítku, ne " +
+    "přepínači dole na kartě, a nemění se s ním. Aplikace slibuje, že sama " +
+    "nikam nic neposílá; tohle je jediné místo, kde se ptá vnějšího serveru.",
+  "settings.about.website":
+    "Popisek řádku na kartě Informace. Hodnota vedle něj je adresa stránek " +
+    "projektu a otevře se v systémovém prohlížeči, ne v okně aplikace.",
+  "settings.updates.description":
+    "Úvodní věta karty Aktualizace, nad tabulkou se dvěma řádky. Říká, co na " +
+    "kartě je, ne co udělá tlačítko pod ní.",
+  "settings.updates.lastCheck":
+    "Popisek řádku. Nikoli datum poslední aktualizace: kdy se aplikace " +
+    "naposledy ptala, jestli existuje novější verze. Datum instalace čtenáři " +
+    "nic neříká, kdežto tohle je otázka, se kterou tu kartu otevírá — " +
+    "automatická kontrola je totiž volitelná a ve výchozím stavu vypnutá.",
+  "settings.updates.lastCheckNever":
+    "Hodnota v tom řádku, když se ještě nikdy nic neptalo. Věta, ne pomlčka: " +
+    "pomlčka se čte jako „nezjištěno“, tady jde o to, že kontrola zatím " +
+    "neproběhla, což je normální stav čerstvé instalace. Neosobní vazba " +
+    "záměrně: „zatím jste se neptali“ svaluje stav na čtenáře, který neudělal " +
+    "nic špatně — aplikace prostě nic zaznamenaného nemá.",
   "settings.about.updateAuto":
-    "Popisek přepínače. Automatická je jen ta otázka, ne stažení ani instalace.",
+    "Popisek přepínače. Automatická je jen ta otázka, ne stažení ani instalace " +
+    "— proto kontrola, ne aktualizace. Dřív tu stálo „Automatické " +
+    "aktualizace“, což slibovalo něco, co ten přepínač nedělá: aplikace se " +
+    "sama zeptá, ale nainstaluje až na potvrzení čtenáře. Rozdíl je záměrný a " +
+    "nesmí se při úklidu zkrátit zpátky.",
   "settings.about.updateAutoDescription":
-    "Vysvětlení pod přepínačem. Důležité je, že se nic nestáhne samo — aplikace jen zjistí, jestli novější verze existuje.",
+    "Vysvětlení pod nadpisem přepínače, jako u každého jiného bloku v " +
+    "Nastavení. Důležité je, že se nic nestáhne samo — aplikace jen zjistí, " +
+    "jestli novější verze existuje, a stahuje až na žádost čtenáře.",
   "settings.about.updateFound":
     "{version} je číslo nové verze, například 0.9.1. Bez slova „verze“ před číslem by věta zněla útržkovitě.",
   "settings.about.updateDownloading":

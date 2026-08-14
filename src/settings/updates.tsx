@@ -12,13 +12,16 @@
  *  starts it again. So there is no "restart now" to offer, and no need for the
  *  process plugin to offer it with.
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { check } from "@tauri-apps/plugin-updater";
+import { getVersion } from "@tauri-apps/api/app";
 import { api } from "../api";
 import InfoNote from "../InfoNote";
+import { LineIcon } from "../icons";
 import { SettingsToggle } from "./toggle";
 import { useI18n } from "../i18n";
 import { useDialog } from "../useDialog";
+import { lastUpdateCheck, noteUpdateCheck } from "../types";
 import { readNotes } from "./releaseNotes";
 
 type State =
@@ -132,8 +135,21 @@ export function UpdateCheck({
   automatic: boolean;
   onAutomaticChange: (on: boolean) => void;
 }) {
-  const { t } = useI18n();
+  const { t, formatDate } = useI18n();
   const [state, setState] = useState<State>({ at: "idle" });
+  /** Read once and kept in state so the row moves the moment the button
+   *  answers, rather than waiting for somebody to leave the tab and come back.
+   *  `localStorage` is the store; this is only what is on screen. */
+  const [lastChecked, setLastChecked] = useState(lastUpdateCheck);
+  /** The number of the build that is running. From the bundle rather than
+   *  typed here: `tauri.conf.json` already carries it, and a second copy is the
+   *  one that would be wrong on release day. `core:default` grants
+   *  `core:app:allow-version`, so no capability changed for this. */
+  const [version, setVersion] = useState("");
+
+  useEffect(() => {
+    getVersion().then(setVersion).catch(() => setVersion(""));
+  }, []);
   /** Whether what is in the version is on screen. It opens itself when a
    *  version with notes is found, and can be opened again from the panel —
    *  closing it must not be the same as throwing the text away. */
@@ -154,6 +170,13 @@ export function UpdateCheck({
     setState({ at: "checking" });
     try {
       const update = await check();
+      /* An answer came back, so the row above can say when. Written here and
+         not in `install`, which calls `check` again as a technical necessity
+         rather than as an errand. Deliberately not through `save` in
+         `Settings.tsx`: that raises the *Uloženo* confirmation, and pressing
+         *Zkontrolovat aktualizace* is not somebody saving a setting. */
+      noteUpdateCheck();
+      setLastChecked(lastUpdateCheck());
       if (update) {
         // The version goes to the notice bar too. What stays behind is the
         // button that acts on it, which says what it does without repeating
@@ -217,8 +240,45 @@ export function UpdateCheck({
   const notes = state.at === "found" ? state.notes : "";
 
 
+  const readMoment = (value: string) => {
+    const moment = new Date(value);
+    if (!value || Number.isNaN(moment.getTime())) return null;
+    return formatDate(moment, {
+      day: "numeric",
+      month: "numeric",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  /* Two facts, in the panel the `Modely` card and `Informace` already use: a
+     label on the left with its mark, a value on the right in 600 tabular. The
+     version is here rather than on `Informace` because this is the tab where a
+     number can be acted on — the button under it fetches a newer one — and one
+     number in two places is a number that will disagree with itself. */
+  const facts: ReadonlyArray<{ icon: "tag" | "clock"; label: string; value: string }> = [
+    { icon: "tag", label: t("settings.about.version"), value: version || "—" },
+    {
+      icon: "clock",
+      label: t("settings.updates.lastCheck"),
+      // Empty is itself the answer, and it is a sentence rather than a dash:
+      // a dash reads as "not available", and this is "nobody has ever asked",
+      // which is the resting state of an application whose automatic check is
+      // off by default.
+      // The `Number.isNaN` is not decoration: this comes out of
+      // `localStorage`, where anything at all can be written by hand, and
+      // `Intl.DateTimeFormat` throws on an invalid date rather than returning
+      // something odd — which would take the whole tab down with it.
+      value: readMoment(lastChecked) ?? t("settings.updates.lastCheckNever"),
+    },
+  ];
+
   return (
     <div className="about-updates">
+      {/* First in the block, though it is drawn over the whole window: it is a
+          fixed overlay and takes no space, and anywhere else it would land
+          between two siblings and break the `+` that spaces them apart. */}
       {reading && state.at === "found" && (
         <ReleaseNotes
           version={state.version}
@@ -227,6 +287,32 @@ export function UpdateCheck({
           onInstall={() => void install()}
         />
       )}
+
+      <dl className="about-panel about-panel-marked">
+        {facts.map((fact) => (
+          <div className="about-row" key={fact.icon}>
+            <dt>
+              <span className="about-mark"><LineIcon name={fact.icon} size={17} /></span>
+              {fact.label}
+            </dt>
+            <dd>{fact.value}</dd>
+          </div>
+        ))}
+      </dl>
+
+      {/* The line above the button rather than under it, on the owner's word —
+          *tlačítko Zkontrolovat aktualizace dejme až za Info větičku*. It reads
+          as the terms the press is made on, which is what somebody wants before
+          pressing a thing that leaves this computer, not after.
+
+          One fixed sentence. It was built to switch with the toggle at the foot
+          of the card and that was turned down: *místo toho se přepíná ta jedna
+          věta s ikonkou nad, to nechci*. This line belongs to the button under
+          it, not to the switch — and a sentence that rewrites itself while
+          somebody is looking elsewhere makes them wonder what else moved. What
+          the switch does is said under the switch, the way every other block on
+          this screen says it. */}
+      <InfoNote>{t("settings.about.updateNote")}</InfoNote>
 
       <div className="about-updates-actions">
         <button className="button" onClick={look} disabled={busy}>
@@ -259,8 +345,6 @@ export function UpdateCheck({
       {state.at === "installing" && (
         <p className="about-status">{t("settings.about.updateInstalling")}</p>
       )}
-
-      <InfoNote>{t("settings.about.updateNote")}</InfoNote>
 
       <SettingsToggle
         separated

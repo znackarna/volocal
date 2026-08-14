@@ -28,7 +28,7 @@ import wordmark from "./wordmark.svg?raw";
    and the two have nothing to do with each other. */
 import { check as checkForUpdate } from "@tauri-apps/plugin-updater";
 import type { ConfirmationRequest } from "./ConfirmationDialog";
-import { formatTime, applyFonts, applyTheme, fileName } from "./types";
+import { formatTime, applyFonts, applyTheme, fileName, noteUpdateCheck } from "./types";
 import { rememberSpeakerNames } from "./speakerNames";
 import { useI18n } from "./i18n";
 import type { TranslationKey } from "./i18n";
@@ -373,6 +373,11 @@ export default function App() {
       const settings = await api.loadSettings();
       if (!settings.update_check_automatic) return;
       const update = await checkForUpdate();
+      /* The same moment the button on `Aktualizace` writes, from the other way
+         of asking: a start that asked must move it, or that row would say
+         *nikdy* on a machine checking every morning. Not through the settings
+         record — see `UPDATE_CHECKED_AT`. */
+      noteUpdateCheck();
       if (update) reportInfo(t("app.updateAvailable", { version: update.version }));
     } catch {
       /* An unreachable server is not worth interrupting a start for. The
