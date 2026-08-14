@@ -437,10 +437,6 @@ export default function Detail({
     localStorage.setItem("rychle-tipy", "skryte");
     setTipsVisible(false);
   }, []);
-  const showTips = useCallback(() => {
-    localStorage.removeItem("rychle-tipy");
-    setTipsVisible(true);
-  }, []);
   // The panel is remembered between recordings: whoever closes it wants quiet.
   const [panelOpen, setPanelOpen] = useState(
     () => localStorage.getItem("panel") !== "zavreny"
@@ -2040,26 +2036,14 @@ export default function Detail({
           onSeek={updateCursor}
           trailingControl={(
             <>
-            {/* The way back to the dismissed shortcut strip, drawn only when
-                there is one to come back to. A keyboard, because that is what
-                the strip is about; the same 16 px inline drawing as its two
-                neighbours rather than a `LineIcon`, which is the 22 px mark
-                used inside circles. */}
-            {segments.length > 0 && !tipsVisible && (
-              <button
-                className="icon-button"
-                onClick={showTips}
-                aria-label={t("detail.tips.show")}
-                title={t("detail.tips.show")}
-              >
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
-                  <rect x="0.9" y="3.4" width="14.2" height="9.2" rx="2"
-                        stroke="currentColor" strokeWidth="1.4" />
-                  <path d="M3.6 6.2h.01M6.2 6.2h.01M8.8 6.2h.01M11.4 6.2h.01M3.6 8.6h.01M12 8.6h.01M5.4 10.6h5.2"
-                        stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                </svg>
-              </button>
-            )}
+            {/* A keyboard button stood here — the way back to the shortcut
+                strip, put beside the player on the reasoning that a way back
+                belongs where the thing disappeared rather than three clicks
+                away in Settings. The owner has now seen both and prefers the
+                switch: *dejme jim toggle v nastavení rozhraní tak, jak jsme ho
+                měly*. The principle was not wrong; it lost to the screen. The
+                switch is on `Rozhraní` and reads the same
+                `localStorage["rychle-tipy"]` this strip writes. */}
             {/* Beside the panel toggle, because both are tools of the screen
                 rather than of playback — and without a target of its own the
                 find bar existed only for whoever knew Ctrl+F. */}

@@ -212,7 +212,12 @@
    places a plain switch after a field. `.settings-toggle.separated` is 22/20 and
    is the other case — a switch after free-flowing text, as on `Aktualizace`. */
 .field + .settings-toggle:not(.section),
-.choices + .settings-toggle:not(.section) {
+.choices + .settings-toggle:not(.section),
+/* …and after the live sample at the foot of the appearance card, which is the
+   block the shortcut-strip switch follows. A framed sample is a block of
+   controls in the way that matters here — the switch is the next thing after
+   it, and it takes the same divider a switch after a field takes. */
+.preview-font + .settings-toggle:not(.section) {
   margin-top: 24px; padding-top: 22px; border-top: 1px solid var(--line);
 }
 .settings-toggle:not(.section) + .field {

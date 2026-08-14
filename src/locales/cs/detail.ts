@@ -63,8 +63,7 @@ export const csDetail = {
   "detail.tips.tabKey": "F3",
   "detail.tips.tabAction": "další místo ke kontrole",
   "detail.tips.hide": "Skrýt rychlé tipy",
-  "detail.tips.hideHint": "Skrýt. Vrátit se dají tlačítkem u přehrávače.",
-  "detail.tips.show": "Zobrazit rychlé tipy",
+  "detail.tips.hideHint": "Skrýt. Vrátit se dají v nastavení rozhraní.",
 
   "detail.sidebar.label": "Postranní panel",
 
@@ -283,8 +282,6 @@ export const csDetailContext: Partial<Record<keyof typeof csDetail, string>> = {
   "detail.tips.hideHint":
     "Popisek křížku. Druhá věta říká, kde se proužek dá znovu zapnout — je to " +
     "tlačítko s klávesnicí v řádku přehrávače, které se objeví, až proužek zmizí.",
-  "detail.tips.show":
-    "Popisek toho tlačítka. Vrátí skrytý proužek s klávesovými zkratkami.",
 
   "detail.sidebar.label": "Popisek postranního panelu pro čtečky obrazovky.",
 

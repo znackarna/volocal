@@ -123,6 +123,8 @@ export const csSettings = {
   "settings.appearance.previewSpeaker": "Radomil",
   "settings.appearance.previewText":
     "Sešli jsme se ve čtvrtek odpoledne a mluvili spolu skoro dvě hodiny. „Nejdřív si to musíme poslechnout celé,“ řekla — a měla pravdu. Přepis měl nakonec 1 234 slov a nechyběla v něm jediná věta.",
+  "settings.tips.toggle": "Zobrazovat tipy nad přepisem",
+  "settings.tips.description": "Pruh nápovědy s klávesovými zkratkami pod přehrávačem.",
   "settings.appearance.previewDiacritics": "Háčky a čárky: ě š č ř ž ý á í é ú ů ň ť ď",
 
   // The About page: what the application is, does, and stands on.
@@ -406,6 +408,13 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
   "settings.about.updateNotesReopen":
     "Tlačítko v panelu, které ten dialog otevře znovu, když ho někdo zavřel a chce si text přečíst ještě jednou.",
 
+  "settings.tips.toggle":
+    "Popisek přepínače na kartě Vzhled. Zapíná pruh s klávesovými zkratkami " +
+    "nad přepisem. Ten pruh jde zavřít i křížkem přímo u něj — tohle je cesta " +
+    "zpátky.",
+  "settings.tips.description":
+    "Věta pod tím přepínačem. Říká, kde ten pruh je, protože z nastavení na " +
+    "něj není vidět.",
   "settings.appearance.title":
     "Nadpis karty s motivem, písmem přepisu a jeho velikostí. Záložka nad ní " +
     "se jmenuje jinak — Jazyk a vzhled — protože vedle téhle karty je ještě " +

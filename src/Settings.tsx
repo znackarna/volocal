@@ -433,6 +433,13 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
   const [copying, setCopying] = useState(false);
   const [copiedFile, setCopiedFile] = useState("");
   const [copyComplete, setCopyComplete] = useState<number | null>(null);
+  /** Whether the transcript screen shows its shortcut strip. Mirrors
+   *  `localStorage["rychle-tipy"]`, which is where it actually lives — the
+   *  same arrangement as the interface language, and for the same reason: it
+   *  is a habit of this machine rather than something the archive carries. */
+  const [tipsVisible, setTipsVisible] = useState(
+    () => localStorage.getItem("rychle-tipy") !== "skryte"
+  );
   const [dictionary, setDictionary] = useState<DictionaryEntry[]>([]);
   /** A transcription model picked before it was on the disk. Mirrors
    *  `localStorage[MODEL_WANTED]`, which is where it actually lives — see
@@ -1607,6 +1614,31 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
           <p>{t("settings.appearance.previewText")}</p>
           <p className="preview-label">{t("settings.appearance.previewDiacritics")}</p>
         </div>
+
+        {/* The shortcut strip's switch, back where it was before the
+            simplification took it out — *dejme jim toggle v nastavení rozhraní
+            tak, jak jsme ho měly*. It was replaced for a while by a keyboard
+            button beside the player, on the reasoning that a way back belongs
+            where the thing disappeared; the owner has seen both and this is the
+            one he wants.
+
+            **Like the app's language, this is not in the settings record.** It
+            lives in `localStorage["rychle-tipy"]` and `Detail.tsx` reads the
+            same key — `skryte` is hidden and anything else, including absent,
+            is shown. So a strip somebody dismissed stays dismissed across this
+            change: the button never wrote a different value, and this switch
+            writes the pair the strip has always read. Do not move it into
+            `save(n)` to make the card uniform. */}
+        <SettingsToggle
+          title={t("settings.tips.toggle")}
+          label={t("settings.tips.toggle")}
+          description={t("settings.tips.description")}
+          checked={tipsVisible}
+          onChange={(wanted) => {
+            localStorage.setItem("rychle-tipy", wanted ? "viditelne" : "skryte");
+            setTipsVisible(wanted);
+          }}
+        />
       </section>}
 
       {/* Headed `Model přepisu` — `Přepis` first, then `Model`, then this.
