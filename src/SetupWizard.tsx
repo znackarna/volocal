@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { api } from "./api";
+import ConfirmationDialog from "./ConfirmationDialog";
+import type { ConfirmationRequest } from "./ConfirmationDialog";
 import InfoNote from "./InfoNote";
-import { ModelMark } from "./icons";
+import { LineIcon, ModelMark } from "./icons";
 import { useI18n, type TranslationKey } from "./i18n";
 import { messageCode, useProgressMessage, useUserMessage } from "./messages";
 import { useFormats } from "./formats";
@@ -237,6 +239,41 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
   const [progress, setProgress] = useState<Record<string, DownloadProgress>>({});
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [confirmation, setConfirmation] = useState<ConfirmationRequest | null>(null);
+
+  /** Asks before deleting, and names the space it frees.
+   *
+   *  `destructive`, because several gigabytes come back over somebody's
+   *  connection at whatever speed that is — this is the one action in the
+   *  application whose undo is a download. `ConfirmationDialog` starts its focus
+   *  on Cancel for exactly this shape, so a blind Enter deletes nothing.
+   *
+   *  The list is reloaded from `catalog()` afterwards rather than edited in
+   *  place: the row's `removable`, its `complete` and the tick all come from
+   *  Rust reading the disk, and guessing any of them here is how a screen comes
+   *  to disagree with the thing it is describing. */
+  const askToRemove = useCallback(
+    (component: DownloadComponent) => {
+      const name = tDynamic(component.name_code, component.id);
+      setConfirmation({
+        title: t("wizard.manual.removeTitle", { name }),
+        text: t("wizard.manual.removeText", { size: dataSize(component.megabytes) }),
+        confirm: t("wizard.manual.remove"),
+        destructive: true,
+        action: async () => {
+          await api.removeComponent(component.id);
+          setItems(await api.catalog());
+          setManualSelect((current) => {
+            const next = new Set(current);
+            next.delete(component.id);
+            return next;
+          });
+        },
+      });
+    },
+    [t, tDynamic, dataSize]
+  );
 
   const [view, setView] = useState<ListingView>(rememberedListingView);
   useEffect(() => {
@@ -765,6 +802,7 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
                       return n;
                     })
                   }
+                  onRemove={askToRemove}
                 />
               ) : selected.length === 0 ? (
                 <ul className="summary">
@@ -899,6 +937,11 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
           )}
         </div>
       )}
+      <ConfirmationDialog
+        query={confirmation}
+        onClose={() => setConfirmation(null)}
+        onError={setError}
+      />
     </main>
   );
 }
@@ -1058,12 +1101,14 @@ function ManualSelection({
   items,
   selected,
   onToggle,
+  onRemove,
   view,
   onView,
 }: {
   items: DownloadComponent[];
   selected: Set<string>;
   onToggle: (id: string) => void;
+  onRemove: (component: DownloadComponent) => void;
   view: ListingView;
   onView: (view: ListingView) => void;
 }) {
@@ -1108,12 +1153,28 @@ function ManualSelection({
               .map((p) => (
                 <li key={p.id} className={`component ${p.complete ? "done" : ""}`}>
                   <label>
-                    <input
-                      type="checkbox"
-                      checked={p.complete || selected.has(p.id)}
-                      disabled={p.complete}
-                      onChange={() => onToggle(p.id)}
-                    />
+                    {/* Two marks, chosen by state, in one column of one width.
+                        *Checkbox nedává smysl u stažených, tam to má být to
+                        zelené kolečko s fajfkou.* A ticked, disabled checkbox
+                        was a control pretending to be a fact — it looked
+                        pressable and refused — while the green circle says the
+                        one true thing about that row: this is here.
+
+                        The column is 18 px whichever mark is in it. A checkbox
+                        and a circle at their natural widths differ by a few
+                        pixels, and a list whose text left edge moved with each
+                        row's install state would read as a rendering fault. */}
+                    <span className="component-mark">
+                      {p.complete ? (
+                        <DownloadedMark />
+                      ) : (
+                        <input
+                          type="checkbox"
+                          checked={selected.has(p.id)}
+                          onChange={() => onToggle(p.id)}
+                        />
+                      )}
+                    </span>
                     {/* Every row is the same shape, and the reader decides which
                         shape that is. It used to draw the sentence and the size
                         only for components that were *not* installed, so on a
@@ -1130,14 +1191,42 @@ function ManualSelection({
                         <span className="small-text">{tDynamic(p.description_code, "")}</span>
                       )}
                     </span>
-                    {/* The size on every row in both views, and `staženo` where
-                        it would have been `0 MB`. The same answer the wizard's
-                        own listing gives, deliberately: a number that reads like
-                        a cost is the wrong thing to print beside something that
-                        costs nothing. */}
-                    <span className="component-size">
-                      {p.complete ? <DownloadedMark /> : dataSize(p.megabytes)}
-                    </span>
+                    {/* The size on every row, downloaded or not — it was the
+                        tick's slot, and the tick has moved to the mark column
+                        where it belongs. What a component takes up is the
+                        question somebody has when they are looking for space
+                        to get back, and it is exactly the row with the bin on
+                        it that they need it for. */}
+                    <span className="component-size">{dataSize(p.megabytes)}</span>
+                    {/* The bin, and only where deleting means something exact.
+                        `removable` is answered in Rust: false while nothing is
+                        installed, false for the model being transcribed or
+                        edited with, and false for ffmpeg and Deno, which unpack
+                        into the shared programs root where nothing recorded
+                        whose files are whose. **No dead button** — a row that
+                        cannot be deleted has no bin rather than one that
+                        refuses when pressed. */}
+                    {p.removable && (
+                      <button
+                        type="button"
+                        className="component-remove"
+                        aria-label={t("wizard.manual.remove")}
+                        title={t("wizard.manual.remove")}
+                        onClick={(event) => {
+                          // Inside a `<label>`, so a press would otherwise also
+                          // reach the checkbox it wraps. It cannot: the mark on
+                          // a removable row is the green circle, not an input.
+                          // Stopped anyway, because the day this list draws a
+                          // checkbox beside a bin the defect would be a deleted
+                          // component and a silently ticked row.
+                          event.preventDefault();
+                          event.stopPropagation();
+                          onRemove(p);
+                        }}
+                      >
+                        <LineIcon name="remove" size={16} />
+                      </button>
+                    )}
                   </label>
                 </li>
               ))}

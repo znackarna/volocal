@@ -609,13 +609,22 @@
    `align-self: center` on the mark to undo itself in two directions — the mark
    was the one that lost, and sat high on any row whose text ran to two lines.
    A row centred as a row needs neither exception. */
+/* Four columns: the mark, the name, the size, the bin. The last is `auto` and
+   collapses to nothing on a row without one, which is what keeps the size
+   column in the same place down the whole list. */
 .component label {
-  display: grid; grid-template-columns: auto 1fr auto; gap: 12px;
+  display: grid; grid-template-columns: 18px 1fr auto auto; gap: 12px;
   align-items: center; padding: 10px 16px; cursor: pointer;
   font-size: 14px; font-weight: 500;
 }
 .component.done label { cursor: default; }
 .component input { accent-color: var(--accent); }
+/* One width for two marks. A checkbox and the 16 px circle differ by a few
+   pixels at their natural sizes, and a list whose text left edge moved with
+   each row's install state would read as a rendering fault rather than as a
+   distinction. 18 px is the wider of the two — the checkbox — so neither is
+   cropped. */
+.component-mark { display: grid; place-items: center; width: 18px; }
 .component-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .component-name { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .component-size { color: var(--text-quiet); font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -627,6 +636,25 @@
   width: 16px; height: 16px; border-radius: 50%;
   background: hsl(var(--ds-grass) / 0.14); color: var(--success-text);
 }
+/* The bin. 26 px is `.segment-actions`' icon button, which `CLAUDE.md`
+   documents as the small one — this sits in a 40 px row beside 13 px type, and
+   the 32 px circle would be the heaviest thing on a line whose whole point is
+   to be quiet. Grey until the row is under the pointer, then the danger colour:
+   the only irreversible thing on this screen should not be the first thing the
+   eye lands on, and it must be unmistakable once reached. */
+.component-remove {
+  display: grid; place-items: center; width: 26px; height: 26px; padding: 0;
+  border: 0; border-radius: var(--r-card); background: none; cursor: pointer;
+  color: var(--text-quiet); opacity: 0;
+  transition: opacity var(--hover-duration) var(--hover-ease),
+    background var(--hover-duration) var(--hover-ease),
+    color var(--hover-duration) var(--hover-ease);
+}
+/* Shown on hover and whenever it has focus — a control that appears only under
+   a pointer is a control somebody on a keyboard cannot find. */
+.component:hover .component-remove,
+.component-remove:focus-visible { opacity: 1; }
+.component-remove:hover { background: var(--danger-light); color: var(--danger); }
 
 /* ---------------------------------------------------------------- dialog */
 

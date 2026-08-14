@@ -357,6 +357,12 @@ export interface DownloadComponent {
   required: boolean;
   recommended: boolean;
   complete: boolean;
+  /** Whether the bin may be drawn on this row. Answered in Rust by
+   *  `catalog()`: false while nothing is installed, false for the model
+   *  `settings.model` or `editor_model` is using, and false for the two
+   *  programs that unpack into the shared `bin` root where nothing recorded
+   *  whose files are whose. The row draws no bin rather than one that refuses. */
+  removable: boolean;
 }
 
 export interface DownloadProgress {

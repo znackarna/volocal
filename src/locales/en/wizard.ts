@@ -32,6 +32,10 @@ export const enWizard: Partial<Record<keyof typeof csWizard, string>> = {
   "wizard.download.viewCompact": "Brief list",
   "wizard.download.viewFull": "Detailed list",
   "wizard.manual.title": "Models and tools",
+  "wizard.manual.remove": "Delete",
+  "wizard.manual.removeTitle": "Delete {name}?",
+  "wizard.manual.removeText":
+    "This frees {size}. You can download it again at any time, but it will take as long as it did.",
   "wizard.manual.groupPrograms": "Programs for transcription",
   "wizard.manual.groupModels": "Language models for transcription",
   "wizard.manual.groupSpeech": "Speech and speaker detection",

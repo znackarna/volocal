@@ -54,6 +54,10 @@ export const csWizard = {
 
   // ------------------------------------------------------------- choosing by hand
   "wizard.manual.title": "Modely a nástroje",
+  "wizard.manual.remove": "Smazat",
+  "wizard.manual.removeTitle": "Smazat {name}?",
+  "wizard.manual.removeText":
+    "Uvolní se {size}. Stáhnout to jde kdykoli znovu, ale znovu to potrvá.",
   "wizard.manual.groupPrograms": "Programy pro přepis",
   "wizard.manual.groupModels": "Jazykové modely pro přepis",
   "wizard.manual.groupSpeech": "Detekce řeči a mluvčích",
@@ -126,6 +130,17 @@ export const csWizardContext: Partial<Record<keyof typeof csWizard, string>> = {
     "Druhá poloha téhož přepínače, taky jen jako popisek: pod názvem je navíc " +
     "věta, co ta položka dělá.",
 
+  "wizard.manual.remove":
+    "Popisek koše na řádku výpisu. Nezobrazuje se jako text — je v bublině a " +
+    "čte ho odečítač obrazovky — a je i na potvrzovacím tlačítku v dialogu, " +
+    "kde vidět je. Sloveso, ne podstatné jméno.",
+  "wizard.manual.removeTitle":
+    "Nadpis potvrzovacího dialogu. {name} je název položky z katalogu, třeba " +
+    "„Větší model jazykové úpravy“.",
+  "wizard.manual.removeText":
+    "Věta v tom dialogu. {size} je uvolněné místo i s jednotkou. Druhá půlka " +
+    "věty je podstatná: smazání není nevratné, jen drahé — u sedmigigového " +
+    "modelu je to znovu celé stahování.",
   "wizard.manual.title":
     "Nadpis ručního výpisu ze Spravovat modely. Je pod ním všechno, co se dá " +
     "stáhnout, včetně toho, co v počítači už je — proto ne „co se stáhne“, to " +
