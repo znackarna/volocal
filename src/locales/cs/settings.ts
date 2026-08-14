@@ -177,7 +177,7 @@ export const csSettings = {
   "settings.transcription.modelDownloading": "stahuje se…",
   "settings.transcription.language": "Jazyk nahrávky",
   "settings.transcription.languageNote":
-    "Předem vybraný jazyk urychlí přepis. U více jazyků nechte automatiku.",
+    "Správně nastavený jazyk výrazně urychlí přepis. U více jazyků nechte automatiku.",
   "settings.transcription.beam": "Důkladnost hledání",
   "settings.transcription.beamNote":
     "Vyšší hodnota zvyšuje přesnost a prodlužuje dobu přepisu.",
@@ -446,7 +446,14 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
     "tři tečky jsou jeden znak, stejně jako u ostatních průběhových textů. " +
     "Vybraný zůstává pořád ten starý — přepne se, až je soubor stažený.",
   "settings.transcription.language":
-    "Popisek volby jazyka nahrávky. Slovo „nahrávky“ je v něm schválně: o dvě karty dál stojí Jazyk aplikace a samotné „Jazyk“ se s ním pletlo.",
+    "Nadpis karty s jazykem nahrávky. Slovo „nahrávky“ je v něm schválně: na " +
+    "záložce Rozhraní stojí Jazyk aplikace a samotné „Jazyk“ se s ním pletlo.",
+  "settings.transcription.languageNote":
+    "Věta pod výběrem jazyka, **od majitele a převzatá doslova**. „Výrazně " +
+    "urychlí“ platí pro špatně rozpoznaný jazyk, ne pro jednu úsporu při " +
+    "každém běhu — viz záznam změn ze 14. srpna 2026. Druhá věta říká, k čemu " +
+    "je volba „Rozpoznat automaticky“; jinak to z ní nikdo nepozná. Vyká se: " +
+    "„nechte“, ne „nech“.",
   "settings.transcription.beam":
     "Beam size Whisperu. Kolik možností si přepis drží, než vybere výsledek.",
 

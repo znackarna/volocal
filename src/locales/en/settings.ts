@@ -148,7 +148,8 @@ export const enSettings: Partial<Record<keyof typeof csSettings, string>> = {
   "settings.transcription.modelNote": "A model you do not have is downloaded when you pick it.",
   "settings.transcription.modelDownloading": "downloading…",
   "settings.transcription.language": "Recording language",
-  "settings.transcription.languageNote": "Picking the language up front speeds up transcription. Leave it automatic for several languages.",
+  "settings.transcription.languageNote":
+    "The right language makes transcription markedly faster. Leave it automatic for recordings in several languages.",
   "settings.transcription.beam": "Search thoroughness",
   "settings.transcription.beamNote": "A higher value improves accuracy and makes transcription take longer.",
   "settings.dictionary.title": "Correction dictionary",
