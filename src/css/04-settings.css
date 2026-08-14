@@ -489,17 +489,14 @@
 }
 .step-footer .button.primary { margin-left: auto; }
 
-.detected {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 1px;
-  background: var(--line); border: 1px solid var(--line);
-  border-radius: var(--r-large); overflow: hidden; margin-bottom: 14px;
-}
-/* A row, not a stack: the icon names the thing and the two lines of text sit
-   beside it, the same way a module tile is built. */
-.detected > div { background: var(--panel); padding: 13px 16px; display: flex; align-items: center; gap: 13px; }
-.detected-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-.detected-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: var(--text-quiet); }
-.detected-value { font-size: 14px; font-weight: 600; }
+/* `.detected` and its three children stood here — a two-panel grid on the
+   wizard's one question, saying which graphics driver was found and where the
+   transcription would run. Deleted with the block: the sentence directly above
+   it already told the reader the estimates were for the graphics card in this
+   computer, and two panels restating the line above them were the most words on
+   the screen with the fewest. The 11/700/0.09em micro-label lives on in
+   `.detected-label`'s twin elsewhere in the visual system, so nothing was lost
+   from the type scale either. */
 
 .choices { display: flex; flex-direction: column; gap: 8px; }
 /* One frame for every row of this kind. They carry different content but must

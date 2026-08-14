@@ -1,16 +1,12 @@
 /** Strings belonging to the `wizard` screen. */
 export const csWizard = {
   // ---------------------------------------------- 0. what the machine can do
-  // The welcome screen's own title and introduction went with the screen on
-  // 13 August; what is left is the line of detected hardware, which now stands
-  // under the one question instead of on a page of its own.
-  "wizard.welcome.configurationLabel": "Konfigurace",
-  "wizard.welcome.gpuNvidia": "Grafická karta NVIDIA",
-  "wizard.welcome.gpuVulkan": "Grafická karta (Vulkan)",
-  "wizard.welcome.gpuNone": "Bez podporované grafické karty",
-  "wizard.welcome.transcriptionLabel": "Přepis",
-  "wizard.welcome.onGpu": "na grafické kartě",
-  "wizard.welcome.onCpu": "na procesoru, tedy pomaleji",
+  // Nothing. The welcome screen's title and introduction went with the screen
+  // on 13 August, and the seven `wizard.welcome.*` strings that survived it as
+  // a two-panel grid under the one question — `Konfigurace / Grafická karta
+  // (Vulkan)` beside `Přepis / na grafické kartě` — are gone with that block on
+  // 14 August. The sentence above it, `wizard.quality.introGpu`, already said
+  // the estimates were for the graphics card in this computer.
 
   // ------------------------------------------------------------------ 1. quality
   "wizard.quality.title": "Rychle, nebo přesně?",
@@ -57,10 +53,10 @@ export const csWizard = {
   // ------------------------------------------------------------- choosing by hand
   "wizard.manual.switchToSimple": "Jednoduchý výběr",
   "wizard.manual.switchToManual": "Vybrat ručně",
-  "wizard.manual.groupPrograms": "Programy",
-  "wizard.manual.groupModels": "Jazykové modely",
+  "wizard.manual.groupPrograms": "Programy pro přepis",
+  "wizard.manual.groupModels": "Jazykové modely pro přepis",
   "wizard.manual.groupSpeech": "Detekce řeči a mluvčích",
-  "wizard.manual.groupEditor": "Jazyková úprava",
+  "wizard.manual.groupEditor": "Programy a modely pro jazykovou úpravu",
 
   // ------------------------------------------------------------- 5. conclusion
   "wizard.done.introReady": "Vše je připraveno. Přetažením nahrávky do okna začne přepis.",
@@ -79,18 +75,6 @@ export const csWizard = {
 } as const;
 
 export const csWizardContext: Partial<Record<keyof typeof csWizard, string>> = {
-  "wizard.welcome.configurationLabel":
-    "Popisek karty s hardwarem, který aplikace sama našla. Uživatel ho nezadával.",
-  "wizard.welcome.gpuNvidia":
-    "Zjištěný hardware: v počítači je grafická karta NVIDIA s ovladačem CUDA.",
-  "wizard.welcome.gpuVulkan":
-    "Zjištěný hardware: grafická karta ovládaná přes Vulkan. Vulkan běží na jakékoli grafické kartě, ne jen na AMD.",
-  "wizard.welcome.gpuNone": "Zjištěný hardware: žádná použitelná grafická karta, počítá se na procesoru.",
-  "wizard.welcome.transcriptionLabel":
-    "Popisek karty s tím, kde přepis poběží. Hodnota pod ním je „na grafické kartě“ nebo „na procesoru, tedy pomaleji“. Jde o činnost, ne o hotový dokument.",
-  "wizard.welcome.onGpu": "Hodnota pod popiskem „Přepis“. Malé písmeno je záměr.",
-  "wizard.welcome.onCpu": "Hodnota pod popiskem „Přepis“. Malé písmeno je záměr.",
-
   "wizard.quality.title":
     "Nadpis druhého kroku průvodce, nad dvěma kartami s volbou kvality. „To“ je přepis, který se chystá. Otázka staví rychlost proti přesnosti; jsou to dva konce jedné volby, ne dvě samostatné vlastnosti. Čárka před „nebo“ je záměr — je to vylučovací poměr, ne výčet.",
   "wizard.quality.fastestName":
@@ -134,15 +118,25 @@ export const csWizardContext: Partial<Record<keyof typeof csWizard, string>> = {
   "wizard.manual.switchToSimple": "Tlačítko zpět z ručního výběru součástí do průvodce po krocích.",
   "wizard.manual.switchToManual":
     "Tlačítko do ručního výběru, kde si uživatel odškrtává jednotlivé součásti sám.",
-  "wizard.manual.groupPrograms": "Nadpis skupiny v ručním výběru: spustitelné programy, ne modely.",
-  "wizard.manual.groupModels": "Nadpis skupiny v ručním výběru: modely pro rozpoznávání řeči.",
+  "wizard.manual.groupPrograms":
+    "Nadpis skupiny v ručním výběru: spustitelné programy, ne modely. Jsou pod " +
+    "ním sestavení whisperu, ffmpeg a stahovač online videí — všechno je to " +
+    "cesta k přepisu. „Pro přepis“ tam je proto, že programy pro jazykovou " +
+    "úpravu mají vlastní skupinu.",
+  "wizard.manual.groupModels":
+    "Nadpis skupiny v ručním výběru: modely, kterými se nahrávka přepisuje. " +
+    "„Pro přepis“ je nutné rozlišení — v seznamu jsou i jazykové modely pro " +
+    "úpravu textu, takže samotné „Jazykové modely“ by neoddělovalo nic.",
   "wizard.manual.groupSpeech":
     "Nadpis skupiny v ručním výběru. Jsou pod ním dvě položky: detekce řeči " +
     "(kde se v nahrávce mluví) a rozpoznání mluvčích (kdo mluví). Obě rozhodují " +
     "o zvuku, ne o slovech — nadpis proto pojmenovává tu práci, ne ty dva " +
     "pojmy. Oba druhé pády jsou záměr, ne překlep.",
   "wizard.manual.groupEditor":
-    "Nadpis skupiny v ručním výběru: modely, které hotový přepis upraví do čitelného textu.",
+    "Nadpis skupiny v ručním výběru. Jsou pod ním dva programy (llama.cpp pro " +
+    "grafickou kartu a pro procesor) a jazykové modely, které hotový přepis " +
+    "upraví do čitelného textu. Nadpis vyjmenovává obojí schválně: jinak by " +
+    "čtenář hledal ty programy o tři skupiny výš, u ostatních programů.",
 
   "wizard.done.tabHint":
     "{key} je název klávesy F3, vypisuje se tučně a nepřekládá se.",

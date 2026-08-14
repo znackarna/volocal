@@ -109,9 +109,9 @@ interface Props {
  *  `Menší model jazykové úpravy`. Two jobs, two strings. The sentence under each
  *  card is still the catalogue's, because that one reads correctly in both. */
 const EDITOR_CARDS: Record<string, { icon: LineIconName; title: TranslationKey }> = {
-  "editor-model-light": { icon: "sizeSmall", title: "settings.editor.modelSmall" },
-  "editor-model-balanced": { icon: "sizeMedium", title: "settings.editor.modelMiddle" },
   "editor-model-best": { icon: "sizeLarge", title: "settings.editor.modelLarge" },
+  "editor-model-balanced": { icon: "sizeMedium", title: "settings.editor.modelMiddle" },
+  "editor-model-light": { icon: "sizeSmall", title: "settings.editor.modelSmall" },
 };
 
 /* `COMPUTE_CHOICES` stood here — four cards, one per whisper.cpp build, and
@@ -610,11 +610,13 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
    *  and wins over it, exactly as the transcription model chosen a card above
    *  wins over the one the wizard downloaded. */
   const editorTier = EDITOR_TIER[qualityChoice(n)];
-  /** The cards, smallest first, straight out of the catalogue — so the name and
-   *  the sentence under it are the ones the by-hand list uses and there is one
-   *  place to change them. The middle model appears only where it is already on
-   *  the disk: a machine set up before 14 August 2026 may be running on it, and
-   *  a card it is not drawn on could not say so. */
+  /** The cards in `EDITOR_MODELS`' order, which is **largest first** — see the
+   *  comment there, and do not sort them the other way because a pair listed by
+   *  size looks like it wants to be. The sentence under each comes out of the
+   *  catalogue, so the by-hand list uses the same words and there is one place
+   *  to change them. The middle model appears only where it is already on the
+   *  disk: a machine set up before 14 August 2026 may be running on it, and a
+   *  card it is not drawn on could not say so. */
   const editorCards = Object.keys(EDITOR_MODELS)
     .map((id) => modules.find((module) => module.id === id))
     .filter((module): module is DownloadComponent => !!module)
@@ -998,9 +1000,11 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
         ) : null}
       </section>}
 
-      {/* Two cards, `Menší` and `Větší`, one of them always chosen — the same
-          shape as the transcription model at the top of this tab, and asked for
-          in those words.
+      {/* Two cards, `Větší` and `Menší` in that order, one of them always
+          chosen — the same shape as the transcription model at the top of this
+          tab, and asked for in those words. Largest first is deliberate and is
+          the model cards' own order, where `Přesný` stands above `Rychlý`: two
+          columns of cards on one tab that read the same way down the screen.
 
           **There is no off state, and there is nothing to switch off.**
           Language editing never runs by itself: it happens when somebody asks a

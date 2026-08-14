@@ -399,16 +399,28 @@ export function qualityChoice(settings: Pick<Settings, "quality_choice" | "model
 
 /** Every language-editing model, by the catalogue component that installs it.
  *
- *  Three are in the catalogue and two are offered, in this order — smallest
- *  first, which is the order `Jazyková úprava` draws its cards in. The middle
- *  one is here so that a machine which already holds it keeps working and keeps
- *  being named: nothing fetches it, but where it is on the disk it is shown,
- *  both in the by-hand list and as a third card on that screen.
+ *  **Largest first**, and that is the order `Jazyková úprava` draws its cards
+ *  in — *dej větší model jako první volbu*. It matches the quality cards, where
+ *  `Přesný` is drawn before `Rychlý`, so the two columns of cards on `Přepis`
+ *  read the same way down the screen. The instinct when listing a pair by size
+ *  is to go small to large; that instinct is what this comment exists to stop.
+ *
+ *  Three are in the catalogue and two are offered. The middle one keeps its
+ *  place in the middle — the column is one monotonic run of sizes, not two
+ *  offers with a leftover after them — so that a machine which already holds it
+ *  keeps working and keeps being named: nothing fetches it, but where it is on
+ *  the disk it is shown, in the by-hand list and as a third card.
+ *
+ *  The order is read as a preference in exactly one place: ticking more than
+ *  one editor model by hand in the wizard's component list takes the first of
+ *  them, so the larger now wins where the smaller used to. That agrees with
+ *  `resolve_editor_model` in `tools.rs`, whose own fallback list has always run
+ *  12B, E4B, E2B.
  */
 export const EDITOR_MODELS: Record<string, string> = {
-  "editor-model-light": "gemma-4-e2b-q4",
-  "editor-model-balanced": "gemma-4-e4b-q4",
   "editor-model-best": "gemma-4-12b-q4",
+  "editor-model-balanced": "gemma-4-e4b-q4",
+  "editor-model-light": "gemma-4-e2b-q4",
 };
 
 /** Which of them the one question implies — the default, not the answer.

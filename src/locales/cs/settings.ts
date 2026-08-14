@@ -301,14 +301,14 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
   "settings.editor.description":
     "Věta pod nadpisem karty. Říká, co ten model dělá — obdoba věty „Model, " +
     "kterým se nahrávky přepisují“ o kus výš.",
-  "settings.editor.modelSmall":
-    "Název karty pod nadpisem Jazyková úprava. Jedno slovo schválně — noun " +
-    "dodává nadpis. V seznamu ke stažení má týž model delší název, protože tam " +
-    "stojí sám.",
+  "settings.editor.modelLarge":
+    "Název první karty pod nadpisem Jazyková úprava. Jedno slovo schválně — " +
+    "podstatné jméno dodává nadpis. V seznamu ke stažení má týž model delší " +
+    "název, protože tam stojí sám.",
   "settings.editor.modelMiddle":
-    "Název třetí karty. Ta se objeví jen na počítačích, kde ten model už je; " +
-    "aplikace ho sama nenabízí.",
-  "settings.editor.modelLarge": "Název druhé karty. Taky jedno slovo.",
+    "Název prostřední karty. Ta se objeví jen na počítačích, kde ten model už " +
+    "je; aplikace ho sama nenabízí.",
+  "settings.editor.modelSmall": "Název poslední karty. Taky jedno slovo.",
   "settings.editor.note":
     "Věta pod kartami Menší a Větší. Nese dvě věci a obě jsou potřeba, takže " +
     "ji nezkracuj na jednu: nic se nespustí samo (proto tu není žádné vypínání " +

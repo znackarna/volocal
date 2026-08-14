@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { api } from "./api";
 import InfoNote from "./InfoNote";
-import { LineIcon, ModelMark } from "./icons";
+import { ModelMark } from "./icons";
 import { useI18n, type TranslationKey } from "./i18n";
 import { messageCode, useProgressMessage, useUserMessage } from "./messages";
 import { useFormats } from "./formats";
@@ -390,6 +390,11 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
             // Ticking a model by hand answers the same question the cards ask.
             changesApplied.quality_choice = pickedModel.choice;
           }
+          /* Ticking two editor models at once takes the larger, because
+             `EDITOR_MODELS` is ordered largest first — the same order the cards
+             on `Jazyková úprava` are drawn in and the same one
+             `resolve_editor_model` in `tools.rs` falls back through. Whichever
+             it picks, both files are on the disk and the other stays usable. */
           const selectedEditor = Object.keys(EDITOR_MODELS).find(
             (component) => manualSelect.has(component) && landed(component)
           );
@@ -545,9 +550,18 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
           consequential and awkward to reverse: changing the transcription model
           later means transcribing everything again.
 
-          The detected configuration stays, as one line under the question
-          rather than a screen before it. It is context for the estimates, not
-          an announcement. */}
+          The detected configuration is not on it at all any more. It was a
+          two-panel grid under the question — `KONFIGURACE / Grafická karta
+          (Vulkan)` beside `PŘEPIS / na grafické kartě` — and the sentence
+          directly above it already said *odhady časů platí pro grafickou kartu
+          v tomto počítači*. Two panels restating the line above them, on the
+          screen with the fewest words in the application. The sentence stays
+          because it explains why the estimates say what they say; the panels
+          went because they explained nothing.
+
+          `usesGpu` is still read — it picks the recommended card and the two
+          time estimates. What was removed is the announcement, not the
+          detection. Do not put a status panel back here. */}
       {step === STEP_CHOICE && (
         <div className="step">
           <p className="step-number">
@@ -557,35 +571,6 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
           <p className="step-intro">
             {usesGpu ? t("wizard.quality.introGpu") : t("wizard.quality.introCpu")}
           </p>
-
-          <div className="detected">
-            <div>
-              <span className="choice-icon" aria-hidden>
-                <LineIcon name="compute" />
-              </span>
-              <div className="detected-body">
-                <span className="detected-label">{t("wizard.welcome.configurationLabel")}</span>
-                <span className="detected-value">
-                  {check?.nvidia_driver
-                    ? t("wizard.welcome.gpuNvidia")
-                    : check?.vulkan_driver
-                    ? t("wizard.welcome.gpuVulkan")
-                    : t("wizard.welcome.gpuNone")}
-                </span>
-              </div>
-            </div>
-            <div>
-              <span className="choice-icon" aria-hidden>
-                <LineIcon name="transcription" />
-              </span>
-              <div className="detected-body">
-                <span className="detected-label">{t("wizard.welcome.transcriptionLabel")}</span>
-                <span className="detected-value">
-                  {usesGpu ? t("wizard.welcome.onGpu") : t("wizard.welcome.onCpu")}
-                </span>
-              </div>
-            </div>
-          </div>
 
           {/* The two cards carry the marks their models carry in Settings —
               `ModelMark` keyed on the model identifier, so the lightning that

@@ -862,9 +862,9 @@
     "wizard.download.statusWaiting": "7c5e0ba1614a",
     "wizard.download.summary.one": "1bcace11f1ab",
     "wizard.download.summary.other": "4161cbf57315",
-    "wizard.manual.groupEditor": "68530cddd621",
-    "wizard.manual.groupModels": "4d56b9e2ac90",
-    "wizard.manual.groupPrograms": "f9ec9cda9177",
+    "wizard.manual.groupEditor": "9ee2db8d3988",
+    "wizard.manual.groupModels": "6f889560efab",
+    "wizard.manual.groupPrograms": "d1f5ca6529aa",
     "wizard.manual.groupSpeech": "24a24f34ff2f",
     "wizard.manual.switchToManual": "cb48740bde41",
     "wizard.manual.switchToSimple": "799ef0e3bcb1",
@@ -876,13 +876,6 @@
     "wizard.quality.fastestSummary": "9d4e3de7771e",
     "wizard.quality.introCpu": "ab21d138d142",
     "wizard.quality.introGpu": "45f13ec60b6d",
-    "wizard.quality.title": "f7ceb5f11115",
-    "wizard.welcome.configurationLabel": "18df638c3b06",
-    "wizard.welcome.gpuNone": "a50f4c926124",
-    "wizard.welcome.gpuNvidia": "2ab6b88432eb",
-    "wizard.welcome.gpuVulkan": "3c973cdc0b00",
-    "wizard.welcome.onCpu": "735f93e0c379",
-    "wizard.welcome.onGpu": "9521930ff2b8",
-    "wizard.welcome.transcriptionLabel": "5ba1ed1d71d2"
+    "wizard.quality.title": "f7ceb5f11115"
   }
 }
