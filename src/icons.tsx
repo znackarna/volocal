@@ -96,6 +96,39 @@ export const LINE_ICONS = {
      model that follows the first-run answer — so beside that word the glyph
      reinforces rather than informs. That is the honest ceiling for a pair whose
      whole meaning is a comparison. */
+  /** Into the machine: an arrow to a tray. For the row counting what has been
+   *  downloaded onto this computer.
+   *
+   *  The same idea is drawn twice more in this application at smaller sizes —
+   *  the progress bubble's 17 px mark and the module row's 12 px circle glyph —
+   *  and they are not folded into this one on purpose: those are drawn on their
+   *  own grids to sit inside a 26 px circle, and this is the set's 24 grid at
+   *  1.6, which is a different drawing of one idea rather than one drawing at
+   *  three sizes. */
+  download: "M12 3.5v9.4 M8.2 9.1 12 12.9l3.8-3.8 M4.5 17.5h15",
+  /** A disk: the stack of platters everything has drawn since the 1980s, which
+   *  is what makes it readable at 17 px in a 30 px circle. It is the mark on
+   *  *Zabrané místo* and it says the subject of that row — the disk — rather
+   *  than decorating it.
+   *
+   *  Deliberately not `folder`, though the number happens to be the size of two
+   *  folders: beside a downward arrow, a folder would read as *where they are
+   *  kept*, which is the card below this one and a different question. */
+  disk:
+    "M12 3.5c-4.1 0-7.5 1.2-7.5 2.6v11.8c0 1.4 3.4 2.6 7.5 2.6s7.5-1.2 7.5-2.6V6.1c0-1.4-3.4-2.6-7.5-2.6Z M4.5 6.1c0 1.4 3.4 2.6 7.5 2.6s7.5-1.2 7.5-2.6 M4.5 12c0 1.4 3.4 2.6 7.5 2.6s7.5-1.2 7.5-2.6",
+  /** A closed padlock, for a row in the module listing that cannot be deleted.
+   *
+   *  Two subpaths — the body and the shackle — which is the complexity of
+   *  `video` and `note` beside it, and it has to survive 16 px in the bin's own
+   *  column. No keyhole: at that size it turns to grain, and the shape is
+   *  already unmistakable without one.
+   *
+   *  It says *this cannot be deleted* and never why. The reason is in the
+   *  tooltip, and there are two of them — something is using it, or the app has
+   *  no record of which files are its own. A drawing cannot carry that
+   *  difference and should not be asked to. */
+  lock:
+    "M6 10.5h12a1.5 1.5 0 0 1 1.5 1.5v7a1.5 1.5 0 0 1-1.5 1.5H6A1.5 1.5 0 0 1 4.5 19.5v-7A1.5 1.5 0 0 1 6 10.5Z M8 10.5V7.5a4 4 0 0 1 8 0v3",
   sizeSmall: "M9 7h6a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z",
   sizeMedium:
     "M8 5.5h8A2.5 2.5 0 0 1 18.5 8v8a2.5 2.5 0 0 1-2.5 2.5H8A2.5 2.5 0 0 1 5.5 16V8A2.5 2.5 0 0 1 8 5.5Z",

@@ -60,6 +60,16 @@ export const csWizard = {
   "wizard.manual.removeTitle": "Smazat {name}?",
   "wizard.manual.removeText":
     "Uvolní se {size}. Stáhnout to jde kdykoli znovu, ale znovu to potrvá.",
+  "wizard.manual.removeChosenText":
+    "Uvolní se {size}. Tenhle model má aplikace nastavený, takže místo něj " +
+    "vezme {next}. Stáhnout ho jde kdykoli znovu, ale znovu to potrvá.",
+  "wizard.manual.removeLastText":
+    "Uvolní se {size}. Tenhle model má aplikace nastavený a jiný stažený " +
+    "není — o stažení si řekne, až ho bude potřebovat.",
+  "wizard.manual.lockedBusy": "Právě se používá. Až práce skončí, půjde smazat.",
+  "wizard.manual.lockedUnlisted":
+    "Aplikace neví, které soubory k této součásti patří. Po opětovném stažení " +
+    "ji smazat půjde.",
   "wizard.manual.groupPrograms": "Programy pro přepis",
   "wizard.manual.groupModels": "Jazykové modely pro přepis",
   "wizard.manual.groupSpeech": "Detekce řeči a mluvčích",
@@ -152,6 +162,27 @@ export const csWizardContext: Partial<Record<keyof typeof csWizard, string>> = {
     "Věta v tom dialogu. {size} je uvolněné místo i s jednotkou. Druhá půlka " +
     "věty je podstatná: smazání není nevratné, jen drahé — u sedmigigového " +
     "modelu je to znovu celé stahování.",
+  "wizard.manual.removeChosenText":
+    "Táž věta, ale u modelu, který má aplikace nastavený — smazat ten, kterým " +
+    "se pracuje, je něco jiného než smazat rezervu, tak to dialog říká. " +
+    "{next} je název jiného staženého modelu, který nastavení převezme; " +
+    "aplikace ho tam opravdu zapíše, tohle není odhad.",
+  "wizard.manual.removeLastText":
+    "Táž věta, když už žádný jiný stažený model není. Nastavení se vyprázdní " +
+    "a aplikace si o model řekne, až ho bude potřebovat — proto ne varování, " +
+    "ale konstatování, co bude dál.",
+  "wizard.manual.lockedBusy":
+    "Bublina zámku na řádku výpisu, který teď nejde smazat, protože ho něco " +
+    "používá — běží přepis, převod zvuku, rozpoznávání mluvčích nebo jazyková " +
+    "úprava. Která z těch prací to je, se v bublině neříká schválně: čtenář " +
+    "s tím stejně nic nedělá. Druhá půlka věty je ta podstatná — je to dočasné " +
+    "a stačí počkat. Krátce; delší verze zněla jako výmluva.",
+  "wizard.manual.lockedUnlisted":
+    "Bublina zámku u součásti, která se nainstalovala dřív, než si aplikace " +
+    "začala zapisovat seznam souborů, a sdílí složku s ostatními programy — " +
+    "bez toho seznamu nejde smazat „jen ji“. Tohle všechno je mechanismus a do " +
+    "věty nepatří: čtenáře zajímá proč to nejde a co s tím. Opětovné stažení " +
+    "ten seznam zapíše, proto věta slibuje smazání až po něm, ne hned.",
   "wizard.manual.title":
     "Nadpis ručního výpisu ze Spravovat modely. Je pod ním všechno, co se dá " +
     "stáhnout, včetně toho, co v počítači už je — proto ne „co se stáhne“, to " +

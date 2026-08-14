@@ -380,18 +380,31 @@ export interface DownloadComponent {
   required: boolean;
   recommended: boolean;
   complete: boolean;
-  /** Whether the bin may be drawn on this row. Answered in Rust by
-   *  `catalog()`: false while nothing is installed, false for the model
-   *  `settings.model` or `editor_model` is using, and false for the two
-   *  programs that unpack into the shared `bin` root where nothing recorded
-   *  whose files are whose. The row draws no bin rather than one that refuses. */
+  /** Whether the bin may be drawn on this row. Answered in Rust by `catalog()`:
+   *  false while nothing is installed, false while something is using the
+   *  component, and false where the installation recorded no list of its own
+   *  files. The row draws a lock rather than a bin that refuses. */
   removable: boolean;
-  /** Whether it may be fetched again over itself. False only for the model a
-   *  transcription or a document is using right now — renaming a fresh file
-   *  over one whisper has open is how a model is lost mid-run. **Not the same
-   *  question as `removable`**: ffmpeg and Deno cannot be deleted but replace
-   *  perfectly well, so they are replaceable and not removable. */
+  /** Why not, when something *is* installed and the bin is still not drawn.
+   *  `busy` is waited out; `unlisted` is fixed by fetching the component again,
+   *  which writes the file list this machine never had. The lock's tooltip says
+   *  which — an absent control explains nothing, and the two have different
+   *  answers. `null` on a row with a bin and on a row with nothing to delete. */
+  remove_block: "busy" | "unlisted" | null;
+  /** Whether it may be fetched again over itself. False while the component is
+   *  working — renaming a fresh file over one whisper has open is how a model
+   *  is lost mid-run. **Not the same question as `removable`**: a component
+   *  whose files were never recorded cannot be deleted but replaces perfectly
+   *  well, so it is replaceable and not removable. */
   replaceable: boolean;
+  /** This is the model `settings.model` or `editor_model` names right now. Not
+   *  a lock — deleting it while nothing runs is allowed — but the confirmation
+   *  reads differently for it, because removing the one that works is a
+   *  different act from removing a spare. */
+  configured: boolean;
+  /** Which component id the setting would name instead. `null` means nothing
+   *  installed can take over and the setting would be cleared. */
+  replaced_by: string | null;
 }
 
 export interface DownloadProgress {

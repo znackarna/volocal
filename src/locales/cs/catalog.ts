@@ -16,9 +16,9 @@ export const csCatalog = {
     "Na kartách NVIDIA znatelně rychlejší než Vulkan. Velký kvůli knihovnám.",
   "catalog.ffmpeg.name": "Zpracování zvuku",
   "catalog.ffmpeg.description": "Připraví zvuk pro přepis. Bez něj to nepoběží.",
-  "catalog.yt-dlp.name": "Online videa",
+  "catalog.yt-dlp.name": "Podpora online zvuku a videa",
   "catalog.yt-dlp.description": "Stáhne zvuk z YouTube a dalších podporovaných webů.",
-  "catalog.deno.name": "JavaScript pro online videa",
+  "catalog.deno.name": "JavaScript pro online zvuk a video",
   "catalog.deno.description": "Řeší ověření YouTube při stahování zvuku.",
 
   // Transcription models.
@@ -68,6 +68,15 @@ export const csCatalogContext: Partial<Record<keyof typeof csCatalog, string>> =
   "catalog.whisper-cpu.name": "Položka ke stažení. Varianta přepisu, která běží jen na procesoru.",
   "catalog.ffmpeg.name":
     "Položka ke stažení — program ffmpeg. Název programu se v seznamu nezobrazuje, jen tenhle popis.",
+  "catalog.yt-dlp.name":
+    "Položka ke stažení — program yt-dlp. Jmenovala se „Online videa“, což " +
+    "pojmenovávalo zdroj, ne práci: vytahuje z webové stránky **zvuk**, a " +
+    "podcasty i stránky bez obrazu jdou stejnou cestou. Proto obojí v názvu.",
+  "catalog.deno.name":
+    "Položka ke stažení — běhové prostředí Deno, které umí spustit JavaScript " +
+    "z YouTube a projít jeho ověřením. Je to dvojice s položkou nad ním: jedna " +
+    "stahuje, druhá se dostane přes kontrolu, a obě mluví o téže věci — proto " +
+    "„zvuk a video“ v obou názvech.",
   "catalog.vad.name":
     "Položka ke stažení. VAD najde v nahrávce místa, kde se skutečně mluví, a ticho vynechá.",
   "catalog.model-turbo.name":

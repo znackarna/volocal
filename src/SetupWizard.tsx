@@ -252,9 +252,27 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
   const askToRemove = useCallback(
     (component: DownloadComponent) => {
       const name = tDynamic(component.name_code, component.id);
+      const size = dataSize(component.megabytes);
+      /* Three sentences for three situations, and the difference is worth the
+         two extra keys: deleting the model the application is set to use is not
+         the same act as deleting a spare, and being told afterwards that it
+         changed which model transcribes would be a surprise the dialog could
+         have prevented. `replaced_by` is Rust's answer and is also the value it
+         writes into the settings once the files are gone, so the sentence
+         cannot promise one thing and the setting say another. */
+      const next = component.replaced_by
+        ? tDynamic(
+            items.find((x) => x.id === component.replaced_by)?.name_code ?? "",
+            component.replaced_by
+          )
+        : "";
       setConfirmation({
         title: t("wizard.manual.removeTitle", { name }),
-        text: t("wizard.manual.removeText", { size: dataSize(component.megabytes) }),
+        text: !component.configured
+          ? t("wizard.manual.removeText", { size })
+          : next
+            ? t("wizard.manual.removeChosenText", { size, next })
+            : t("wizard.manual.removeLastText", { size }),
         confirm: t("wizard.manual.remove"),
         destructive: true,
         action: async () => {
@@ -263,14 +281,14 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
           // Deleting a component this visit had fetched un-records it, so
           // `dokonci` does not go on to name a model that is no longer there.
           setStartedHere((current) => {
-            const next = new Set(current);
-            next.delete(component.id);
-            return next;
+            const remaining = new Set(current);
+            remaining.delete(component.id);
+            return remaining;
           });
         },
       });
     },
-    [t, tDynamic, dataSize]
+    [t, tDynamic, dataSize, items]
   );
 
   /** Fetch one component, on its own.
@@ -1151,12 +1169,29 @@ function DownloadListing({
  *  - **running** — a ring that fills, and pressing it stops the download.
  *    `cancel_download` is the same flag the wizard's own Stop uses.
  *
- *  The one state with no action is an installed component the application is
- *  transcribing or editing with. `replaceable` comes from Rust and is false
- *  there: renaming a fresh file over one whisper has open is how a model is
- *  lost mid-run. That row keeps the tick and does not react — no dead button,
- *  the same rule the bin follows.
+ *  The one state with no action is a component something is using right now.
+ *  `replaceable` comes from Rust and is false there: renaming a fresh file over
+ *  one whisper has open is how a model is lost mid-run. That row keeps the tick
+ *  and does not react — no dead button, the same rule the lock follows.
+ *
+ *  **The trailing column is a bin, a lock, or a space**, in that order of
+ *  preference and always 26 px wide. The lock is what an installed row wears
+ *  when it may not be deleted, and its tooltip says which of the two reasons it
+ *  is — *OK tak těm dej ikonu zámku a napiš do tooltipu na hover, co znamená*.
+ *  A blank column said nothing at all: a bin on one row and space on the next
+ *  reads as a defect rather than as a rule. A row with nothing installed keeps
+ *  the space, because there the emptiness is not a puzzle.
  */
+/** The two reasons a row wears a lock, and the sentence each one says.
+ *
+ *  Rust decides which — `remove_block` on the component — because both answers
+ *  are about the disk and about what the application is doing, and neither is
+ *  anything the window could work out for itself. */
+const LOCK_REASON = {
+  busy: "wizard.manual.lockedBusy",
+  unlisted: "wizard.manual.lockedUnlisted",
+} as const;
+
 function ComponentRow({
   item,
   view,
@@ -1193,8 +1228,8 @@ function ComponentRow({
             aria-label={label}
             title={label}
             onClick={() => (running ? onCancel() : onInstall(item))}
-            style={running ? { "--done": `${progress?.percent ?? 0}%` } as CSSProperties : undefined}
           >
+            {running && <ProgressRing percent={progress?.percent ?? 0} />}
             <ComponentMarkGlyph running={running} complete={item.complete} />
           </button>
         ) : (
@@ -1228,11 +1263,66 @@ function ComponentRow({
           >
             <LineIcon name="remove" size={16} />
           </button>
+        ) : item.remove_block ? (
+          /* A lock, in the bin's own place. Blank space told the reader
+             nothing: a bin on one row and nothing on the next reads as a defect
+             rather than as a rule. The sentence is both the tooltip and the
+             accessible name — a `title` alone is read by nobody using a screen
+             reader — and there are two of them, because one covering both cases
+             would explain neither: busy is waited out, unrecorded is fixed by
+             fetching the component again. */
+          <span
+            className="component-lock"
+            aria-label={t(LOCK_REASON[item.remove_block])}
+            title={t(LOCK_REASON[item.remove_block])}
+          >
+            <LineIcon name="lock" size={16} />
+          </span>
         ) : (
           <span className="component-remove-space" aria-hidden />
         )}
       </div>
     </li>
+  );
+}
+
+/** How far a download has got, drawn as **the mini player's ring**.
+ *
+ *  It was a conic gradient with a disc punched out of the middle — *ten progress
+ *  ring je při stahování moc silný* — and the answer to how thin is not a number
+ *  somebody picks: *stejně, jako je v mini playeru*. The application already had
+ *  a ring saying how far through something is, and a second one at another
+ *  weight would have been two visual languages for one idea.
+ *
+ *  So this is that ring, drawn the same way rather than merely to the same
+ *  thickness: two SVG circles sharing a radius, the track under the accent arc,
+ *  the arc shortened with `stroke-dashoffset`, and `.mini-track` /
+ *  `.mini-progress` themselves reused so the weight cannot drift in one place
+ *  and not the other. The geometry is the player's, moved from a 30 px box to
+ *  this 26 px one: stroke 2, and a radius that leaves the same 1.5 px between
+ *  the ring and the edge of the control.
+ *
+ *  **The track is what makes three per cent visible.** With the arc alone the
+ *  first seconds of a download would read as nothing happening, which is the
+ *  opposite of what the ring is for; against the track the round cap is a mark
+ *  on a circle from the first tick.
+ */
+function ProgressRing({ percent }: { percent: number }) {
+  const radius = 10.5;
+  const circumference = 2 * Math.PI * radius;
+  const ratio = Math.max(0, Math.min(1, percent / 100));
+  return (
+    <svg className="component-ring" width="26" height="26" viewBox="0 0 26 26" aria-hidden>
+      <circle className="mini-track" cx="13" cy="13" r={radius} />
+      <circle
+        className="mini-progress"
+        cx="13"
+        cy="13"
+        r={radius}
+        strokeDasharray={circumference}
+        strokeDashoffset={circumference * (1 - ratio)}
+      />
+    </svg>
   );
 }
 
@@ -1319,7 +1409,10 @@ function ManualSelection({
           listing — `ListingSwitch`, `localStorage["download-view"]`. */}
       <ListingSwitch view={view} onView={onView} />
       {groups.map(([key, titleKey]) => (
-        <div key={key}>
+        /* Named rather than left as a bare `div`: the space between groups is
+           set on `.manual-group + .manual-group`, and a selector reading
+           `div + div` would have caught the view switch above the first one. */
+        <div key={key} className="manual-group">
           <h2>{t(titleKey)}</h2>
           <ul className="components">
             {items

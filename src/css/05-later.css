@@ -125,6 +125,10 @@ button.current > .row-play { color: var(--accent); }
 .mini-play { position: relative; width: 30px; height: 30px; color: var(--text); }
 .mini-play > svg:last-child { grid-area: 1 / 1; }
 .mini-ring { grid-area: 1 / 1; transform: rotate(-90deg); }
+/* These two are also worn by the module listing's download ring — see
+   `.component-mark.running` in 04-settings.css. One ring means one weight, so
+   the stroke is set here once; anything changed here changes both, which is the
+   point of the sharing rather than an accident of it. */
 .mini-track {
   fill: none; stroke: hsl(var(--ds-foreground) / 0.15); stroke-width: 2;
 }

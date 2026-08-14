@@ -11,7 +11,7 @@ export const csSettings = {
   "settings.tab.about": "Informace",
   "settings.missingRequired": "Některé povinné modely chybí",
   "settings.language.title": "Jazyk aplikace",
-  "settings.language.description": "Změna se projeví hned. Přepisy zůstanou v původním jazyce.",
+  "settings.language.description": "Změna se projeví okamžitě. Přepisy zůstanou v původním jazyce.",
 
 
   // Portable mode and the copy it can make of itself.
@@ -35,14 +35,17 @@ export const csSettings = {
   // Overview of everything that has to be downloaded before a transcript runs.
   "settings.modules.title": "Modely",
   "settings.modules.description":
-    "Nástroje a jazykové modely pro lokální přepis. Po stažení zůstávají v počítači.",
+    "Modely a nástroje pro lokální přepis. Po stažení zůstávají v počítači.",
   "settings.modules.missingRequired.one": "Chybí {count} položka nutné pro přepis.",
   "settings.modules.missingRequired.few": "Chybí {count} položky nutné pro přepis.",
   "settings.modules.missingRequired.many": "Chybí {count} položky nutné pro přepis.",
   "settings.modules.missingRequired.other": "Chybí {count} položek nutné pro přepis.",
   "settings.modules.complete": "Vše potřebné je stažené.",
+  "settings.modules.installedCount": "Stažené součásti",
+  "settings.modules.installedOf": "{count} z {total}",
+  "settings.modules.diskUsed": "Zabrané místo",
   "settings.modules.add": "Doplnit",
-  "settings.modules.manage": "Spravovat modely",
+  "settings.modules.manage": "Spravovat modely a nástroje",
 
   // Local model that turns a raw transcript into a readable document. Dvě
   // karty, jedna z nich je vždycky vybraná. Vypínat není co: úprava se spustí
@@ -76,11 +79,11 @@ export const csSettings = {
     "Tento počítač nemá podporovanou grafickou kartu, přepis proto počítá procesor.",
 
   // Folders: where the programs and models live, and which folder is watched.
-  "settings.files.locationsTitle": "Umístění nástrojů a modelů",
+  "settings.files.locationsTitle": "Umístění modelů a nástrojů",
   "settings.files.locationsPortable":
     "Relativní cesty se vztahují ke složce s programem, takže nezáleží na písmenu disku.",
   "settings.files.locationsDescription":
-    "Programy i modely se do složky stahují samy. Cestu měňte jen v případě potřeby.",
+    "Modely a nástroje se do složky stahují samy. Cestu měňte jen v případě potřeby.",
   "settings.files.binDirectory": "Složka nástrojů",
   "settings.files.modelsDirectory": "Složka modelů",
   "settings.files.choose": "Vybrat…",
@@ -298,6 +301,25 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
   "settings.modules.missingRequired.one":
     "Počítají se chybějící stažené součásti. {count} je jejich počet.",
   "settings.modules.add": "Tlačítko, které vede na obrazovku stahování chybějících součástí.",
+  "settings.modules.manage":
+    "Totéž tlačítko, když nic nechybí. Pojmenovává cíl: obrazovka, na kterou " +
+    "vede, se jmenuje „Modely a nástroje“, a polovina toho výpisu jsou " +
+    "nástroje, ne modely — samotné „Spravovat modely“ nechávalo čtenáře " +
+    "přemýšlet, jestli je na správném místě.",
+  "settings.modules.installedCount":
+    "Popisek řádku v panelu faktů na kartě. Hodnota vedle něj je zlomek: kolik " +
+    "součástí je v tomhle počítači z kolika jich aplikace nabízí — modely i " +
+    "nástroje dohromady.",
+  "settings.modules.installedOf":
+    "Hodnota toho řádku, například „12 z 13“. Zlomek, ne celkový počet: sám " +
+    "o sobě počet neodpovídá na nic, kdežto zlomek na první pohled řekne, " +
+    "jestli něco chybí — a to je otázka, s níž na tu kartu člověk chodí. " +
+    "Jmenovatel je to, co jde stáhnout, takže se dá spočítat na výpisu.",
+  "settings.modules.diskUsed":
+    "Popisek vedlejšího řádku; hodnota je velikost i s jednotkou. Měří se " +
+    "složka nástrojů a složka modelů tak, jak jsou na disku — ne součet " +
+    "velikostí z katalogu, ty jsou psané rukou a bývaly o čtvrtinu vedle. " +
+    "Zahrnuje tedy i to, co si do těch složek uložil někdo sám.",
 
   "settings.editor.title":
     "Název sekce. Jde o dodatečnou úpravu textu jazykovým modelem, ne o editor jako program.",

@@ -109,11 +109,16 @@ export const api = {
   search: (query: string) => invoke<SearchResult[]>("search", { query }),
 
   catalog: () => invoke<DownloadComponent[]>("catalog"),
+  /** Megabytes the tools and models folders take, measured on the disk rather
+   *  than added up from the catalogue's hand-written sizes — see
+   *  `installed_megabytes` in `download.rs`. How many components are installed
+   *  is counted from `catalog()`, which the screen already has. */
+  installedMegabytes: () => invoke<number>("installed_megabytes"),
   download: (ids: string[]) => invoke<void>("download", { ids }),
   cancelDownload: () => invoke<void>("cancel_download"),
-  /** Deletes one installed component. Refuses on the Rust side for a model in
-   *  use and for the two programs that share the bin root — the screen draws no
-   *  bin on those rows, and the command does not rely on it having done so. */
+  /** Deletes one installed component. Refuses on the Rust side while something
+   *  is using it and where no file list was ever recorded — the screen draws a
+   *  lock on those rows, and the command does not rely on it having done so. */
   removeComponent: (id: string) => invoke<void>("remove_component", { id }),
   createPortableCopy: (path: string) => invoke<number>("create_portable_copy", { path }),
 

@@ -49,6 +49,19 @@ pub(crate) fn waveform_jobs() -> &'static Mutex<std::collections::HashSet<String
     WAVEFORM_JOBS.get_or_init(|| Mutex::new(std::collections::HashSet::new()))
 }
 
+/// Is a waveform being measured for any recording at all?
+///
+/// The module listing asks it before it offers to delete ffmpeg. A mutex
+/// poisoned by an earlier panic still hands the data back, and answering "no"
+/// because of somebody else's panic is exactly how a file gets deleted from
+/// under a running program.
+pub(crate) fn waveform_running() -> bool {
+    match waveform_jobs().lock() {
+        Ok(running) => !running.is_empty(),
+        Err(poisoned) => !poisoned.into_inner().is_empty(),
+    }
+}
+
 /// Holds one recording's place in that list and gives it back on `Drop`.
 ///
 /// The removal used to be the last line of the worker closure. A panic inside
@@ -434,6 +447,7 @@ fn main() {
             commands::benchmark::benchmark_compute,
             commands::benchmark::name_machine,
             commands::downloads::catalog,
+            commands::downloads::installed_megabytes,
             commands::downloads::download,
             commands::downloads::cancel_download,
             commands::downloads::remove_component,

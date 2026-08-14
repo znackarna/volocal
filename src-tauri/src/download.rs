@@ -43,23 +43,46 @@ pub struct DownloadComponent {
     pub recommended: bool,
     /// Already downloaded.
     pub complete: bool,
-    /// Whether the bin may be drawn on this row. False for the two programs
-    /// that unpack into the shared `bin` root, where nothing recorded which
-    /// files were theirs, and for whatever `settings.model` or `editor_model`
-    /// is using right now — see `removable_path` and `component_is_in_use`.
-    /// Answered here so a row shows no bin rather than a bin that refuses.
+    /// Whether the bin may be drawn on this row. Answered here so a row shows
+    /// no bin rather than a bin that refuses — see `removal_plan` for what
+    /// deleting a component means, and `component_is_busy` for the lock.
     pub removable: bool,
-    /// Whether this component may be fetched again over itself. False only for
-    /// the model a transcription or a document is using right now: the
-    /// installer renames a fresh file into place, and doing that under a
-    /// running whisper is the one way to lose a model mid-run.
+    /// Why not, when the component is installed and the bin is still not
+    /// drawn. `busy` — something is using it this moment; `unlisted` — it was
+    /// installed before file lists were recorded and nothing says which files
+    /// in the shared programs folder are its own. The row draws a lock and the
+    /// tooltip says which of the two it is: an absent control explains
+    /// nothing, and the two have different answers — one is waited out, the
+    /// other is fixed by fetching the component again.
+    ///
+    /// `None` on a row with a bin, and on a row with nothing installed to
+    /// delete: there the empty column is not a puzzle.
+    pub remove_block: Option<String>,
+    /// Whether this component may be fetched again over itself. False while it
+    /// is working: the installer renames a fresh file into place, and doing
+    /// that under a running whisper is the one way to lose a model mid-run.
     ///
     /// **Not the same question as `removable`**, which is why it is a second
-    /// flag rather than a reuse. ffmpeg and Deno cannot be deleted — their
-    /// files cannot be told apart in the shared `bin` root — but replacing them
-    /// is exactly what `install_component` does anyway, so they are replaceable
-    /// and not removable. Nothing is the other way round.
+    /// flag rather than a reuse. A component whose files were never recorded
+    /// cannot be deleted — nothing says which of the files in the shared `bin`
+    /// root are its own — but replacing it is exactly what `install_component`
+    /// does anyway, so it is replaceable and not removable. Nothing is the
+    /// other way round.
     pub replaceable: bool,
+    /// This is the model `settings.model` or `editor_model` names right now.
+    ///
+    /// Not a lock — that was the old rule and the owner turned it down: *měl by
+    /// být všude a zámek jen u těch, které se aktuálně používají*. Deleting the
+    /// chosen model while nothing runs is allowed. It is here so the
+    /// confirmation can read differently, because removing the one that works
+    /// is a different act from removing a spare.
+    pub configured: bool,
+    /// Which component the setting would name instead, if this one went now.
+    /// `None` means nothing installed can take over and the setting would be
+    /// cleared. Read by the confirmation and, after the deletion, by
+    /// `settings_after_removal` — one answer, so the sentence and the value
+    /// written cannot disagree.
+    pub replaced_by: Option<String>,
     /// There is a record that this machine checked where the file came from.
     /// `complete` says a file is there; this says somebody vouched for it.
     pub origin_verified: bool,
@@ -171,7 +194,10 @@ fn raw_catalog() -> Vec<DownloadComponent> {
         complete: false,
         origin_verified: false,
         removable: false,
+        remove_block: None,
         replaceable: false,
+        configured: false,
+        replaced_by: None,
         verification_path: verification_path.into(),
         destination,
     };
@@ -333,19 +359,35 @@ fn raw_catalog() -> Vec<DownloadComponent> {
     ]
 }
 
-/// Fills in what is already done, and what suits this particular computer.
-pub fn catalog(settings: &crate::db::Settings) -> Vec<DownloadComponent> {
+/// Fills in what is already done, what suits this particular computer, and what
+/// may be done to each row while the application is doing whatever it is doing.
+pub fn catalog(settings: &crate::db::Settings, busy: Busy) -> Vec<DownloadComponent> {
     let has_nvidia = tools::has_nvidia();
     let has_vulkan = tools::has_vulkan();
+    // Read once rather than per row: the file is one map of every installation
+    // this machine has made, and fifteen rows would otherwise open it fifteen
+    // times to ask about one key each.
+    let records = read_records(&record_path(settings));
 
     raw_catalog()
         .into_iter()
         .map(|mut k| {
             k.complete = tools::component_path(settings, &k.verification_path).exists();
-            k.origin_verified = origin_verified(settings, &k.id);
-            k.removable =
-                k.complete && can_remove(settings, &k.id) && !component_is_in_use(settings, &k.id);
-            k.replaceable = !component_is_in_use(settings, &k.id);
+            k.origin_verified = records.get(&k.id).map(|r| r.verified).unwrap_or(false);
+            let working = component_is_busy(settings, &k.id, busy);
+            let deletable = removal_plan(settings, &k, records.get(&k.id)).is_some();
+            k.removable = k.complete && deletable && !working;
+            // Busy wins where both are true, because it is the answer to *why
+            // is there no bin right now* — and the moment the work ends the row
+            // explains itself the other way without anybody doing anything.
+            k.remove_block = (k.complete && !k.removable)
+                .then(|| if working { "busy" } else { "unlisted" }.to_string());
+            k.replaceable = !working;
+            k.configured = component_is_configured(settings, &k.id);
+            k.replaced_by = k
+                .configured
+                .then(|| replacement_component(settings, &k.id))
+                .flatten();
             k.recommended = match k.id.as_str() {
                 "ffmpeg" | "vad" => true,
                 // Which model depends on whether there is anything to compute
@@ -397,6 +439,77 @@ pub fn catalog(settings: &crate::db::Settings) -> Vec<DownloadComponent> {
             k
         })
         .collect()
+}
+
+// ---------------------------------------------------- what this machine has
+
+/// How much disk the tools and models take, in megabytes.
+///
+/// **Measured off the disk rather than added up from the catalogue.** The
+/// `megabytes` on each component is a hand-written constant and they have been
+/// wrong: ffmpeg was 85 in the list against 106 on the disk for months
+/// (`docs/history/2026-08-13.md`). A figure labelled *space taken* that is a sum
+/// of stale guesses is worse than no figure, because somebody will go looking
+/// for the difference.
+///
+/// It is the size of the programs and models folders, which is the honest
+/// answer to *what is this costing me* and includes anything else somebody has
+/// put in them. Attributing bytes to components could only be done for
+/// installations that recorded a file list, and a total that changed meaning
+/// depending on when each component was fetched is not a total.
+///
+/// How many components are installed is deliberately **not** answered here. The
+/// window already holds the catalogue with a `complete` on every row, and it is
+/// the window that knows which components it offers — so the fraction on the
+/// card is counted from the same rows the reader can see and count for
+/// themselves in the listing.
+pub fn installed_megabytes(settings: &crate::db::Settings) -> f64 {
+    let mut roots = vec![
+        tools::expand(&settings.bin_directory),
+        tools::expand(&settings.models_directory),
+    ];
+    // One folder inside the other is a supported arrangement — both default
+    // under the same parent and either may be pointed anywhere — and measuring
+    // both would count the inner one twice.
+    roots.dedup();
+    let outer: Vec<PathBuf> = roots
+        .iter()
+        .filter(|root| {
+            !roots
+                .iter()
+                .any(|other| other != *root && root.starts_with(other))
+        })
+        .cloned()
+        .collect();
+    let bytes: u64 = outer.iter().map(|root| directory_size(root)).sum();
+    bytes as f64 / 1_048_576.0
+}
+
+/// Bytes in a folder and everything under it. Metadata only — no file is
+/// opened — so several gigabytes of models cost a few dozen directory reads.
+/// A folder that is not there is nothing rather than an error: it is what a
+/// machine that has downloaded nothing has.
+fn directory_size(root: &Path) -> u64 {
+    let mut total = 0;
+    let mut pending = vec![root.to_path_buf()];
+    while let Some(directory) = pending.pop() {
+        let Ok(items) = std::fs::read_dir(&directory) else {
+            continue;
+        };
+        for item in items.filter_map(|entry| entry.ok()) {
+            match item.file_type() {
+                Ok(kind) if kind.is_dir() => pending.push(item.path()),
+                // A symbolic link is followed by nobody here: its target is
+                // either inside these folders and counted where it lies, or
+                // outside them and not this application's disk usage.
+                Ok(kind) if kind.is_file() => {
+                    total += item.metadata().map(|data| data.len()).unwrap_or(0)
+                }
+                _ => {}
+            }
+        }
+    }
+    total
 }
 
 // ------------------------------------------------------------------ events
@@ -661,9 +774,14 @@ fn list_tree(root: &Path, limit: usize) -> Vec<String> {
 
 /// Picks only the executables and libraries out of the unpacked pile.
 /// Archives nest to different depths; this flattens them.
-fn collect_programs(source: &Path, destination: &Path) -> Reported<usize> {
+///
+/// Returns the file names it wrote, which is what `installed.json` records and
+/// the only thing that makes a component sharing the programs root deletable.
+/// Names rather than paths: everything lands directly in `destination`, and the
+/// record wants them relative to the programs folder anyway.
+fn collect_programs(source: &Path, destination: &Path) -> Reported<Vec<String>> {
     std::fs::create_dir_all(destination)?;
-    let mut count = 0;
+    let mut written = Vec::new();
     let mut pending = vec![source.to_path_buf()];
     while let Some(directory) = pending.pop() {
         for item in std::fs::read_dir(&directory)?.filter_map(|e| e.ok()) {
@@ -678,13 +796,19 @@ fn collect_programs(source: &Path, destination: &Path) -> Reported<usize> {
                 if extension == "exe" || extension == "dll" {
                     if let Some(name) = path.file_name() {
                         std::fs::copy(&path, destination.join(name))?;
-                        count += 1;
+                        written.push(name.to_string_lossy().to_string());
                     }
                 }
             }
         }
     }
-    Ok(count)
+    // Two archives could hold the same library at two depths, and the second
+    // copy would then be recorded twice and deleted twice — the second time
+    // through the "already gone is fine" branch, but a record that lists a file
+    // twice is a record somebody will one day read as two files.
+    written.sort();
+    written.dedup();
+    Ok(written)
 }
 
 // -------------------------------------------------------------- the main run
@@ -702,6 +826,23 @@ pub struct InstallRecord {
     pub sha256: String,
     pub verified: bool,
     pub when: String,
+    /// Every file this installation wrote, relative to the programs or models
+    /// directory exactly as the catalogue writes a path — `bin/ffmpeg.exe`,
+    /// `models/ggml-large-v3.bin` — so `tools::component_path` reads them back.
+    ///
+    /// **This is what makes the shared programs folder deletable.** ffmpeg and
+    /// Deno unpack into `bin` beside `yt-dlp.exe` and the build folders;
+    /// removing the folder would take every other program with it and removing
+    /// only `verification_path` would leave the libraries behind. Neither is
+    /// removal, so until this existed neither was offered.
+    ///
+    /// `None` is not an empty installation — it is an installation made before
+    /// the list was written, which is every machine in the world today. Those
+    /// records keep loading and the component stays undeletable until it is
+    /// fetched again; guessing at the files would be the wrong thing done
+    /// confidently.
+    #[serde(default)]
+    pub files: Option<Vec<String>>,
 }
 
 fn record_path(settings: &crate::db::Settings) -> PathBuf {
@@ -735,15 +876,12 @@ fn record_installation(path: &Path, id: &str, record: InstallRecord) {
     }
 }
 
-/// Whether this machine has a record that the component's origin was checked.
-/// A file sitting in the right place is not that record, which is the mistake
-/// this exists to correct.
-pub fn origin_verified(settings: &crate::db::Settings, id: &str) -> bool {
-    read_records(&record_path(settings))
-        .get(id)
-        .map(|record| record.verified)
-        .unwrap_or(false)
-}
+/* `origin_verified` stood here — one lookup answering whether this machine had
+a record that a component's origin was checked. `catalog()` was its only
+caller and now reads the whole map once for every row instead of opening the
+file fifteen times, so the accessor had nobody left. What it said is still
+true and is said by `InstallRecord::verified`: a file sitting in the right
+place is not a record of where it came from. */
 
 /// Drops one entry and rewrites the file the way `record_installation` writes
 /// it — through a temporary name, so a crash mid-write cannot leave a truncated
@@ -764,62 +902,73 @@ fn forget_installation(path: &Path, id: &str) {
     }
 }
 
-/// What removing a component would delete, or nothing where that cannot be
-/// said exactly.
+/// Exactly what removing a component would delete, or nothing where that
+/// cannot be said exactly.
 ///
-/// **`installed.json` is not a manifest, and this is where that shows.** It
-/// records where a component came from — url, digest, whether the origin was
-/// checked, when — which is what it was written for and is not a list of files.
-/// So what a component owns is read off its `destination`, which is what the
-/// installer actually used to place it, and that answers exactly for two of the
-/// three shapes:
+/// Three shapes, and the third is the one this used to have no answer for:
 ///
 /// - `AsFile(p)` is one file and always removable;
 /// - `ProgramsInto(dir)` unpacks an archive's executables into `dir`. Where
 ///   that folder is the component's own — `bin/vulkan`, `bin/cuda`, `bin/cpu`,
-///   `bin/editor-vulkan`, `bin/editor-cpu` — removing it removes exactly what
-///   arrived, dlls included;
-/// - `ProgramsInto("bin")` is the exception and returns `None`. **ffmpeg and
-///   deno unpack into the shared programs root**, mixed in beside `yt-dlp.exe`
-///   and the build folders, and nothing recorded which files were whose.
-///   Deleting the folder would take every other program with it, and deleting
-///   only `verification_path` would leave the libraries behind. Neither is
-///   removal, so neither is offered.
+///   `bin/editor-vulkan`, `bin/editor-cpu` — removing the folder removes
+///   exactly what arrived, dlls included, **and the recorded list is
+///   deliberately not used for it.** `install_component` copies `main.exe` to
+///   `whisper-cli.exe` after the unpacking on older builds, and a list written
+///   from what the archive held would miss that copy. The folder cannot;
+/// - `ProgramsInto("bin")` — ffmpeg and Deno, which unpack into the shared
+///   programs root beside `yt-dlp.exe` and the build folders. Here the
+///   destination says nothing about ownership and the **recorded file list is
+///   the only answer**. Without one there is none: the folder would take every
+///   other program with it and `verification_path` alone would leave the
+///   libraries behind, and doing either would be worse than saying no.
 ///
-/// The honest fix for those two is a file list written at install time, which
-/// is a change to what `install_component` records rather than something this
-/// function can work around. They are 106 and 40 MB against models of three and
-/// seven gigabytes, so nothing anybody wants the space back from is behind that
-/// gap — but the gap is real and is named here rather than papered over.
-fn removable_path(
+/// Every path is checked before any of them is deleted, and one bad entry
+/// refuses the whole operation. Half a removal is not a removal.
+fn removal_plan(
     settings: &crate::db::Settings,
     component: &DownloadComponent,
-) -> Option<PathBuf> {
-    let relative = match &component.destination {
-        Destination::AsFile(path) => path.clone(),
-        Destination::ProgramsInto(directory) if directory != "bin" => directory.clone(),
-        Destination::ProgramsInto(_) => return None,
+    record: Option<&InstallRecord>,
+) -> Option<Vec<PathBuf>> {
+    let relative: Vec<String> = match &component.destination {
+        Destination::AsFile(path) => vec![path.clone()],
+        Destination::ProgramsInto(directory) if directory != "bin" => vec![directory.clone()],
+        // An empty list is treated as no list. Nothing writes one — a component
+        // whose archive held no program never reaches `record_installation` —
+        // so it could only mean a record edited by hand into meaning nothing.
+        Destination::ProgramsInto(_) => match record?.files.as_deref() {
+            Some([]) | None => return None,
+            Some(files) => files.to_vec(),
+        },
     };
-    // The same reasoning as the archive unpacker's `..` refusal, and the same
-    // answer: a destination that resolves outside the two folders this
-    // application owns is not somewhere it may delete from. `components.json`
-    // is data a weekly script rewrites, so this is a guard about a wrong
-    // catalogue rather than a hostile one.
-    //
-    // `..` is refused before anything else, and that order is the point.
-    // `Path::starts_with` compares component by component without resolving
-    // anything, so `bin/../../outside.exe` starts with `bin` as far as it is
-    // concerned and the prefix check alone would wave it through — which is
-    // exactly what `a_destination_that_reaches_outside_the_roots_is_refused`
-    // caught while it was being written. Nothing in this catalogue needs `..`,
-    // so the honest rule is that a destination carrying one is malformed.
-    if Path::new(&relative)
+    relative
+        .iter()
+        .map(|path| inside_the_roots(settings, path))
+        .collect()
+}
+
+/// One path a removal wants to delete, resolved and checked, or `None`.
+///
+/// The same reasoning as the archive unpacker's `..` refusal, and the same
+/// answer: a path that resolves outside the two folders this application owns
+/// is not somewhere it may delete from. `components.json` is data a weekly
+/// script rewrites and `installed.json` is a file on somebody's disk, so this
+/// is a guard about a wrong record rather than a hostile one.
+///
+/// `..` is refused before anything else, and that order is the point.
+/// `Path::starts_with` compares component by component without resolving
+/// anything, so `bin/../../outside.exe` starts with `bin` as far as it is
+/// concerned and the prefix check alone would wave it through — which is
+/// exactly what `a_destination_that_reaches_outside_the_roots_is_refused`
+/// caught while it was being written. Nothing here needs `..`, so the honest
+/// rule is that a path carrying one is malformed.
+fn inside_the_roots(settings: &crate::db::Settings, relative: &str) -> Option<PathBuf> {
+    if Path::new(relative)
         .components()
         .any(|part| matches!(part, std::path::Component::ParentDir))
     {
         return None;
     }
-    let resolved = tools::component_path(settings, &relative);
+    let resolved = tools::component_path(settings, relative);
     let roots = [
         tools::expand(&settings.bin_directory),
         tools::expand(&settings.models_directory),
@@ -830,47 +979,226 @@ fn removable_path(
     inside.then_some(resolved)
 }
 
-/// Whether the bin may be offered for this component at all. The screen asks
-/// before it draws, so a row shows no bin rather than one that refuses.
-pub fn can_remove(settings: &crate::db::Settings, id: &str) -> bool {
-    raw_catalog()
-        .iter()
-        .find(|x| x.id == id)
-        .and_then(|component| removable_path(settings, component))
-        .is_some()
+/* `can_remove(settings, id)` stood here, answering for one component what
+`catalog()` answers for every row. It has moved into the tests, which were
+its only caller once the catalogue started reading `installed.json` once for
+the whole list instead of once per row. The question it asked is `catalog`'s
+`deletable`. */
+
+// ------------------------------------------------------------ what is working
+
+/// What the application is doing this moment, in the only terms this module can
+/// act on.
+///
+/// **The lock asks whether a component is working, not whether it is chosen.**
+/// It used to ask the second question — a model named in settings could never
+/// be deleted at all — and the owner turned that down: *měl by být všude a
+/// zámek jen u těch, které se aktuálně používají. Například když běží převod
+/// nebo přepis.* Choosing a model is not using it; a transcription is.
+///
+/// Each field is read from the registry that already knows, rather than from a
+/// second list kept in step by hand: `TranscriptionTask` in
+/// `transcription/jobs.rs`, `AiEditTask`, `OnlineImportTask`, the waveform jobs
+/// in `main.rs` and the playback conversions in `tools.rs`. `commands/downloads.rs`
+/// is where they are gathered, because that is where the app state is.
+#[derive(Clone, Copy, Default, Debug, PartialEq, Eq)]
+pub struct Busy {
+    /// A recording has a live worker. It may be at any stage — ffmpeg
+    /// preparing the sound, whisper decoding it, sherpa comparing voices —
+    /// because one worker runs all three in turn and the stage is not recorded.
+    pub transcribing: bool,
+    /// A document is being written: llama.cpp and the model it loaded.
+    pub editing: bool,
+    /// Audio is being fetched from the web: yt-dlp, its JavaScript, and ffmpeg
+    /// after them.
+    pub importing: bool,
+    /// ffmpeg on its own — a waveform being measured, or a seekable playback
+    /// copy being made. Neither belongs to a transcription.
+    pub converting: bool,
 }
 
-/// Is this component the one the application is transcribing or editing with?
+/// The whisper builds. All of them, deliberately: `choose_compute` picks one
+/// when a run starts and the run does not write down which, so the honest
+/// answer while a transcription is happening is that any of them might be the
+/// one with a file open. They are 17 to 457 MB, and nobody frees a build's
+/// worth of disk in the middle of a transcription.
+const TRANSCRIPTION_PROGRAMS: [&str; 5] = [
+    "whisper-cuda",
+    "whisper-vulkan",
+    "whisper-cpu",
+    "vad",
+    "model-hlasy",
+];
+
+/// Is this component working right now?
 ///
-/// `settings.model` and `editor_model` name files rather than components, and
-/// `tools.rs` resolves both strictly by name, so the comparison is made on the
-/// file each component installs: `ggml-{model}.bin` for the transcription
-/// model and `editor/{editor_model}.gguf` for the language editor, which is
-/// exactly how `check_tools` and `resolve_editor_model` look for them.
+/// Windows would answer part of this by itself — a running `.exe` cannot be
+/// deleted — but as a refusal partway through a list of files, after some of
+/// them have gone. That is not a guard, it is a mess with an error message.
+pub fn component_is_busy(settings: &crate::db::Settings, id: &str, busy: Busy) -> bool {
+    // Every kind of work in this application passes through ffmpeg: it prepares
+    // the sound for whisper, it pulls the audio out of what yt-dlp fetched, it
+    // draws the waveform and it makes the seekable playback copy.
+    if id == "ffmpeg" && (busy.transcribing || busy.importing || busy.converting) {
+        return true;
+    }
+    if busy.importing && matches!(id, "yt-dlp" | "deno") {
+        return true;
+    }
+    if busy.transcribing {
+        if TRANSCRIPTION_PROGRAMS.contains(&id) {
+            return true;
+        }
+        // The model the run resolved. A transcription that started under an
+        // older setting is not covered by this and cannot be: nothing records
+        // which file a running whisper opened. It is the same file in every
+        // case that is not somebody changing the model mid-run.
+        if !settings.model.is_empty()
+            && installs(id, &format!("models/ggml-{}.bin", settings.model))
+        {
+            return true;
+        }
+    }
+    if busy.editing {
+        if matches!(id, "editor-vulkan" | "editor-cpu") {
+            return true;
+        }
+        // `resolve_editor_model` rather than the stored name, because that is
+        // the function which decides what llama.cpp actually loaded — it falls
+        // back through the installed qualities when the stored one is not there.
+        if let Some((resolved, _)) = tools::resolve_editor_model(settings) {
+            if installs(id, &format!("models/editor/{resolved}.gguf")) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+/// Does this component install exactly that file? Answered on the catalogue's
+/// own `AsFile` destination, which is how `check` and `resolve_editor_model`
+/// look for these files in the first place.
+fn installs(id: &str, relative: &str) -> bool {
+    raw_catalog().into_iter().any(|component| {
+        component.id == id
+            && matches!(&component.destination, Destination::AsFile(path) if path == relative)
+    })
+}
+
+// ------------------------------------------- the settings after a deletion
+
+/// The model this component installs, in the form the settings hold it:
+/// `models/ggml-{name}.bin` → `name`, `models/editor/{id}.gguf` → `id`.
+fn model_name(component: &DownloadComponent) -> Option<(&'static str, String)> {
+    let Destination::AsFile(path) = &component.destination else {
+        return None;
+    };
+    if let Some(name) = path
+        .strip_prefix("models/ggml-")
+        .and_then(|rest| rest.strip_suffix(".bin"))
+    {
+        // Speech detection is a model in a folder of models and is not one the
+        // reader ever chooses; `settings.model` never names it.
+        if component.group == "model" {
+            return Some(("model", name.to_string()));
+        }
+    }
+    path.strip_prefix("models/editor/")
+        .and_then(|rest| rest.strip_suffix(".gguf"))
+        .map(|name| ("editor", name.to_string()))
+}
+
+/// Is this component the model `settings.model` or `editor_model` names?
 ///
-/// The graphics and processor builds are deliberately **not** here. Removing
-/// the one `choose_compute` picked is recoverable — it simply chooses another,
-/// which is what that function is for, and `Výkon` says on the card when it
-/// has. Losing the model a transcript needs is not recoverable in the same
-/// sense: nothing substitutes for it and the next transcription refuses.
-pub fn component_is_in_use(settings: &crate::db::Settings, id: &str) -> bool {
+/// It was `component_is_in_use` and it was the lock; it is a sentence in a
+/// confirmation now. Being chosen is not being busy — see `Busy`.
+pub fn component_is_configured(settings: &crate::db::Settings, id: &str) -> bool {
     let Some(component) = raw_catalog().into_iter().find(|x| x.id == id) else {
         return false;
     };
-    let Destination::AsFile(path) = &component.destination else {
-        return false;
+    match model_name(&component) {
+        Some(("model", name)) => !settings.model.is_empty() && settings.model == name,
+        Some((_, name)) => !settings.editor_model.is_empty() && settings.editor_model == name,
+        None => false,
+    }
+}
+
+/// Transcription models in the order the setting should fall back through,
+/// with the first-run answer first. `accurate` is the order for an empty
+/// answer as well: that is what `Settings::default` names.
+const ACCURATE_FIRST: [&str; 3] = ["model-large", "model-large-q5", "model-turbo"];
+const FAST_FIRST: [&str; 3] = ["model-turbo", "model-large-q5", "model-large"];
+/// The language-editing models in the order `resolve_editor_model` falls
+/// through, so the setting and the resolver cannot end up naming different
+/// files.
+const EDITOR_ORDER: [&str; 3] = [
+    "editor-model-best",
+    "editor-model-balanced",
+    "editor-model-light",
+];
+
+/// Which component the setting would name instead of `id`.
+///
+/// `id` is skipped whether or not its files are still on the disk, so the
+/// answer is the same asked before the deletion — for the confirmation — and
+/// after it, when the setting is written. One question, one answer.
+pub fn replacement_component(settings: &crate::db::Settings, id: &str) -> Option<String> {
+    let component = raw_catalog().into_iter().find(|x| x.id == id)?;
+    let order: &[&str] = match model_name(&component)? {
+        ("model", _) if settings.quality_choice == "fast" => &FAST_FIRST,
+        ("model", _) => &ACCURATE_FIRST,
+        _ => &EDITOR_ORDER,
     };
-    let in_use = [
-        (!settings.model.is_empty()).then(|| format!("models/ggml-{}.bin", settings.model)),
-        (!settings.editor_model.is_empty())
-            .then(|| format!("models/editor/{}.gguf", settings.editor_model)),
-    ];
-    in_use.iter().flatten().any(|wanted| wanted == path)
+    let installed = |candidate: &str| {
+        raw_catalog()
+            .into_iter()
+            .find(|x| x.id == candidate)
+            .is_some_and(|x| tools::component_path(settings, &x.verification_path).exists())
+    };
+    order
+        .iter()
+        .find(|candidate| **candidate != id && installed(candidate))
+        .map(|candidate| candidate.to_string())
+}
+
+/// The settings record as it must read once `id` has gone, or `None` when
+/// nothing it says is affected.
+///
+/// **A deletion must not leave a setting naming a file that is not there.**
+/// `tools.rs` resolves `settings.model` strictly as `ggml-{model}.bin` with no
+/// fallback, so a stale name is a transcription that refuses to start — the
+/// same failure this branch fixed from the other direction the morning a model
+/// was written into settings before it had landed. So the setting either names
+/// another installed model or is cleared, and an empty `model` is a state the
+/// application already handles: it asks for one.
+///
+/// `editor_model` is the same question with a softer answer — `resolve_editor_model`
+/// already falls back to any installed quality — but it is written for the same
+/// reason: a stored name nobody can see and nothing uses is a value that will
+/// mislead the next reader of the record.
+pub fn settings_after_removal(
+    settings: &crate::db::Settings,
+    id: &str,
+) -> Option<crate::db::Settings> {
+    if !component_is_configured(settings, id) {
+        return None;
+    }
+    let component = raw_catalog().into_iter().find(|x| x.id == id)?;
+    let replacement = replacement_component(settings, id)
+        .and_then(|next| raw_catalog().into_iter().find(|x| x.id == next))
+        .and_then(|next| model_name(&next).map(|(_, name)| name))
+        .unwrap_or_default();
+    let mut repaired = settings.clone();
+    match model_name(&component)? {
+        ("model", _) => repaired.model = replacement,
+        _ => repaired.editor_model = replacement,
+    }
+    Some(repaired)
 }
 
 /// Removes one installed component and forgets its record.
 ///
-/// Deliberately not "delete the folder it lives in" — see `removable_path`. A
+/// Deliberately not "delete the folder it lives in" — see `removal_plan`. A
 /// component that is already gone is a success rather than an error: the caller
 /// asked for it not to be there, and it is not there.
 pub fn remove_component(settings: &crate::db::Settings, id: &str) -> Reported<()> {
@@ -879,17 +1207,19 @@ pub fn remove_component(settings: &crate::db::Settings, id: &str) -> Reported<()
         .find(|x| x.id == id)
         .ok_or_else(|| UserMessage::new("download.unknown_component").with("component", id))?;
 
-    let path = removable_path(settings, &component)
+    let records = read_records(&record_path(settings));
+    let paths = removal_plan(settings, &component, records.get(id))
         .ok_or_else(|| UserMessage::new("download.cannot_remove").with("component", id))?;
 
-    if path.is_dir() {
-        std::fs::remove_dir_all(&path).map_err(|e| {
-            UserMessage::new("download.remove_failed")
-                .with("component", id)
-                .with("detail", e.to_string())
-        })?;
-    } else if path.is_file() {
-        std::fs::remove_file(&path).map_err(|e| {
+    for path in paths {
+        let outcome = if path.is_dir() {
+            std::fs::remove_dir_all(&path)
+        } else if path.is_file() {
+            std::fs::remove_file(&path)
+        } else {
+            Ok(())
+        };
+        outcome.map_err(|e| {
             UserMessage::new("download.remove_failed")
                 .with("component", id)
                 .with("detail", e.to_string())
@@ -933,10 +1263,16 @@ pub fn install_component(
     // expected. It goes into the record so that a later version, once the
     // catalogue names a hash, can tell what this machine already has.
     let installed: String;
+    // And what it wrote, relative to the programs or models folder. Gathered
+    // here rather than worked out later from the destination, because for a
+    // component unpacking into the shared programs root this is the only thing
+    // that will ever be able to say which files are its own.
+    let mut files: Vec<String>;
 
     match &component.destination {
         Destination::AsFile(rel) => {
             installed = download_file(app, id, &url, &destination(rel), expected, &cancellation)?;
+            files = vec![rel.clone()];
         }
         Destination::ProgramsInto(rel) => {
             let temporary_directory = std::env::temp_dir().join("whisp-downloads");
@@ -963,8 +1299,9 @@ pub fn install_component(
             let extracted = temporary_directory.join(format!("{id}-vybaleno"));
             let _ = std::fs::remove_dir_all(&extracted);
             extract(&archive, &extracted)?;
-            let count = collect_programs(&extracted, &destination(rel))?;
-            if count == 0 {
+            let names = collect_programs(&extracted, &destination(rel))?;
+            files = names.iter().map(|name| format!("{rel}/{name}")).collect();
+            if names.is_empty() {
                 let contents = list_tree(&extracted, 12);
                 let _ = std::fs::remove_dir_all(&extracted);
                 let message = if contents.is_empty() {
@@ -985,8 +1322,11 @@ pub fn install_component(
         let directory = destination(rel);
         let cli = directory.join("whisper-cli.exe");
         let main = directory.join("main.exe");
-        if !cli.exists() && main.exists() {
-            let _ = std::fs::copy(&main, &cli);
+        // Written after the unpacking, so it is not in what the archive held —
+        // and a file list that misses a file this installation wrote is a
+        // removal that leaves something behind.
+        if !cli.exists() && main.exists() && std::fs::copy(&main, &cli).is_ok() {
+            files.push(format!("{rel}/whisper-cli.exe"));
         }
     }
 
@@ -1027,6 +1367,7 @@ pub fn install_component(
             sha256: installed,
             verified: expected.is_some(),
             when: chrono::Local::now().to_rfc3339(),
+            files: Some(files),
         },
     );
 
@@ -1332,6 +1673,19 @@ mod tests {
         assert!(target.exists());
     }
 
+    /// May the bin be offered for this component at all, ignoring what is
+    /// running? It is what `catalog()` asks per row, asked here of one
+    /// component — the tests are the only caller left since the catalogue
+    /// started reading `installed.json` once for the whole list.
+    fn can_remove(settings: &crate::db::Settings, id: &str) -> bool {
+        let records = read_records(&record_path(settings));
+        raw_catalog()
+            .iter()
+            .find(|x| x.id == id)
+            .and_then(|component| removal_plan(settings, component, records.get(id)))
+            .is_some()
+    }
+
     /// Settings pointing both roots at a scratch folder, so a test deletes only
     /// inside its own directory and never inside a real installation.
     fn machine_at(directory: &Path) -> crate::db::Settings {
@@ -1365,15 +1719,16 @@ mod tests {
                 sha256: sha256_of(b"weights"),
                 verified: true,
                 when: "2026-08-14".into(),
+                files: Some(vec!["models/ggml-large-v3.bin".into()]),
             },
         );
-        assert!(origin_verified(&settings, "model-large"));
+        assert!(read_records(&records)["model-large"].verified);
 
         remove_component(&settings, "model-large").expect("removed");
 
         assert!(!model.exists(), "the file is gone");
         assert!(
-            !origin_verified(&settings, "model-large"),
+            !read_records(&records).contains_key("model-large"),
             "and so is the record that vouched for it"
         );
     }
@@ -1415,18 +1770,31 @@ mod tests {
             .exists());
     }
 
-    /// The two programs that unpack into the shared `bin` root cannot be
-    /// removed, because nothing recorded which of the files in there were
-    /// theirs. Deleting the folder would take every other program with it.
-    /// This is the guard that keeps the bin off those rows.
+    /// A record made before file lists existed, which is every machine in the
+    /// world on the day this shipped. The two programs that unpack into the
+    /// shared `bin` root cannot be told apart from their neighbours without
+    /// one, so the bin stays off those rows and the row says why.
     #[test]
-    fn a_component_sharing_the_programs_root_is_not_removable() {
+    fn a_component_sharing_the_programs_root_is_not_removable_without_a_file_list() {
         let directory = scratch("remove-shared");
         let settings = machine_at(&directory);
         let bin = directory.join("bin");
         std::fs::create_dir_all(&bin).unwrap();
         std::fs::write(bin.join("ffmpeg.exe"), b"program").unwrap();
         std::fs::write(bin.join("yt-dlp.exe"), b"another component").unwrap();
+        // The shape of an older installation: a record with everything except
+        // the list of files.
+        record_installation(
+            &record_path(&settings),
+            "ffmpeg",
+            InstallRecord {
+                url: "https://example.invalid/ffmpeg.zip".into(),
+                sha256: sha256_of(b"program"),
+                verified: true,
+                when: "2026-08-01".into(),
+                files: None,
+            },
+        );
 
         assert!(!can_remove(&settings, "ffmpeg"), "not offered");
         assert!(
@@ -1437,14 +1805,82 @@ mod tests {
             bin.join("yt-dlp.exe").exists(),
             "the neighbour that would have gone with the folder is untouched"
         );
+        assert!(bin.join("ffmpeg.exe").exists(), "and so is ffmpeg itself");
         assert!(can_remove(&settings, "yt-dlp"), "a single file still is");
+
+        let row = catalog(&settings, Busy::default())
+            .into_iter()
+            .find(|x| x.id == "ffmpeg")
+            .unwrap();
+        assert!(row.complete && !row.removable);
+        assert_eq!(
+            row.remove_block.as_deref(),
+            Some("unlisted"),
+            "the row shows a lock and says which kind of lock it is"
+        );
+        assert!(
+            row.replaceable,
+            "and it may still be fetched again — which is what makes it removable afterwards"
+        );
     }
 
-    /// The same reasoning as the archive unpacker's `..` refusal: a destination
-    /// that resolves outside the two folders this application owns is not
-    /// somewhere it may delete from. `components.json` is rewritten weekly by a
-    /// script, so this is a guard about a wrong catalogue rather than a hostile
-    /// one.
+    /// The fix for the row above: fetch it again, and the installation writes
+    /// down what it wrote. Only those files go, and the neighbours in the
+    /// shared folder stay.
+    #[test]
+    fn a_recorded_file_list_is_what_makes_the_shared_folder_removable() {
+        let directory = scratch("remove-listed");
+        let settings = machine_at(&directory);
+        let bin = directory.join("bin");
+        std::fs::create_dir_all(&bin).unwrap();
+        for name in ["ffmpeg.exe", "ffprobe.exe", "ffplay.exe"] {
+            std::fs::write(bin.join(name), b"ffmpeg's own").unwrap();
+        }
+        std::fs::write(bin.join("yt-dlp.exe"), b"another component").unwrap();
+        std::fs::create_dir_all(bin.join("cpu")).unwrap();
+        std::fs::write(bin.join("cpu").join("whisper-cli.exe"), b"a build").unwrap();
+
+        record_installation(
+            &record_path(&settings),
+            "ffmpeg",
+            InstallRecord {
+                url: "https://example.invalid/ffmpeg.zip".into(),
+                sha256: sha256_of(b"ffmpeg's own"),
+                verified: true,
+                when: "2026-08-14".into(),
+                files: Some(vec![
+                    "bin/ffmpeg.exe".into(),
+                    "bin/ffprobe.exe".into(),
+                    "bin/ffplay.exe".into(),
+                ]),
+            },
+        );
+
+        assert!(can_remove(&settings, "ffmpeg"), "offered now");
+        remove_component(&settings, "ffmpeg").expect("removed");
+
+        for name in ["ffmpeg.exe", "ffprobe.exe", "ffplay.exe"] {
+            assert!(!bin.join(name).exists(), "{name} was ffmpeg's and is gone");
+        }
+        assert!(
+            bin.join("yt-dlp.exe").exists(),
+            "the neighbour in the same folder is untouched"
+        );
+        assert!(
+            bin.join("cpu").join("whisper-cli.exe").exists(),
+            "and so is the build folder inside it"
+        );
+        assert!(
+            bin.exists(),
+            "the folder itself stays: other components live in it"
+        );
+    }
+
+    /// The same reasoning as the archive unpacker's `..` refusal: a path that
+    /// resolves outside the two folders this application owns is not somewhere
+    /// it may delete from. `components.json` is rewritten weekly by a script and
+    /// `installed.json` is a file on somebody's disk, so this is a guard about a
+    /// wrong record rather than a hostile one.
     #[test]
     fn a_destination_that_reaches_outside_the_roots_is_refused() {
         let directory = scratch("remove-escape");
@@ -1461,7 +1897,7 @@ mod tests {
         };
 
         assert!(
-            removable_path(&settings, &escaping).is_none(),
+            removal_plan(&settings, &escaping, None).is_none(),
             "the path is refused before anything is deleted"
         );
         assert!(
@@ -1470,32 +1906,249 @@ mod tests {
         );
     }
 
-    /// Deleting the model a transcript needs leaves `tools.rs` resolving
-    /// `ggml-{model}.bin` for a file that has gone, and nothing substitutes for
-    /// it. The screen draws no bin on that row; this refuses regardless, because
-    /// a screen is a drawing and a guard is a guard.
+    /// The file list is read off the disk, so it is exactly as trustworthy as
+    /// the disk. One entry reaching outside refuses the **whole** removal:
+    /// deleting the sound ones first and then stopping is not a removal, it is
+    /// a mess with an error message.
     #[test]
-    fn the_model_in_use_is_protected_and_the_others_are_not() {
-        let directory = scratch("remove-in-use");
+    fn one_recorded_file_outside_the_roots_refuses_the_whole_removal() {
+        let directory = scratch("remove-escape-list");
+        let settings = machine_at(&directory);
+        let bin = directory.join("bin");
+        std::fs::create_dir_all(&bin).unwrap();
+        std::fs::write(bin.join("ffmpeg.exe"), b"program").unwrap();
+        let outside = directory.join("outside.exe");
+        std::fs::write(&outside, b"not ours").unwrap();
+
+        record_installation(
+            &record_path(&settings),
+            "ffmpeg",
+            InstallRecord {
+                url: "https://example.invalid/ffmpeg.zip".into(),
+                sha256: sha256_of(b"program"),
+                verified: true,
+                when: "2026-08-14".into(),
+                files: Some(vec![
+                    "bin/ffmpeg.exe".into(),
+                    "bin/../../outside.exe".into(),
+                ]),
+            },
+        );
+
+        assert!(!can_remove(&settings, "ffmpeg"));
+        assert!(remove_component(&settings, "ffmpeg").is_err());
+        assert!(outside.exists(), "nothing outside the roots was touched");
+        assert!(
+            bin.join("ffmpeg.exe").exists(),
+            "and the sound half was not deleted on the way to refusing"
+        );
+    }
+
+    /// **The lock is about work, not about a setting.** The model named in
+    /// settings may be deleted while nothing is running — that is the whole of
+    /// what the owner asked for — and the row that says so is the one below.
+    #[test]
+    fn the_chosen_model_may_go_while_nothing_is_running() {
+        let directory = scratch("busy-idle");
         let mut settings = machine_at(&directory);
         settings.model = "large-v3".into();
         settings.editor_model = "gemma-4-12b-q4".into();
+        let models = directory.join("models");
+        std::fs::create_dir_all(models.join("editor")).unwrap();
+        std::fs::write(models.join("ggml-large-v3.bin"), b"weights").unwrap();
+        std::fs::write(models.join("editor").join("gemma-4-12b-q4.gguf"), b"w").unwrap();
+
+        let idle = Busy::default();
+        assert!(!component_is_busy(&settings, "model-large", idle));
+        assert!(!component_is_busy(&settings, "editor-model-best", idle));
+
+        let row = catalog(&settings, idle)
+            .into_iter()
+            .find(|x| x.id == "model-large")
+            .unwrap();
+        assert!(row.removable, "the bin is drawn on the model in use");
+        assert_eq!(row.remove_block, None);
+        assert!(row.configured, "and the confirmation will say so");
+    }
+
+    /// And while something is running, everything that run touches is locked —
+    /// the model, the builds, speech detection, the voices, and ffmpeg.
+    #[test]
+    fn a_running_transcription_locks_what_it_is_working_with() {
+        let directory = scratch("busy-transcribing");
+        let mut settings = machine_at(&directory);
+        settings.model = "large-v3".into();
+        let busy = Busy {
+            transcribing: true,
+            ..Busy::default()
+        };
+
+        for id in ["model-large", "ffmpeg", "vad", "model-hlasy", "whisper-cpu"] {
+            assert!(component_is_busy(&settings, id, busy), "{id} is working");
+        }
+        assert!(
+            !component_is_busy(&settings, "model-turbo", busy),
+            "a model this run is not using may still go"
+        );
+        assert!(
+            !component_is_busy(&settings, "yt-dlp", busy),
+            "and so may a program no part of a transcription touches"
+        );
+
+        let models = directory.join("models");
+        std::fs::create_dir_all(&models).unwrap();
+        std::fs::write(models.join("ggml-large-v3.bin"), b"weights").unwrap();
+        let row = catalog(&settings, busy)
+            .into_iter()
+            .find(|x| x.id == "model-large")
+            .unwrap();
+        assert!(!row.removable);
+        assert_eq!(row.remove_block.as_deref(), Some("busy"));
+        assert!(
+            !row.replaceable,
+            "and it must not be fetched over itself either: that renames a file whisper has open"
+        );
+    }
+
+    /// The other three kinds of work, each locking its own tools and nothing
+    /// else. A conversion is the case the owner named — *když běží převod* —
+    /// and it belongs to ffmpeg alone.
+    #[test]
+    fn each_kind_of_work_locks_only_its_own_tools() {
+        let directory = scratch("busy-others");
+        let mut settings = machine_at(&directory);
+        settings.editor_model = "gemma-4-12b-q4".into();
+        std::fs::create_dir_all(directory.join("models").join("editor")).unwrap();
+        std::fs::write(
+            directory
+                .join("models")
+                .join("editor")
+                .join("gemma-4-12b-q4.gguf"),
+            b"weights",
+        )
+        .unwrap();
+
+        let converting = Busy {
+            converting: true,
+            ..Busy::default()
+        };
+        assert!(component_is_busy(&settings, "ffmpeg", converting));
+        assert!(!component_is_busy(&settings, "model-large", converting));
+
+        let importing = Busy {
+            importing: true,
+            ..Busy::default()
+        };
+        for id in ["yt-dlp", "deno", "ffmpeg"] {
+            assert!(component_is_busy(&settings, id, importing), "{id}");
+        }
+        assert!(!component_is_busy(&settings, "vad", importing));
+
+        let editing = Busy {
+            editing: true,
+            ..Busy::default()
+        };
+        for id in ["editor-cpu", "editor-vulkan", "editor-model-best"] {
+            assert!(component_is_busy(&settings, id, editing), "{id}");
+        }
+        assert!(
+            !component_is_busy(&settings, "ffmpeg", editing),
+            "language editing reads text and touches no sound"
+        );
+    }
+
+    /// Deleting the chosen model must leave the settings naming something that
+    /// is there. `tools.rs` resolves `ggml-{model}.bin` with no fallback, so a
+    /// stale name is a transcription that refuses to start.
+    #[test]
+    fn deleting_the_chosen_model_points_the_setting_at_one_that_is_installed() {
+        let directory = scratch("settings-after");
+        let mut settings = machine_at(&directory);
+        settings.model = "large-v3".into();
+        let models = directory.join("models");
+        std::fs::create_dir_all(&models).unwrap();
+        std::fs::write(models.join("ggml-large-v3.bin"), b"weights").unwrap();
+        std::fs::write(models.join("ggml-large-v3-turbo-q5_0.bin"), b"weights").unwrap();
+
+        assert_eq!(
+            replacement_component(&settings, "model-large").as_deref(),
+            Some("model-turbo")
+        );
+        let repaired = settings_after_removal(&settings, "model-large").expect("a value changed");
+        assert_eq!(repaired.model, "large-v3-turbo-q5_0");
 
         assert!(
-            component_is_in_use(&settings, "model-large"),
-            "transcribing with it"
+            settings_after_removal(&settings, "model-turbo").is_none(),
+            "deleting a spare changes nothing anybody stored"
         );
-        assert!(
-            component_is_in_use(&settings, "editor-model-best"),
-            "and editing with it"
+    }
+
+    /// And where there is nothing to fall back to, the setting is cleared
+    /// rather than left naming a file that has gone. Empty is a state the
+    /// application already knows: it asks for a model.
+    #[test]
+    fn deleting_the_last_model_clears_the_setting() {
+        let directory = scratch("settings-after-last");
+        let mut settings = machine_at(&directory);
+        settings.model = "large-v3".into();
+        settings.editor_model = "gemma-4-12b-q4".into();
+        let models = directory.join("models");
+        std::fs::create_dir_all(models.join("editor")).unwrap();
+        std::fs::write(models.join("ggml-large-v3.bin"), b"weights").unwrap();
+        std::fs::write(models.join("editor").join("gemma-4-12b-q4.gguf"), b"w").unwrap();
+
+        assert_eq!(replacement_component(&settings, "model-large"), None);
+        assert_eq!(
+            settings_after_removal(&settings, "model-large")
+                .unwrap()
+                .model,
+            ""
         );
-        assert!(
-            !component_is_in_use(&settings, "model-turbo"),
-            "a model nothing is using may go"
+        assert_eq!(
+            settings_after_removal(&settings, "editor-model-best")
+                .unwrap()
+                .editor_model,
+            "",
+            "the language editor is the same question with a softer answer"
         );
+    }
+
+    /// The card's two numbers. The size is **measured**, which is the whole
+    /// point of it: the catalogue's `megabytes` are hand-written constants and
+    /// ffmpeg's said 85 against an actual 106 for months, so a total added up
+    /// from them would be a precise-looking sum of guesses.
+    #[test]
+    fn the_card_measures_what_the_folders_actually_take() {
+        let directory = scratch("summary");
+        let settings = machine_at(&directory);
+
+        assert_eq!(
+            installed_megabytes(&settings),
+            0.0,
+            "a machine with nothing on it, and no folders to walk yet"
+        );
+
+        let bin = directory.join("bin");
+        let models = directory.join("models");
+        std::fs::create_dir_all(bin.join("cpu")).unwrap();
+        std::fs::create_dir_all(&models).unwrap();
+        std::fs::write(bin.join("ffmpeg.exe"), vec![0u8; 1_048_576]).unwrap();
+        std::fs::write(
+            bin.join("cpu").join("whisper-cli.exe"),
+            vec![0u8; 2_097_152],
+        )
+        .unwrap();
+        std::fs::write(models.join("ggml-large-v3.bin"), vec![0u8; 1_048_576]).unwrap();
+
+        let measured = installed_megabytes(&settings);
+        assert_eq!(
+            measured, 4.0,
+            "four megabytes across both folders, subfolders included"
+        );
+        // The catalogue would have said 106 + 17 + 3095 for those three files.
         assert!(
-            !component_is_in_use(&settings, "whisper-cuda"),
-            "and so may a build: choose_compute simply picks another"
+            measured < 100.0,
+            "the number is what is there, not what the catalogue expected"
         );
     }
 
@@ -1544,6 +2197,7 @@ mod tests {
                 sha256: sha256_of(b"abc"),
                 verified: true,
                 when: "2026-08-10T00:00:00+02:00".into(),
+                files: Some(vec!["models/ggml-silero-v6.2.0.bin".into()]),
             },
         );
         record_installation(
@@ -1554,6 +2208,7 @@ mod tests {
                 sha256: sha256_of(b"abd"),
                 verified: false,
                 when: "2026-08-10T00:00:01+02:00".into(),
+                files: Some(vec!["bin/ffmpeg.exe".into(), "bin/ffprobe.exe".into()]),
             },
         );
 
@@ -1568,9 +2223,37 @@ mod tests {
             !records["ffmpeg"].verified,
             "arriving over HTTPS is not the same as being checked"
         );
+        assert_eq!(
+            records["ffmpeg"].files.as_deref(),
+            Some(&["bin/ffmpeg.exe".to_string(), "bin/ffprobe.exe".to_string()][..]),
+            "what the installation wrote, in the order it wrote it"
+        );
         assert!(
             !path.with_extension("json.psani").exists(),
             "the temporary name does not survive the write"
+        );
+    }
+
+    /// The migration, as a test. A record written before file lists existed has
+    /// no `files` key at all, and it must go on loading — every machine in the
+    /// world has one. What it must not do is read as an installation that wrote
+    /// nothing, which is why the field is an `Option` and not a `Vec`.
+    #[test]
+    fn a_record_written_before_file_lists_still_loads() {
+        let directory = scratch("record-old-shape");
+        let path = directory.join("installed.json");
+        std::fs::write(
+            &path,
+            r#"{"ffmpeg":{"url":"https://example.invalid/ffmpeg.zip",
+                "sha256":"ab","verified":false,"when":"2026-08-01T10:00:00+02:00"}}"#,
+        )
+        .unwrap();
+
+        let records = read_records(&path);
+        assert_eq!(records.len(), 1, "the record still parses");
+        assert!(
+            records["ffmpeg"].files.is_none(),
+            "and says it does not know, rather than that there were no files"
         );
     }
 

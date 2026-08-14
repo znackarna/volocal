@@ -38,6 +38,13 @@ export const enWizard: Partial<Record<keyof typeof csWizard, string>> = {
   "wizard.manual.removeTitle": "Delete {name}?",
   "wizard.manual.removeText":
     "This frees {size}. You can download it again at any time, but it will take as long as it did.",
+  "wizard.manual.removeChosenText":
+    "This frees {size}. The app is set to use this model, so it will take {next} instead. You can download it again at any time, but it will take as long as it did.",
+  "wizard.manual.removeLastText":
+    "This frees {size}. The app is set to use this model and no other is downloaded — it will ask for one when it needs it.",
+  "wizard.manual.lockedBusy": "In use right now. It can be deleted when the work finishes.",
+  "wizard.manual.lockedUnlisted":
+    "The application does not know which files belong to this component. Download it again and it can be deleted.",
   "wizard.manual.groupPrograms": "Programs for transcription",
   "wizard.manual.groupModels": "Language models for transcription",
   "wizard.manual.groupSpeech": "Speech and speaker detection",

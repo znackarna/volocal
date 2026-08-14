@@ -428,6 +428,11 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
   const [n, setN] = useState<Settings | null>(null);
   const [check, setCheck] = useState<ToolCheck | null>(null);
   const [modules, setModules] = useState<DownloadComponent[]>([]);
+  /** Megabytes the tools and models folders take, measured in Rust. Null until
+   *  it has been read — the panel is simply not drawn until then, because a `0`
+   *  that turns into `4,3 GB` is a worse first impression than a row arriving a
+   *  moment late. */
+  const [diskUsed, setDiskUsed] = useState<number | null>(null);
   const [saved, setSaved] = useState(false);
   const [machine, setMachine] = useState("");
   const [copying, setCopying] = useState(false);
@@ -589,6 +594,7 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
         setCheck(tools);
       }
       setModules(await api.catalog());
+      setDiskUsed(await api.installedMegabytes());
       setMachine(await api.machineName());
       const saved = await api.dictionary();
       dictionaryRef.current = saved;
@@ -686,6 +692,15 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
   const missingRequired = check?.issues ?? [];
   const installed = (id: string) => modules.some((module) => module.id === id && module.complete);
   const megabytes = (id: string) => modules.find((module) => module.id === id)?.megabytes ?? 0;
+  /** What this application offers, which is exactly what the by-hand listing
+   *  draws: the catalogue less the two middle models nothing offers — and those
+   *  two do appear once they are on the disk, because a machine set up before
+   *  14 August 2026 may be running on one. It is the denominator of the card's
+   *  fraction, so the number can be checked by counting rows on that screen
+   *  rather than being taken on trust. */
+  const offeredModules = modules.filter(
+    (module) => module.complete || !UNOFFERED_COMPONENTS.includes(module.id)
+  );
 
   /* ---------------------------------------------------- transcription model
      The two that are offered, plus whatever else is on the disk, in one list
@@ -927,6 +942,61 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
         <p className="settings-section-description">
           {t("settings.modules.description")}
         </p>
+
+        {/* What you have, and what it costs — *chtělo by to tam nějaký
+            dashboard, třeba 33 modelů, celkem zabraného místa*. Two rows and
+            not six: this answers the question somebody arrives with, and a
+            column of statistics is a diagnostics panel, which is the kind of
+            thing this branch deleted today.
+
+            `.about-panel about-panel-marked` — the `dl` of label and
+            right-aligned value that `Informace` uses, in its variant with a
+            30 px `.about-mark` on every row, at the owner's ask for icons.
+            **Both rows carry one or neither would**, which is the rule that
+            panel was given this morning: a panel where some rows have a mark
+            and some do not reads as an accident. The two glyphs are the two
+            subjects — what arrived, and the disk it sits on — rather than
+            decoration; a mark a reader tries to read and cannot is worse than
+            no mark.
+
+            **The count is a fraction**, `12 z 13`, and it is counted here
+            rather than in Rust: it is installed out of *offered*, and which
+            components the application offers is this screen's own knowledge —
+            `UNOFFERED_COMPONENTS`. Counted from the same rows the by-hand
+            listing draws, so a reader who doubts the number can go and count
+            them. A bare total answers nothing anybody wanted; the fraction
+            answers *is anything missing*, which is the question this card is
+            about and what the sentence below it says in words.
+
+            **The size is measured on the disk**, in Rust, and is the size of the
+            tools and models folders. Adding up the catalogue's own `megabytes`
+            would have been one line of TypeScript and a number that is wrong:
+            they are hand-written constants, ffmpeg's said 85 against an actual
+            106 for months, and a total labelled *zabrané místo* that nobody can
+            reconcile with their own disk is worse than no total at all. */}
+        {diskUsed !== null && modules.length > 0 && (
+          <dl className="about-panel about-panel-marked">
+            <div className="about-row">
+              <dt>
+                <span className="about-mark"><LineIcon name="download" size={17} /></span>
+                {t("settings.modules.installedCount")}
+              </dt>
+              <dd>
+                {t("settings.modules.installedOf", {
+                  count: formatNumber(modules.filter((module) => module.complete).length),
+                  total: formatNumber(offeredModules.length),
+                })}
+              </dd>
+            </div>
+            <div className="about-row">
+              <dt>
+                <span className="about-mark"><LineIcon name="disk" size={17} /></span>
+                {t("settings.modules.diskUsed")}
+              </dt>
+              <dd>{formats.dataSize(diskUsed)}</dd>
+            </div>
+          </dl>
+        )}
 
         <div className="settings-action-row spaced">
           {missingRequired.length > 0 ? (

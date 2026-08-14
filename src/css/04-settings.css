@@ -610,13 +610,11 @@
   font-variant-numeric: tabular-nums; white-space: nowrap;
 }
 /* The switch above it, at the right-hand end where the archive's own sits.
-   10 px is the gap `.detected` took to what followed it on this screen. The
-   second selector is specificity and nothing else: `.manual > div` sets 16 px
-   on every child of the by-hand list, and the switch is one of them — the two
-   listings must hold it at the same distance or the shared control stops
-   looking shared. */
+   10 px is the gap `.detected` took to what followed it on this screen, and it
+   is now the only rule placing it: `.manual > div { margin-bottom: 16px }` used
+   to catch the switch as one of the by-hand list's children, and the override
+   that beat it went with it when the group spacing moved above the headings. */
 .download-view { display: flex; justify-content: flex-end; margin-bottom: 10px; }
-.manual > .download-view { margin-bottom: 10px; }
 /* Icon-only, so the button is square. 30 px in the 36 px track is the plain
    segmented control's own geometry — the archive's 32-in-40 is matched to the
    filter select standing beside it there and has no counterpart on either of
@@ -628,8 +626,23 @@
 .progress-large .progress-bar { height: 6px; }
 .progress-large .progress-label { font-size: 13px; margin-top: 7px; }
 
-.manual { margin-bottom: 4px; }
-.manual > div { margin-bottom: 16px; }
+/* 20 px under the whole list, which is what the last group's own 16 plus this
+   4 used to come to. The block spacing moved above the headings and the outer
+   distance did not change with it. */
+.manual { margin-bottom: 20px; }
+/* **The space belongs above a heading, not below it.** A heading names what
+   follows, so the gap that separates it from the group before is what makes the
+   listing read as sections; a gap underneath detaches it from the rows it
+   names. It was 16 px between blocks against 8 under the heading — close enough
+   that a heading floated between two groups and belonged to neither.
+   24 px is the amount this stylesheet already separates the bands inside a card
+   by; 16 is what it puts between cards, and a group boundary inside one listing
+   is the larger of those two kinds of gap. It is more than half a row's height
+   in either listing view, so the boundary reads whether the rows are one line
+   or two.
+   `+` and not a plain rule: the first group must sit against the view switch at
+   the 10 px that control keeps, or the list opens with a hole. */
+.manual-group + .manual-group { margin-top: 24px; }
 /* Only the gap under the label. The type comes from `.wizard h2` — see the
    note there; this rule used to restate it and beat it on file order. */
 .manual h2 { margin: 0 0 8px; }
@@ -661,8 +674,10 @@
 /* The mark, at the bin's diameter so the row is bracketed by two circles of one
    size. Three states share it and none of them changes its geometry, which is
    what keeps the text edge still as a row goes from offer to progress to fact. */
+/* No `position: relative` any more: it was here for the punched-out middle of
+   the old conic ring, and the ring the mini player lends is an SVG in the same
+   grid cell as the glyph. */
 .component-mark {
-  position: relative;
   display: grid; place-items: center; width: 26px; height: 26px; padding: 0;
   border: 0; border-radius: 50%; cursor: pointer;
   transition: background var(--hover-duration) var(--hover-ease),
@@ -685,18 +700,24 @@
 .component-mark.have:hover:not(.static) .mark-rest { display: none; }
 .component-mark.have:hover:not(.static) .mark-hover { display: block; }
 /* Running: the ring fills as the bytes arrive, and the glyph is a stop square.
-   A conic gradient rather than a spinner, because the number is known — a
-   spinner would say *something is happening* where the row can say how much. */
-.component-mark.running {
-  background:
-    conic-gradient(var(--accent) var(--done, 0%), var(--accent-light) 0);
-  color: var(--accent);
-}
-.component-mark.running::after {
-  content: ""; position: absolute; inset: 3px;
-  border-radius: 50%; background: var(--panel);
-}
-.component-mark.running svg { position: relative; z-index: 1; }
+   A ring rather than a spinner, because the number is known — a spinner would
+   say *something is happening* where the row can say how much.
+
+   **The ring is the mini player's**, weight and technique both: two SVG circles
+   with a 2 px stroke, `.mini-track` and `.mini-progress` reused rather than
+   copied, and the arc shortened with `stroke-dashoffset`. It was a 3 px conic
+   band running edge to edge with the middle punched out — *moc silný* — and the
+   answer to how thin came from the owner as *stejně, jako je v mini playeru*:
+   the application already had a ring for how far through something is, and a
+   second weight would have been two languages for one idea. The disc stays
+   `--accent-light` under it, so the running row is still one of the three
+   filled 26 px circles this column is built from. */
+.component-mark.running { background: var(--accent-light); color: var(--accent); }
+/* Both children in the same grid cell, the way `.mini-play` stacks its own ring
+   and glyph — without it the grid would give them a row each and the circle
+   would grow. The quarter turn starts the arc at twelve o'clock. */
+.component-mark > svg { grid-area: 1 / 1; }
+.component-ring { transform: rotate(-90deg); }
 .component-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 /* The name leads and the sentence supports it. Both sat within a point of each
    other, so fifteen rows of two lines had no first thing to read. */
@@ -723,6 +744,17 @@
     color var(--hover-duration) var(--hover-ease);
 }
 .component-remove:hover { background: var(--danger-light); color: var(--danger); }
+/* The lock, in the bin's own column and at the bin's own 26 px, so a row that
+   cannot be deleted lines up with the rows that can. Quiet rather than red: it
+   states a fact, it does not warn. No hover and no pointer — it is not a
+   button, and anything suggesting it could be pressed would be a lie; the
+   tooltip on it is the whole of what it has to offer. */
+.component-lock {
+  display: grid; place-items: center; width: 26px; height: 26px;
+  color: var(--text-quiet);
+}
+/* Still needed: a row with nothing installed has neither a bin nor a lock, and
+   the column has to keep its width or the size column moves. */
 .component-remove-space { display: block; width: 26px; }
 
 /* ---------------------------------------------------------------- dialog */

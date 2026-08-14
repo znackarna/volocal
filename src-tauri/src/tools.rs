@@ -766,6 +766,41 @@ pub fn remove_playback_proxies(db_path: &Path, recording_id: &str) {
     }
 }
 
+/// How many playback copies are being encoded right now.
+///
+/// It exists for one question, asked by the module listing: may ffmpeg be
+/// deleted? Every other program this application runs is owned by a registry
+/// that already answers it — `TranscriptionTask`, `AiEditTask`,
+/// `OnlineImportTask`, the waveform jobs — and this one is owned by nobody, as
+/// the comment at its only caller has said since it was written: it is prepared
+/// on demand when a finished transcript is opened.
+///
+/// A count rather than a flag, because two recordings can be prepared at once,
+/// and raised and lowered by a guard rather than by a line at the end — the same
+/// shape as `WaveformJob` and `INSTALLING`, and for the same reason: a panic in
+/// between would otherwise leave ffmpeg locked for the life of the process.
+static PLAYBACK_CONVERSIONS: std::sync::atomic::AtomicUsize =
+    std::sync::atomic::AtomicUsize::new(0);
+
+pub fn playback_conversion_running() -> bool {
+    PLAYBACK_CONVERSIONS.load(std::sync::atomic::Ordering::Relaxed) > 0
+}
+
+struct PlaybackConversion;
+
+impl PlaybackConversion {
+    fn begin() -> Self {
+        PLAYBACK_CONVERSIONS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        Self
+    }
+}
+
+impl Drop for PlaybackConversion {
+    fn drop(&mut self) {
+        PLAYBACK_CONVERSIONS.fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
+    }
+}
+
 /// Returns a source whose media timeline supports precise word-level seeking.
 ///
 /// Formats with their own accurate sample/index tables are played directly.
@@ -823,6 +858,8 @@ pub fn ensure_seekable_playback(
             "+faststart",
         ])
         .arg(&temporary);
+    // From here until this function returns, ffmpeg is working.
+    let _conversion = PlaybackConversion::begin();
     let outcome = runner.run(program)?;
     let Some((status, stderr)) = outcome else {
         // Killed mid-encode: the half-written temporary is ours alone, and

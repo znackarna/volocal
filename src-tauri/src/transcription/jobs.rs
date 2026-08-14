@@ -99,6 +99,17 @@ impl TranscriptionTask {
     pub fn is_running(&self, id: &str) -> bool {
         self.running.lock().unwrap().contains(id)
     }
+    /// Is any recording being worked on at all?
+    ///
+    /// Asked by the module listing, which needs to know whether the tools a
+    /// transcription uses may be deleted — *zámek jen u těch, které se
+    /// aktuálně používají*. It deliberately does not say *which* recording or
+    /// *which* stage: one worker runs ffmpeg, whisper and sherpa in turn and
+    /// writes down none of it, so the only honest answer while a job is alive
+    /// is that everything a job touches may be in use.
+    pub fn anything_running(&self) -> bool {
+        !self.running.lock().unwrap().is_empty()
+    }
     /// Kills every registered child, for when the window is closing.
     ///
     /// `std::process::Child` does not kill on `Drop`, and the worker threads
@@ -311,6 +322,33 @@ mod cancellation_tests {
         );
         assert!(task.was_cancelled("a"), "the request must survive the call");
         assert!(stop_if_cancelled(&task, "a").is_err());
+    }
+
+    /// What the module listing asks before it draws a bin: is anything at all
+    /// running? It is the same set `is_running` reads, asked without a name.
+    #[test]
+    fn the_registry_says_whether_anything_at_all_is_running() {
+        let task = TranscriptionTask::default();
+        assert!(
+            !task.anything_running(),
+            "an idle application locks nothing"
+        );
+
+        task.begin("a");
+        assert!(task.anything_running());
+        assert!(
+            !task.is_running("b"),
+            "which is not the same question as whether one particular recording is"
+        );
+
+        task.begin("b");
+        task.cleanup("a");
+        assert!(task.anything_running(), "the second one is still going");
+        task.cleanup("b");
+        assert!(
+            !task.anything_running(),
+            "and the lock comes off when the last worker ends"
+        );
     }
 
     #[test]

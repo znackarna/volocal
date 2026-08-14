@@ -214,6 +214,13 @@ impl AiEditTask {
         self.running.lock().unwrap().as_deref() == Some(recording_id)
     }
 
+    /// Is a document being written for any recording at all? Asked by the
+    /// module listing, which locks the language model and its runtime while
+    /// llama.cpp has them open.
+    pub fn anything_running(&self) -> bool {
+        self.running.lock().unwrap().is_some()
+    }
+
     pub fn current_progress(&self, recording_id: &str) -> Option<AiEditProgress> {
         self.progress
             .lock()

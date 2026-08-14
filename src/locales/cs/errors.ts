@@ -116,10 +116,10 @@ export const csErrors = {
   // Downloading modules.
   "errors.download.unknown_component": "Neznámý modul: {component}",
   "errors.download.already_running": "Stahování už běží.",
-  "errors.download.component_in_use":
-    "Tenhle model se právě používá. Vyberte nejdřív jiný, pak půjde smazat.",
+  "errors.download.component_busy": "Právě se používá. Až práce skončí, půjde smazat.",
   "errors.download.cannot_remove":
-    "Tuhle položku smazat nejde: sdílí složku s ostatními programy.",
+    "Aplikace neví, které soubory k této součásti patří. Po opětovném stažení " +
+    "ji smazat půjde.",
   "errors.download.remove_failed": "Smazat se nepodařilo: {detail}",
   "errors.download.cancelled": "Zrušeno",
   "errors.download.connection_failed": "Nepodařilo se spojit se serverem ({url})",
@@ -205,14 +205,18 @@ export const csErrors = {
 } as const;
 
 export const csErrorsContext: Partial<Record<keyof typeof csErrors, string>> = {
-  "errors.download.component_in_use":
-    "Odmítnutí, když uživatel chce smazat model, kterým se právě přepisuje " +
-    "nebo upravuje text. Věta má říct, co udělat — vybrat jiný — ne jen že to " +
-    "nejde. Na obrazovce se koš u takového řádku nekreslí; tohle je pojistka.",
+  "errors.download.component_busy":
+    "Odmítnutí, když uživatel chce smazat něco, co aplikace zrovna používá — " +
+    "běží přepis, převod zvuku, rozpoznávání mluvčích nebo jazyková úprava. " +
+    "Je to **stejná věta jako wizard.manual.lockedBusy**, protože je to jeden " +
+    "fakt řečený na dvou místech: v bublině zámku na řádku a tady, když se " +
+    "práce rozeběhne mezi vykreslením seznamu a stiskem. Přelož obě stejně.",
   "errors.download.cannot_remove":
-    "Odmítnutí u ffmpeg a Deno. Rozbalují se do společné složky s ostatními " +
-    "programy a nikde není zapsané, které soubory jsou čí, takže smazat " +
-    "„jen je“ nejde. Nemluv o chybě — je to hranice, ne porucha.",
+    "Odmítnutí u součásti nainstalované dřív, než si aplikace začala zapisovat " +
+    "seznam souborů; sdílí složku s ostatními programy, takže bez toho seznamu " +
+    "nejde smazat „jen ji“. To všechno je mechanismus a do věty nepatří. " +
+    "**Stejná věta jako wizard.manual.lockedUnlisted** — přelož obě stejně. " +
+    "Nemluv o chybě, je to hranice, ne porucha.",
   "errors.download.remove_failed":
     "Mazání selhalo na úrovni disku. {detail} je hlášení systému, nepřekládá se.",
   "errors.ai.empty_prompt":

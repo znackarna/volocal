@@ -44,6 +44,14 @@ impl OnlineImportTask {
         }
     }
 
+    /// Is an import happening? At most one ever is — `begin` refuses a second —
+    /// so this is the whole question. The module listing asks it before it
+    /// offers to delete yt-dlp, its JavaScript, or the ffmpeg that takes the
+    /// sound out of what they fetched.
+    pub fn is_running(&self) -> bool {
+        self.current.lock().unwrap().is_some()
+    }
+
     pub fn finish(&self, completed: &Arc<AtomicBool>) {
         let mut current = self.current.lock().unwrap();
         if current
