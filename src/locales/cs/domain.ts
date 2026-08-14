@@ -20,7 +20,7 @@ export const csDomain = {
   "domain.model.medium-q5_0": "Starší (zmenšený)",
   "domain.model.small": "Náhledový",
 
-  "domain.modelDescription.large-v3": "Whisper 3 Large. Téměř bezchybný přepis. Precizní časové značky slov.",
+  "domain.modelDescription.large-v3": "Whisper 3 Large. Kvalitnější přepis. Precizní časové značky slov.",
   "domain.modelDescription.large-v3-q5_0": "Whisper 3 Large q5_0. Třetinová náročnost, aplikace ho sama nenabízí.",
   "domain.modelDescription.large-v3-turbo-q5_0": "Whisper 3 Turbo. Rychlejší přepis. Zvuk může získat mírný skluz.",
   "domain.modelDescription.large-v3-turbo": "Whisper 3 Turbo. Bez zmenšení, tedy větší soubor.",
@@ -57,9 +57,11 @@ export const csDomainContext: Partial<Record<keyof typeof csDomain, string>> = {
   "domain.modelDescription.large-v3":
     "Popis pod názvem karty Přesný. **Napsal to majitel a je to převzaté " +
     "doslova** — nezjemňuj, nezostřuj, nepřeformulovávej. Whisper 3 Large je " +
-    "název modelu a v každém jazyce zůstává takhle. Pozor: „téměř bezchybný " +
-    "přepis“ nikdo neměřil, viz záznam změn ze 14. srpna 2026; kdo by to chtěl " +
-    "měnit, ať si nejdřív přečte ten den.",
+    "název modelu a v každém jazyce zůstává takhle. **„Kvalitnější“ je druhý " +
+    "stupeň schválně**: karta nad ní je Rychlý a věta říká, že tenhle model je " +
+    "lepší než tamten. Nedělej z toho absolutní tvrzení („bezchybný“, " +
+    "„nejlepší“) — na to by musel existovat standard, ke kterému to nikdo " +
+    "neměřil. Viz záznam změn ze 14. srpna 2026.",
   "domain.modelDescription.large-v3-turbo-q5_0":
     "Popis pod názvem karty Rychlý, taky **doslova od majitele**. „Mírný " +
     "skluz“ je jeho slovo pro to, čemu naměřená hodnota říká 3,34 s — viz " +

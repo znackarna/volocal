@@ -21,7 +21,7 @@ export const enCatalog: Partial<Record<keyof typeof csCatalog, string>> = {
   "catalog.model-large-q5.name": "Balanced model",
   "catalog.model-large-q5.description": "Whisper 3 Large q5_0. A third of the size; the app does not offer it.",
   "catalog.model-large.name": "Accurate model",
-  "catalog.model-large.description": "Whisper 3 Large. Almost flawless transcription. Precise word timestamps.",
+  "catalog.model-large.description": "Whisper 3 Large. Higher-quality transcription. Precise word timings.",
   "catalog.editor-vulkan.name": "Language editing on the graphics card",
   "catalog.editor-vulkan.description": "Local llama.cpp for AMD, Intel and NVIDIA via Vulkan.",
   "catalog.editor-cpu.name": "Language editing on the processor",

@@ -9,7 +9,7 @@ export const enDomain: Partial<Record<keyof typeof csDomain, string>> = {
   "domain.model.medium": "Older",
   "domain.model.medium-q5_0": "Older (smaller)",
   "domain.model.small": "Preview",
-  "domain.modelDescription.large-v3": "Whisper 3 Large. Almost flawless transcription. Precise word timestamps.",
+  "domain.modelDescription.large-v3": "Whisper 3 Large. Higher-quality transcription. Precise word timings.",
   "domain.modelDescription.large-v3-q5_0": "Whisper 3 Large q5_0. A third of the load; the app does not offer it.",
   "domain.modelDescription.large-v3-turbo-q5_0": "Whisper 3 Turbo. Faster transcription. The audio can drift slightly.",
   "domain.modelDescription.large-v3-turbo": "Whisper 3 Turbo. Without the size reduction, so a bigger file.",

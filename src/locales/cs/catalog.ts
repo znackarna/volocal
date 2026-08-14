@@ -30,7 +30,7 @@ export const csCatalog = {
   "catalog.model-large-q5.name": "Vyvážený model",
   "catalog.model-large-q5.description": "Whisper 3 Large q5_0. Třetinová velikost, aplikace ho sama nenabízí.",
   "catalog.model-large.name": "Přesný model",
-  "catalog.model-large.description": "Whisper 3 Large. Téměř bezchybný přepis. Precizní časové značky slov.",
+  "catalog.model-large.description": "Whisper 3 Large. Kvalitnější přepis. Precizní časové značky slov.",
 
   // Language editing.
   "catalog.editor-vulkan.name": "Jazyková úprava na grafické kartě",
@@ -80,8 +80,10 @@ export const csCatalogContext: Partial<Record<keyof typeof csCatalog, string>> =
   "catalog.model-large.description":
     "Táž věta jako na kartě Přesný v nastavení, schválně slovo od slova — jeden " +
     "model popsaný na dvou obrazovkách dvakrát jinak je to, co tenhle klíč " +
-    "dělal do 14. srpna 2026. Je od majitele a je převzatá doslova; " +
-    "„téměř bezchybný přepis“ nikdo neměřil, viz záznam změn z toho dne.",
+    "dělal do 14. srpna 2026. Je od majitele a je převzatá doslova. " +
+    "„Kvalitnější“ je druhý stupeň schválně — srovnává se s modelem Rychlý na " +
+    "kartě vedle — a nesmí se z toho stát absolutní tvrzení. Viz záznam změn " +
+    "z toho dne.",
   "catalog.editor-model-light.name":
     "Položka ke stažení. Objevuje se i ve větě „Stahuji {name}“, takže musí " +
     "sama o sobě říct, co to je — proto celé sousloví, ne jen „Menší“. Modely " +

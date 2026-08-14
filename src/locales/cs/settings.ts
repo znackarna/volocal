@@ -196,7 +196,7 @@ export const csSettings = {
 
   "settings.speakers.title": "Rozlišení mluvčích",
   "settings.speakers.description":
-    "Spustí rozlišení mluvčích během prvního přepisu.",
+    "Spouští rozlišení mluvčích během prvního přepisu.",
 
   // Copies of the archive database.
   "settings.backups.title": "Záloha archivu",
@@ -485,7 +485,12 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
     "Věta pod přepínačem. Odlišuje tenhle přepínač od tlačítka Rozpoznat " +
     "mluvčí u konkrétní nahrávky: tohle běží jako součást přepisu, tamto až " +
     "dodatečně na vyžádání. Pozor, doslova to platí i pro opakovaný přepis " +
-    "v jiném jazyce — viz záznam změn ze 14. srpna 2026.",
+    "v jiném jazyce — viz záznam změn ze 14. srpna 2026.\n" +
+    "**Nedokonavý vid je záměr**: „spouští“, ne „spustí“. Dokonavé sloveso " +
+    "popisuje jednu budoucí událost, což je tlačítko; nedokonavé popisuje, co " +
+    "se děje pravidelně, což je nastavení. Tahle věta stojí pod přepínačem, " +
+    "takže mluví o každé další nahrávce, ne o té příští. V jazycích bez vidu " +
+    "na to stačí prostý přítomný čas — anglicky „Runs“, ne „Will run“.",
 
   "settings.backups.latest": "Popisek údaje: kdy se záloha vytvořila naposledy.",
   "settings.backups.none": "Hodnota vedle „Poslední záloha“, dokud žádná není.",
