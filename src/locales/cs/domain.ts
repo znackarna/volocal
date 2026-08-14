@@ -20,15 +20,13 @@ export const csDomain = {
   "domain.model.medium-q5_0": "Starší (zmenšený)",
   "domain.model.small": "Náhledový",
 
-  "domain.modelDescription.large-v3": "Nejpřesnější čeština, nejnáročnější model. (3,1 GB)",
-  "domain.modelDescription.large-v3-q5_0":
-    "Srovnatelná kvalita, třetinová náročnost. (1,1 GB)",
-  "domain.modelDescription.large-v3-turbo-q5_0":
-    "Méně přesný, několikanásobně rychlejší. (575 MB)",
-  "domain.modelDescription.large-v3-turbo": "Rychlý bez zmenšení. (1,6 GB)",
-  "domain.modelDescription.medium": "Znatelně víc chyb ve jménech, nedoporučuje se. (1,5 GB)",
-  "domain.modelDescription.medium-q5_0": "Zmenšená starší generace. (539 MB)",
-  "domain.modelDescription.small": "Jen na rychlý náhled, hodně chyb. (488 MB)",
+  "domain.modelDescription.large-v3": "Nejpřesnější čeština, nejnáročnější model.",
+  "domain.modelDescription.large-v3-q5_0": "Srovnatelná kvalita, třetinová náročnost.",
+  "domain.modelDescription.large-v3-turbo-q5_0": "Méně přesný, několikanásobně rychlejší.",
+  "domain.modelDescription.large-v3-turbo": "Rychlý bez zmenšení.",
+  "domain.modelDescription.medium": "Znatelně víc chyb ve jménech, nedoporučuje se.",
+  "domain.modelDescription.medium-q5_0": "Zmenšená starší generace.",
+  "domain.modelDescription.small": "Jen na rychlý náhled, hodně chyb.",
 
   // Lower case: these appear inside sentences such as "přepsáno v čeština".
   // The interface capitalizes them through `capitalize` where a list needs it.

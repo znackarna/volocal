@@ -6,6 +6,7 @@ export const enSettings: Partial<Record<keyof typeof csSettings, string>> = {
   "settings.groups": "Settings groups",
   "settings.tab.transcription": "Transcription",
   "settings.tab.interface": "Interface",
+  "settings.tab.performance": "Performance",
   "settings.tab.tools": "Tools",
   "settings.tab.files": "Files",
   "settings.tab.updates": "Updates",
@@ -143,8 +144,8 @@ export const enSettings: Partial<Record<keyof typeof csSettings, string>> = {
   "settings.appearance.previewDiacritics": "Accents and ligatures: á é í ó ú â ê ô ä ö ü ç ñ æ œ",
   "settings.transcription.model": "Model",
   "settings.transcription.modelDescription": "Downloaded model.",
-  "settings.transcription.modelNote":
-    "Only models that are on this computer are offered. More are downloaded under Tools.",
+  "settings.transcription.modelNote": "A model you do not have is downloaded when you pick it.",
+  "settings.transcription.modelDownloading": "downloading…",
   "settings.transcription.language": "Recording language",
   "settings.transcription.languageNote": "Picking the language up front speeds up transcription. Leave it automatic for several languages.",
   "settings.transcription.beam": "Search thoroughness",

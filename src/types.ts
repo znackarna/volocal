@@ -423,6 +423,27 @@ export const EDITOR_MODELS: Record<string, string> = {
   "editor-model-light": "gemma-4-e2b-q4",
 };
 
+/** The two transcription models offered, by the catalogue component that
+ *  installs each — accurate first, which is `MODEL_IDS`' own order and the
+ *  order the wizard's two cards are drawn in.
+ *
+ *  The same shape and the same rule as `EDITOR_MODELS`: `Model` on `Přepis`
+ *  draws these two whether or not they are on the disk, and picking one that is
+ *  not fetches it. Anything else already installed — `large-v3-q5_0` on a
+ *  machine set up before 13 August 2026, or an older generation — is drawn
+ *  beside them off `check.found_models`, because a list that is partly an offer
+ *  and partly the disk must not hide what the disk holds.
+ *
+ *  `SetupWizard.tsx` keeps its own table with the same two components in it.
+ *  That one also carries the answer each writes to `quality_choice` and the
+ *  estimate shown beside it, neither of which belongs here; what must not drift
+ *  is the pairing of component to model file, and both sides name the same two
+ *  strings. */
+export const TRANSCRIPTION_MODELS: Record<string, string> = {
+  "model-large": "large-v3",
+  "model-turbo": "large-v3-turbo-q5_0",
+};
+
 /** Which of them the one question implies — the default, not the answer.
  *
  *  The wizard asks one thing, `rychle` or `přesně`, and this is that answer

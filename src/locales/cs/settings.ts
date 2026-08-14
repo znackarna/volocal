@@ -4,6 +4,7 @@ export const csSettings = {
   "settings.groups": "Skupiny nastavení",
   "settings.tab.transcription": "Přepis",
   "settings.tab.interface": "Rozhraní",
+  "settings.tab.performance": "Výkon",
   "settings.tab.tools": "Nástroje",
   "settings.tab.files": "Soubory",
   "settings.tab.updates": "Aktualizace",
@@ -172,8 +173,8 @@ export const csSettings = {
   // What Whisper is told to do.
   "settings.transcription.model": "Model",
   "settings.transcription.modelDescription": "Stažený model.",
-  "settings.transcription.modelNote":
-    "Nabízí jen modely, které jsou v počítači. Další se stahují v Nástrojích.",
+  "settings.transcription.modelNote": "Chybějící model se výběrem automaticky stáhne.",
+  "settings.transcription.modelDownloading": "stahuje se…",
   "settings.transcription.language": "Jazyk nahrávky",
   "settings.transcription.languageNote":
     "Předem vybraný jazyk urychlí přepis. U více jazyků nechte automatiku.",
@@ -275,10 +276,13 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
     "přepisu, jeho velikost). Nadřazený pojem pro obojí — jazyk není vzhled, " +
     "takže „Vzhled“ by tu bylo zkrácení. Jde o jazyk rozhraní, ne o jazyk " +
     "nahrávky; ten je na záložce Přepis.",
+  "settings.tab.performance":
+    "Název záložky s jedinou kartou: kde se přepis počítá, na grafické kartě " +
+    "nebo na procesoru. Je to výkon ve smyslu „na čem to poběží“, ne měření.",
   "settings.tab.tools":
-    "Název záložky, na které se vybírá, kde přepis počítá, a je vidět, co je " +
-    "v tomhle počítači stažené a kam se to ukládá. Nástroje jsou programy jako " +
-    "ffmpeg nebo whisper-cli a modely, které k nim patří, ne funkce aplikace.",
+    "Název záložky, na které je vidět, co je v tomhle počítači stažené a kam " +
+    "se to ukládá. Nástroje jsou programy jako ffmpeg nebo whisper-cli a " +
+    "modely, které k nim patří, ne funkce aplikace.",
   "settings.tab.files":
     "Název záložky, na které je složka pro nahrávky, sledovaná složka, zálohy " +
     "archivu a přenosná kopie. Všechno jsou to soubory a složky na disku. Dřív " +
@@ -432,6 +436,16 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
     "stejně jako záložka nad ní.",
   "settings.transcription.modelDescription":
     "Náhradní popis modelu, který aplikace nezná podle jména.",
+  "settings.transcription.modelNote":
+    "Věta pod kartami modelů. Je to **slib o chování**, ne popis toho, co je " +
+    "v seznamu: karta modelu, který v počítači není, ukazuje velikost a " +
+    "kliknutím se ten model rovnou stáhne. Nepřepisuj ji na větu o tom, co " +
+    "seznam obsahuje — dřív tam taková byla a posílala uživatele stahovat " +
+    "jinam.",
+  "settings.transcription.modelDownloading":
+    "Místo velikosti na kartě modelu, který se právě stahuje. Malé písmeno a " +
+    "tři tečky jsou jeden znak, stejně jako u ostatních průběhových textů. " +
+    "Vybraný zůstává pořád ten starý — přepne se, až je soubor stažený.",
   "settings.transcription.language":
     "Popisek volby jazyka nahrávky. Slovo „nahrávky“ je v něm schválně: o dvě karty dál stojí Jazyk aplikace a samotné „Jazyk“ se s ním pletlo.",
   "settings.transcription.beam":

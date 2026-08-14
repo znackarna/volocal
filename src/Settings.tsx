@@ -27,6 +27,7 @@ import {
   EDITOR_TIER,
   FONTS,
   MODEL_IDS,
+  TRANSCRIPTION_MODELS,
   UNOFFERED_COMPONENTS,
   applyFonts,
   applyTheme,
@@ -40,6 +41,7 @@ import type {
   ToolCheck,
   Settings,
   DownloadComponent,
+  DownloadProgress,
   DictionaryEntry,
 } from "./types";
 
@@ -284,20 +286,25 @@ const DECODING_FIELDS: ReadonlyArray<{
 type SettingsTab =
   | "transcription"
   | "interface"
+  | "performance"
   | "tools"
   | "files"
   | "updates"
   | "about";
 
-/* Reading order, and `updates` is last on purpose. It is the rarest thing
-   anybody opens Settings for — pressed a handful of times a year — and it had
-   been sitting between the archive's copies and the page about the
-   application, where its width of visibility did not match how often it is
-   wanted. Last is where a thing goes when it must be findable and is not
-   looked for. */
+/* Reading order. `performance` sits before `tools` because where the
+   transcription runs belongs nearer the transcript than the inventory of what
+   is installed does — one is about the work, the other about the disk.
+
+   And `updates` is last on purpose. It is the rarest thing anybody opens
+   Settings for — pressed a handful of times a year — and it had been sitting
+   between the archive's copies and the page about the application, where its
+   width of visibility did not match how often it is wanted. Last is where a
+   thing goes when it must be findable and is not looked for. */
 const SETTINGS_TABS: SettingsTab[] = [
   "transcription",
   "interface",
+  "performance",
   "tools",
   "files",
   "about",
@@ -314,16 +321,27 @@ const SETTINGS_TABS: SettingsTab[] = [
  *  headed with its own tab's name is a heading that has not been chosen.
  *
  *  So: no tab name is a card name and no card name is a tab name, and neither
- *  side reads the other's key. It costs six keys and buys the thing that broke
- *  twice in one day. */
+ *  side reads the other's key. `settings.tab.performance` and
+ *  `settings.compute.title` are the price paid twice over — both say `Výkon`,
+ *  one for a tab and one for the single card on it — and paying it is still
+ *  cheaper than the thing that broke twice in one day. */
 const SETTINGS_TAB_KEYS: Record<SettingsTab, TranslationKey> = {
   transcription: "settings.tab.transcription",
   interface: "settings.tab.interface",
+  performance: "settings.tab.performance",
   tools: "settings.tab.tools",
   files: "settings.tab.files",
   updates: "settings.tab.updates",
   about: "settings.tab.about",
 };
+
+/** Where a transcription model picked before it was downloaded is remembered.
+ *
+ *  Not in the settings record, which is the whole point: `settings.model` names
+ *  a file that must exist. Not in React state either, because the reader is
+ *  free to leave while several gigabytes come down and the promise has to
+ *  survive that. */
+const MODEL_WANTED = "model-wanted";
 
 /** The models on disk arrive sorted by file name, which is not an order
  *  anybody reads. They are shown in the order the interface offers them —
@@ -417,6 +435,10 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
   const [copiedFile, setCopiedFile] = useState("");
   const [copyComplete, setCopyComplete] = useState<number | null>(null);
   const [dictionary, setDictionary] = useState<DictionaryEntry[]>([]);
+  /** A transcription model picked before it was on the disk. Mirrors
+   *  `localStorage[MODEL_WANTED]`, which is where it actually lives — see
+   *  `load`, which is the only thing that turns it into `settings.model`. */
+  const [modelWanted, setModelWanted] = useState(() => localStorage.getItem(MODEL_WANTED) ?? "");
   /** What the archive holds, as opposed to what is in the fields. A row is
    *  edited in place, so `dictionary` follows every keystroke; this follows
    *  only what was saved, and is what a row with an emptied side goes back to. */
@@ -523,8 +545,43 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
 
   const load = useCallback(async () => {
     try {
-      setN(await api.loadSettings());
-      setCheck(await api.checkTools());
+      const settings = await api.loadSettings();
+      const tools = await api.checkTools();
+      /* A model picked while it was still downloading becomes the model in
+         force here, and only here — the moment the file is on the disk and not
+         a moment before.
+
+         `settings.model` names a file and `tools.rs` resolves it strictly as
+         `ggml-{model}.bin` with no fallback, so writing it at the press would
+         leave the application demanding a model it had not fetched. That is not
+         hypothetical: the wizard's by-hand path did exactly that and reopened
+         itself as required, which is written up in `SetupWizard.tsx`.
+
+         The intent lives in `localStorage` rather than in the settings record
+         precisely because the settings record is the thing that must not be
+         touched yet, and because it has to survive the reader walking away —
+         out of Settings, out of the application. Whatever they do while the
+         gigabytes come down, the model changes when the file lands and the old
+         one goes on working until it does. A download that fails or is
+         cancelled never reaches this branch, and `Rychlý`/`Přesný` clears the
+         intent when a different card is pressed. */
+      const wanted = localStorage.getItem(MODEL_WANTED) ?? "";
+      if (wanted && tools.found_models.includes(wanted)) {
+        localStorage.removeItem(MODEL_WANTED);
+        setModelWanted("");
+        if (settings.model !== wanted) {
+          const withModel = { ...settings, model: wanted };
+          await api.saveSettings(withModel);
+          setN(withModel);
+          setCheck(await api.checkTools());
+        } else {
+          setN(settings);
+          setCheck(tools);
+        }
+      } else {
+        setN(settings);
+        setCheck(tools);
+      }
       setModules(await api.catalog());
       setMachine(await api.machineName());
       const saved = await api.dictionary();
@@ -538,6 +595,22 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
   useEffect(() => {
     load();
   }, [load]);
+
+  /* A download finishing while this screen is open. Every completion reloads,
+     which is cheap and covers the two things that change: a model becoming
+     available, and the band that says whether anything is still missing.
+     Nothing depends on this listener being alive — `load` does the same work
+     when Settings is next opened — so leaving the screen mid-download loses
+     nothing but the immediacy. */
+  useEffect(() => {
+    if (!modelWanted) return;
+    const unlisten = listen<DownloadProgress>("download:progress", (event) => {
+      if (event.payload.phase === "complete") void load();
+    });
+    return () => {
+      void unlisten.then((stop) => stop());
+    };
+  }, [modelWanted, load]);
 
   const save = useCallback(
     async (nove: Settings) => {
@@ -607,6 +680,59 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
   const missingRequired = check?.issues ?? [];
   const installed = (id: string) => modules.some((module) => module.id === id && module.complete);
   const megabytes = (id: string) => modules.find((module) => module.id === id)?.megabytes ?? 0;
+
+  /* ---------------------------------------------------- transcription model
+     The two that are offered, plus whatever else is on the disk, in one list
+     sorted best first. A model file appearing twice is impossible: the offered
+     pair is keyed by file name and `found_models` is deduplicated against it.
+
+     The size comes from the catalogue and only from there. It used to be
+     written into each `domain.modelDescription.*` sentence by hand, where it
+     had already drifted — `large-v3` said 3,1 GB against the catalogue's
+     3095 MB, which rounds to 3,0. */
+  const offeredModels = Object.entries(TRANSCRIPTION_MODELS);
+  const modelCards = [
+    ...new Set([...Object.values(TRANSCRIPTION_MODELS), ...(check?.found_models ?? [])]),
+  ]
+    .sort(byModelOrder)
+    .map((id) => {
+      const component = offeredModels.find(([, model]) => model === id)?.[0];
+      return {
+        id,
+        component,
+        installed: (check?.found_models ?? []).includes(id),
+        megabytes: component ? megabytes(component) : 0,
+      };
+    });
+
+  /** Picking a model. On the disk it takes effect at once; missing, it starts
+   *  the download and takes effect when the file lands — see `load`, which is
+   *  the only place `settings.model` is written from an intent.
+   *
+   *  The download runs behind this screen, as every download in this
+   *  application does: `download` in `downloads.rs` starts a thread and
+   *  returns, the progress bubble reports it, and it can be stopped from
+   *  there. Pressing a card cannot be undone by pressing another — the bytes
+   *  are already coming — but the *choice* can, which is what clearing the
+   *  intent does: whatever lands, the model in force is the last one pressed
+   *  that is actually there. */
+  const chooseModel = async (card: { id: string; component?: string; installed: boolean }) => {
+    if (card.installed) {
+      localStorage.removeItem(MODEL_WANTED);
+      setModelWanted("");
+      await save({ ...n, model: card.id });
+      return;
+    }
+    if (!card.component || card.id === modelWanted) return;
+    try {
+      await api.download([card.component]);
+      localStorage.setItem(MODEL_WANTED, card.id);
+      setModelWanted(card.id);
+      setModules(await api.catalog());
+    } catch (e) {
+      onError(userMessage(e));
+    }
+  };
 
   /* ------------------------------------------------------ language editing
      Two cards, and the runtime that runs whichever is chosen. That runtime is
@@ -858,8 +984,18 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
 
           `check.compute` is `choose_compute`'s answer and `n.compute` is what
           was asked for; where they differ, one sentence says why and, when the
-          reason is a build that is not downloaded, offers it. */}
-      {activeTab === "tools" && check && <section className="settings-card-compute">
+          reason is a build that is not downloaded, offers it.
+
+          It has a tab to itself now — *dejme výkon zvlášť* — which leaves it the
+          only card on it, and so with a heading repeating the tab directly
+          above. That is the `Aktualizace` shape and it takes the `Aktualizace`
+          answer: an exact match misleads when a card claims the tab's name while
+          siblings sit under it, and there are none here. Dropping the heading
+          would make this the only card in Settings without one that is not a
+          disclosure, and would leave the two single-card tabs behaving
+          differently from each other, which is worse than saying one word
+          twice. */}
+      {activeTab === "performance" && check && <section className="settings-card-compute">
         <h2>{t("settings.compute.title")}</h2>
         <p className="settings-section-description">{t("settings.compute.description")}</p>
 
@@ -1496,9 +1632,7 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
           The opening sentence went with the old heading. It read *Model,
           kterým se nahrávky přepisují*, which under a heading reading `Model`
           is the heading again with a relative clause; the tab it sits on says
-          `Přepis`, so the clause was carrying nothing either. The note under
-          the list is what is left, and it says the thing a reader cannot see:
-          where the models that are not here come from. */}
+          `Přepis`, so the clause was carrying nothing either. */}
       {activeTab === "transcription" && <section className="settings-card-transcription">
         <h2>{t("settings.transcription.model")}</h2>
 
@@ -1506,46 +1640,56 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
           {/* Cards rather than a dropdown: what separates these models is what
               they do with time and accuracy, and that does not fit on a line.
 
-              What is listed is `check.found_models`, read off the disk, so a
-              card here can always be pressed and pressing one downloads
-              nothing. That is worth stating because the two cards below on
-              `Jazyková úprava` behave the other way round — they are a fixed
-              pair and pressing one may fetch gigabytes — and the note under
-              this list says which of the two kinds this is, and where the
-              others are got.
+              **This list is an offer, not an inventory.** `Přesný` and `Rychlý`
+              are always on it and pressing one that is not downloaded fetches
+              it — *chybějící model se výběrem automaticky stáhne* — which is the
+              same shape the two cards on `Jazyková úprava` have and the reason
+              they were built that way first. Before that the list was
+              `found_models` alone and the note sent the reader to another tab
+              to get anything else, which is two screens for one decision.
 
-              It is also what keeps a machine set up before 14 August 2026
-              working: `settings.model` may hold `large-v3-q5_0`, the middle
-              model nothing offers any more, and because the list is the disk
-              rather than an offer it is still shown, still named by
-              `domain.model.large-v3-q5_0`, and still the chosen card. */}
+              Anything else already on the disk is drawn beside them, sorted
+              into the same order: `large-v3-q5_0` on a machine set up before
+              13 August 2026, an older generation, anything a hand put there. A
+              list that is partly an offer must not hide what the disk holds, or
+              a reader whose model is not one of the two would find their own
+              choice missing from the screen that names it. */}
           <div className="choices model-choices">
-            {(check?.found_models.length
-              ? [...check.found_models].sort(byModelOrder)
-              : [n.model]
-            ).map((m) => (
+            {modelCards.map((card) => (
               <button
-                key={m}
-                className={`choice with-icon ${n.model === m ? "chosen" : ""}`}
-                onClick={() => save({ ...n, model: m })}
-                aria-pressed={n.model === m}
+                key={card.id}
+                className={`choice with-icon ${n.model === card.id ? "chosen" : ""}`}
+                onClick={() => void chooseModel(card)}
+                aria-pressed={n.model === card.id}
               >
                 <span className="choice-icon" aria-hidden>
-                  <ModelMark id={m} />
+                  <ModelMark id={card.id} />
                 </span>
                 <span className="choice-body">
-                  <span className="choice-title">{labels.model(m)}</span>
+                  <span className="choice-title">{labels.model(card.id)}</span>
                   <span className="small-text">
-                    {labels.modelDescription(m, t("settings.transcription.modelDescription"))}
+                    {labels.modelDescription(
+                      card.id,
+                      t("settings.transcription.modelDescription")
+                    )}
                   </span>
+                </span>
+                {/* The same slot the language-editing cards use, with a third
+                    state they do not need: a model can be on its way. While it
+                    is, the card that is in force keeps the highlight — the
+                    setting follows the file, so nothing has changed yet. */}
+                <span className="choice-size">
+                  {card.installed
+                    ? t("wizard.download.downloadedBadge")
+                    : card.id === modelWanted
+                      ? t("settings.transcription.modelDownloading")
+                      : formats.dataSize(card.megabytes)}
                 </span>
                 {/* A `používá se` badge stood here, on the card already drawn
                     as chosen. Checked rather than assumed before deleting it:
-                    the list is `found_models`, so the badge appears exactly on
-                    the card `n.model` names and that card is the chosen one.
-                    Where the stored model is not on the disk at all no card is
-                    chosen — and the badge did not render there either, so it
-                    never said anything the highlight did not. */}
+                    the badge appeared exactly on the card `n.model` names and
+                    that card is the chosen one, so it never said anything the
+                    highlight did not. */}
               </button>
             ))}
           </div>

@@ -108,18 +108,21 @@
 .settings-card-language-edit { order: 4; }
 .settings-card-dictionary { order: 5; }
 .settings-card-advanced { order: 6; }
-/* Výkon a modely, in the order the tab's own name states: where the work runs,
-   then whether what it needs is downloaded, then where that is kept. The band
-   used to lead and the compute card followed; the owner named the tab and the
-   name settles the order, which is the better rule anyway — a reader arriving
-   at a tab called `Výkon a modely` should meet `Výkon` first. */
+/* Výkon holds one card, and it still gets a number: without a rule it takes
+   `order: 0` and the next card put beside it jumps above whatever asked for 1.
+   That is the defect this whole block exists to prevent, and a tab with one
+   card is exactly where somebody would think the rule is not needed. */
 .settings-card-compute { order: 1; }
-.settings-card-modules { order: 2; }
-.settings-card-locations { order: 3; }
+/* Nástroje: whether what is needed is downloaded, then where it is kept, then
+   what was found where. The compute card led this tab until `Výkon` was given
+   one of its own; these three were always the rest of it and their order is
+   unchanged — only their numbers moved up. */
+.settings-card-modules { order: 1; }
+.settings-card-locations { order: 2; }
 /* Last, and folded away: what the application found where. The same place
    `settings-card-advanced` takes on `Přepis`, because the two are the same kind
    of block — everything a reader does not need and must be able to reach. */
-.settings-card-diagnostics { order: 4; }
+.settings-card-diagnostics { order: 3; }
 /* Every card on a tab needs a number here, and the recordings folder had none:
    without a rule it takes `order: 0` and sorts above cards that asked for 1, so
    it rendered over the portable-mode banner no matter where the JSX put it.
