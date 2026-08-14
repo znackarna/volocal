@@ -16,7 +16,7 @@ import ConfirmationDialog from "./ConfirmationDialog";
 import type { ConfirmationRequest } from "./ConfirmationDialog";
 import CountdownRing from "./CountdownRing";
 import InfoNote from "./InfoNote";
-import { LineIcon, type LineIconName } from "./icons";
+import { LineIcon, ModelMark, type LineIconName } from "./icons";
 import { ClipboardRefused, copyPlainText } from "./detail/clipboard";
 import Select from "./Select";
 import { useI18n, type AppLanguage } from "./i18n";
@@ -27,6 +27,7 @@ import {
   EDITOR_TIER,
   FONTS,
   MODEL_IDS,
+  UNOFFERED_COMPONENTS,
   applyFonts,
   applyTheme,
   qualityChoice,
@@ -67,33 +68,98 @@ interface Props {
 
 /* `EDITOR_CHOICES` stood here: three cards, `Úsporná`, `Doporučená`,
    `Nejvyšší kvalita`, each with a sentence about what it does better. Two
-   things were wrong with it and only one of them is about layout.
+   things were wrong with it, and both were settled on 14 August 2026.
 
-   The owner's decision is that there is one question and everything follows
-   from it — *na začátku si vybere jestli chce rychle nebo přesné výstupy* —
-   so the language editor is no longer something to choose. Its size follows
-   the answer given in the wizard: `EDITOR_TIER` in `types.ts`.
+   There is no chooser because there is one question in the whole application:
+   *volba v průvodci bude jednoduchá, rychle nebo přesně; zbytek se zvolí podle
+   toho, to samé jazyková úprava*. Two models rather than three, and which one
+   follows the answer already given — `EDITOR_TIER` in `types.ts`. A picker on
+   this screen would be a second place deciding one thing, free to disagree with
+   the first, so there is none: the card names the model and asks only whether
+   the reader wants the feature.
 
-   The other is that those sentences could not be supported. `docs/history/`
-   contains no comparison of the three models' output — the only inference ever
-   recorded was run with the 12B model alone, because it was the only one
-   installed — and the entry that gave the three cards their counted sparkles
-   states outright that they "trade nothing; they do the same work with more of
-   it". `Lépe opravuje zjevné chyby` and `Nejspolehlivější` were therefore the
-   same kind of claim as the middle transcription model's *asi jedna chyba na
-   odstavec*, which was deleted on 13 August for being measured nowhere. They
-   are not replaced with a smaller claim; nothing is claimed, because nothing
-   is known. What is known is how large the file is, and that is what the one
-   sentence before the download says.
+   The sentences were the other thing, and they are not coming back. There is no
+   comparison of these models' output anywhere in `docs/history/` — the only
+   inference ever recorded was run with the 12B model alone, because it was the
+   only one installed — and the entry that gave the three cards their counted
+   sparkles states outright that they "trade nothing; they do the same work with
+   more of it". `Lépe opravuje zjevné chyby` and `Nejspolehlivější` were
+   therefore the same kind of claim as the middle transcription model's *asi
+   jedna chyba na odstavec*, deleted on 13 August for being measured nowhere.
+   Nothing is claimed about what comes out. The names, which come from the
+   catalogue so the by-hand list says the same words, name what a file's size
+   does decide: memory and time.
 
-   `EditorMark`, the sparkle counted out one to three, went with them. The
-   14 August decision supersedes the 5 August one: a mark that says "more of
-   the same" is right only where there are three things to tell apart. */
+   `EditorMark`, the sparkle counted out one to three, went with the cards: a
+   mark that says "more of the same" is right only where there are three things
+   to tell apart, and it would be a quality claim by a different means. */
 
-/* `COMPUTE_CHOICES` stood here too — four cards choosing where transcription
-   runs. The machine picks its backend from its drivers, exactly as the wizard
-   already picks the programs, so there is nothing to choose. What the card on
-   `Nástroje` does now is say which one actually ran. */
+/** How each language-editing model is drawn and named on its card.
+ *
+ *  One square at three sizes: size is the only thing known about the difference
+ *  between these models, so it is the only thing the drawing says — see the
+ *  comment on the three glyphs in `icons.tsx`. The middle one is here for the
+ *  machines that hold it; nothing fetches it, and a model the screen names has
+ *  to have a mark like its neighbours or the mark starts to look like a rank.
+ *
+ *  The names are one word each and are **not** the catalogue's. Under a heading
+ *  reading `Jazyková úprava` the noun is supplied and `Menší` is right; in
+ *  `Stahuji {name}` and in the by-hand list the name stands alone and has to
+ *  say what the thing is, which is why the catalogue calls the same component
+ *  `Menší model jazykové úpravy`. Two jobs, two strings. The sentence under each
+ *  card is still the catalogue's, because that one reads correctly in both. */
+const EDITOR_CARDS: Record<string, { icon: LineIconName; title: TranslationKey }> = {
+  "editor-model-light": { icon: "sizeSmall", title: "settings.editor.modelSmall" },
+  "editor-model-balanced": { icon: "sizeMedium", title: "settings.editor.modelMiddle" },
+  "editor-model-best": { icon: "sizeLarge", title: "settings.editor.modelLarge" },
+};
+
+/* `COMPUTE_CHOICES` stood here — four cards, one per whisper.cpp build, and
+   two of them were CUDA and Vulkan. Those are not a question anybody should be
+   asked: they are two builds of the same thing for two kinds of graphics card,
+   and which suits the card in this machine is a fact about its drivers.
+   Choosing wrong was not merely useless, it was quiet — a stored `cuda` beside
+   an AMD card ran a build that found no device and transcribed on the
+   processor, while the screen went on saying `používá se` about the card.
+
+   What is left is the question the reader can answer: the processor, the card,
+   or neither — automatic, which takes the fastest build this machine can run
+   and is what a fresh installation has. Three positions of one value, so a
+   segmented control rather than three framed cards. */
+const COMPUTE_CHOICES = [
+  { value: "gpu", icon: "graphicsCard", title: "settings.compute.modeGpu",
+    note: "settings.compute.modeGpuNote" },
+  { value: "cpu", icon: "compute", title: "settings.compute.modeCpu",
+    note: "settings.compute.modeCpuNote" },
+] as const satisfies ReadonlyArray<{
+  value: string;
+  icon: LineIconName;
+  title: TranslationKey;
+  note: TranslationKey;
+}>;
+
+/** Which of them a stored value stands for, or none of them.
+ *
+ *  None is automatic, and automatic is the resting state: a fresh installation
+ *  has it, and it is where `Automaticky` puts a machine back. It is not a third
+ *  card, because it is not a third place for the work to happen — it is the
+ *  absence of a decision, and the panel under the cards says what the drivers
+ *  made of it.
+ *
+ *  Settings written before 14 August 2026 name a build — `cuda` or `vulkan` —
+ *  and both are the reader having asked for the graphics card, which is what
+ *  this screen now calls that. They are left in the settings record rather than
+ *  rewritten on sight: `choose_compute` honours them where the machine can run
+ *  them, and a screen that quietly edited a stored value while merely being
+ *  looked at would be a worse habit than a two-word translation here. The first
+ *  press of either card replaces them with the new vocabulary.
+ *
+ *  Anything else — an empty value, a name from some future build — is
+ *  automatic, which is what `choose_compute` also does with it. */
+function computeMode(stored: string): "auto" | "gpu" | "cpu" {
+  if (stored === "cpu") return "cpu";
+  return stored === "gpu" || stored === "cuda" || stored === "vulkan" ? "gpu" : "auto";
+}
 
 /** Which downloadable module corresponds to which compute backend. */
 const COMPUTE_MODULES: Record<string, string> = {
@@ -116,11 +182,11 @@ const COMPUTE_MODULES: Record<string, string> = {
  *  The two folders in that block are deliberately not here — see the comment
  *  where the block is drawn.
  *
- *  `compute` left this list with the control it belonged to. A default is only
- *  worth restoring where the reader can see what it restores, and a badge
- *  saying `upraveno` about a value with no control on the screen is a badge
- *  nobody can act on. The one way back to `auto` is on `Nástroje`, beside the
- *  line that says what actually ran. */
+ *  `compute` is not here, and now has a control again — on `Nástroje`, beside
+ *  the line that says what actually ran. It stays out because `Zpět na výchozí`
+ *  restores what this block shows: a badge reading `upraveno` about a control
+ *  on another tab, and a button that quietly moved it, would be a reset nobody
+ *  watching it could see. Automatic is one press away where the control is. */
 const ADVANCED_DEFAULTS = {
   beam: 5,
   threshold_silence: 0.6,
@@ -285,39 +351,10 @@ function Filled({
   );
 }
 
-/** Icon reflecting what the model is known for: speed, balance or accuracy.
- *  1.6 stroke on a 22 square, like the rest of the UI. */
-function ModelMark({ id }: { id: string }) {
-  const drawing = id.includes("turbo")
-    ? // lightning — speed
-      "M13 3L5.5 13.2h5L10 21l7.5-10.2h-5L13 3Z"
-    : id.includes("q5") || id.includes("q4")
-      ? // scales — a balance struck
-        "M12 4v16 M7 20h10 M4 8h16 M4 8l-2.5 6h5L4 8 M20 8l-2.5 6h5L20 8"
-      : id.includes("medium") || id.includes("small")
-        ? // a smaller circle — a smaller model
-          "M12 6a6 6 0 1 0 0 12 6 6 0 0 0 0-12Z"
-        : // target — highest accuracy
-          "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z M12 11.4a0.6 0.6 0 1 0 0 1.2 0.6 0.6 0 0 0 0-1.2Z";
-
-  return (
-    <svg
-      width="22"
-      height="22"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.6"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      {drawing.split(" M").map((segment, i) => (
-        <path key={i} d={i === 0 ? segment : `M${segment}`} />
-      ))}
-    </svg>
-  );
-}
+/* `ModelMark` stood here and is in `src/icons.tsx` now, unchanged. The wizard's
+   two quality cards draw the same two models this screen lists, and the same
+   model must not wear one drawing on the first screen and another on the
+   fifth — so the drawing lives where the shared icons live. */
 
 /** One toggle pattern for section switches, field switches and card footers. */
 /** Native disclosure shared by advanced transcription and module diagnostics. */
@@ -360,7 +397,7 @@ function SettingsDisclosure({
 export default function SettingsScreen({ onComplete, onError, onInfo, onToModule }: Props) {
   const labels = useLabels();
   const formats = useFormats();
-  const { language, setLanguage, t, tPlural, formatNumber } = useI18n();
+  const { language, setLanguage, t, tDynamic, tPlural, formatNumber } = useI18n();
   const userMessage = useUserMessage();
   const [n, setN] = useState<Settings | null>(null);
   const [check, setCheck] = useState<ToolCheck | null>(null);
@@ -563,32 +600,58 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
   const megabytes = (id: string) => modules.find((module) => module.id === id)?.megabytes ?? 0;
 
   /* ------------------------------------------------------ language editing
-     Which model, and what is still missing before it can run. The tier comes
-     from the wizard's one question; the runtime comes from the drivers, the
-     same way `tools.rs` looks for `llama-cli`. Nobody is asked either. */
-  const editorTier = EDITOR_TIER[qualityChoice(n)];
+     Two cards, and the runtime that runs whichever is chosen. That runtime is
+     not a choice: it follows the drivers, the same way `tools.rs` looks for
+     `llama-cli`, so it is folded into the size a card shows rather than being a
+     row of its own. */
   const editorRuntime = check?.vulkan_driver ? "editor-vulkan" : "editor-cpu";
-  const editorNeeds = [editorTier, editorRuntime].filter((id) => !installed(id));
-  const editorNeedsMb = editorNeeds.reduce((total, id) => total + megabytes(id), 0);
-  /** A model on the disk, the implied tier first — this is what the switch
-   *  turns on. A machine set up before today may hold the middle model and
-   *  nothing else, and that one still works; it is simply never fetched. */
-  const editorOnDisk = [editorTier, ...Object.keys(EDITOR_MODELS)].find(installed);
-  const hasEditor = !!editorOnDisk;
-
-  /** One press: fetch what is missing and record that the feature is wanted.
+  /** What the wizard's one question implies. It is the default and it is badged
+   *  as such — not the answer. A card pressed here is stored in `editor_model`
+   *  and wins over it, exactly as the transcription model chosen a card above
+   *  wins over the one the wizard downloaded. */
+  const editorTier = EDITOR_TIER[qualityChoice(n)];
+  /** The cards, smallest first, straight out of the catalogue — so the name and
+   *  the sentence under it are the ones the by-hand list uses and there is one
+   *  place to change them. The middle model appears only where it is already on
+   *  the disk: a machine set up before 14 August 2026 may be running on it, and
+   *  a card it is not drawn on could not say so. */
+  const editorCards = Object.keys(EDITOR_MODELS)
+    .map((id) => modules.find((module) => module.id === id))
+    .filter((module): module is DownloadComponent => !!module)
+    .filter((module) => module.complete || !UNOFFERED_COMPONENTS.includes(module.id))
+    .map((module) => {
+      const needs = [module.id, editorRuntime].filter((id) => !installed(id));
+      return {
+        ...module,
+        needs,
+        needsMb: needs.reduce((total, id) => total + megabytes(id), 0),
+      };
+    });
+  /** Which card is chosen. One of them always is: an explicit pick if there has
+   *  been one, and the tier the wizard's answer implies until then.
    *
-   *  The download runs in the background — `download` in `downloads.rs`
-   *  returns as soon as the thread is started — so the reader stays on this
-   *  screen and the application's own progress bubble reports it. The setting
-   *  is written straight away rather than when the file lands: it says what
-   *  was asked for, `resolve_editor_model` in `tools.rs` falls back to any
+   *  `editor_model` is empty on a machine where nobody has ever asked for a
+   *  document, and that means *nothing downloaded yet* — not *the reader
+   *  declined*. Nothing anywhere reads it as a refusal: `Detail.tsx` offers the
+   *  download when it is empty, and `tools.rs` simply resolves no model and
+   *  reports no fault. So an empty value can be drawn as the default card
+   *  without claiming the reader chose it. */
+  const editorChosen =
+    Object.keys(EDITOR_MODELS).find((id) => EDITOR_MODELS[id] === n.editor_model) ?? editorTier;
+
+  /** Choosing a model: fetch whatever it still needs, and record the choice.
+   *
+   *  The download runs in the background — `download` in `downloads.rs` returns
+   *  as soon as the thread is started — so the reader stays on this screen and
+   *  the application's own progress bubble reports it, with a way to stop. The
+   *  setting is written straight away rather than when the file lands: it says
+   *  what was asked for, `resolve_editor_model` in `tools.rs` falls back to any
    *  model that is actually there, and a listener that had to survive the
    *  reader walking to another screen would not. */
-  const downloadEditor = async () => {
+  const chooseEditor = async (id: string, needs: string[]) => {
     try {
-      if (editorNeeds.length > 0) await api.download(editorNeeds);
-      await save({ ...n, editor_model: EDITOR_MODELS[editorTier] });
+      if (needs.length > 0) await api.download(needs);
+      await save({ ...n, editor_model: EDITOR_MODELS[id] });
       setModules(await api.catalog());
     } catch (e) {
       onError(userMessage(e));
@@ -598,32 +661,32 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
   /* --------------------------------------------------------- where it runs
      `check.compute` is what `choose_compute` answered, which is the folder the
      next transcription's `whisper-cli` comes out of — not what is stored. The
-     two differ exactly when the stored one cannot be used, and that is the
-     case worth saying out loud now that nothing on this screen sets it. */
+     two differ exactly when the stored choice cannot be honoured here, and
+     saying that out loud is what this card is for. */
   const computeRunning = check?.compute ?? "";
   const onGraphicsCard = computeRunning === "cuda" || computeRunning === "vulkan";
   const hasGraphicsDriver = !!(check?.nvidia_driver || check?.vulkan_driver);
-  /** A backend named by hand, by a build that still had the control. Nothing
-   *  writes anything but `auto` now, so this is only ever a leftover — and it
-   *  is a leftover that decides where every transcription runs, which is why
-   *  the card says so and offers the way back. */
-  const computePinned = !!n.compute && n.compute !== "auto";
-  /** …and that leftover names something this machine will not run: the driver
-   *  is missing, or the build was never downloaded. `choose_compute` quietly
-   *  used something else, and until now the screen went on showing the choice
-   *  rather than the consequence. */
-  const computeSubstituted = computePinned && n.compute !== computeRunning;
+  const computeChoice = computeMode(n.compute);
   const graphicsCardBackend = check?.nvidia_driver ? "cuda" : "vulkan";
-  /** A graphics card is in the machine and the transcription is not using it.
-   *  With nothing pinned, `choose_compute` would have taken it if the build
-   *  were on the disk — so the build is what is missing. */
+  /** The graphics card is idle: either automatic would have taken it, or it was
+   *  asked for outright, and in both cases it is not what ran. With the driver
+   *  present that can only mean the build for it was never downloaded — which
+   *  is a thing the reader can fix from here, so the row carries a button. */
   const graphicsCardIdle =
-    !computePinned &&
+    computeChoice !== "cpu" &&
     hasGraphicsDriver &&
     !onGraphicsCard &&
     !!computeRunning &&
     !(check?.available_compute_backends ?? []).includes(graphicsCardBackend);
-  const graphicsCardModule = COMPUTE_MODULES[graphicsCardBackend];
+  /** And the other direction: a machine set up before the processor build
+   *  joined every first run has only the graphics one, so asking for the
+   *  processor there leaves the transcription running on the card. Unreachable
+   *  before this card had a control; one press away now, so it has to be said. */
+  const processorIdle = computeChoice === "cpu" && onGraphicsCard;
+  /** Something was picked and is not what ran. The chosen card says so itself —
+   *  it is the one case where the card has to contradict the choice drawn on
+   *  it, and the sentence under the panel carries the reason. */
+  const computeRefused = computeChoice !== "auto" && (graphicsCardIdle || processorIdle);
 
   /* Whether anything folded away has been moved off its default. The badge and
      the reset button are one question asked twice, so they are one expression:
@@ -747,25 +810,83 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
         {check && <ToolDiagnostics k={check} onInfo={onInfo} onError={onError} />}
       </section>}
 
-      {/* Where the transcription actually ran.
+      {/* Where the transcription computes — the choice, and then what actually
+          ran because of it.
 
-          Not a control and deliberately shaped like one of the About page's
-          panels rather than like the four choice cards it replaces. Nobody
-          picks a backend any more, so the only thing left worth knowing is
-          which one is being used — and that is a fact about this machine,
-          which is the tab it is on.
+          The owner asked for the switch back after seeing the version without
+          one: `Kde přepis běží a tam bych dal CPU a GPU možnost přepnutí. Ale
+          automaticky by to vždycky volilo tu rychlejší variantu.` So there are
+          three positions and not four: the processor, the card, and automatic
+          — which is the resting state, what a fresh installation has, and what
+          takes the fastest build this machine can run.
 
-          It says the truth rather than the setting, and those are two
-          different values: `check.compute` is `choose_compute`'s answer, the
-          folder the next `whisper-cli` will come out of, while `n.compute` is
-          whatever was once stored. `choose_compute` substitutes when the
-          stored one cannot run here — CUDA with no NVIDIA driver is the case
-          that was reported — and until now the screen went on badging
-          `používá se` on the card nobody was using. */}
+          CUDA versus Vulkan is not among them, and that is the point of the
+          shape. Those are two builds of the same thing for two kinds of card;
+          which one suits the card in this machine is read off the drivers in
+          `choose_compute`, and the old four-way control is exactly how somebody
+          came to have `cuda` stored beside an AMD card — the CUDA build found
+          no device, whisper fell back to the processor, and the screen went on
+          saying it ran on the graphics card.
+
+          The same cards as the transcription model two tabs over, and the
+          owner asked for them in those words — *dej tam stejnou kartu jako má
+          výběr modelu u přepisu, ne tu trapnou záložku*. Two of them, because
+          there are two places the work can happen; automatic is not a third
+          card but the absence of a pick, said in the note under them and got
+          back to with one button. The panel keeps saying the truth rather than
+          the setting — `check.compute` is `choose_compute`'s answer, `n.compute`
+          is what was asked for — and where they differ, one sentence says why
+          and, when the reason is a build that is not downloaded, offers it. */}
       {activeTab === "tools" && check && <section className="settings-card-compute">
         <h2>{t("settings.compute.title")}</h2>
         <p className="settings-section-description">{t("settings.compute.description")}</p>
 
+        {/* No `používá se` on the chosen card. A card drawn as chosen already
+            says it is the one, and two marks for one fact is noise.
+
+            What the badge was carrying has to stay, though, and it is the
+            opposite case: `choose_compute` substitutes another backend when the
+            chosen one cannot be used, and this card exists because that used to
+            be silent. So the card is quiet when it agrees and speaks when it
+            does not — the chosen card wears `missing`, the danger colour the
+            module tiles use, and the sentence below the panel gives the reason
+            and the way out. An empty state here is correct; do not fill it. */}
+        <div className="choices">
+          {COMPUTE_CHOICES.map((choice) => {
+            const chosen = computeChoice === choice.value;
+            return (
+              <button
+                key={choice.value}
+                className={`choice with-icon ${chosen ? "chosen" : ""} ${
+                  chosen && computeRefused ? "missing" : ""
+                }`}
+                aria-pressed={chosen}
+                onClick={() => save({ ...n, compute: choice.value })}
+              >
+                <span className="choice-icon" aria-hidden>
+                  <LineIcon name={choice.icon} />
+                </span>
+                <span className="choice-body">
+                  <span className="choice-title">{t(choice.title)}</span>
+                  <span className="small-text">{t(choice.note)}</span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* What happens when neither is pressed, which is where a fresh
+            installation stands. It says what automatic does, not what the card
+            overrides: a pick made here survives, and the panel below is what
+            says whether it was honoured. */}
+        <InfoNote compact>{t("settings.compute.autoNote")}</InfoNote>
+
+        {/* Kept, and not as a repeat of the cards: this is the only place that
+            says *which* graphics build the drivers settled on, and it is the
+            answer for a machine on automatic that wants to know where it ended
+            up. `check.compute` is `choose_compute`'s answer, `n.compute` is what
+            was asked for, and the two differ exactly when something could not be
+            honoured. */}
         <dl className="about-panel">
           <div className="about-row">
             <dt>{t("settings.compute.running")}</dt>
@@ -773,94 +894,120 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
           </div>
         </dl>
 
-        {/* A backend named by hand on some earlier day — the only state on this
-            card anybody can act on, so it is the only one with a button. It is
-            the same shape as `Odebrat` beside the watched folder: a control was
-            removed, and what it could set had to keep a way back, or one press
-            made a year ago would be permanent. Two sentences, because the two
-            cases are not the same thing — one is being honoured and merely
-            hidden, the other is being ignored. */}
-        {computePinned && (
+        {/* The way back to automatic. The same shape as `Odebrat` beside the
+            watched folder: whatever a control can set has to keep a way back,
+            or one press made a year ago is permanent. */}
+        {computeChoice !== "auto" && (
           <div className="settings-action-row spaced">
-            <InfoNote compact>
-              {t(
-                computeSubstituted
-                  ? "settings.compute.substituted"
-                  : "settings.compute.pinned",
-                { chosen: labels.compute(n.compute) }
-              )}
-            </InfoNote>
+            <InfoNote compact>{t("settings.compute.pinnedNote")}</InfoNote>
             <button className="button" onClick={() => save({ ...n, compute: "auto" })}>
               {t("settings.compute.letItDecide")}
             </button>
           </div>
         )}
 
-        {/* A graphics card that is not being used, which on a machine nobody
-            has pinned means its build was never downloaded. */}
+        {/* The graphics card is not being used. Under `Automaticky` that is a
+            remark; under `Grafická karta` it is a choice that could not be
+            honoured, and the sentence says so — the substitution is silent in
+            `choose_compute` by design, because a transcription must run, and
+            this is the one place it is not silent. */}
         {graphicsCardIdle && (
           <div className="settings-action-row spaced">
-            <InfoNote compact>{t("settings.compute.graphicsCardIdle")}</InfoNote>
-            <button className="button" onClick={() => onToModule(graphicsCardModule)}>
+            <InfoNote compact>
+              {t(
+                computeChoice === "gpu"
+                  ? "settings.compute.graphicsCardRefused"
+                  : "settings.compute.graphicsCardIdle"
+              )}
+            </InfoNote>
+            <button
+              className="button"
+              onClick={() => onToModule(COMPUTE_MODULES[graphicsCardBackend])}
+            >
               {t("common.download")}
             </button>
           </div>
         )}
 
-        {!computePinned && !hasGraphicsDriver && (
+        {/* And the same thing the other way round, which is what a machine with
+            a graphics card usually has: the wizard downloaded one build, and it
+            was not the processor's. */}
+        {processorIdle && (
+          <div className="settings-action-row spaced">
+            <InfoNote compact>{t("settings.compute.processorRefused")}</InfoNote>
+            <button className="button" onClick={() => onToModule(COMPUTE_MODULES.cpu)}>
+              {t("common.download")}
+            </button>
+          </div>
+        )}
+
+        {computeChoice !== "cpu" && !hasGraphicsDriver && (
           <InfoNote>{t("settings.compute.noGraphicsCard")}</InfoNote>
         )}
       </section>}
 
+      {/* Two cards, `Menší` and `Větší`, one of them always chosen — the same
+          shape as the transcription model at the top of this tab, and asked for
+          in those words.
+
+          **There is no off state, and there is nothing to switch off.**
+          Language editing never runs by itself: it happens when somebody asks a
+          transcript for a document, and nothing is downloaded until they do. A
+          switch here would turn off something that only ever happens on
+          request. The question these cards answer is a different one — which
+          model gets used when the reader does ask — and that is a setting.
+          `Nepoužívat` stood here for one round and was removed for exactly this
+          reason; do not put it back.
+
+          The wizard asks once, `rychle` or `přesně`, and that answer chooses
+          the card until somebody chooses otherwise. A card pressed here is
+          stored in `editor_model` and **wins** over the tier `quality_choice`
+          implies, and nothing writes over it afterwards — Settings is where a
+          decision is revisited, not where the question is asked a second time.
+          The inferred tier is read in one other place, the offer `Detail.tsx`
+          makes when nothing has been chosen at all, and it looks at the stored
+          value first for the same reason.
+
+          Neither card claims to be better. Nothing in `docs/history/` compares
+          these models' output, so they are named by the two things a file's
+          size does decide — memory and time — and marked with one square drawn
+          at two sizes. The words come from the catalogue, so the by-hand list
+          says the same ones. */}
       {activeTab === "transcription" && <section className="settings-card-language-edit">
-        {/* The switch governs everything below it, so it belongs beside the
-            heading — the same section pattern as Mluvčí and Rychlé tipy. When
-            the feature is off the card collapses to that one row instead of
-            offering model cards that cannot take effect. */}
-        {hasEditor ? (
-          <>
-            <SettingsToggle
-              title={t("settings.editor.title")}
-              label={t("settings.editor.title")}
-              checked={!!n.editor_model}
-              heading
-              description={t("settings.editor.description")}
-              /* Which model is no longer a question, so turning it on has one
-                 answer: whichever is on the disk, the tier the first-run choice
-                 implies first. `last-editor-model` in `localStorage` used to
-                 remember which of three cards was last picked and is not read
-                 any more — there are no cards to pick. */
-              onChange={(checked) =>
-                save({
-                  ...n,
-                  editor_model: checked ? EDITOR_MODELS[editorOnDisk!] : "",
-                })
-              }
-            />
-            {/* Belongs to the switch above it, so it takes the 8 px an
-                explanation takes under the thing it explains. */}
-            {!!n.editor_model && <InfoNote>{t("settings.editor.enabledNote")}</InfoNote>}
-          </>
-        ) : (
-          <>
-            <h2>{t("settings.editor.title")}</h2>
-            <p className="settings-section-description">{t("settings.editor.description")}</p>
-            {/* One sentence naming the size and one button, the same row the
-                module band uses. It was a red `field-prompt` reading *not
-                downloaded yet* beside a button that walked to the component
-                list to choose a model — a second question about something the
-                first run already answered, and a colour that says something
-                is wrong about a feature that is merely optional. */}
-            <div className="settings-action-row">
-              <InfoNote compact>
-                {t("settings.editor.download", { size: formats.dataSize(editorNeedsMb) })}
-              </InfoNote>
-              <button className="button" onClick={() => void downloadEditor()}>
-                {t("common.download")}
-              </button>
-            </div>
-          </>
-        )}
+        <h2>{t("settings.editor.title")}</h2>
+        <p className="settings-section-description">{t("settings.editor.description")}</p>
+
+        <div className="choices">
+          {editorCards.map((card) => (
+            <button
+              key={card.id}
+              className={`choice with-icon ${card.id === editorChosen ? "chosen" : ""}`}
+              aria-pressed={card.id === editorChosen}
+              onClick={() => void chooseEditor(card.id, card.needs)}
+            >
+              <span className="choice-icon" aria-hidden>
+                <LineIcon name={EDITOR_CARDS[card.id].icon} />
+              </span>
+              <span className="choice-body">
+                <span className="choice-title">{t(EDITOR_CARDS[card.id].title)}</span>
+                <span className="small-text">{tDynamic(card.description_code, "")}</span>
+              </span>
+              {/* One slot, two states: a size means pressing this card starts a
+                  download of that many gigabytes — the model, and the runtime
+                  too where that is not there yet. */}
+              <span className="choice-size">
+                {card.needs.length === 0
+                  ? t("wizard.download.downloadedBadge")
+                  : formats.dataSize(card.needsMb)}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        {/* Why nothing has happened yet, and why that is not a fault. It was a
+            red `field-prompt` reading *not downloaded yet*, which is a colour
+            that says something is wrong about work nobody has asked for. */}
+        <InfoNote compact>{t("settings.editor.note")}</InfoNote>
       </section>}
 
       {/* How a transcript is made when the ordinary controls have not given a
@@ -873,10 +1020,10 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
           What is left here is decoding, and that is the whole of it. The two
           folders and `Technické podrobnosti` are on `Nástroje`, because neither
           is about how a transcript is made — they are about what is installed
-          and where. `Akcelerace zpracování` and `Změřit rychlost` are gone
-          altogether: the machine picks its backend from its drivers, exactly as
-          the wizard already picks the programs, and what it picked is reported
-          on `Nástroje` instead of being offered here as a decision.
+          and where. `Změřit rychlost` is gone with nothing to measure for, and
+          `Akcelerace zpracování` moved rather than died: it is the processor /
+          graphics-card switch on `Nástroje`, beside the line saying which build
+          actually ran, and it no longer asks CUDA against Vulkan.
 
           The block keeps its name even so. `Pokročilé` is still what it is, and
           renaming it to `Dekódování` would put a word from whisper.cpp's manual
@@ -884,8 +1031,9 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
 
           `Zpět na výchozí` covers every value inside the block, which is every
           value in `ADVANCED_DEFAULTS` with nothing left over. It never covered
-          the folders — a folder is a place, not a setting — and it no longer
-          covers `compute`, which has no control here to be reset from. */}
+          the folders — a folder is a place, not a setting — and it does not
+          cover `compute`, whose control is on another tab: a reset that moved
+          something nobody watching it could see would be worse than no reset. */}
       {activeTab === "transcription" && <section className="settings-card-advanced">
         <SettingsDisclosure
           title={t("settings.advanced.title")}
@@ -1240,7 +1388,21 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
         <div className="field">
           <label>{t("settings.transcription.model")}</label>
           {/* Cards rather than a dropdown: what separates these models is what
-              they do with time and accuracy, and that does not fit on a line. */}
+              they do with time and accuracy, and that does not fit on a line.
+
+              What is listed is `check.found_models`, read off the disk, so a
+              card here can always be pressed and pressing one downloads
+              nothing. That is worth stating because the two cards below on
+              `Jazyková úprava` behave the other way round — they are a fixed
+              pair and pressing one may fetch gigabytes — and the note under
+              this list says which of the two kinds this is, and where the
+              others are got.
+
+              It is also what keeps a machine set up before 14 August 2026
+              working: `settings.model` may hold `large-v3-q5_0`, the middle
+              model nothing offers any more, and because the list is the disk
+              rather than an offer it is still shown, still named by
+              `domain.model.large-v3-q5_0`, and still the chosen card. */}
           <div className="choices model-choices">
             {(check?.found_models.length
               ? [...check.found_models].sort(byModelOrder)
@@ -1271,23 +1433,40 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
           <InfoNote>{t("settings.transcription.modelNote")}</InfoNote>
         </div>
 
-        {/* The recording's own language, on the card with the model that reads
-            it. It had a card of its own, `Jazyk a detekce řeči`, and once the
-            speech-detection switch went there was one field left on it — and a
-            field called `Jazyk` two tabs from a field called `Jazyk aplikace`,
-            with nothing to say which was which. It says so itself now.
+      </section>}
 
-            `Detekce řeči` is not gone anywhere else: `whisper.rs` passes
-            `--vad` unconditionally. Off is the documented cause of Whisper
-            repeating one token over silence, the switch's own note said *nechte
-            zapnuté*, and a switch whose only other position is a known defect
-            is not a choice. */}
+      {/* The recording's own language, on a card of its own — asked for in
+          those words, and the second move for this field today.
+
+          It was `Jazyk a detekce řeči`; the speech-detection switch went, one
+          field was left, and it was folded onto the model card because a card
+          holding a single dropdown looked like a card that had lost its
+          purpose. It reads better standing up: what language is being spoken is
+          a fact about the recording, not a property of the model, and the model
+          card is a column of choice cards that the dropdown sat under as an
+          afterthought.
+
+          The heading keeps the longer name. `Jazyk` alone stood two tabs from
+          `Jazyk aplikace` with nothing to tell them apart, and a heading is a
+          worse place than a label to leave that ambiguity.
+
+          `Detekce řeči` is not gone anywhere else: `whisper.rs` passes `--vad`
+          unconditionally. Off is the documented cause of Whisper repeating one
+          token over silence, the switch's own note said *nechte zapnuté*, and a
+          switch whose only other position is a known defect is not a choice. */}
+      {activeTab === "transcription" && <section className="settings-card-language">
+        <h2>{t("settings.transcription.language")}</h2>
+
+        {/* No label above the dropdown: the heading is the label, and a card
+            headed `Jazyk nahrávky` over a field labelled `Jazyk nahrávky` says
+            it twice. `Select` takes the name for screen readers instead, which
+            is what `description` is for. */}
         <div className="field">
-          <label>{t("settings.transcription.language")}</label>
           <Select
             value={n.language}
             onChange={(j) => save({ ...n, language: j })}
             items={labels.languageOptions()}
+            description={t("settings.transcription.language")}
           />
           <InfoNote>{t("settings.transcription.languageNote")}</InfoNote>
         </div>
@@ -1598,13 +1777,29 @@ function About() {
         <h2>Volocal</h2>
         <p className="settings-section-description">{t("settings.about.description")}</p>
 
-        <dl className="about-panel">
+        {/* Both rows carry a mark, and both is the point: a panel where some
+            rows have one and some do not reads as an accident rather than as a
+            distinction. These two are the whole panel and they are the two
+            things somebody opens this page to find, so the circle is the same
+            `.about-mark` the abilities list below uses — 30 px, `--accent-light`
+            — rather than a size invented here.
+
+            The other `.about-panel` on this screen, the licence list, stays
+            plain: its rows are one per component and a glyph on each would be a
+            column of marks saying nothing the name beside it does not. */}
+        <dl className="about-panel about-panel-marked">
           <div className="about-row">
-            <dt>{t("settings.about.version")}</dt>
+            <dt>
+              <span className="about-mark"><LineIcon name="tag" size={17} /></span>
+              {t("settings.about.version")}
+            </dt>
             <dd>{version || "—"}</dd>
           </div>
           <div className="about-row">
-            <dt>{t("settings.about.author")}</dt>
+            <dt>
+              <span className="about-mark"><LineIcon name="author" size={17} /></span>
+              {t("settings.about.author")}
+            </dt>
             {/* i18n-ignore: a company name, and it mirrors src-tauri/Cargo.toml */}
             <dd>značkárna s.r.o.</dd>
           </div>

@@ -38,18 +38,24 @@ export const csCatalog = {
   "catalog.editor-cpu.name": "Jazyková úprava na procesoru",
   "catalog.editor-cpu.description":
     "Univerzální varianta pro počítače bez podporované grafiky.",
-  // Three modely, které dělají touž práci s různým počtem parametrů. Co která
-  // z nich umí navíc, nikdo neměřil, takže se to tady netvrdí: v popisu je
-  // jméno modelu a nároky, které z jeho velikosti plynou.
-  "catalog.editor-model-light.name": "Jazyková úprava — menší model",
+  // Modely, které dělají touž práci s různým počtem parametrů. Co která z nich
+  // umí navíc, nikdo neměřil, takže se to tady netvrdí: názvem je velikost a
+  // v popisu jméno modelu s nároky, které z té velikosti plynou.
+  //
+  // A name here is read with nothing around it — `Stahuji {name}`, a row in the
+  // by-hand list, a line in the failed-items list — so it has to say what the
+  // thing is. `Stahuji Větší` is a sentence with a hole in it. The short labels
+  // `Menší` and `Větší` belong to the cards on `Jazyková úprava`, where the
+  // heading supplies the noun, and live in the settings dictionary.
+  "catalog.editor-model-light.name": "Menší model jazykové úpravy",
   "catalog.editor-model-light.description":
-    "Gemma 4 E2B. Ze tří nabízených nejmenší, potřebuje nejmíň paměti.",
-  "catalog.editor-model-balanced.name": "Jazyková úprava — střední model",
+    "Gemma 4 E2B. Potřebuje nejmíň paměti a je hotová dřív.",
+  "catalog.editor-model-balanced.name": "Střední model jazykové úpravy",
   "catalog.editor-model-balanced.description":
     "Gemma 4 E4B. Aplikace ho sama nenabízí; funguje, pokud ho už v počítači máte.",
-  "catalog.editor-model-best.name": "Jazyková úprava — větší model",
+  "catalog.editor-model-best.name": "Větší model jazykové úpravy",
   "catalog.editor-model-best.description":
-    "Gemma 4 12B. Dělá totéž s víc parametry, a potřebuje na to víc paměti.",
+    "Gemma 4 12B. Dělá totéž s víc parametry a potřebuje na to víc paměti i času.",
 
   // Telling speakers apart.
   "catalog.model-hlasy.name": "Rozpoznání hlasů",
@@ -69,10 +75,19 @@ export const csCatalogContext: Partial<Record<keyof typeof csCatalog, string>> =
   "catalog.model-large.description":
     "„Nejpřesnější čeština“ platí pro české nahrávky; u jiných jazyků je model taky nejlepší z nabízených.",
   "catalog.editor-model-light.name":
-    "Položka ke stažení. Modely jazykové úpravy se jmenují podle velikosti, ne " +
-    "podle kvality — o jejich výstupu není nic změřeno.",
+    "Položka ke stažení. Objevuje se i ve větě „Stahuji {name}“, takže musí " +
+    "sama o sobě říct, co to je — proto celé sousloví, ne jen „Menší“. Modely " +
+    "jazykové úpravy se jmenují podle velikosti, ne podle kvality; o jejich " +
+    "výstupu není nic změřeno.",
   "catalog.editor-model-light.description":
-    "Gemma 4 E2B je název modelu a nepřekládá se.",
+    "Gemma 4 E2B je název modelu a nepřekládá se. „Hotová dřív“ plyne z počtu " +
+    "parametrů, ne z měření — porovnané ty modely nikdy nebyly.",
+  "catalog.editor-model-balanced.name":
+    "Prostřední velikost. Aplikace ji nikde nenabízí; název je potřeba pro " +
+    "počítače, kde už ten model je.",
+  "catalog.editor-model-best.name":
+    "Větší z dvou nabízených modelů jazykové úpravy. Taky se objevuje ve větě " +
+    "„Stahuji {name}“, proto celé sousloví.",
   "catalog.editor-model-balanced.description":
     "Gemma 4 E4B je název modelu. Tenhle model aplikace nikde nenabízí, jen " +
     "ho umí použít, když ho uživatel má z dřívějška.",

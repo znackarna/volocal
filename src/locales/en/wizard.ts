@@ -40,7 +40,7 @@ export const enWizard: Partial<Record<keyof typeof csWizard, string>> = {
   "wizard.manual.switchToManual": "Select manually",
   "wizard.manual.groupPrograms": "Programs",
   "wizard.manual.groupModels": "Speech models",
-  "wizard.manual.groupSpeech": "Speech and speakers",
+  "wizard.manual.groupSpeech": "Speech and speaker detection",
   "wizard.manual.groupEditor": "Language editing",
   "wizard.done.introReady": "Everything is ready. Drop a recording into the window and transcription starts.",
   "wizard.done.tabHint": "The {key} key jumps to spots where the transcript is uncertain. Checking the text then takes only a few minutes.",

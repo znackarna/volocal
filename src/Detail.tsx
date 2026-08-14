@@ -1376,10 +1376,17 @@ export default function Detail({
    *  calls optional. It is asked for here instead, at the moment somebody wants
    *  what it makes, with one sentence naming the size.
    *
-   *  There is no second question about which model. The tier follows the answer
-   *  the wizard already has, and the runtime follows the drivers — the same rule
-   *  `tools.rs` uses when it looks for `llama-cli`. What is asked is the only
-   *  thing the reader knows better than the machine: whether they want it.
+   *  There is no second question about which model. The runtime follows the
+   *  drivers — the same rule `tools.rs` uses when it looks for `llama-cli` —
+   *  and the model follows what has already been said: whatever was chosen on
+   *  `Jazyková úprava`, and where nothing has been, the tier the wizard's one
+   *  answer implies. That order matters and is the reason this is not simply
+   *  `EDITOR_TIER`: this offer is also reached with a model already chosen but
+   *  its runtime missing, and fetching the tier there would replace somebody's
+   *  choice with an inference, and download several gigabytes to do it.
+   *
+   *  What is asked is the only thing the reader knows better than the machine:
+   *  whether they want it.
    */
   const askForEditor = useCallback(async () => {
     try {
@@ -1388,7 +1395,10 @@ export default function Detail({
         api.loadSettings(),
         api.checkTools(),
       ]);
-      const tier = EDITOR_TIER[qualityChoice(settings)];
+      const chosen = Object.keys(EDITOR_MODELS).find(
+        (id) => EDITOR_MODELS[id] === settings.editor_model
+      );
+      const tier = chosen ?? EDITOR_TIER[qualityChoice(settings)];
       const runtime = tools.vulkan_driver ? "editor-vulkan" : "editor-cpu";
       const ids = [tier, runtime].filter(
         (component) => !components.find((item) => item.id === component)?.complete

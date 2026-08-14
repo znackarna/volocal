@@ -59,7 +59,7 @@ export const csWizard = {
   "wizard.manual.switchToManual": "Vybrat ručně",
   "wizard.manual.groupPrograms": "Programy",
   "wizard.manual.groupModels": "Jazykové modely",
-  "wizard.manual.groupSpeech": "Řeč a mluvčí",
+  "wizard.manual.groupSpeech": "Detekce řeči a mluvčích",
   "wizard.manual.groupEditor": "Jazyková úprava",
 
   // ------------------------------------------------------------- 5. conclusion
@@ -139,7 +139,8 @@ export const csWizardContext: Partial<Record<keyof typeof csWizard, string>> = {
   "wizard.manual.groupSpeech":
     "Nadpis skupiny v ručním výběru. Jsou pod ním dvě položky: detekce řeči " +
     "(kde se v nahrávce mluví) a rozpoznání mluvčích (kdo mluví). Obě rozhodují " +
-    "o zvuku, ne o slovech.",
+    "o zvuku, ne o slovech — nadpis proto pojmenovává tu práci, ne ty dva " +
+    "pojmy. Oba druhé pády jsou záměr, ne překlep.",
   "wizard.manual.groupEditor":
     "Nadpis skupiny v ručním výběru: modely, které hotový přepis upraví do čitelného textu.",
 

@@ -344,6 +344,11 @@ pub fn has_vulkan() -> bool {
 ///
 /// `cpu` and `vychozi` always work; for the rest the system's driver decides.
 /// Those two names are stored settings and folder names on disk, so they stay.
+///
+/// `gpu` is deliberately not answered here. It is not a build — it is the
+/// reader's word for "the card, whichever build is right" — and whether it can
+/// be honoured depends on which builds are on the disk, which this function is
+/// not told. `choose_compute` decides it, because it knows both.
 pub fn usable_compute(backend: &str) -> bool {
     match backend {
         "cuda" => has_nvidia(),
@@ -352,35 +357,56 @@ pub fn usable_compute(backend: &str) -> bool {
     }
 }
 
+/// The graphics builds, fastest first.
+///
+/// CUDA before Vulkan is the same order `choose_compute` has always used when
+/// deciding by itself, and it is the reason the reader is never asked which of
+/// the two: on an NVIDIA card CUDA is the faster of the builds we ship, and on
+/// anything else it cannot run at all. That is a fact about the drivers, not a
+/// preference, so it is read off the machine rather than put on the screen.
+const GRAPHICS_BUILDS: [&str; 2] = ["cuda", "vulkan"];
+
 /// Picks the compute build. "auto" decides by what the machine has.
+///
+/// The stored choice is one of four things: `auto`, `cpu`, `gpu`, or — on a
+/// machine set up before 14 August 2026 — one of the build names `cuda` and
+/// `vulkan`. All four still load and all four are still honoured here; what
+/// changed is that `Nástroje` now offers only the first three, because which
+/// graphics build is right for a card is not a question a reader can answer
+/// better than the drivers can.
 ///
 /// The substitution below is silent by design — a transcription must run — but
 /// it must not be silent on screen. `ToolCheck::compute` is this function's
-/// answer, not the stored setting, and since `Akcelerace zpracování` left
-/// Settings on 14 August 2026 that is the only thing the reader has: `Nástroje`
-/// shows this value and, when it differs from what is stored or from what the
-/// drivers would allow, says which and why.
+/// answer, not the stored setting, and that is what `Nástroje` shows: when the
+/// two differ, the card says which was asked for, what ran instead, and why.
 pub fn choose_compute(bin: &Path, choice: &str) -> String {
     let available = available_compute_backends(bin);
     if available.is_empty() {
         return "vychozi".into();
     }
-    // A downloaded folder does not mean this computer can run what is in it.
-    //
-    // It used to be enough that `bin\cuda` existed for the choice to be
-    // accepted. Anybody with `cuda` saved and an AMD card in the machine got a
-    // CUDA build, which found no device and transcribed on the processor —
-    // while the settings went on saying it was running on the graphics card.
-    // The hardware check lived only in the "automatic" branch, which is exactly
-    // where it is not needed.
-    if choice != "auto" && available.iter().any(|x| x == choice) && usable_compute(choice) {
+    // Downloaded and runnable are two different questions, and both have to be
+    // asked. A `bin\cuda` folder used to be enough for a stored `cuda` to be
+    // honoured, so anybody with an AMD card got a CUDA build that found no
+    // device and transcribed on the processor — while the screen went on saying
+    // it ran on the graphics card. The hardware check lived only in the
+    // automatic branch, which is exactly where it is not needed.
+    let runnable = |name: &str| available.iter().any(|x| x == name) && usable_compute(name);
+    // The fastest graphics build this machine can actually run, if any. It is
+    // both what `gpu` means and what automatic prefers, which is why it is one
+    // expression: the reader chooses the processor or the card, and the drivers
+    // choose which card build. If neither can run, `gpu` falls through to the
+    // same order automatic uses and ends on the processor — a transcription
+    // must run — and the card on `Nástroje` says so instead of hiding it.
+    let graphics = || GRAPHICS_BUILDS.iter().find(|name| runnable(name)).copied();
+    if choice == "gpu" {
+        if let Some(build) = graphics() {
+            return build.to_string();
+        }
+    } else if choice != "auto" && runnable(choice) {
         return choice.to_string();
     }
-    if available.iter().any(|x| x == "cuda") && usable_compute("cuda") {
-        return "cuda".into();
-    }
-    if available.iter().any(|x| x == "vulkan") && usable_compute("vulkan") {
-        return "vulkan".into();
+    if let Some(build) = graphics() {
+        return build.to_string();
     }
     if available.iter().any(|x| x == "cpu") {
         return "cpu".into();
@@ -1078,6 +1104,57 @@ mod compute_choice_tests {
         assert_eq!(choose_compute(&bin, "cpu"), "cpu");
         assert_eq!(choose_compute(&bin, "auto"), "cpu");
         assert_eq!(choose_compute(&bin, "cuda"), "cpu");
+        assert_eq!(choose_compute(&bin, "gpu"), "cpu");
+    }
+
+    /// `gpu` is the reader's word for the card and never names a build. It
+    /// resolves to whichever graphics build this machine can run, and to the
+    /// processor when it can run neither — which is the state `Nástroje` has
+    /// to report rather than hide.
+    #[test]
+    fn the_card_is_chosen_as_a_family_not_as_a_build() {
+        let bin = machine_with(&["cuda", "vulkan", "cpu"]);
+        let chosen = choose_compute(&bin, "gpu");
+        if has_nvidia() {
+            assert_eq!(chosen, "cuda", "CUDA is the faster build on an NVIDIA card");
+        } else if has_vulkan() {
+            assert_eq!(chosen, "vulkan", "no NVIDIA driver leaves Vulkan");
+        } else {
+            assert_eq!(
+                chosen, "cpu",
+                "no graphics driver at all: it must still run"
+            );
+        }
+    }
+
+    /// Asking for the processor is honoured even where a card would be faster.
+    /// Automatic is the state that prefers the card; a pick is a pick.
+    #[test]
+    fn the_processor_can_be_asked_for_over_a_usable_card() {
+        let bin = machine_with(&["cuda", "vulkan", "cpu"]);
+        assert_eq!(choose_compute(&bin, "cpu"), "cpu");
+    }
+
+    /// Automatic takes the fastest build the machine can run, which is the
+    /// whole promise of the resting state.
+    #[test]
+    fn automatic_prefers_the_card_over_the_processor() {
+        let bin = machine_with(&["vulkan", "cpu"]);
+        let expected = if has_vulkan() { "vulkan" } else { "cpu" };
+        assert_eq!(choose_compute(&bin, "auto"), expected);
+    }
+
+    /// A build that is not downloaded cannot be chosen, however it was asked
+    /// for. The processor pick on a machine that only downloaded the graphics
+    /// build is the reported case: it runs on the card, and the screen has to
+    /// say that it did.
+    #[test]
+    fn a_build_that_is_not_downloaded_is_not_chosen() {
+        let bin = machine_with(&["vulkan"]);
+        // Vulkan either because the driver is there, or as the only build on
+        // the disk when it is not. Both are the same answer to this test: the
+        // processor was asked for and is not what will run.
+        assert_eq!(choose_compute(&bin, "cpu"), "vulkan");
     }
 }
 

@@ -341,10 +341,35 @@ pub fn catalog(settings: &crate::db::Settings) -> Vec<DownloadComponent> {
                 "model-turbo" => !(has_nvidia || has_vulkan),
                 "whisper-cuda" => has_nvidia,
                 "whisper-vulkan" => has_vulkan && !has_nvidia,
-                // With no graphics driver, the processor is what is left.
-                "whisper-cpu" => !has_nvidia && !has_vulkan,
+                // The processor build comes down on every machine, beside the
+                // graphics one where there is a graphics one. 17 MB against
+                // about 1.2 GB, for two things neither of which is optional.
+                //
+                // It is the floor. A graphics build stops working the moment
+                // its driver does — a Windows update, a card swapped out, a
+                // laptop on its integrated chip — and without this the
+                // application has nothing left to run at all.
+                //
+                // And since 14 August 2026 `Kde přepis běží` lets somebody
+                // choose the processor. A position on a switch that points at a
+                // build which is not on the disk is not a choice: it would be
+                // honoured by `choose_compute` finding nothing, falling through
+                // to the card, and the panel having to explain that the answer
+                // was no — which is the silent substitution that whole card was
+                // built to stop happening in the first place.
+                "whisper-cpu" => true,
                 "editor-vulkan" => has_vulkan,
-                "editor-cpu" => !has_vulkan,
+                // The same floor as `whisper-cpu`, for the same two reasons and
+                // for 45 MB: whatever the reader can end up pointed at has to
+                // exist on the disk, and a graphics build is useless the moment
+                // its driver stops loading.
+                //
+                // This is the runtime, not a model. `editor-vulkan` is 150 MB
+                // and stays on demand — it comes down with the Gemma model that
+                // runs on it, on a machine that can use it, at the moment
+                // somebody first wants a document. The fast path can wait for
+                // the thing it makes fast; the floor cannot.
+                "editor-cpu" => true,
                 _ => false,
             };
             k

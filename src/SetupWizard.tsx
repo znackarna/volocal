@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { api } from "./api";
 import InfoNote from "./InfoNote";
-import { LineIcon } from "./icons";
+import { LineIcon, ModelMark } from "./icons";
 import { useI18n, type TranslationKey } from "./i18n";
 import { messageCode, useProgressMessage, useUserMessage } from "./messages";
 import { useFormats } from "./formats";
@@ -82,6 +82,21 @@ const MODELS: Record<
  *  Detail screen already has *Rozpoznat mluvčí* on the recording where the
  *  question finally has an answer, and by then nothing needs downloading. */
 const DIARIZATION_COMPONENTS = ["model-hlasy"];
+
+/** The language editor's processor build, downloaded whether or not the
+ *  language editor is ever used.
+ *
+ *  45 MB, and it is the runtime rather than a model: the two Gemma models are
+ *  3350 and 6980 MB and stay on demand, asked about once with the size in the
+ *  sentence. `editor-vulkan` stays on demand too — it is 150 MB and comes down
+ *  with the model it runs, on a machine that can use it. The fast path can wait
+ *  for the thing it makes fast; the floor cannot.
+ *
+ *  It is here rather than in `root` because `root` takes the `program` group,
+ *  and this belongs under `Jazyková úprava` in the by-hand list where a reader
+ *  looks for it. `catalog()` in `download.rs` recommends it unconditionally for
+ *  the same reason, so the two paths agree. */
+const EDITOR_RUNTIME_COMPONENTS = ["editor-cpu"];
 
 /* The three named tiers of language editing stood here — `Úsporná`,
    `Doporučená`, `Nejvyšší kvalita`, each with a sentence saying what it does
@@ -274,14 +289,17 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
     const s = new Set(root);
     const m = MODELS[quality].component;
     if (!items.find((p) => p.id === m)?.complete) s.add(m);
-    DIARIZATION_COMPONENTS.filter((id) => !items.find((p) => p.id === id)?.complete)
+    [...DIARIZATION_COMPONENTS, ...EDITOR_RUNTIME_COMPONENTS]
+      .filter((id) => !items.find((p) => p.id === id)?.complete)
       .forEach((id) => s.add(id));
-    /* The language editor is not here, and that is the largest single change to
-       this screen. It was in the default selection at 5150 MB against 1206 for
-       everything else — 81 % of a first run, for a feature its own screen calls
-       `Volitelný`. It is offered where it is wanted instead: the first time
-       somebody opens a finished transcript, through the `missingModule` path
-       that already exists and already comes straight back here. */
+    /* The language editor's *models* are not here, and that is the largest
+       single change to this screen. They were in the default selection at
+       5150 MB against 1206 for everything else — 81 % of a first run, for a
+       feature its own screen calls `Volitelný`. They are offered where they are
+       wanted instead: the first time somebody opens a finished transcript,
+       through the `missingModule` path that already exists and already comes
+       straight back here. What does come down is the 45 MB runtime above, so
+       that a model arriving later has something to run in. */
     return [...s];
   }, [manual, manualSelect, root, quality, items]);
 
@@ -569,17 +587,26 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
             </div>
           </div>
 
+          {/* The two cards carry the marks their models carry in Settings —
+              `ModelMark` keyed on the model identifier, so the lightning that
+              means `large-v3-turbo` on the model list means it here too. The
+              pair is honest as a pair: speed against precision is the trade
+              these two make, and it is the one thing about them that has been
+              measured (13 August, time alignment). */}
           <div className="choices wizard-quality-choices">
             {(["best", "fastest"] as Quality[]).map((k) => {
               const p = items.find((x) => x.id === MODELS[k].component);
               return (
                 <button
                   key={k}
-                  className={`choice ${quality === k ? "chosen" : ""}`}
+                  className={`choice with-icon ${quality === k ? "chosen" : ""}`}
                   aria-pressed={quality === k}
                   onClick={() => setChosen(k)}
                 >
-                  <span className="choice-head">
+                  <span className="choice-icon" aria-hidden>
+                    <ModelMark id={MODELS[k].settings} />
+                  </span>
+                  <span className="choice-body">
                     <span className="choice-title">
                       {t(MODELS[k].name)}
                       {k === recommendedQuality(usesGpu) && (
@@ -589,14 +616,17 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
                         <em className="badge">{t("wizard.download.downloadedBadge")}</em>
                       )}
                     </span>
-                    <span className="choice-size">
-                      {dataSize(p?.complete ? 0 : p?.megabytes ?? 0)}
+                    <span className="small-text">
+                      {t(MODELS[k].summary, {
+                        duration: approximateMinutes(estimatedMinutes(k, usesGpu)),
+                      })}
                     </span>
                   </span>
-                  <span className="small-text">
-                    {t(MODELS[k].summary, {
-                      duration: approximateMinutes(estimatedMinutes(k, usesGpu)),
-                    })}
+                  {/* Outside the text block so it lands on the right edge, the
+                      same place the badge takes on a module tile, rather than
+                      drifting with the length of the model's name. */}
+                  <span className="choice-size">
+                    {dataSize(p?.complete ? 0 : p?.megabytes ?? 0)}
                   </span>
                 </button>
               );

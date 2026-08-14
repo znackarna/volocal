@@ -6,7 +6,7 @@ export const enDomain: Partial<Record<keyof typeof csDomain, string>> = {
   "domain.compute.vulkan": "Graphics card (Vulkan)",
   "domain.compute.cpu": "Processor (CPU)",
   "domain.compute.default": "Default",
-  "domain.compute.auto": "Automatically",
+  "domain.compute.auto": "Automatic",
   "domain.model.large-v3": "Accurate",
   "domain.model.large-v3-q5_0": "Balanced",
   "domain.model.large-v3-turbo-q5_0": "Fast",

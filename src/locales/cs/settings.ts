@@ -44,27 +44,39 @@ export const csSettings = {
   "settings.modules.add": "Doplnit",
   "settings.modules.manage": "Spravovat modely",
 
-  // Local model that turns a raw transcript into a readable document.
+  // Local model that turns a raw transcript into a readable document. Dvě
+  // karty, jedna z nich je vždycky vybraná. Vypínat není co: úprava se spustí
+  // jen tehdy, když si u přepisu vyžádáte dokument.
   "settings.editor.title": "Jazyková úprava",
   "settings.editor.description":
     "Vytvoří nový dokument. Nepřepíše původní přepis a časové značky.",
-  "settings.editor.download":
-    "Model se stáhne jednou, {size}, a pak pracuje bez připojení k internetu.",
-  "settings.editor.enabledNote": "Model se načte až při spuštění úpravy.",
+  "settings.editor.modelSmall": "Menší",
+  "settings.editor.modelMiddle": "Střední",
+  "settings.editor.modelLarge": "Větší",
+  "settings.editor.note":
+    "Úprava se spustí jen tehdy, když si u přepisu vyžádáte dokument. Model se stáhne jednou — teď, nebo až tehdy — a pak pracuje bez připojení k internetu.",
 
-  // What the transcription actually ran on. Not a choice: the machine decides
-  // by its drivers, and this card only says what it decided.
-  "settings.compute.title": "Kde přepis běží",
+  // Where the transcription computes. Dvě karty, klidový stav je nevybráno —
+  // a pod nimi to, co doopravdy běželo.
+  "settings.compute.title": "Výkon",
   "settings.compute.description":
-    "Aplikace si sama vybere nejrychlejší možnost, kterou tento počítač zvládne.",
+    "Kde se přepis počítá. Volba platí pro další přepisy, hotové nijak nemění.",
   "settings.compute.running": "Používá se",
-  "settings.compute.pinned":
-    "Dřív tu bylo ručně nastavené {chosen}. Aplikace to respektuje, i když by sama vybrala jinak.",
-  "settings.compute.substituted":
-    "Dřív tu bylo ručně nastavené {chosen}. Tady to spustit nejde, takže přepis běží jinak.",
-  "settings.compute.letItDecide": "Nechat na aplikaci",
+  "settings.compute.modeGpu": "Grafická karta (GPU)",
+  "settings.compute.modeGpuNote":
+    "S grafickou kartou je přepis rychlejší. Kterou knihovnu použít, pozná aplikace sama.",
+  "settings.compute.modeCpu": "Procesor (CPU)",
+  "settings.compute.modeCpuNote": "Funguje na každém počítači. Přepis ale trvá déle.",
+  "settings.compute.autoNote": "Aplikace automaticky volí výkonnější variantu.",
+  "settings.compute.pinnedNote":
+    "Vybraná varianta platí i tam, kde by aplikace zvolila jinak.",
+  "settings.compute.letItDecide": "Automaticky",
   "settings.compute.graphicsCardIdle":
     "V počítači je grafická karta, ale sestavení pro ni zatím není stažené.",
+  "settings.compute.graphicsCardRefused":
+    "Vybraná je grafická karta, ale sestavení pro ni zatím není stažené. Přepis zatím počítá procesor.",
+  "settings.compute.processorRefused":
+    "Vybraný je procesor, ale sestavení pro něj zatím není stažené. Přepis zatím počítá grafická karta.",
   "settings.compute.noGraphicsCard":
     "Tento počítač nemá podporovanou grafickou kartu, přepis proto počítá procesor.",
 
@@ -165,10 +177,11 @@ export const csSettings = {
 
   // What Whisper is told to do.
   "settings.transcription.description":
-    "Model, který nahrávku přepíše, a jazyk, kterým se v ní mluví.",
+    "Model, kterým se nahrávky přepisují.",
   "settings.transcription.model": "Model",
   "settings.transcription.modelDescription": "Stažený model.",
-  "settings.transcription.modelNote": "Zobrazuje pouze stažené modely.",
+  "settings.transcription.modelNote":
+    "Nabízí jen modely, které jsou v počítači. Další se stahují v Nástrojích.",
   "settings.transcription.language": "Jazyk nahrávky",
   "settings.transcription.languageNote":
     "Předem vybraný jazyk urychlí přepis. U více jazyků nechte automatiku.",
@@ -292,32 +305,55 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
   "settings.modules.add": "Tlačítko, které vede na obrazovku stahování chybějících součástí.",
 
   "settings.editor.title":
-    "Název sekce i popisek přepínače. Jde o dodatečnou úpravu textu jazykovým modelem, ne o editor jako program.",
-  "settings.editor.download":
-    "Věta vedle tlačítka Stáhnout na kartě Jazyková úprava, když model ještě " +
-    "není v počítači. {size} je velikost i s jednotkou, například „3,3 GB“. " +
-    "Který model to je, se uživatele neptáme — vyplývá z volby z průvodce.",
+    "Název sekce. Jde o dodatečnou úpravu textu jazykovým modelem, ne o editor jako program.",
+  "settings.editor.modelSmall":
+    "Název karty pod nadpisem Jazyková úprava. Jedno slovo schválně — noun " +
+    "dodává nadpis. V seznamu ke stažení má týž model delší název, protože tam " +
+    "stojí sám.",
+  "settings.editor.modelMiddle":
+    "Název třetí karty. Ta se objeví jen na počítačích, kde ten model už je; " +
+    "aplikace ho sama nenabízí.",
+  "settings.editor.modelLarge": "Název druhé karty. Taky jedno slovo.",
+  "settings.editor.note":
+    "Věta pod kartami Menší a Větší. Vysvětluje, proč se zatím nic nestahuje a " +
+    "proč tu není žádné vypnutí: jazyková úprava sama od sebe neběží.",
 
   "settings.compute.title":
-    "Nadpis karty na záložce Nástroje. Neříká, co si uživatel vybral — vybrat " +
-    "to nejde — ale na čem přepis skutečně počítá.",
+    "Nadpis karty na záložce Nástroje. Je nad přepínačem i nad řádkem, který " +
+    "říká, na čem přepis skutečně počítá.",
   "settings.compute.description":
-    "Věta pod nadpisem. Vysvětluje, že je to zjištěný stav, ne nastavení.",
+    "Věta pod nadpisem. Říká, čeho se volba týká — příštích přepisů, ne už hotových.",
   "settings.compute.running":
     "Popisek řádku, za kterým je název použitého sestavení: „Grafická karta " +
     "Nvidia (CUDA)“, „Procesor (CPU)“ a podobně.",
-  "settings.compute.pinned":
-    "Věta pro případ, že je uloženo ruční nastavení z dřívější verze aplikace a " +
-    "tenhle počítač ho spustit umí. {chosen} je název toho nastavení, například " +
-    "„Procesor (CPU)“.",
-  "settings.compute.substituted":
-    "Táž věta pro případ, že tenhle počítač uložené nastavení spustit neumí. " +
-    "{chosen} je název toho nastavení.",
+  "settings.compute.modeGpu":
+    "Název jedné ze dvou karet. Znamená kartu obecně — jestli se použije CUDA, " +
+    "nebo Vulkan, rozhoduje aplikace podle ovladačů a uživatele se neptá. " +
+    "Zkratku v závorce nech: český název je to, co si člověk přečte, a GPU je " +
+    "to, co odjinud zná. Není to nadbytečné.",
+  "settings.compute.modeGpuNote": "Věta pod názvem té karty. „Knihovna“ je CUDA nebo Vulkan.",
+  "settings.compute.modeCpu":
+    "Název druhé karty. Přepis počítá procesor. Zkratku v závorce nech, ze " +
+    "stejného důvodu jako u GPU.",
+  "settings.compute.modeCpuNote": "Věta pod názvem té karty.",
+  "settings.compute.autoNote":
+    "Věta pod oběma kartami. Popisuje klidový stav: když si uživatel nevybere " +
+    "ani jednu, řídí se aplikace ovladači a vezme rychlejší cestu. Není to " +
+    "slib, že aplikace přebije vybranou kartu — vybraná karta platí dál.",
+  "settings.compute.pinnedNote":
+    "Věta vedle tlačítka Automaticky, když je jedna z karet vybraná. Říká, že " +
+    "vybraná varianta má přednost před tím, co by aplikace zvolila sama.",
   "settings.compute.letItDecide":
-    "Tlačítko vedle té věty. Zruší staré ruční nastavení a vrátí rozhodování aplikaci.",
+    "Tlačítko vedle té věty. Zruší vybranou kartu a vrátí rozhodování aplikaci.",
   "settings.compute.graphicsCardIdle":
-    "Věta vedle tlačítka Stáhnout: grafická karta v počítači je, ale program pro " +
-    "ni chybí, takže se nevyužívá.",
+    "Věta vedle tlačítka Stáhnout, když si uživatel nevybral ani jednu kartu: " +
+    "grafická karta v počítači je, ale program pro ni chybí.",
+  "settings.compute.graphicsCardRefused":
+    "Táž situace, ale kartu si uživatel vybral sám. Věta říká, že se jeho " +
+    "volba splnit nedá a co běží místo toho.",
+  "settings.compute.processorRefused":
+    "Opačný případ: vybraný je procesor, ale stažené je jen sestavení pro " +
+    "grafickou kartu, takže přepis běží na ní.",
   "settings.compute.noGraphicsCard":
     "Věta na počítači bez použitelné grafické karty. Není to chyba, jen konstatování.",
 

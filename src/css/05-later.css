@@ -321,8 +321,12 @@ button.current > .row-play { color: var(--accent); }
 }
 .choice.with-icon .choice-head { align-items: center; justify-content: flex-start; gap: 9px; }
 /* The badge belongs at the right edge. Inline after the title it moved with the
-   length of the name, so no two rows had it in the same place. */
-.choice.with-icon > .badge { flex: 0 0 auto; margin-left: auto; }
+   length of the name, so no two rows had it in the same place. The download
+   size on the wizard's two quality cards is the same kind of thing and takes
+   the same place; no card carries both, so both may claim the free space with
+   `margin-left: auto` without having to split it between them. */
+.choice.with-icon > .badge,
+.choice.with-icon > .choice-size { flex: 0 0 auto; margin-left: auto; }
 
 /* ------------------------------------- audio visualisation in the mini player */
 .mini-player { position: relative; overflow: hidden; }
@@ -438,6 +442,15 @@ button.current > .row-play { color: var(--accent); }
   display: grid; place-items: center; width: 30px; height: 30px;
   border-radius: 50%; background: var(--accent-light); color: var(--accent);
 }
+/* A panel whose labels carry that circle. 46 px rather than the 40 px every
+   other row of this kind takes: the circle is 30 and the row's own 6 px of
+   padding leaves it 2 px from both edges, which is a mark wedged into a row
+   rather than sitting in one. 8 px above and below it is the same air the
+   abilities list gives the same circle. 11 px to the label is `.about-row`'s
+   own 16 px gap brought in, because half of that gap is now the circle's
+   whitespace. Only this panel: the licence list beside it has no marks. */
+.about-panel-marked .about-row { min-height: 46px; }
+.about-panel-marked .about-row dt { display: flex; align-items: center; gap: 11px; }
 .about-group + .about-group { margin-top: 22px; }
 .about-group-label {
   margin: 0 0 8px;

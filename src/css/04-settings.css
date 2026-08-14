@@ -100,10 +100,14 @@
    transcript and is on Nástroje now.
    The JSX may declare them in any order it likes; this is the reading order. */
 .settings-card-transcription { order: 1; }
-.settings-card-speakers { order: 2; }
-.settings-card-language-edit { order: 3; }
-.settings-card-dictionary { order: 4; }
-.settings-card-advanced { order: 5; }
+/* The recording's language stands between the model that reads it and the
+   people in it: still about the recording, and the last thing on this tab that
+   is. Everything below is about what is done with the words afterwards. */
+.settings-card-language { order: 2; }
+.settings-card-speakers { order: 3; }
+.settings-card-language-edit { order: 4; }
+.settings-card-dictionary { order: 5; }
+.settings-card-advanced { order: 6; }
 /* Nástroje: whether anything needed is missing, then what the transcription
    actually runs on, and then where the downloaded programs and models are kept.
    The status band answers the question somebody opens this tab with; the other
@@ -428,10 +432,17 @@
 .problems { color: var(--danger); font-size: 13px; padding-left: 18px; }
 
 /* `.benchmark` stood here — the list of measured backends under `Změřit
-   rychlost`. Both are gone with `Akcelerace zpracování`: nothing on this screen
-   chooses where the work runs, so nothing measures it either. The card on
-   `Nástroje` says which backend ran, and it is built from `.about-panel`, the
-   panel of facts the About page and the archive's backups already share. */
+   rychlost`. Both are gone: `benchmark_compute` in Rust is the application's
+   only instrument for timing a backend and has no caller, and until somebody
+   runs it there is nothing measured to list. The card on `Nástroje` chooses
+   between the processor and the card and then says, from `.about-panel`, which
+   build actually ran — the panel of facts the About page and the archive's
+   backups already share. */
+/* The panel under the choice and the note that belongs to it. 14 px, which is
+   what `.choices + .settings-info-note.compact` already takes above it, so the
+   three bands of this card sit on one rhythm — the cards, the sentence about
+   the resting state, and what the machine actually did with it. */
+.settings-card-compute .about-panel { margin-top: 14px; }
 
 .preview-font {
   border: 1px solid var(--line); border-radius: var(--r-card);

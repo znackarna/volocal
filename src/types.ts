@@ -131,7 +131,10 @@ export interface Settings {
   temperature: number;
   /** How much the temperature rises with each further attempt. */
   temperature_increment: number;
-  compute: "auto" | "cuda" | "vulkan" | "cpu" | string;
+  /** Where the transcription computes: `auto`, `gpu` or `cpu`. Settings
+   *  written before 14 August 2026 may instead name a build, `cuda` or
+   *  `vulkan`; `computeMode` in `Settings.tsx` reads both. */
+  compute: "auto" | "gpu" | "cpu" | "cuda" | "vulkan" | string;
   last_machine: string;
   /** system | light | dark */
   theme: string;
@@ -396,10 +399,11 @@ export function qualityChoice(settings: Pick<Settings, "quality_choice" | "model
 
 /** Every language-editing model, by the catalogue component that installs it.
  *
- *  Three are in the catalogue and two are offered. The middle one is here so
- *  that a machine which already holds it keeps working — Settings still turns
- *  the feature on with it, and the by-hand list still shows it as installed —
- *  but nothing offers it any more, in the wizard, in Settings or in that list.
+ *  Three are in the catalogue and two are offered, in this order — smallest
+ *  first, which is the order `Jazyková úprava` draws its cards in. The middle
+ *  one is here so that a machine which already holds it keeps working and keeps
+ *  being named: nothing fetches it, but where it is on the disk it is shown,
+ *  both in the by-hand list and as a third card on that screen.
  */
 export const EDITOR_MODELS: Record<string, string> = {
   "editor-model-light": "gemma-4-e2b-q4",
@@ -407,8 +411,20 @@ export const EDITOR_MODELS: Record<string, string> = {
   "editor-model-best": "gemma-4-12b-q4",
 };
 
-/** Which of them the one question implies. Sizes are not written here: the
- *  catalogue carries them, and a second copy is the one that goes stale. */
+/** Which of them the one question implies — the default, not the answer.
+ *
+ *  The wizard asks one thing, `rychle` or `přesně`, and this is that answer
+ *  applied to the language editor: it decides which model is badged
+ *  `doporučeno` on `Jazyková úprava` and which one the offer in `Detail.tsx`
+ *  fetches for somebody who has never chosen. **A model chosen in Settings is
+ *  stored in `editor_model` and wins over it**, exactly as the transcription
+ *  model chosen there wins over the one the wizard downloaded — Settings is
+ *  where a decision is revisited, not where it is asked a second time. Nothing
+ *  writes `editor_model` back from `quality_choice` afterwards; both readers of
+ *  this table look at the stored value first.
+ *
+ *  Sizes are not written here: the catalogue carries them, and a second copy is
+ *  the one that goes stale. */
 export const EDITOR_TIER: Record<QualityChoice, string> = {
   fast: "editor-model-light",
   accurate: "editor-model-best",

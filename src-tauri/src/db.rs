@@ -289,15 +289,16 @@ pub struct Settings {
     /// the fallback off entirely, leaving nothing to break a loop.
     #[serde(default = "default_temperature_increment", alias = "teplota_krok")]
     pub temperature_increment: f64,
-    /// auto | cuda | vulkan | cpu — which whisper.cpp build to use.
+    /// auto | gpu | cpu — where the transcription should compute, plus the two
+    /// build names `cuda` and `vulkan` that older settings records may hold.
     ///
-    /// Nothing in the window writes anything but `auto` any more: the machine
-    /// picks the backend from its drivers, exactly as the wizard already picks
-    /// the programs, and `Akcelerace zpracování` was removed from Settings on
-    /// 14 August 2026. The field stays because a settings record written
-    /// before that may name a backend, and `choose_compute` still honours it
-    /// where the machine can run it. `Nástroje` shows what actually ran and
-    /// offers the one way back to `auto`.
+    /// The window writes only the first three. `gpu` names the card without
+    /// naming a build: which of CUDA and Vulkan suits it is read off the
+    /// drivers in `choose_compute`, and asking a reader that question was the
+    /// defect the 14 August 2026 rework removed — a stored `cuda` on a machine
+    /// with an AMD card silently transcribed on the processor while the screen
+    /// said otherwise. The two old values still load and are still honoured
+    /// where the machine can run them; `Nástroje` shows them as the card.
     #[serde(default = "default_compute", alias = "vypocet")]
     pub compute: String,
     /// Which machine last did the computing. When it changes we offer to

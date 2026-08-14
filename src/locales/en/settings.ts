@@ -78,20 +78,30 @@ export const enSettings: Partial<Record<keyof typeof csSettings, string>> = {
   "settings.modules.manage": "Manage models",
   "settings.editor.title": "Language editing",
   "settings.editor.description": "Creates a new document. It does not rewrite the original transcript or its timestamps.",
-  "settings.editor.download":
-    "The model downloads once, {size}, and then works without an internet connection.",
-  "settings.editor.enabledNote": "The model loads only when editing starts.",
-  "settings.compute.title": "Where transcription runs",
+  "settings.editor.modelSmall": "Smaller",
+  "settings.editor.modelMiddle": "Middle",
+  "settings.editor.modelLarge": "Larger",
+  "settings.editor.note":
+    "Editing runs only when you ask a transcript for a document. The model downloads once — now, or then — and afterwards works without an internet connection.",
+  "settings.compute.title": "Performance",
   "settings.compute.description":
-    "The app picks the fastest option this computer can manage, by itself.",
+    "Where transcription computes. The choice applies to further transcripts and changes nothing already finished.",
   "settings.compute.running": "In use",
-  "settings.compute.pinned":
-    "{chosen} was set by hand here once. The app honours it, even where it would have picked otherwise.",
-  "settings.compute.substituted":
-    "{chosen} was set by hand here once. It can’t be run on this computer, so transcription runs some other way.",
-  "settings.compute.letItDecide": "Let the app decide",
+  "settings.compute.modeGpu": "Graphics card (GPU)",
+  "settings.compute.modeGpuNote":
+    "Transcription is faster with a graphics card. Which library to use is something the app works out by itself.",
+  "settings.compute.modeCpu": "Processor (CPU)",
+  "settings.compute.modeCpuNote": "Works on every computer. Transcription takes longer, though.",
+  "settings.compute.autoNote": "The application automatically picks the faster option.",
+  "settings.compute.pinnedNote":
+    "The selected option applies even where the app would have picked otherwise.",
+  "settings.compute.letItDecide": "Automatic",
   "settings.compute.graphicsCardIdle":
     "There is a graphics card in this computer, but the build for it isn’t downloaded yet.",
+  "settings.compute.graphicsCardRefused":
+    "The graphics card is selected, but the build for it isn’t downloaded yet. The processor is doing the transcribing for now.",
+  "settings.compute.processorRefused":
+    "The processor is selected, but the build for it isn’t downloaded yet. The graphics card is doing the transcribing for now.",
   "settings.compute.noGraphicsCard":
     "This computer has no supported graphics card, so the processor does the transcribing.",
   "settings.files.locationsTitle": "Location of tools and models",
@@ -136,11 +146,11 @@ export const enSettings: Partial<Record<keyof typeof csSettings, string>> = {
   "settings.appearance.previewSpeaker": "Michael",
   "settings.appearance.previewText": "We met on Thursday afternoon and talked for the best part of two hours. “Let’s listen to the whole thing first,” she said — and she was right. The transcript came to 1,234 words, with not a sentence missing.",
   "settings.appearance.previewDiacritics": "Accents and ligatures: á é í ó ú â ê ô ä ö ü ç ñ æ œ",
-  "settings.transcription.description":
-    "The model that transcribes the recording, and the language spoken in it.",
+  "settings.transcription.description": "The model your recordings are transcribed with.",
   "settings.transcription.model": "Model",
   "settings.transcription.modelDescription": "Downloaded model.",
-  "settings.transcription.modelNote": "Shows downloaded models only.",
+  "settings.transcription.modelNote":
+    "Only models that are on this computer are offered. More are downloaded under Tools.",
   "settings.transcription.language": "Recording language",
   "settings.transcription.languageNote": "Picking the language up front speeds up transcription. Leave it automatic for several languages.",
   "settings.transcription.beam": "Search thoroughness",
