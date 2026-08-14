@@ -183,9 +183,9 @@ export const csSettings = {
     "Vyšší hodnota zvyšuje přesnost a prodlužuje dobu přepisu.",
 
   // Words the transcript gets wrong the same way every time.
-  "settings.dictionary.title": "Slovník",
+  "settings.dictionary.title": "Slovník oprav",
   "settings.dictionary.description":
-    "Slova, která přepis plete pokaždé stejně: jména, místa, odborné výrazy. Opraví se ve všech nových přepisech.",
+    "Slova, která se v nových přepisech opraví pokaždé stejně: jména, místa, odborné výrazy.",
   "settings.dictionary.newEntry": "Nový výraz",
   "settings.dictionary.find": "Co přepis slyší",
   "settings.dictionary.findPlaceholder": "součas DNA",
@@ -195,9 +195,9 @@ export const csSettings = {
   "settings.dictionary.empty": "Slovník je zatím prázdný.",
 
   "settings.speakers.title": "Mluvčí",
-  "settings.speakers.toggle": "Rozpoznávat mluvčí",
+  "settings.speakers.toggle": "Rozlišení mluvčích",
   "settings.speakers.description":
-    "Rozdělí text mezi jednotlivé mluvčí už při prvním přepisu.",
+    "Spustí rozlišení mluvčích během prvního přepisu.",
 
   // Copies of the archive database.
   "settings.backups.title": "Záloha archivu",
@@ -444,9 +444,16 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
   "settings.transcription.beam":
     "Beam size Whisperu. Kolik možností si přepis drží, než vybere výsledek.",
 
-  "settings.dictionary.title": "Nadpis karty se seznamem oprav. Stojí na záložce Přepis, poslední.",
+  "settings.dictionary.title":
+    "Nadpis karty se seznamem oprav. „Oprav“ je nutné rozlišení, ne výplň: " +
+    "samotné „Slovník“ zve otázku slovník čeho, a na téže záložce jsou jazykové " +
+    "modely i jazyk nahrávky. Druhý pád množného čísla od „oprava“.",
   "settings.dictionary.description":
-    "Úvodní věta té karty. „Přepis“ je tu ten hotový text, ne činnost.",
+    "Jedna věta pod tím nadpisem, příklady až na konci. Začíná nápravou — " +
+    "slova, která se opraví — ne problémem; dřív začínala tím, že je přepis " +
+    "plete. Nadpis „Slovník oprav“ nápravu pojmenoval, takže ji věta nemusí " +
+    "nést podruhé a zbyde místo na příklady. Bez toho nadpisu by zkrácená " +
+    "nefungovala. „Přepis“ je tu hotový text, ne činnost.",
   "settings.dictionary.newEntry":
     "Popisek řádku, ve kterém se zakládá nová dvojice. „Výraz“, ne „záznam“: záznam je v téhle aplikaci všude jinde nahrávka, takže ve slovníku četl jako nová nahrávka. Výraz je i proto, že ta dvojice může být sousloví, ne jen slovo.",
   "settings.dictionary.find": "Popisek pole: co se v přepisu objevuje špatně.",
@@ -456,8 +463,18 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
   "settings.dictionary.replacePlaceholder": "Ukázka v poli: správný tvar předchozího příkladu.",
   "settings.dictionary.add": "Tlačítko, které přidá nový záznam do slovníku.",
   "settings.dictionary.empty": "Text místo seznamu, dokud slovník nemá žádný záznam.",
-  "settings.speakers.title": "Nadpis sekce o rozpoznávání mluvčích (diarizaci).",
-  "settings.speakers.toggle": "Popisek přepínače diarizace.",
+  "settings.speakers.title":
+    "Nadpis karty o rozpoznávání mluvčích (diarizaci). Podstatné jméno, protože " +
+    "přepínač pod ním je ta činnost — stejná dvojice jako Model přepisu nad " +
+    "svými kartami.",
+  "settings.speakers.toggle":
+    "Popisek přepínače diarizace, pod nadpisem Mluvčí. Opakování slova " +
+    "„mluvčích“ v popisku a ve větě pod ním je záměr autora, nespojuj to.",
+  "settings.speakers.description":
+    "Věta pod přepínačem. Odlišuje tenhle přepínač od tlačítka Rozpoznat " +
+    "mluvčí u konkrétní nahrávky: tohle běží jako součást přepisu, tamto až " +
+    "dodatečně na vyžádání. Pozor, doslova to platí i pro opakovaný přepis " +
+    "v jiném jazyce — viz záznam změn ze 14. srpna 2026.",
 
   "settings.backups.latest": "Popisek údaje: kdy se záloha vytvořila naposledy.",
   "settings.backups.none": "Hodnota vedle „Poslední záloha“, dokud žádná není.",

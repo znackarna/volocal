@@ -1843,11 +1843,21 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
       </section>}
 
       {activeTab === "transcription" && <section className="settings-card-speakers">
+        {/* Three lines, and the card had room for two.
+            *Mluvčí / Rozlišení mluvčích / Spustí rozlišení mluvčích během
+            prvního přepisu.*
+
+            The `heading` variant renders the title as the card's `<h2>` and
+            keeps `label` for screen readers only, so `Rozlišení mluvčích` had
+            nowhere to be drawn. The card takes its own heading and the switch
+            becomes the plain row — subject above, action below — which is the
+            shape `Model přepisu` and `Výkon` have converged on today and the
+            reason the three lines fit without inventing a fourth. */}
+        <h2>{t("settings.speakers.title")}</h2>
         <SettingsToggle
-          title={t("settings.speakers.title")}
+          title={t("settings.speakers.toggle")}
           label={t("settings.speakers.toggle")}
           checked={n.diarization}
-          heading
           onChange={(checked) => save({ ...n, diarization: checked })}
           description={t("settings.speakers.description")}
         />
