@@ -27,11 +27,11 @@ export const enCatalog: Partial<Record<keyof typeof csCatalog, string>> = {
   "catalog.editor-cpu.name": "Language editing on the processor",
   "catalog.editor-cpu.description": "Universal option for computers without supported graphics.",
   "catalog.editor-model-light.name": "Smaller language-editing model",
-  "catalog.editor-model-light.description": "Gemma 4 E2B. Needs the least memory, and finishes sooner.",
+  "catalog.editor-model-light.description": "Gemma 4 E2B. Fewer parameters need less memory and less time.",
   "catalog.editor-model-balanced.name": "Middle language-editing model",
   "catalog.editor-model-balanced.description": "Gemma 4 E4B. The app never offers it; it works if you already have it.",
   "catalog.editor-model-best.name": "Larger language-editing model",
-  "catalog.editor-model-best.description": "Gemma 4 12B. Does the same with more parameters, and needs more memory and time for it.",
+  "catalog.editor-model-best.description": "Gemma 4 12B. More parameters need more memory and more time.",
   "catalog.model-hlasy.name": "Voice identification",
   "catalog.model-hlasy.description": "Links the same voice across the whole recording.",
 };

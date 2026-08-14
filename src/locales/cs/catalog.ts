@@ -49,13 +49,13 @@ export const csCatalog = {
   // heading supplies the noun, and live in the settings dictionary.
   "catalog.editor-model-light.name": "Menší model jazykové úpravy",
   "catalog.editor-model-light.description":
-    "Gemma 4 E2B. Potřebuje nejmíň paměti a je hotová dřív.",
+    "Gemma 4 E2B. Méně parametrů potřebuje míň paměti i času.",
   "catalog.editor-model-balanced.name": "Střední model jazykové úpravy",
   "catalog.editor-model-balanced.description":
     "Gemma 4 E4B. Aplikace ho sama nenabízí; funguje, pokud ho už v počítači máte.",
   "catalog.editor-model-best.name": "Větší model jazykové úpravy",
   "catalog.editor-model-best.description":
-    "Gemma 4 12B. Dělá totéž s víc parametry a potřebuje na to víc paměti i času.",
+    "Gemma 4 12B. Více parametrů potřebuje víc paměti i času.",
 
   // Telling speakers apart.
   "catalog.model-hlasy.name": "Rozpoznání hlasů",
@@ -80,8 +80,12 @@ export const csCatalogContext: Partial<Record<keyof typeof csCatalog, string>> =
     "jazykové úpravy se jmenují podle velikosti, ne podle kvality; o jejich " +
     "výstupu není nic změřeno.",
   "catalog.editor-model-light.description":
-    "Gemma 4 E2B je název modelu a nepřekládá se. „Hotová dřív“ plyne z počtu " +
-    "parametrů, ne z měření — porovnané ty modely nikdy nebyly.",
+    "Gemma 4 E2B je název modelu a nepřekládá se — číslice i velká písmena " +
+    "nech tak, jak jsou. Obě věty u obou modelů jsou stavěné stejně: jméno " +
+    "modelu, a pak jen to, co plyne z počtu parametrů — paměť a čas. **Věta " +
+    "tam schválně končí.** Nedopisuj „a je přesnější“ ani nic o kvalitě " +
+    "výstupu: tyhle modely nikdy nikdo neporovnal a rozdíl v paměti a čase je " +
+    "aritmetika, ne měření.",
   "catalog.editor-model-balanced.name":
     "Prostřední velikost. Aplikace ji nikde nenabízí; název je potřeba pro " +
     "počítače, kde už ten model je.",
@@ -92,8 +96,9 @@ export const csCatalogContext: Partial<Record<keyof typeof csCatalog, string>> =
     "Gemma 4 E4B je název modelu. Tenhle model aplikace nikde nenabízí, jen " +
     "ho umí použít, když ho uživatel má z dřívějška.",
   "catalog.editor-model-best.description":
-    "Gemma 4 12B je název modelu. „Víc parametrů“ je velikost modelu, ne lepší " +
-    "výsledek — to nikdo neměřil.",
+    "Gemma 4 12B je název modelu, číslice i velká písmena nech tak. „Více " +
+    "parametrů“ je velikost modelu, ne lepší výsledek — to nikdo neměřil. Věta " +
+    "končí u paměti a času schválně; viz poznámka u menšího modelu.",
   "catalog.model-hlasy.name":
     "Identifikátor položky zůstal český z historických důvodů, název se překládá normálně.",
 };
