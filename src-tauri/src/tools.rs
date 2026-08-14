@@ -127,7 +127,42 @@ fn holds_the_tools(folder: &Path) -> bool {
     folder.join("bin").is_dir() || folder.join("models").is_dir()
 }
 
+// A root of one test's own, in place of the machine's.
+//
+// `tools_root()` is not derived from the settings — `bin` and `models` are, but
+// everything beside them is not, and `installed.json` is the one that matters
+// here. So a test that built a scratch folder and pointed both settings at it
+// still wrote its installation records into
+// `%LOCALAPPDATA%\cz.znackarna.volocal\installed.json`: the real one, on the
+// machine running the tests. Four of them did, and because
+// `record_installation` reads the whole map, edits it and writes it back, two
+// running side by side each dropped the other's entry — which is the
+// intermittent `no entry found for key`. The same runs were also editing the
+// record of the developer's own installation.
+//
+// It is a thread-local and not an environment variable because `LOCALAPPDATA`
+// is process-wide and `cargo test` runs these beside each other in one process
+// — the reason `rename_tools_root` takes its folder as an argument. `cargo
+// test` gives each test a thread of its own and the work it calls happens on
+// that thread, so a root set here belongs to exactly one test.
+#[cfg(test)]
+thread_local! {
+    static TEST_ROOT: std::cell::RefCell<Option<PathBuf>> =
+        const { std::cell::RefCell::new(None) };
+}
+
+/// Points everything under `tools_root()` at this test's own folder, for the
+/// rest of this test. Call it once, with a directory nothing else uses.
+#[cfg(test)]
+pub fn use_tools_root_for_this_test(root: &Path) {
+    TEST_ROOT.with(|slot| *slot.borrow_mut() = Some(root.to_path_buf()));
+}
+
 pub fn tools_root() -> PathBuf {
+    #[cfg(test)]
+    if let Some(root) = TEST_ROOT.with(|slot| slot.borrow().clone()) {
+        return root;
+    }
     if is_portable() {
         return app_directory();
     }

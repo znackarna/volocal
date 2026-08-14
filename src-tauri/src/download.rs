@@ -1574,10 +1574,17 @@ mod tests {
 
     /// A scratch directory of this test's own, removed on the way in so a
     /// previous run cannot decide the result.
+    ///
+    /// It is also the tools root for the rest of this test, which is what makes
+    /// `installed.json` this test's own. Settings name `bin` and `models` and
+    /// nothing else, so before this the records went to the machine's real root
+    /// however carefully the settings were built — see
+    /// `tools::use_tools_root_for_this_test`.
     fn scratch(name: &str) -> PathBuf {
         let directory = std::env::temp_dir().join(format!("volocal-test-{name}"));
         let _ = std::fs::remove_dir_all(&directory);
         std::fs::create_dir_all(&directory).expect("scratch");
+        crate::tools::use_tools_root_for_this_test(&directory);
         directory
     }
 
