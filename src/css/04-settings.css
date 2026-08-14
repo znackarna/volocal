@@ -569,6 +569,12 @@
    looking shared. */
 .download-view { display: flex; justify-content: flex-end; margin-bottom: 10px; }
 .manual > .download-view { margin-bottom: 10px; }
+/* Icon-only, so the button is square. 30 px in the 36 px track is the plain
+   segmented control's own geometry — the archive's 32-in-40 is matched to the
+   filter select standing beside it there and has no counterpart on either of
+   these screens, so the shape is carried over and the measurement is not. */
+.listing-view-toggle button { width: 30px; min-height: 30px; padding: 0; }
+.listing-view-toggle button svg { flex: 0 0 auto; }
 
 .progress-large { margin-bottom: 20px; }
 .progress-large .progress-bar { height: 6px; }

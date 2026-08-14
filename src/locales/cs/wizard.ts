@@ -49,8 +49,8 @@ export const csWizard = {
   "wizard.download.nothingNeeded": "Všechno potřebné už máte.",
   "wizard.download.downloadWithSize": "Stáhnout ({size})",
   "wizard.download.viewLabel": "Podrobnost výpisu",
-  "wizard.download.viewCompact": "Stručně",
-  "wizard.download.viewFull": "Podrobně",
+  "wizard.download.viewCompact": "Stručný výpis",
+  "wizard.download.viewFull": "Podrobný výpis",
 
   // ------------------------------------------------------------- choosing by hand
   "wizard.manual.title": "Modely a nástroje",
@@ -118,10 +118,13 @@ export const csWizardContext: Partial<Record<keyof typeof csWizard, string>> = {
   "wizard.download.viewLabel":
     "Popisek přepínače nad výpisem pro odečítač obrazovky. Nezobrazuje se.",
   "wizard.download.viewCompact":
-    "První poloha přepínače nad výpisem: řádek je jen název a velikost. Výchozí stav.",
+    "Popisek jedné ze dvou poloh přepínače nad výpisem. Přepínač má jen ikony, " +
+    "takže se text nezobrazuje — čte ho odečítač obrazovky a ukáže se v bublině " +
+    "nad tlačítkem. Tahle poloha: řádek je jen název a velikost. Výchozí stav. " +
+    "Tvar věty drž stejný jako u „Kompaktní výpis“ v archivu, je to týž ovladač.",
   "wizard.download.viewFull":
-    "Druhá poloha: pod názvem je i věta, co ta položka dělá. Jedno slovo, ať se " +
-    "vejdou vedle sebe.",
+    "Druhá poloha téhož přepínače, taky jen jako popisek: pod názvem je navíc " +
+    "věta, co ta položka dělá.",
 
   "wizard.manual.title":
     "Nadpis ručního výpisu ze Spravovat modely. Je pod ním všechno, co se dá " +

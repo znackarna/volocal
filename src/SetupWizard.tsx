@@ -903,19 +903,27 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
   );
 }
 
-/** Compact or full, over either listing.
+/** Compact or full, over either listing — *identicky jako na archivu, teď jen
+ *  ikony*.
+ *
+ *  The archive's own control, not an approximation of it: the same two glyphs
+ *  drawn at the same 16 px on the same 1.3 stroke, the same roomy-then-dense
+ *  order, `aria-pressed` on each button and an `aria-label` and `title` on it
+ *  because an icon-only control that a screen reader announces as "button" is
+ *  not the same control. Two rounded bars mean the roomy row, three lines the
+ *  dense one, exactly as they do over the recordings.
+ *
+ *  **The one thing deliberately not carried over is the 40 px.** That height is
+ *  documented in `.archive-view-toggle` as 32 px buttons matched to the filter
+ *  select beside them in that toolbar. Neither listing has that neighbour, so
+ *  both take the plain segmented control — 30 px button in a 36 px track, the
+ *  default in `CLAUDE.md`. Carry the shape, not the measurement; this note is
+ *  here because the next person will compare the two and wonder.
  *
  *  One component and one stored value for both lists, which is the point: they
- *  look alike and must not drift. The archive's control is the model — same
- *  segmented pill, same two states, same `localStorage` habit — but at the
- *  archive's *shape* and not its size. `.archive-view-toggle` is 40 px because
- *  its 32 px buttons match the filter select beside them and its comment says
- *  so; there is no such neighbour here, so this is the plain segmented control,
- *  30 px button in a 36 px track, which is what `CLAUDE.md` documents.
- *
- *  What the two views mean is identical on both screens: full adds the
- *  catalogue's sentence under the name, compact does not. Nothing else about a
- *  row changes with it. */
+ *  look alike and must not drift. What the two views mean is identical on both
+ *  screens — full adds the catalogue's sentence under the name, compact does
+ *  not, and nothing else about a row changes with it. */
 function ListingSwitch({
   view,
   onView,
@@ -924,18 +932,38 @@ function ListingSwitch({
   onView: (view: ListingView) => void;
 }) {
   const { t } = useI18n();
+  const label = (option: ListingView) =>
+    t(option === "full" ? "wizard.download.viewFull" : "wizard.download.viewCompact");
   return (
     <div className="download-view">
-      <div className="segmented-control" role="group" aria-label={t("wizard.download.viewLabel")}>
-        {(["compact", "full"] as ListingView[]).map((option) => (
+      <div
+        className="segmented-control listing-view-toggle"
+        role="group"
+        aria-label={t("wizard.download.viewLabel")}
+      >
+        {(["full", "compact"] as ListingView[]).map((option) => (
           <button
             key={option}
             type="button"
             className={view === option ? "active" : ""}
             aria-pressed={view === option}
+            aria-label={label(option)}
+            title={label(option)}
             onClick={() => onView(option)}
           >
-            {t(option === "compact" ? "wizard.download.viewCompact" : "wizard.download.viewFull")}
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
+              {option === "full" ? (
+                <>
+                  <rect x="2" y="2.5" width="12" height="4" rx="1.5"
+                        stroke="currentColor" strokeWidth="1.3" />
+                  <rect x="2" y="9.5" width="12" height="4" rx="1.5"
+                        stroke="currentColor" strokeWidth="1.3" />
+                </>
+              ) : (
+                <path d="M2.5 3.5h11M2.5 8h11M2.5 12.5h11"
+                      stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+              )}
+            </svg>
           </button>
         ))}
       </div>
