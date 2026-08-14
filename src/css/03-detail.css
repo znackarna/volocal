@@ -239,6 +239,12 @@
 .detail-body.no-panel { grid-template-columns: 1fr; }
 
 .transcript { overflow-y: auto; padding: 26px 32px 120px; }
+/* Centres the transcript's own blocks. **A `.dialog-overlay` must never become
+   one of these children** — it is `position: fixed; inset: 0`, and a `max-width`
+   on it shrinks the veil to this column and leaves the rest of the window
+   undimmed; the reasoning is on `.wizard.wizard > *` in 04-settings.css. This
+   screen's dialogs are rendered beside the transcript rather than inside it, so
+   the rule stands as it is. */
 .transcript.transcript > * { max-width: 760px; margin-inline: auto; }
 .live-transcript { font-family: var(--font-body); font-size: var(--text-size); line-height: var(--line-height); color: var(--text-quiet); }
 

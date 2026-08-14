@@ -8,6 +8,21 @@
 /* ---------------------------------------------------------------- settings */
 
 .settings { flex: 1; overflow-y: auto; padding: 34px 24px 96px; }
+/* 720 px, and the wizard's by-hand listing is now the same column — see
+ * `.wizard.wizard-listing` further down this file, where the reasoning for both
+ * this width and the exclusion the wizard's rule carries is written out.
+ *
+ * **A `.dialog-overlay` must never become one of these children.** It is
+ * `position: fixed; inset: 0`, and a `max-width` on it shrinks the veil to this
+ * column and leaves the rest of the window undimmed — the defect the wizard
+ * shipped with. Settings renders its dialogs inside the cards that raise them
+ * rather than at this level, so the rule stands as it is; if one is ever put
+ * here, exclude it the way the wizard's rule does.
+ *
+ * The doubled class is a specificity fight that nothing in the history explains
+ * — it predates the English rename. It is left doubled rather than reduced
+ * blind: it beats any single-class rule landing on a direct child, which is a
+ * fight it can only lose by being made weaker. */
 .settings.settings > * { max-width: 720px; margin-inline: auto; }
 .settings-head {
   display: flex; align-items: center; justify-content: space-between;
@@ -478,8 +493,44 @@
 
 /* ---------------------------------------------------------------- wizard */
 
-.wizard { flex: 1; overflow-y: auto; padding: 36px 20px 40px; }
-.wizard.wizard > * { max-width: 620px; margin-inline: auto; }
+/* The wizard's column, and the one screen in it that is a different width.
+ *
+ * **`:not(.dialog-overlay)` is a defect fix, not tidiness.** `ConfirmationDialog`
+ * renders at the end of this `<main>`, so the scrim was one of the children this
+ * rule centres — and `max-width` on a `position: fixed; inset: 0` box does not
+ * bounce off it: the box shrinks to 620 px and `margin-inline: auto` centres it.
+ * The veil covered a strip down the middle of the window and left the rest of
+ * the screen undimmed, which is the *divný šedý pruh* on both sides of the
+ * owner's screenshot. Nothing was wrong with the scrim's colour and nothing
+ * behind it was two surfaces; it simply was not covering the window. The other
+ * three screens that centre their children do **not** carry the exclusion, and
+ * that is a decision rather than an oversight: none of them renders a dialog at
+ * that level, and `:not()` adds its argument's specificity — on the archive it
+ * would lift the rule to what `.library.library > .archive-sticky` and
+ * `.archive-scroll-content` have, turning two specificity wins into a matter of
+ * file order. Each of the three carries a comment saying what must never become
+ * one of its children, which costs nothing and cannot go stale.
+ *
+ * **The width rides on a variable** rather than on a second `max-width` rule,
+ * so there is one declaration of the column and nothing new has to win a
+ * cascade fight to change it. 720 px is the settings column's own width, on the
+ * owner's ask — the listing is reached from Settings and is a table, and a
+ * column that moved 100 px under the reader between the two screens was a
+ * change nobody could see a reason for. The guided run keeps 620: it is one
+ * question with two cards, which is prose and choices, and prose does not want
+ * the width a table does.
+ *
+ * The doubled class is a specificity fight and is left as it stands: nothing in
+ * the history says what it was written to beat, and it beats any single-class
+ * rule that lands on a direct child of this screen — which is a fight it can
+ * only lose by being reduced. */
+.wizard { flex: 1; overflow-y: auto; padding: 36px 20px 40px; --wizard-column: 620px; }
+.wizard.wizard-listing { --wizard-column: 720px; }
+.wizard.wizard > :not(.dialog-overlay) {
+  /* The fallback is not decoration: an undefined `var()` drops the declaration
+     silently, and this one decides the shape of every screen in the wizard. */
+  max-width: var(--wizard-column, 620px); margin-inline: auto;
+}
 
 .steps { display: flex; gap: 6px; margin-bottom: 28px; }
 .steps span { height: 3px; flex: 1; background: var(--line); border-radius: var(--r-pill); transition: background 0.25s; }

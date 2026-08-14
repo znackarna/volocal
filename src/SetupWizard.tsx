@@ -205,7 +205,24 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
   const userMessage = useUserMessage();
   const progressMessage = useProgressMessage();
 
-  const [step, setStep] = useState(STEP_CHOICE);
+  /** Whether this is the by-hand component list rather than the guided run.
+   *
+   *  Nothing on screen sets it: it follows from how the wizard was opened and is
+   *  never toggled. `Spravovat modely a nástroje` and `missingModule` are the
+   *  two ways in, and both arrive with `required` false — so in this mode `Zpět`
+   *  means the screen the reader came from.
+   *
+   *  **Read at the first render rather than in `load`**, which is where it used
+   *  to be decided once the catalogue had arrived. It was the same answer either
+   *  way, from the same two props, and being late cost something the moment the
+   *  column's width came to depend on it: the screen opened at the guided run's
+   *  620 px and jumped to 720 when the catalogue landed. It also opened on the
+   *  wrong screen for an instant — the one question, on the way to a listing
+   *  nobody had asked a question about. A layout that settles after it is drawn
+   *  is a layout the reader watches move. */
+  const listing = !required || !!missingModule;
+
+  const [step, setStep] = useState(listing ? STEP_DOWNLOAD : STEP_CHOICE);
   const [items, setItems] = useState<DownloadComponent[]>([]);
   const [check, setCheck] = useState<ToolCheck | null>(null);
 
@@ -214,13 +231,8 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
      started on a named choice could only ever start on the wrong one — which
      is exactly how the badge and the selection came to disagree. */
   const [chosen, setChosen] = useState<Quality | null>(null);
-  /** Whether this is the by-hand component list rather than the guided run.
-   *
-   *  Nothing on screen sets it any more: it is decided once in `load`, by how
-   *  the wizard was opened, and never toggled. `Spravovat modely` and
-   *  `missingModule` are the two ways in, and both arrive with `required`
-   *  false — so in this mode `Zpět` means the screen the reader came from. */
-  const [manual, setManual] = useState(false);
+  /** The same answer under the name the rest of this file has always used. */
+  const manual = listing;
   /** What this visit to the by-hand list actually fetched.
    *
    *  It was `manualSelect`, the set of ticked rows, and it fed three things:
@@ -326,8 +338,11 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
         /* Straight to the list, and it starts the download rather than
            ticking a box and waiting to be told to. A screen opened *for* one
            component that then asks the reader to confirm the component is a
-           screen asking a question it already has the answer to. */
-        setManual(true);
+           screen asking a question it already has the answer to.
+
+           `manual` is not set here any more — it is the first render's answer
+           to the same two props, so the column has its width before anything
+           is drawn. */
         const requested = [missingModule];
         if (missingModule.startsWith("editor-model-")) {
           requested.push(kn.vulkan_driver ? "editor-vulkan" : "editor-cpu");
@@ -348,8 +363,10 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
            `editor_model`, so somebody who opened it to see what was installed
            and pressed through could return with speaker recognition switched
            off and a different transcription model, having answered nothing
-           about either. Opening the list instead means looking costs nothing. */
-        setManual(true);
+           about either. Opening the list instead means looking costs nothing.
+
+           `manual` is already true here, from the first render — see the state
+           above. Only the step still waits for the catalogue. */
         setStep(STEP_DOWNLOAD);
       }
     } catch (e) {
@@ -614,7 +631,11 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
   };
 
   return (
-    <main className="wizard">
+    /* `wizard-listing` widens the column to the settings column's 720 px — see
+       the rule in `04-settings.css`. It is on the screen and not on the list
+       inside it because the width belongs to the column, and the error banner
+       above the list is a child of that column too. */
+    <main className={`wizard ${manual ? "wizard-listing" : ""}`}>
       {/* The progress bar of steps, and not in the by-hand list either, for the
           reason the step counter is not: that mode is one screen reached from
           elsewhere, so three segments with the first already filled would draw
