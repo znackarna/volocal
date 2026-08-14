@@ -171,7 +171,7 @@ export const csSettings = {
     "Vše kromě modelů Gemma je open source. Gemma se řídí podmínkami Googlu a FFmpeg licencí GPL v3.",
 
   // What Whisper is told to do.
-  "settings.transcription.model": "Model",
+  "settings.transcription.model": "Model přepisu",
   "settings.transcription.modelDescription": "Stažený model.",
   "settings.transcription.modelNote": "Chybějící model se výběrem automaticky stáhne.",
   "settings.transcription.modelDownloading": "stahuje se…",
@@ -424,9 +424,9 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
     "Ukázka písmen s diakritikou. V jiném jazyce nahraď jeho vlastními zvláštními znaky.",
 
   "settings.transcription.model":
-    "Nadpis karty s výběrem modelu Whisperu, kterým se přepisuje. Jedno slovo: " +
-    "dřív to byl popisek nad seznamem uvnitř té karty a karta se jmenovala " +
-    "stejně jako záložka nad ní.",
+    "Nadpis karty s výběrem modelu Whisperu, kterým se přepisuje. „Přepisu“ je " +
+    "nutné rozlišení, ne výplň: o kus níž je karta Jazyková úprava a ta je taky " +
+    "volba mezi modely, takže samotné „Model“ by neřeklo který.",
   "settings.transcription.modelDescription":
     "Náhradní popis modelu, který aplikace nezná podle jména.",
   "settings.transcription.modelNote":

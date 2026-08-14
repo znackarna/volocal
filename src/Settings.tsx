@@ -1608,7 +1608,13 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
         </div>
       </section>}
 
-      {/* Headed `Model`, and no longer `Přepis`.
+      {/* Headed `Model přepisu` — `Přepis` first, then `Model`, then this.
+
+          The first rename stopped the card wearing its tab's name. The second
+          is the same fix taken one step further, and it is the language editor
+          that made it necessary: once that card also became a choice between
+          models, `Model` alone named two cards on one screen and told them
+          apart nowhere. The qualifier is the distinction, not decoration.
 
           It took its tab's key, which was defensible while the card was most of
           the tab. It is not: the tab holds six cards, this one holds a list of

@@ -143,7 +143,7 @@ export const enSettings: Partial<Record<keyof typeof csSettings, string>> = {
   "settings.appearance.previewSpeaker": "Michael",
   "settings.appearance.previewText": "We met on Thursday afternoon and talked for the best part of two hours. “Let’s listen to the whole thing first,” she said — and she was right. The transcript came to 1,234 words, with not a sentence missing.",
   "settings.appearance.previewDiacritics": "Accents and ligatures: á é í ó ú â ê ô ä ö ü ç ñ æ œ",
-  "settings.transcription.model": "Model",
+  "settings.transcription.model": "Transcription model",
   "settings.transcription.modelDescription": "Downloaded model.",
   "settings.transcription.modelNote": "A model you do not have is downloaded when you pick it.",
   "settings.transcription.modelDownloading": "downloading…",
