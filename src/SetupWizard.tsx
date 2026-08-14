@@ -669,7 +669,24 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
               {t("wizard.nav.stepCounter", { step: 2, total: STEPS.length })}
             </p>
           )}
-          <h1>{t(running ? "wizard.download.runningTitle" : "wizard.download.reviewTitle")}</h1>
+          {/* `Co se stáhne` over the by-hand list was a mismatch worth naming
+              rather than tolerating: that list is mostly things already on the
+              disk, and the heading claimed everything under it was about to
+              download. The **heading** is what changes, not the summary line
+              below it — `Stáhne se 0 položek, dohromady 0 MB` is exactly true
+              there and is the running total of what ticking has added up to,
+              which is the one number that list has to keep showing. So the two
+              modes say different things, decided by the same `manual` flag that
+              already hides the step counter and the bar. */}
+          <h1>
+            {t(
+              running
+                ? "wizard.download.runningTitle"
+                : manual
+                  ? "wizard.manual.title"
+                  : "wizard.download.reviewTitle"
+            )}
+          </h1>
 
           {!running && (
             <p className="step-intro">
@@ -738,6 +755,8 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
                 <ManualSelection
                   items={items}
                   selected={manualSelect}
+                  view={view}
+                  onView={setView}
                   onToggle={(id) =>
                     setManualSelect((s) => {
                       const n = new Set(s);
@@ -884,6 +903,46 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
   );
 }
 
+/** Compact or full, over either listing.
+ *
+ *  One component and one stored value for both lists, which is the point: they
+ *  look alike and must not drift. The archive's control is the model — same
+ *  segmented pill, same two states, same `localStorage` habit — but at the
+ *  archive's *shape* and not its size. `.archive-view-toggle` is 40 px because
+ *  its 32 px buttons match the filter select beside them and its comment says
+ *  so; there is no such neighbour here, so this is the plain segmented control,
+ *  30 px button in a 36 px track, which is what `CLAUDE.md` documents.
+ *
+ *  What the two views mean is identical on both screens: full adds the
+ *  catalogue's sentence under the name, compact does not. Nothing else about a
+ *  row changes with it. */
+function ListingSwitch({
+  view,
+  onView,
+}: {
+  view: ListingView;
+  onView: (view: ListingView) => void;
+}) {
+  const { t } = useI18n();
+  return (
+    <div className="download-view">
+      <div className="segmented-control" role="group" aria-label={t("wizard.download.viewLabel")}>
+        {(["compact", "full"] as ListingView[]).map((option) => (
+          <button
+            key={option}
+            type="button"
+            className={view === option ? "active" : ""}
+            aria-pressed={view === option}
+            onClick={() => onView(option)}
+          >
+            {t(option === "compact" ? "wizard.download.viewCompact" : "wizard.download.viewFull")}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /** What is about to be downloaded, read only.
  *
  *  Three of the owner's sentences landed on this list in a row and the shape is
@@ -932,32 +991,9 @@ function DownloadListing({
 
   return (
     <>
-      {/* The archive's control, at the archive's *shape* and not its size. The
-          40 px there is 32 px buttons matched to the filter select beside them
-          and says so in its own comment; there is no such neighbour here, so
-          this is the plain segmented control — 30 px button in a 36 px track,
-          which is what `CLAUDE.md` documents as the default. */}
-      <div className="download-view">
-        <div
-          className="segmented-control"
-          role="group"
-          aria-label={t("wizard.download.viewLabel")}
-        >
-          {(["compact", "full"] as ListingView[]).map((option) => (
-            <button
-              key={option}
-              type="button"
-              className={view === option ? "active" : ""}
-              aria-pressed={view === option}
-              onClick={() => onView(option)}
-            >
-              {t(option === "compact" ? "wizard.download.viewCompact" : "wizard.download.viewFull")}
-            </button>
-          ))}
-        </div>
-      </div>
+      <ListingSwitch view={view} onView={onView} />
 
-      <ul className={`download-list ${view === "full" ? "full" : ""}`}>
+      <ul className="download-list">
         {ids.map((id) => {
           const item = items.find((x) => x.id === id);
           const phase = progress[id]?.phase;
@@ -994,10 +1030,14 @@ function ManualSelection({
   items,
   selected,
   onToggle,
+  view,
+  onView,
 }: {
   items: DownloadComponent[];
   selected: Set<string>;
   onToggle: (id: string) => void;
+  view: ListingView;
+  onView: (view: ListingView) => void;
 }) {
   const { t, tDynamic } = useI18n();
   const { dataSize } = useFormats();
@@ -1016,6 +1056,14 @@ function ManualSelection({
   ];
   return (
     <div className="manual">
+      {/* The same control and the same stored preference as the wizard's own
+          listing — `ListingSwitch`, `localStorage["download-view"]`. Somebody
+          who reads listings with their sentences wants them in both places, and
+          a reader who learns the switch on one screen already knows it on the
+          other. The two lists differ in what they have to: this one has a
+          checkbox per row and the other has nothing to press. They must not
+          differ in what the switch means. */}
+      <ListingSwitch view={view} onView={onView} />
       {groups.map(([key, titleKey]) => (
         <div key={key}>
           <h2>{t(titleKey)}</h2>
@@ -1038,21 +1086,27 @@ function ManualSelection({
                       disabled={p.complete}
                       onChange={() => onToggle(p.id)}
                     />
-                    {/* The sentence under the name is what somebody deciding
-                        needs — a name alone does not say whether `Detekce řeči`
-                        is worth 2 MB. So it stays, and it is dropped on the
-                        rows where there is nothing to decide: a component
-                        already on the disk is a fact, its checkbox is ticked
-                        and disabled, and the second line was describing a
-                        choice nobody has left to make. On a machine that has
-                        been set up that is most of the list, which is where the
-                        height was going. */}
+                    {/* Every row is the same shape, and the reader decides which
+                        shape that is. It used to draw the sentence and the size
+                        only for components that were *not* installed, so on a
+                        machine that is set up the one missing thing had two
+                        lines and everything else had one — two row shapes
+                        chosen by install state, which reads as a rendering
+                        fault rather than a distinction. The switch above decides
+                        it now, for every row alike: full has the sentence, and
+                        an installed component keeps it, because *what is this
+                        3 GB thing I already have* is a fair question. */}
                     <span className="component-text">
                       <span className="component-name">{tDynamic(p.name_code, p.id)}</span>
-                      {!p.complete && (
+                      {view === "full" && (
                         <span className="small-text">{tDynamic(p.description_code, "")}</span>
                       )}
                     </span>
+                    {/* The size on every row in both views, and `staženo` where
+                        it would have been `0 MB`. The same answer the wizard's
+                        own listing gives, deliberately: a number that reads like
+                        a cost is the wrong thing to print beside something that
+                        costs nothing. */}
                     <span className="component-size">
                       {p.complete ? <DownloadedMark /> : dataSize(p.megabytes)}
                     </span>

@@ -562,8 +562,13 @@
   font-variant-numeric: tabular-nums; white-space: nowrap;
 }
 /* The switch above it, at the right-hand end where the archive's own sits.
-   10 px is the gap `.detected` took to what followed it on this screen. */
+   10 px is the gap `.detected` took to what followed it on this screen. The
+   second selector is specificity and nothing else: `.manual > div` sets 16 px
+   on every child of the by-hand list, and the switch is one of them — the two
+   listings must hold it at the same distance or the shared control stops
+   looking shared. */
 .download-view { display: flex; justify-content: flex-end; margin-bottom: 10px; }
+.manual > .download-view { margin-bottom: 10px; }
 
 .progress-large { margin-bottom: 20px; }
 .progress-large .progress-bar { height: 6px; }

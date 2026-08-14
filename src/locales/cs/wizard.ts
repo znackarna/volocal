@@ -53,6 +53,7 @@ export const csWizard = {
   "wizard.download.viewFull": "Podrobně",
 
   // ------------------------------------------------------------- choosing by hand
+  "wizard.manual.title": "Modely a nástroje",
   "wizard.manual.groupPrograms": "Programy pro přepis",
   "wizard.manual.groupModels": "Jazykové modely pro přepis",
   "wizard.manual.groupSpeech": "Detekce řeči a mluvčích",
@@ -95,9 +96,9 @@ export const csWizardContext: Partial<Record<keyof typeof csWizard, string>> = {
   "wizard.download.downloadedLabel":
     "Popisek pro odečítač obrazovky u zaškrtnutí vedle stažené položky v ručním výběru.",
   "wizard.download.reviewTitle":
-    "Nadpis kroku před spuštěním stahování. Platí pro dvě obrazovky: pro výpis " +
-    "v průvodci, kde se nedá nic měnit, i pro ruční výběr ze Spravovat modely, " +
-    "kde se odškrtává. Proto ne „kontrola výběru“ — v průvodci žádný výběr není.",
+    "Nadpis výpisu v průvodci před spuštěním stahování. Nic se v něm nedá " +
+    "měnit, takže ne „kontrola výběru“ — žádný výběr tam není. Ruční výpis ze " +
+    "Spravovat modely má vlastní nadpis, wizard.manual.title.",
   "wizard.download.summary.one":
     "Věta nad seznamem. {size} je celková velikost, například „1,6 GB“.",
   "wizard.download.preparing":
@@ -122,6 +123,10 @@ export const csWizardContext: Partial<Record<keyof typeof csWizard, string>> = {
     "Druhá poloha: pod názvem je i věta, co ta položka dělá. Jedno slovo, ať se " +
     "vejdou vedle sebe.",
 
+  "wizard.manual.title":
+    "Nadpis ručního výpisu ze Spravovat modely. Je pod ním všechno, co se dá " +
+    "stáhnout, včetně toho, co v počítači už je — proto ne „co se stáhne“, to " +
+    "je nadpis výpisu v průvodci.",
   "wizard.manual.groupPrograms":
     "Nadpis skupiny v ručním výběru: spustitelné programy, ne modely. Jsou pod " +
     "ním sestavení whisperu, ffmpeg a stahovač online videí — všechno je to " +

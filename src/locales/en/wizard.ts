@@ -31,6 +31,7 @@ export const enWizard: Partial<Record<keyof typeof csWizard, string>> = {
   "wizard.download.viewLabel": "Listing detail",
   "wizard.download.viewCompact": "Brief",
   "wizard.download.viewFull": "Detailed",
+  "wizard.manual.title": "Models and tools",
   "wizard.manual.groupPrograms": "Programs for transcription",
   "wizard.manual.groupModels": "Language models for transcription",
   "wizard.manual.groupSpeech": "Speech and speaker detection",
