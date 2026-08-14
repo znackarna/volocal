@@ -283,8 +283,8 @@ const DECODING_FIELDS: ReadonlyArray<{
    `Aplikace`. */
 type SettingsTab =
   | "transcription"
-  | "appearance"
-  | "performance"
+  | "interface"
+  | "tools"
   | "files"
   | "updates"
   | "about";
@@ -297,27 +297,29 @@ type SettingsTab =
    looked for. */
 const SETTINGS_TABS: SettingsTab[] = [
   "transcription",
-  "appearance",
-  "performance",
+  "interface",
+  "tools",
   "files",
   "about",
   "updates",
 ];
-/** Every tab has a key of its own now.
+/** Every tab has a key of its own, and every id says what its tab says.
  *
- *  `appearance` borrowed `settings.appearance.title` — the card that fills it
- *  says `Vzhled`, and a second key holding the same word is a second thing to
- *  keep in step. That was true while the two words were the same word. The tab
- *  is `Jazyk a vzhled` and the card is still `Vzhled`, so the borrowing became
- *  the defect it was avoiding: one string doing two jobs that have parted.
+ *  Two borrowings were tried and both failed the same way. `appearance` took
+ *  `settings.appearance.title` from the card that fills it, on the reasoning
+ *  that a second key holding the same word is a second thing to keep in step —
+ *  right up to the moment the tab and the card stopped saying the same word.
+ *  `transcription` borrowed in the other direction, the card taking the tab's
+ *  key, and that one has gone too: the card is `Model` now, because a card
+ *  headed with its own tab's name is a heading that has not been chosen.
  *
- *  `transcription` still borrows in the other direction, and that one stands:
- *  the card and the tab both say `Přepis` because the tab holds the card and
- *  nothing has come between them. */
+ *  So: no tab name is a card name and no card name is a tab name, and neither
+ *  side reads the other's key. It costs six keys and buys the thing that broke
+ *  twice in one day. */
 const SETTINGS_TAB_KEYS: Record<SettingsTab, TranslationKey> = {
   transcription: "settings.tab.transcription",
-  appearance: "settings.tab.appearance",
-  performance: "settings.tab.performance",
+  interface: "settings.tab.interface",
+  tools: "settings.tab.tools",
   files: "settings.tab.files",
   updates: "settings.tab.updates",
   about: "settings.tab.about",
@@ -740,7 +742,7 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
             <span>{t(SETTINGS_TAB_KEYS[tab])}</span>
             {/* The dot follows the status band, which stands on `Výkon a
                 modely` since that is where what is installed is read. */}
-            {tab === "performance" && missingRequired.length > 0 && (
+            {tab === "tools" && missingRequired.length > 0 && (
               <span className="settings-tab-alert" aria-label={t("settings.missingRequired")} />
             )}
           </button>
@@ -788,7 +790,7 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
           not coming back. The button opens the by-hand component list directly
           (the wizard does that itself when it is opened neither as required nor
           for one named module). */}
-      {activeTab === "performance" && <section className="settings-card-modules">
+      {activeTab === "tools" && <section className="settings-card-modules">
         <h2>{t("settings.modules.title")}</h2>
         <p className="settings-section-description">
           {t("settings.modules.description")}
@@ -857,7 +859,7 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
           `check.compute` is `choose_compute`'s answer and `n.compute` is what
           was asked for; where they differ, one sentence says why and, when the
           reason is a build that is not downloaded, offers it. */}
-      {activeTab === "performance" && check && <section className="settings-card-compute">
+      {activeTab === "tools" && check && <section className="settings-card-compute">
         <h2>{t("settings.compute.title")}</h2>
         <p className="settings-section-description">{t("settings.compute.description")}</p>
 
@@ -1177,7 +1179,7 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
           them had to carry a note saying it does not touch them. Here they are
           a card of their own, next to the band that says what has been
           downloaded into them. */}
-      {activeTab === "performance" && <section className="settings-card-locations">
+      {activeTab === "tools" && <section className="settings-card-locations">
         <h2>{t("settings.files.locationsTitle")}</h2>
         {/* A card's opening sentence, so it takes the card's own class rather
             than the `small-text` it wore inside the disclosure. */}
@@ -1233,7 +1235,7 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
           It was the folded footer of the models card, where it wore
           `card-footer` and sat on the card's single rule; it needs neither now,
           because the card is the block. */}
-      {activeTab === "performance" && check && (
+      {activeTab === "tools" && check && (
         <section className="settings-card-diagnostics">
           <ToolDiagnostics k={check} onInfo={onInfo} onError={onError} />
         </section>
@@ -1363,7 +1365,7 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
           No label above the dropdown: the heading is the label, and `Select`
           takes the name for screen readers through `description`, exactly as
           `Jazyk nahrávky` does. */}
-      {activeTab === "appearance" && <section className="settings-card-app-language">
+      {activeTab === "interface" && <section className="settings-card-app-language">
         <h2>{t("settings.language.title")}</h2>
 
         <div className="field">
@@ -1380,7 +1382,7 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
         </div>
       </section>}
 
-      {activeTab === "appearance" && <section className="settings-card-appearance">
+      {activeTab === "interface" && <section className="settings-card-appearance">
         <h2>{t("settings.appearance.title")}</h2>
         <p className="settings-section-description">
           {t("settings.appearance.description")}
@@ -1477,14 +1479,30 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
         </div>
       </section>}
 
+      {/* Headed `Model`, and no longer `Přepis`.
+
+          It took its tab's key, which was defensible while the card was most of
+          the tab. It is not: the tab holds six cards, this one holds a list of
+          models, and a card headed with the word above it in the tab strip is a
+          heading nobody chose. With the tabs now one word each, an exact match
+          between a tab and a card reads as an accident.
+
+          `settings.transcription.model` was the label over the list inside it,
+          so the heading is the label — the same move `Jazyk nahrávky` and
+          `Jazyk aplikace` made today, and there is no `<label>` under it for
+          the same reason. The list is buttons rather than a form control, so
+          nothing needed a name handed to it separately.
+
+          The opening sentence went with the old heading. It read *Model,
+          kterým se nahrávky přepisují*, which under a heading reading `Model`
+          is the heading again with a relative clause; the tab it sits on says
+          `Přepis`, so the clause was carrying nothing either. The note under
+          the list is what is left, and it says the thing a reader cannot see:
+          where the models that are not here come from. */}
       {activeTab === "transcription" && <section className="settings-card-transcription">
-        <h2>{t("settings.tab.transcription")}</h2>
-        <p className="settings-section-description">
-          {t("settings.transcription.description")}
-        </p>
+        <h2>{t("settings.transcription.model")}</h2>
 
         <div className="field">
-          <label>{t("settings.transcription.model")}</label>
           {/* Cards rather than a dropdown: what separates these models is what
               they do with time and accuracy, and that does not fit on a line.
 

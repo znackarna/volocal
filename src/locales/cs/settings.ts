@@ -3,9 +3,9 @@ export const csSettings = {
   "settings.title": "Nastavení",
   "settings.groups": "Skupiny nastavení",
   "settings.tab.transcription": "Přepis",
-  "settings.tab.appearance": "Jazyk a vzhled",
-  "settings.tab.performance": "Výkon a modely",
-  "settings.tab.files": "Složky a zálohy",
+  "settings.tab.interface": "Rozhraní",
+  "settings.tab.tools": "Nástroje",
+  "settings.tab.files": "Soubory",
   "settings.tab.updates": "Aktualizace",
   "settings.tab.about": "Informace",
   "settings.missingRequired": "Některé povinné modely chybí",
@@ -167,11 +167,9 @@ export const csSettings = {
   "settings.about.groupFonts": "Písma",
   "settings.about.publicDomain": "volné dílo",
   "settings.about.licenceNote":
-    "Všechno kromě modelů Gemma je open source. Gemma se řídí podmínkami Googlu a FFmpeg licencí GPL v3 — s tím počítejte, když přenosnou kopii předáváte dál.",
+    "Vše kromě modelů Gemma je open source. Gemma se řídí podmínkami Googlu a FFmpeg licencí GPL v3.",
 
   // What Whisper is told to do.
-  "settings.transcription.description":
-    "Model, kterým se nahrávky přepisují.",
   "settings.transcription.model": "Model",
   "settings.transcription.modelDescription": "Stažený model.",
   "settings.transcription.modelNote":
@@ -266,17 +264,25 @@ export const csSettings = {
 } as const;
 
 export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>> = {
+  /* Všech šest názvů záložek je jednoslovných a mají být jednoslovné i v
+     překladu: stojí v jedné řadě vedle sebe a dvouslovný název mezi nimi
+     vypadá důležitější než jeho sousedé. Když se jedno slovo hledá těžko,
+     hledej nadřazený pojem, ne zkratku — složky i zálohy jsou soubory, výkon
+     i modely jsou nástroje. Zkrácení by lhalo. */
   "settings.tab.transcription": "Název záložky. Jde o převod řeči na text, ne o opisování.",
-  "settings.tab.appearance":
+  "settings.tab.interface":
     "Název záložky se dvěma kartami: jazyk aplikace a vzhled (motiv, písmo " +
-    "přepisu, jeho velikost). „Jazyk“ je jazyk rozhraní, ne jazyk nahrávky — " +
-    "ten je na záložce Přepis.",
-  "settings.tab.performance":
+    "přepisu, jeho velikost). Nadřazený pojem pro obojí — jazyk není vzhled, " +
+    "takže „Vzhled“ by tu bylo zkrácení. Jde o jazyk rozhraní, ne o jazyk " +
+    "nahrávky; ten je na záložce Přepis.",
+  "settings.tab.tools":
     "Název záložky, na které se vybírá, kde přepis počítá, a je vidět, co je " +
-    "v tomhle počítači stažené a kam se to ukládá. Obě poloviny názvu " +
-    "odpovídají kartám na ní. Dřív se jmenovala Nástroje.",
+    "v tomhle počítači stažené a kam se to ukládá. Nástroje jsou programy jako " +
+    "ffmpeg nebo whisper-cli a modely, které k nim patří, ne funkce aplikace.",
   "settings.tab.files":
-    "Název záložky, na které je složka pro nahrávky, sledovaná složka, zálohy archivu a přenosná kopie. Pojmenuj ji tím, co na ní je — dřív se jmenovala Aplikace a neříkala o žádné z těch věcí nic.",
+    "Název záložky, na které je složka pro nahrávky, sledovaná složka, zálohy " +
+    "archivu a přenosná kopie. Všechno jsou to soubory a složky na disku. Dřív " +
+    "se jmenovala Aplikace a neříkala o žádné z těch věcí nic.",
   "settings.tab.updates":
     "Název záložky a zároveň nadpis její jediné karty. Kontrola nové verze, co je v ní nového a její instalace.",
   "settings.tab.about":
@@ -368,7 +374,10 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
   "settings.about.publicDomain":
     "Licence SQLite. Není to licence, ale vzdání se práv — dílo je volné pro kohokoli a k čemukoli.",
   "settings.about.licenceNote":
-    "Gemma jsou jazykové modely Googlu; jejich podmínky nejsou open source a omezují způsoby použití. FFmpeg je GPL v3. Obojí je důležité pro toho, kdo přenosnou kopii aplikace předá dál.",
+    "Gemma jsou jazykové modely Googlu; jejich podmínky nejsou open source a " +
+    "omezují způsoby použití. FFmpeg je GPL v3. Věta jen vyjmenovává licence — " +
+    "co z nich plyne pro toho, kdo přenosnou kopii předá dál, stojí v souboru " +
+    "NOTICE, ne tady.",
   "settings.about.abilityReview":
     "Nejistý je přepis, ne čtenář — model sám označí místa s nízkou jistotou.",
   "settings.about.updateNote":
@@ -417,7 +426,10 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
   "settings.appearance.previewDiacritics":
     "Ukázka písmen s diakritikou. V jiném jazyce nahraď jeho vlastními zvláštními znaky.",
 
-  "settings.transcription.model": "Popisek volby modelu Whisperu pro přepis.",
+  "settings.transcription.model":
+    "Nadpis karty s výběrem modelu Whisperu, kterým se přepisuje. Jedno slovo: " +
+    "dřív to byl popisek nad seznamem uvnitř té karty a karta se jmenovala " +
+    "stejně jako záložka nad ní.",
   "settings.transcription.modelDescription":
     "Náhradní popis modelu, který aplikace nezná podle jména.",
   "settings.transcription.language":

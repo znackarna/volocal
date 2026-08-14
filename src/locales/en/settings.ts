@@ -5,9 +5,9 @@ export const enSettings: Partial<Record<keyof typeof csSettings, string>> = {
   "settings.title": "Settings",
   "settings.groups": "Settings groups",
   "settings.tab.transcription": "Transcription",
-  "settings.tab.appearance": "Language and appearance",
-  "settings.tab.performance": "Performance and models",
-  "settings.tab.files": "Folders and backups",
+  "settings.tab.interface": "Interface",
+  "settings.tab.tools": "Tools",
+  "settings.tab.files": "Files",
   "settings.tab.updates": "Updates",
   "settings.tab.about": "Information",
   "settings.about.description":
@@ -52,7 +52,7 @@ export const enSettings: Partial<Record<keyof typeof csSettings, string>> = {
   "settings.about.groupFonts": "Fonts",
   "settings.about.publicDomain": "public domain",
   "settings.about.licenceNote":
-    "Everything except the Gemma models is open source. Gemma follows Google’s own terms and FFmpeg is GPL v3 — worth knowing before you hand a portable copy to someone else.",
+    "Everything except the Gemma models is open source. Gemma follows Google’s own terms and FFmpeg is GPL v3.",
   "settings.missingRequired": "Some required models are missing",
   "settings.language.title": "App language",
   "settings.language.description": "The change takes effect right away. Transcripts stay in their original language.",
@@ -141,7 +141,6 @@ export const enSettings: Partial<Record<keyof typeof csSettings, string>> = {
   "settings.appearance.previewSpeaker": "Michael",
   "settings.appearance.previewText": "We met on Thursday afternoon and talked for the best part of two hours. “Let’s listen to the whole thing first,” she said — and she was right. The transcript came to 1,234 words, with not a sentence missing.",
   "settings.appearance.previewDiacritics": "Accents and ligatures: á é í ó ú â ê ô ä ö ü ç ñ æ œ",
-  "settings.transcription.description": "The model your recordings are transcribed with.",
   "settings.transcription.model": "Model",
   "settings.transcription.modelDescription": "Downloaded model.",
   "settings.transcription.modelNote":
