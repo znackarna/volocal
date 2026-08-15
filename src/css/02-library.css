@@ -47,6 +47,18 @@
 .archive-sticky::after {
   content: ""; position: absolute; left: 0; right: 0; top: 100%;
   pointer-events: none;
+  /* `backdrop-filter` inside a `position: sticky` block leaves the last frame
+     it sampled behind when the block moves back up the scroller: rolling down
+     re-samples continuously and looks right, rolling back up leaves a strip of
+     a row that is no longer there. It is a compositing fault, not a layout one
+     — the ghost sits exactly at `top: 100%`, which is where these two are.
+
+     `will-change: transform` asks for a layer of their own, which is what makes
+     the sample follow the scroll rather than stick to it. It is a hint and not
+     a guarantee: if the ghost survives, the honest answer is to drop the blur
+     and keep the colour fade below, which the comment on `::before` already
+     says carries the effect on its own. */
+  will-change: transform;
   /* Only while something is actually passing underneath. At the top of the
      list there is nothing to dissolve, and a strip that is always there sits
      over the first row — a folder's own name, blurred, in a folder with

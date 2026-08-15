@@ -14,10 +14,11 @@ import {
 const HEADER = {
   /** How long the full name stands before it closes.
    *
-   *  Ten seconds, on the owner's word after watching two and a half: *je to moc
-   *  rychlé*. The full name is the only place the application says what it is
-   *  called, and a reader who looked away for a moment had missed it. */
-  hold: 10_000,
+   *  Five seconds. Two and a half was *moc rychlé* and ten was tried and turned
+   *  out to be long — the name is the only place the application says what it is
+   *  called, so it has to outlast a glance away, and it also has to stop being
+   *  the thing on screen that has not settled yet. */
+  hold: 5_000,
   /** The closing itself. */
   collapse: 620,
   /** Opening again under the pointer. Shorter than the closing on purpose: the
