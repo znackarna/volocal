@@ -96,6 +96,33 @@ import type {
   Folder,
 } from "./types";
 
+/**
+ * One document in the preview window.
+ *
+ * Five tabs showed the same four lines each — split on blank lines, one
+ * paragraph per piece — and the scroll listener that the fade above needs would
+ * have been a sixth copy of the same thing. Splitting text into paragraphs is
+ * one decision and belongs in one place.
+ */
+function PreviewText({
+  text,
+  onScrolled,
+}: {
+  text: string;
+  onScrolled: (scrolled: boolean) => void;
+}) {
+  return (
+    <article
+      className="ai-preview-text"
+      onScroll={(event) => onScrolled(event.currentTarget.scrollTop > 0)}
+    >
+      {text.split(/\n{2,}/).map((paragraph, index) => (
+        <p key={index}>{paragraph}</p>
+      ))}
+    </article>
+  );
+}
+
 interface Props {
   id: string;
   seekTime: number | null;
@@ -255,6 +282,17 @@ export default function Detail({
      so it is not a way of making one. */
   const [aiMode, setAiMode] = useState<"faithful" | "clean">("faithful");
   const [previewTab, setPreviewTab] = useState<PreviewTab>("improved");
+  /** Whether the document under the toolbar has been scrolled at all. The strip
+   *  that dissolves the text into the controls above it is only right while
+   *  something is actually passing underneath — the archive's own fade carries
+   *  the same argument, and there it is the first row of a folder that a
+   *  permanent band would blur. */
+  const [previewScrolled, setPreviewScrolled] = useState(false);
+  /* Each tab mounts its own article at the top, and the flag belongs to the
+     document being read rather than to the window. Without this, opening a
+     scrolled tab and switching leaves the fade over a document that starts at
+     its first line. */
+  useEffect(() => setPreviewScrolled(false), [previewTab]);
   const [summaryLength, setSummaryLength] = useState<SummaryLength>("standard");
   const [translationLanguage, setTranslationLanguage] =
     useState<TranslationLanguage>("en");
@@ -3137,7 +3175,9 @@ export default function Detail({
           shown once and unreachable afterwards. */}
       {aiDialog === "preview" && (aiDocument || aiCustomDocuments.length > 0) && (
         <div className="dialog-overlay" role="presentation" onMouseDown={() => setAiDialog(null)}>
-          <div ref={previewDialog} className="dialog ai-preview-dialog" role="dialog" aria-modal="true"
+          <div ref={previewDialog}
+               className={`dialog ai-preview-dialog${previewScrolled ? " scrolled" : ""}`}
+               role="dialog" aria-modal="true"
                aria-labelledby="ai-preview-title" onMouseDown={(event) => event.stopPropagation()}>
             <div className="ai-preview-header">
               {/* One name, both states. It used to switch, because with no
@@ -3295,32 +3335,16 @@ export default function Detail({
             )}
 
             {previewTab === "improved" && aiDocument && (
-              <article className="ai-preview-text">
-                {aiDocument.text
-                  .split(/\n{2,}/)
-                  .map((paragraph, index) => <p key={index}>{paragraph}</p>)}
-              </article>
+              <PreviewText text={aiDocument.text} onScrolled={setPreviewScrolled} />
             )}
             {previewTab === "original" && (
-              <article className="ai-preview-text">
-                {(originalPreview || t("common.loading"))
-                  .split(/\n{2,}/)
-                  .map((paragraph, index) => <p key={index}>{paragraph}</p>)}
-              </article>
+              <PreviewText text={originalPreview || t("common.loading")} onScrolled={setPreviewScrolled} />
             )}
             {previewTab === "summary" && summaryOutput && (
-              <article className="ai-preview-text">
-                {summaryOutput.text
-                  .split(/\n{2,}/)
-                  .map((paragraph, index) => <p key={index}>{paragraph}</p>)}
-              </article>
+              <PreviewText text={summaryOutput.text} onScrolled={setPreviewScrolled} />
             )}
             {previewTab === "translation" && translationOutput && (
-              <article className="ai-preview-text">
-                {translationOutput.text
-                .split(/\n{2,}/)
-                .map((paragraph, index) => <p key={index}>{paragraph}</p>)}
-              </article>
+              <PreviewText text={translationOutput.text} onScrolled={setPreviewScrolled} />
             )}
             {/* Every tab, when there is no improved transcript. One block for
                 all four rather than four: what is missing is the same thing,
@@ -3388,11 +3412,7 @@ export default function Detail({
               </div>
             )}
             {previewTab === "custom" && aiDocument && customDocument && (
-              <article className="ai-preview-text">
-                {customDocument.text
-                  .split(/\n{2,}/)
-                  .map((paragraph, index) => <p key={index}>{paragraph}</p>)}
-              </article>
+              <PreviewText text={customDocument.text} onScrolled={setPreviewScrolled} />
             )}
             {previewTab === "custom" && aiDocument && !customDocument && (
               <div className="ai-preview-empty">

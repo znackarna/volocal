@@ -25,9 +25,41 @@ use tauri::{AppHandle, Emitter};
 /// answer; guessing low only wastes memory.
 const CHARS_PER_TOKEN: usize = 2;
 
-/// The widest `max_tokens` any step asks for, so the context always has room
-/// for a whole answer on top of what it was given.
-const OUTPUT_TOKENS: usize = 4_096;
+/// How much room an answer needs, measured against what it was given.
+///
+/// **A rewrite returns what it was handed.** The improved transcript is the
+/// speaker's own words with the punctuation repaired; a translation is the same
+/// content in another language; a custom document is usually neither much
+/// shorter nor much longer. So the answer is sized from the question — the same
+/// length plus 15 % for the punctuation an edit adds and the paragraphs it
+/// opens.
+///
+/// **This was `4096` for every step, and it was survivable only while a chunk
+/// was 6000 characters.** Sizing the context to the source grew the chunks with
+/// it and left this where it stood, so a request could be handed 56 320
+/// characters and allowed to answer with 8192 of them. The document stopped at
+/// about a seventh, and because nothing read `finish_reason` it was stored as
+/// though it had finished.
+const ANSWER_NUMERATOR: usize = 23;
+const ANSWER_DENOMINATOR: usize = 20;
+
+/// The smallest answer any request may ask for, so that a short chunk is not
+/// given a budget too tight to finish a sentence in.
+const ANSWER_FLOOR: usize = 512;
+
+/// Room for the answer to a question of this many tokens.
+fn answer_tokens_for(source_tokens: usize) -> usize {
+    (source_tokens * ANSWER_NUMERATOR / ANSWER_DENOMINATOR).max(ANSWER_FLOOR)
+}
+
+/// The same, as the `max_tokens` a request carries, from the chunk it sends.
+///
+/// Every step that rewrites a document asks for this rather than a constant. A
+/// summary does not: its answer is deliberately shorter than its question, and
+/// its length is the thing being chosen.
+fn answer_tokens(chunk_chars: usize) -> u32 {
+    answer_tokens_for(chunk_chars / CHARS_PER_TOKEN) as u32
+}
 
 /// The instruction and the chat template around it.
 const OVERHEAD_TOKENS: usize = 512;
@@ -65,10 +97,17 @@ const CONTEXT_MAX: usize = 32_768;
 /// cut into pieces of exactly that size, rather than into the fixed 6000
 /// characters that had to fit the smallest window this ever ran with.
 fn context_plan(source_chars: usize) -> (usize, usize) {
-    let wanted = source_chars / CHARS_PER_TOKEN + OUTPUT_TOKENS + OVERHEAD_TOKENS;
+    let source_tokens = source_chars / CHARS_PER_TOKEN;
+    let wanted = source_tokens + answer_tokens_for(source_tokens) + OVERHEAD_TOKENS;
     let context = wanted.clamp(CONTEXT_MIN, CONTEXT_MAX);
-    let chunk_chars = (context - OUTPUT_TOKENS - OVERHEAD_TOKENS) * CHARS_PER_TOKEN;
-    (context, chunk_chars)
+    /* The chunk is what is left once the answer to it has been paid for, so the
+    division is the reverse of `answer_tokens_for`: a window has to hold both
+    T and T·23/20, which is T·43/20. Solving for T rather than subtracting a
+    constant is the whole correction — a fixed subtraction is what let the
+    question grow while the answer's room stood still. */
+    let chunk_tokens =
+        (context - OVERHEAD_TOKENS) * ANSWER_DENOMINATOR / (ANSWER_DENOMINATOR + ANSWER_NUMERATOR);
+    (context, chunk_tokens * CHARS_PER_TOKEN)
 }
 
 /// Result of anything that can end up in front of the user.
@@ -809,11 +848,20 @@ fn request_chunk(
 
     enum StreamMessage {
         Delta(String),
-        Complete,
+        /// Finished, and whether the model was cut off rather than done.
+        Complete {
+            truncated: bool,
+        },
         Error(String),
     }
     let (sender, receiver) = mpsc::channel();
     std::thread::spawn(move || {
+        /* `length` means the model stopped because it ran out of budget, not
+        because it had finished. Nothing read this before, which is why a
+        request allowed to answer with a seventh of what it was given
+        produced a document that ended mid-sentence and was stored as
+        complete. A truncated answer is a failure and has to say so. */
+        let mut truncated = false;
         let result: std::result::Result<(), String> = (|| {
             let client = reqwest::blocking::Client::builder()
                 .timeout(Duration::from_secs(900))
@@ -837,6 +885,9 @@ fn request_chunk(
                 }
                 let value: serde_json::Value =
                     serde_json::from_str(data).map_err(|error| error.to_string())?;
+                if value["choices"][0]["finish_reason"].as_str() == Some("length") {
+                    truncated = true;
+                }
                 if let Some(delta) = value["choices"][0]["delta"]["content"].as_str() {
                     if !delta.is_empty()
                         && sender
@@ -850,7 +901,7 @@ fn request_chunk(
             Ok(())
         })();
         let _ = sender.send(match result {
-            Ok(()) => StreamMessage::Complete,
+            Ok(()) => StreamMessage::Complete { truncated },
             Err(error) => StreamMessage::Error(error),
         });
     });
@@ -878,10 +929,20 @@ fn request_chunk(
                     last_emit = Instant::now();
                 }
             }
-            Ok(StreamMessage::Complete) => {
+            Ok(StreamMessage::Complete { truncated }) => {
                 let output = clean_output(&output);
                 if output.is_empty() {
                     return Err(UserMessage::new("ai.empty_response"));
+                }
+                /* Refused rather than kept. A document that stops mid-sentence
+                is worse than none: it looks finished, it is exported and
+                read as though it were, and the reader has no way to tell
+                which part of their recording is simply absent. With the
+                answer now sized from the question this should be
+                unreachable — which is exactly why it must be loud if it is
+                ever reached again. */
+                if truncated {
+                    return Err(UserMessage::new("ai.answer_truncated"));
                 }
                 return Ok(output);
             }
@@ -981,7 +1042,7 @@ fn generate_document(
             &step,
             chunk,
             &instruction,
-            4096,
+            answer_tokens(chunk.chars().count()),
             cancellation,
             &mut server,
         )?;
@@ -998,7 +1059,7 @@ fn generate_document(
                 &step,
                 chunk,
                 &insist,
-                4096,
+                answer_tokens(chunk.chars().count()),
                 cancellation,
                 &mut server,
             )?;
@@ -1110,7 +1171,7 @@ fn generate_output(
                 step,
                 chunk,
                 &instruction,
-                4096,
+                answer_tokens(chunk.chars().count()),
                 cancellation,
                 &mut server,
             )?);
@@ -1130,7 +1191,7 @@ fn generate_output(
                     step,
                     chunk,
                     czech_review_prompt(),
-                    4096,
+                    answer_tokens(chunk.chars().count()),
                     cancellation,
                     &mut server,
                 )?);
@@ -1383,7 +1444,7 @@ fn generate_custom_document(
             step,
             chunk,
             &instruction,
-            4096,
+            answer_tokens(chunk.chars().count()),
             cancellation,
             &mut server,
         )?);
@@ -1418,28 +1479,54 @@ mod tests {
     }
 
     /// The point of sizing the window to the source: a recording that fits goes
-    /// to the model whole. It is what an instruction about the whole recording
-    /// needs, and it was impossible while the target was a constant.
+    /// to the model whole, which is what an instruction about the whole
+    /// recording needs and was impossible while the target was a constant.
+    ///
+    /// Half an hour, not the hour this used to claim. What fits is bounded by
+    /// the answer as much as by the question, and the test below says what that
+    /// costs.
     #[test]
     fn a_source_that_fits_is_one_chunk() {
-        // About an hour of Czech speech.
-        let source = vec!["odstavec ".repeat(600); 10].join("\n\n");
+        // About half an hour of Czech speech.
+        let source = vec!["odstavec ".repeat(600); 5].join("\n\n");
         let (context, chunk_chars) = context_plan(source.chars().count());
         assert!(context <= CONTEXT_MAX);
         assert_eq!(split_chunks(&source, chunk_chars).len(), 1);
     }
 
     /// And the guarantee underneath it: whatever one request may be given still
-    /// leaves the window room for a whole answer. A chunk sized past that is
-    /// how a request overflows the context it was sized against.
+    /// leaves the window room for a whole answer.
+    ///
+    /// **This test passed while the defect it names was live**, because it
+    /// measured the answer against a constant — the same constant the requests
+    /// carried — rather than against the chunk. Both agreed on 4096 and both
+    /// were wrong together, so a chunk of 56 320 characters looked like it left
+    /// room for its answer and did not. It asks `answer_tokens` now, which is
+    /// what the request actually sends.
     #[test]
     fn a_chunk_always_leaves_room_for_the_answer() {
         for chars in [0, 1_000, 50_000, 500_000, 5_000_000] {
             let (context, chunk_chars) = context_plan(chars);
             assert!((CONTEXT_MIN..=CONTEXT_MAX).contains(&context), "{chars}");
-            let worst = chunk_chars / CHARS_PER_TOKEN + OUTPUT_TOKENS + OVERHEAD_TOKENS;
+            let worst = chunk_chars / CHARS_PER_TOKEN
+                + answer_tokens(chunk_chars) as usize
+                + OVERHEAD_TOKENS;
             assert!(worst <= context, "{chars}: {worst} > {context}");
         }
+    }
+
+    /// What the fix costs, stated rather than discovered later.
+    ///
+    /// An hour of speech no longer goes to the model in one request, and it
+    /// never could: the answer needs as much room as the question, so an hour
+    /// in and an hour out is twice what the window holds. The entry for
+    /// 14 August claims one request for an hour and was measuring the question
+    /// alone.
+    #[test]
+    fn an_hour_takes_two_requests_because_the_answer_needs_room_too() {
+        let source = vec!["odstavec ".repeat(600); 10].join("\n\n");
+        let (_, chunk_chars) = context_plan(source.chars().count());
+        assert_eq!(split_chunks(&source, chunk_chars).len(), 2);
     }
 
     #[test]
