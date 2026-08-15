@@ -125,6 +125,10 @@ button.current > .row-play { color: var(--accent); }
 .mini-play { position: relative; width: 30px; height: 30px; color: var(--text); }
 .mini-play > svg:last-child { grid-area: 1 / 1; }
 .mini-ring { grid-area: 1 / 1; transform: rotate(-90deg); }
+/* These two are also worn by the module listing's download ring — see
+   `.component-mark.running` in 04-settings.css. One ring means one weight, so
+   the stroke is set here once; anything changed here changes both, which is the
+   point of the sharing rather than an accident of it. */
 .mini-track {
   fill: none; stroke: hsl(var(--ds-foreground) / 0.15); stroke-width: 2;
 }
@@ -296,52 +300,42 @@ button.current > .row-play { color: var(--accent); }
 }
 
 /* ------------------------------------------------------- modules in settings */
-/* Tiles in the same language as the model cards: icon on a muted
-   square, label and value stacked, a status pill on the right. */
-.module-grid { display: grid; gap: 8px; }
-.module-tile { display: flex; align-items: center; gap: 13px; }
-.module-tile.complete .choice-icon {
-  background: hsl(var(--ds-grass) / 0.14); color: var(--success-text);
-}
-.module-tile.missing .choice-icon {
-  background: var(--danger-light); color: var(--danger);
-}
-.module-title {
-  font-size: 11px; font-weight: 700;
-  letter-spacing: 0.09em; text-transform: uppercase;
-  color: var(--text-quiet);
-}
-/* The same size and weight as a choice card's name. One point apart is not a
-   distinction anyone reads as meaningful — it just looks unresolved. */
-.module-value {
-  font-size: 15px; font-weight: 600; color: var(--text);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-
+/* The tiles are gone with the tab they stood on: four rows that could not be
+   pressed, each repeating a value chosen a card or two higher up. What is left
+   of that card is one line saying whether anything is missing, and the red it
+   says it in. */
 .warning-row { color: var(--danger); }
 
 /* --------------------------------------------------- model choice cards */
 .model-choices { display: grid; gap: 8px; }
-/* Centred, like the module tiles. Aligning to the top put the icon level with
-   the first line while the tile had it level with the whole block, so two rows
-   showing the same thing sat differently. */
+/* Centred rather than aligned to the top: the icon stands level with the whole
+   block, not with its first line. */
 .choice.with-icon { flex-direction: row; align-items: center; gap: 13px; }
-/* A circle, like the module tiles. A rounded square next to round buttons and
-   round status marks read as a third shape for no reason. */
+/* A circle. A rounded square next to round buttons and round status marks read
+   as a third shape for no reason. */
 .choice-icon {
   display: grid; place-items: center; flex: 0 0 auto;
   width: 38px; height: 38px; border-radius: 50%;
   background: var(--muted); color: var(--text-quiet);
 }
 .choice.chosen .choice-icon { background: hsl(var(--ds-petrol) / 0.14); color: var(--accent); }
-/* The text block is the same in both: two lines, three points apart. */
-.choice-body, .module-description {
+/* Two lines, three points apart. */
+.choice-body {
   display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1 1 auto;
 }
 .choice.with-icon .choice-head { align-items: center; justify-content: flex-start; gap: 9px; }
-/* The badge belongs at the right edge in both. Inline after the title it moved
-   with the length of the name, so no two rows had it in the same place. */
-.choice.with-icon > .badge, .module-tile > .badge { flex: 0 0 auto; margin-left: auto; }
+/* The badge belongs at the right edge. Inline after the title it moved with the
+   length of the name, so no two rows had it in the same place. The size on the
+   model and language-editing cards in Settings is the same kind of thing and
+   takes the same place; no card carries both, so both may claim the free space
+   with `margin-left: auto` without having to split it between them.
+
+   The wizard's two quality cards were the third user and are not any more:
+   their size moved into the card as part of a sentence about what the choice
+   costs on this machine — see `.choice-cost`. Nothing else changed for them,
+   and the rule is left as it is because the Settings cards still need it. */
+.choice.with-icon > .badge,
+.choice.with-icon > .choice-size { flex: 0 0 auto; margin-left: auto; }
 
 /* ------------------------------------- audio visualisation in the mini player */
 .mini-player { position: relative; overflow: hidden; }
@@ -383,13 +377,11 @@ button.current > .row-play { color: var(--accent); }
 .player-missing > span { font-size: 13.5px; color: var(--text-quiet); }
 .mini-time.destructive-item { color: var(--danger); }
 
-/* call to action under a settings field */
-.field-prompt {
-  display: flex; align-items: center; justify-content: space-between; gap: 16px;
-  margin-top: 8px; padding: 10px 12px;
-  background: var(--danger-light); border-radius: var(--r-card);
-}
-.field-prompt > span { font-size: 13px; color: var(--danger); }
+/* `.field-prompt` stood here — a red panel with a sentence and a button, and
+   its only user was `Jazyková úprava` saying its model was not downloaded yet.
+   That is an optional feature nobody has asked for, not a fault, and the red
+   said otherwise. It is a plain `settings-action-row` now, which is what this
+   application already uses for a sentence and a button. */
 
 /* Nothing may clip the time bubble, hence no `overflow: hidden` here —
    the waveform stays inside because it is absolutely positioned. */
@@ -459,6 +451,30 @@ button.current > .row-play { color: var(--accent); }
   display: grid; place-items: center; width: 30px; height: 30px;
   border-radius: 50%; background: var(--accent-light); color: var(--accent);
 }
+/* A panel whose labels carry that circle. 46 px rather than the 40 px every
+   other row of this kind takes: the circle is 30 and the row's own 6 px of
+   padding leaves it 2 px from both edges, which is a mark wedged into a row
+   rather than sitting in one. 8 px above and below it is the same air the
+   abilities list gives the same circle. 11 px to the label is `.about-row`'s
+   own 16 px gap brought in, because half of that gap is now the circle's
+   whitespace. Only this panel: the licence list beside it has no marks. */
+/* The one value on this panel that is a control. It is drawn as a link and not
+   as a button: every other value in every `.about-panel` is plain text at the
+   right edge, and one of them wearing a border and a rounded corner reads as an
+   input somebody left in — *ten divný obdélníček*. The element underneath is
+   still a `<button>`, because there is no href for the webview to follow, so
+   the whole of what makes it a button has to be taken off it by hand.
+
+   Colour and an underline on hover, which is what says *this goes somewhere*
+   without drawing a box. The weight and the right edge come from `.about-row
+   dd` above, so it sits on the same line as the values beside it. */
+.about-link {
+  padding: 0; border: 0; background: none; cursor: pointer;
+  color: var(--accent); font: inherit; text-align: right;
+}
+.about-link:hover { text-decoration: underline; }
+.about-panel-marked .about-row { min-height: 46px; }
+.about-panel-marked .about-row dt { display: flex; align-items: center; gap: 11px; }
 .about-group + .about-group { margin-top: 22px; }
 .about-group-label {
   margin: 0 0 8px;
@@ -668,94 +684,142 @@ button.current > .row-play { color: var(--accent); }
 }
 
 /* ------------------------------------------------------------- dictionary */
-/* The page is built from the same parts as the rest of Settings: a `.field`
-   with a `.input-row` that ends in its action, the shared toggle below it with the
-   divider that pattern already carries, and then the saved entries. Nothing
-   here has spacing of its own — the numbers are the ones Settings uses
-   everywhere else (24 above, 22 of padding, one hairline). */
-/* The new entry and the saved ones share one grid, so the arrow and the second
-   half sit on the same two lines above and below the divider. A shared width
-   for the trailing column is what makes that hold: the button and the row's
-   two marks are different widths, and without it the halves drifted apart by
-   the difference. */
-.dictionary-row,
+/* The card is a table and a button under it. Nothing here has spacing of its
+   own — the numbers are the ones Settings uses everywhere else: the opening
+   sentence's own 24 above the table, and `.settings-action-row.spaced`'s 22
+   under it. */
+/* **The columns.** Two halves of equal width and then the bin's 26 px, which
+   is the listing's own so both lists end on the same right edge. It is also
+   the one thing a dictionary row does not share with a component row, which
+   has a mark, a name and a size instead.
+
+   It was written for three bands at once — the composer, the headings and the
+   rows — because three of them claiming the same two columns is how they came
+   to have three different left edges. Both of the others are gone and only the
+   rows are left, so the left edge is the panel's own again and there is nothing
+   left to keep in step with it. */
 .dictionary-list li {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 14px minmax(0, 1fr) 108px;
-  align-items: center; gap: 10px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 26px;
+  align-items: center; gap: 12px;
 }
-/* The saved rows end in one 28 px cross, not in a button the width of the
-   composer's. Their last column is only as wide as that cross needs. */
-.dictionary-list li { grid-template-columns: minmax(0, 1fr) 14px minmax(0, 1fr) 28px; }
-/* The shared 8 px between a label and its field is right for one box; above
-   a row of two fields and a button it reads as crowded, because the row is
-   three times as wide as anything else that label sits on. */
-/* Margins between siblings collapse, so this has to be the label's own — a
-   margin-top on the row would simply lose to the 8 px above it. */
-.field:has(> .dictionary-row) > label { margin-bottom: 14px; }
-.dictionary-row > .button { justify-self: end; height: 38px; }
-.dictionary-arrow {
-  color: var(--text-quiet); font-size: 15px; text-align: center;
+/* `--dictionary-inset: 17px` stood here — the panel's hairline plus the 16 px
+   `.component-row` pads a row by, a number the bands *outside* the panel needed
+   in order to start where the rows inside it start. Nothing is outside the
+   panel now. */
+/* A mark and the field it belongs to are one cell, not two columns. Two columns
+   would put the same gap between a mark and its own field as between that field
+   and the next mark, and the reader would have to work out which way each mark
+   faces. 8 px inside the pair against the grid's 12 between them: the amount
+   the design system already gives a label and the field under it. */
+.dictionary-pair {
+  display: flex; align-items: center; gap: 8px; min-width: 0;
 }
-.dictionary-row-actions {
-  display: flex; align-items: center; justify-content: flex-end;
+.dictionary-pair > input { flex: 1 1 auto; }
+/* 22 px, and neither of the two circles it could have copied.
+
+   26 is the component listing's mark, and there it is the row's only one,
+   sharing a column with the bin at the far end — a dictionary row carries two
+   of them and a bin, and at 26 the row reads as three circles with words
+   between them rather than as a pair of words. 16 is the release notes' tick,
+   drawn beside a line of prose rather than in front of a field. 22 stays under
+   both, which is the point: the mark is smaller than the thing it marks and
+   smaller than the row's one action. It did not grow with the field — a mark
+   that matched the 38 px box beside it would be a third control on the row.
+
+   Both circles are the application's own pairs — the tick is the green the
+   listing's installed mark and the release notes' tick already sit on, the
+   cross is the red the bin turns under the pointer. No colour is invented and
+   both come from `:root`. */
+.dictionary-mark {
+  display: grid; place-items: center; flex: 0 0 auto;
+  width: 22px; height: 22px; border-radius: 50%;
 }
-.dictionary-saved {
-  margin-top: 24px; padding-top: 22px; border-top: 1px solid var(--line);
+.dictionary-mark.wrong { background: var(--danger-light); color: var(--danger); }
+.dictionary-mark.right {
+  background: hsl(var(--ds-grass) / 0.14); color: var(--success-text);
 }
-/* Saved rows are edited in place, exactly like speaker names: no box until
-   the pointer or the keyboard arrives. The two halves keep the widths of the
-   fields above them, so a saved entry sits under the shape that made it. */
-.dictionary-list { list-style: none; margin: 0; padding: 0; }
-.dictionary-list li { padding: 3px 0; }
+/* `.dictionary-mark-space` stood here — a spacer the width of a mark, put in
+   the heading row so each label sat over its *field* rather than over its
+   column. That was the wrong edge: the mark is part of what the heading names,
+   and indenting past it left the circle hanging outside the column it belongs
+   to. The headings start at the column now, and the spacer had nothing to do. */
+/* `.field:has(> .dictionary-row) > label` and `.dictionary-row > .button`
+   stood here — the composer's label and its `Přidat`, the second given a line
+   of its own across all three columns because a button 82 px wider than the
+   bin under it made the entry row's halves a different width from every other
+   row's. The composer is gone and both went with it; the card's one button is
+   `.settings-action-row.spaced` under the table now, which is the pattern for
+   an action below a bordered panel and needs nothing of its own. */
+/* `.dictionary-arrow` stood here — the → between the two halves, in both the
+   composer and the saved rows. It is a mark in front of each half now, on the
+   owner's word: an arrow states the relation once, in the gap, and leaves the
+   direction to be read; the pair states it on both fields at once. */
+/* `.dictionary-row-actions` stood here — a flex box pushing the cross to the
+   right end of a 108 px column it was sharing with the composer's button. The
+   saved rows have a 26 px column of their own now, so the bin already ends
+   where the row does and had nothing left to push it. */
+/* The 24 above, the 22 of padding and the hairline that stood here separated
+   the table from the composer above it. There is no composer: the sentence
+   under the heading is what the table now follows, and
+   `.settings-section-description` already ends with 24 of its own. A rule
+   drawn a few pixels under that sentence would be dividing a card from its own
+   opening line. */
+/* Saved rows are edited in place, exactly like speaker names: no box until the
+   pointer or the keyboard arrives. That is what lets a row of two fields read
+   as a row of a listing and still be edited where it stands — and it is why
+   the pair stayed two inputs rather than becoming text with a pencil. */
+/* No size of its own any more: 13.5 px was set against a bare row, and the row
+   is a listing row at 14 now. `font: inherit` takes it from there, which is how
+   a component row's own text is sized.
+
+   **38 px, and the row 56 with it** — *dejme tabulce vyšší řádek*. It was 26,
+   which is the component listing's mark and made the row that listing's 44 px
+   exactly. That was the right answer while a composer stood above the table
+   holding the fields somebody actually typed in; with the composer gone, these
+   *are* those fields, and a field in this application is 38 px. So the number
+   is not invented for the ask — it is the one the design system already gives
+   the thing this row has become, and the row is that plus the listing's own
+   9 px above and below.
+
+   The height belongs on the input rather than the row because the input is
+   what a reader aims at: a taller row with a 26 px box inside it would look
+   easier to hit and not be. */
 .dictionary-list input {
-  min-width: 0; padding: 6px 11px;
+  min-width: 0; height: 38px; padding: 0 11px;
   border: 1px solid transparent; border-radius: var(--r-pill);
-  background: transparent; color: var(--text); font: inherit; font-size: 13.5px;
+  background: transparent; color: var(--text); font: inherit;
 }
+/* Same specificity as `.component-row, .dictionary-list li` in
+   `04-settings.css` and later in the load order, which is the whole reason it
+   wins. Named here so a move of either block is known to change the height:
+   this is the one measurement a dictionary row no longer shares with a
+   component row, and everything else about the two still comes from that one
+   declaration. */
+.dictionary-list li { min-height: 56px; }
 .dictionary-list input:hover { border-color: var(--line); }
 .dictionary-list input:focus {
   border-color: var(--accent); outline: none;
   background: var(--ground); box-shadow: var(--ring-field);
 }
-/* Header on the row grid, so a label cannot drift away from its column. The
-   12 px on the first two cells is the input's own padding plus its border:
-   the heading starts exactly above the first letter of the word below it.
-   Sentence case, not small caps: this application spells headings the way it
-   spells everything else, and a column heading is not a different kind of
-   thing than the section title above it. */
-.dictionary-head {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 14px minmax(0, 1fr) 28px;
-  align-items: baseline; gap: 10px;
-  margin: 0 0 9px; padding-bottom: 8px; border-bottom: 1px solid var(--line);
-  color: var(--text-quiet); font-size: 12px; font-weight: 600;
-}
-.dictionary-head > span:first-child,
-.dictionary-head > span:nth-child(3) { padding-left: 12px; }
-
-/* 28 px, not 32: it stands at the end of a 34 px field row, and the trailing
-   column is shared with the composer's own button. */
-.dictionary-remove {
-  display: grid; place-items: center; width: 28px; height: 28px;
-  border: 0; border-radius: 50%; background: transparent;
-  color: var(--text-quiet); cursor: pointer;
-  transition: background var(--hover-duration) var(--hover-ease),
-    color var(--hover-duration) var(--hover-ease);
-}
-.dictionary-remove:hover { background: var(--danger-light); color: var(--danger); }
+/* `.dictionary-head` stood here — `Co přepis slyší` and `Jak to má být`, 12/600
+   in `--text-quiet` with 8 px under them. The row's own two marks say which
+   half is which, per row and without a word, so the headings were saying it a
+   second time. Both names live on as the inputs' `aria-label`, which needs no
+   rule. */
+/* `.dictionary-remove` is declared with `.component-remove` in
+   `04-settings.css`: same bin, same 26 px, same two colours. Nothing is left
+   here for it. */
 /* Below the window's own 1000 px minimum (tauri.conf.json), so this cannot
    fire today. Kept as a net, like the 900 px rule for the header pills, in
    case the minimum ever drops or the interface is opened in a browser.
    560 px: a dictionary row drops to two columns. */
 @media (max-width: 560px) {
-  .dictionary-row,
-  .dictionary-list li { grid-template-columns: minmax(0, 1fr) auto; }
-  .dictionary-arrow { display: none; }
-  .dictionary-row > .button { grid-column: 2; }
-  /* The rows no longer keep those columns, so the header would point at
-     nothing. The fields carry their own labels for screen readers anyway. */
-  .dictionary-head { display: none; }
+  /* A row stacks its two pairs and keeps the bin beside them, spanning both
+     lines, so it still ends on the same right edge it does at full width. */
+  .dictionary-list li { grid-template-columns: minmax(0, 1fr) 26px; }
+  .dictionary-list li > .dictionary-pair { grid-column: 1; }
+  .dictionary-list li > .dictionary-remove { grid-column: 2; grid-row: 1 / span 2; }
 }
 
 /* ------------------------------------------------------------- tooltip */

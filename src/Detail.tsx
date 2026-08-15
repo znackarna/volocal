@@ -29,7 +29,17 @@ import { localMessage, useProgressMessage, useUserMessage } from "./messages";
 import type { TranslationKey } from "./i18n";
 import { useLabels } from "./labels";
 import { useDialog } from "./useDialog";
-import { CONFIDENCE_THRESHOLD, formatTime, fileName, statusClass } from "./types";
+import {
+  CONFIDENCE_THRESHOLD,
+  EDITOR_MODELS,
+  EDITOR_TIER,
+  UNOFFERED_COMPONENTS,
+  formatTime,
+  fileName,
+  qualityChoice,
+  statusClass,
+} from "./types";
+import { useFormats } from "./formats";
 import { forgetSpeakerName, returnSpeakerName, useSpeakerNamePool } from "./speakerNames";
 import { useProgressiveList } from "./progressiveList";
 import ProgressBubble from "./ProgressBubble";
@@ -73,6 +83,7 @@ import { MENU_ICONS, TranscriptContextMenu } from "./detail/TranscriptContextMen
 import type { TranscriptMenuItem } from "./detail/TranscriptContextMenu";
 import { MarkedWords, SegmentRow, UncertainEditor, describeEdit } from "./detail/corrections";
 import type {
+  AiCustomDocument,
   AiDocument,
   AiEditProgress,
   AiOutput,
@@ -147,6 +158,8 @@ export default function Detail({
   const userMessage = useUserMessage();
   const progressMessage = useProgressMessage();
   const labels = useLabels();
+  /** For the one sentence that names how large the language editor is. */
+  const { dataSize } = useFormats();
   const [title, setTitle] = useState("");
   const [renamingTitle, setRenamingTitle] = useState(false);
   const [confirmation, setConfirmation] = useState<ConfirmationRequest | null>(null);
@@ -172,15 +185,59 @@ export default function Detail({
   const [noteTimeDrafts, setNoteTimeDrafts] = useState<Record<string, string>>({});
   const [aiDocument, setAiDocument] = useState<AiDocument | null>(null);
   const [aiOutputs, setAiOutputs] = useState<AiOutput[]>([]);
+  /** Everything this recording has been asked for in somebody's own words,
+   *  each row keyed by the instruction that produced it. */
+  const [aiCustomDocuments, setAiCustomDocuments] = useState<AiCustomDocument[]>([]);
+  /** The instruction in the field right now. It arrives from Settings, where
+   *  the last one written was kept, and goes back there as it is typed. */
+  const [customPrompt, setCustomPrompt] = useState("");
+  /** What Settings last said, so typing is told apart from loading. */
+  const storedPrompt = useRef("");
   const [aiRunning, setAiRunning] = useState(false);
   const [aiProgress, setAiProgress] = useState<AiEditProgress | null>(null);
   const [aiConfigured, setAiConfigured] = useState(false);
-  const [aiModel, setAiModel] = useState("");
+  /* `aiModel` stood here — which language-editing model was resolved on disk.
+     Its only reader was the missing-model dialog, which used it to guess which
+     of three tiers to ask the component list for. Nothing asks which any more. */
   const [aiReady, setAiReady] = useState(false);
   /** Whether the speaker-separation tools are installed. Its card offers to
    *  fetch them when they are not, rather than failing on the way out. */
   const [speakersReady, setSpeakersReady] = useState(false);
   const [aiDialog, setAiDialog] = useState<"configure" | "preview" | "missing" | null>(null);
+  /** The offer made after this computer failed to start the chosen editor
+   *  model: which smaller one there is, and whether it is already here.
+   *
+   *  **Nothing is guessed and nothing is switched.** `tools.rs` says beside
+   *  `memory_gb` that nothing decides anything by it, *because nothing here has
+   *  ever measured what a model needs* — so this does not weigh the machine
+   *  against a number somebody invented. It waits for the model to fail to
+   *  load, which is a measurement, and then offers. The press is the reader's,
+   *  which is what makes changing their setting theirs. */
+  const [smallerOffer, setSmallerOffer] = useState<{
+    smaller: string;
+    installed: boolean;
+  } | null>(null);
+  /** What was last asked of the language model, so the offer can carry the run
+   *  over rather than switching the setting and leaving somebody to press the
+   *  same button again. The arguments and not a closure: the two functions that
+   *  start a run cannot name themselves from inside their own bodies. */
+  const lastRun = useRef<
+    | { kind: "edit"; mode: "faithful" | "clean" }
+    | { kind: "output"; output: "summary" | "translation" | "custom"; variant: string }
+    | null
+  >(null);
+  /** What language editing would cost on this machine, worked out the moment
+   *  somebody first wants a document: which components are missing and how many
+   *  megabytes that is. Which model is not among the questions — the size
+   *  follows the one answer given in the wizard. */
+  const [editorOffer, setEditorOffer] = useState<{
+    ids: string[];
+    megabytes: number;
+    model: string;
+  } | null>(null);
+  /** The offer was accepted and the download is running behind this screen.
+   *  Asking a second time would be asking twice; the dialog says so instead. */
+  const [editorDownloading, setEditorDownloading] = useState(false);
   /* Three modals, three traps. They were the four dialogs Escape did nothing
      in — closable only by clicking the overlay, which is not a thing the
      keyboard can do. One `useDialog` each, because a hook cannot live inside
@@ -189,7 +246,14 @@ export default function Detail({
   const missingDialog = useDialog<HTMLDivElement>(closeAiDialog, aiDialog === "missing");
   const configureDialog = useDialog<HTMLDivElement>(closeAiDialog, aiDialog === "configure");
   const previewDialog = useDialog<HTMLDivElement>(closeAiDialog, aiDialog === "preview");
-  const [aiMode, setAiMode] = useState<"faithful" | "clean" | "speakers">("faithful");
+  const smallerDialog = useDialog<HTMLDivElement>(
+    useCallback(() => setSmallerOffer(null), []),
+    !!smallerOffer
+  );
+  /* Two, not three. `custom` was one of these while the instruction stood in
+     the same dialog; it is a document made *from* the improved transcript now,
+     so it is not a way of making one. */
+  const [aiMode, setAiMode] = useState<"faithful" | "clean">("faithful");
   const [previewTab, setPreviewTab] = useState<PreviewTab>("improved");
   const [summaryLength, setSummaryLength] = useState<SummaryLength>("standard");
   const [translationLanguage, setTranslationLanguage] =
@@ -382,9 +446,20 @@ export default function Detail({
      winning. */
   const [editingUncertain, setEditingUncertain] = useState<string | null>(null);
   /** The strip of shortcuts under the player. Useful the first few times and
-   *  then just a line of text in the way, so it can be dismissed; Settings
-   *  brings it back. Kept beside the panel's own preference rather than in the
-   *  database — it is a habit of this machine, not of the archive. */
+   *  then just a line of text in the way, so it is dismissed here — and brought
+   *  back here, by a button that appears in the player's row only once the strip
+   *  is gone.
+   *
+   *  Settings used to carry `Zobrazovat tipy nad přepisem`, and it was right to
+   *  delete it: a switch on another screen undoing a press made on this one is a
+   *  setting for a decision nobody revisits. What was wrong was leaving the press
+   *  with no way back at all — the entry that removed the switch called that "the
+   *  trade", and it is not one anybody needs to make. The way back belongs where
+   *  the thing disappeared, and it costs nothing while the strip is up because it
+   *  is not drawn then.
+   *
+   *  Kept in `localStorage` beside the panel's own preference rather than in the
+   *  database: it is a habit of this machine, not of the archive. */
   const [tipsVisible, setTipsVisible] = useState(
     () => localStorage.getItem("rychle-tipy") !== "skryte"
   );
@@ -441,9 +516,11 @@ export default function Detail({
       setSourceMissing(!exists);
       setAiDocument(aiStatus.document);
       setAiOutputs(aiStatus.outputs);
+      setAiCustomDocuments(aiStatus.custom);
       setAiRunning(aiStatus.running);
       setAiConfigured(!!settings.editor_model);
-      setAiModel(tools.editor_model_id ?? settings.editor_model);
+      setCustomPrompt(settings.custom_prompt);
+      storedPrompt.current = settings.custom_prompt;
       setAiReady(!!settings.editor_model && tools.issues_editor.length === 0);
       setSpeakersReady(tools.issues_diarization.length === 0);
       if (aiStatus.running) {
@@ -463,6 +540,30 @@ export default function Detail({
     load();
   }, [load]);
 
+  /* The instruction goes back to Settings as it is typed, not when a run
+     starts. Somebody who writes four sentences, thinks better of it and closes
+     the dialog has still written four sentences, and losing them because they
+     did not press the button is the outcome worth an extra write to avoid.
+     A second of quiet first, so the row is not rewritten per keystroke, and
+     never the value that just came out of Settings. The whole record is read
+     back before it is written, because Settings writes the whole record too
+     and this must not overwrite what is being changed on that screen. */
+  useEffect(() => {
+    if (customPrompt === storedPrompt.current) return;
+    const timer = setTimeout(() => {
+      storedPrompt.current = customPrompt;
+      void (async () => {
+        try {
+          const settings = await api.loadSettings();
+          await api.saveSettings({ ...settings, custom_prompt: customPrompt });
+        } catch (error) {
+          onError(userMessage(error));
+        }
+      })();
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [customPrompt, onError, userMessage]);
+
   useEffect(() => {
     let active = true;
     let unlisten: (() => void) | undefined;
@@ -476,10 +577,54 @@ export default function Detail({
           if (!active) return;
           setAiDocument(status.document);
           setAiOutputs(status.outputs);
+          setAiCustomDocuments(status.custom);
           setAiDialog("preview");
         });
       } else if (event.payload.phase === "error") {
-        onError(progressMessage(event.payload.description));
+        /* These two are the machine saying it could not hold the model: the
+           server died while loading, or never answered `/health` at all. They
+           are already distinct from a missing binary and from a server that
+           fell over mid-answer, so nothing new had to be measured to tell them
+           apart — the names were there.
+
+           Everything else is reported the ordinary way. A notice for a fault
+           somebody can do nothing about is right; a dialog for it would be a
+           second thing to dismiss. */
+        const code = event.payload.description.code;
+        if (code === "ai.model_load_timeout" || code === "ai.server_exited_while_loading") {
+          void (async () => {
+            try {
+              const [components, settings] = await Promise.all([
+                api.catalog(),
+                api.loadSettings(),
+              ]);
+              const ladder = Object.keys(EDITOR_MODELS);
+              const at = ladder.findIndex((tier) => EDITOR_MODELS[tier] === settings.editor_model);
+              /* Everything below the one that failed, and the first of those
+                 that is offered at all — `editor-model-balanced` is in
+                 `UNOFFERED_COMPONENTS` and must not be proposed by name here
+                 when nothing else proposes it. */
+              const smaller = ladder
+                .slice(at + 1)
+                .find((tier) => !UNOFFERED_COMPONENTS.includes(tier));
+              if (at === -1 || !smaller) {
+                onError(progressMessage(event.payload.description));
+                return;
+              }
+              setSmallerOffer({
+                smaller,
+                installed: !!components.find((item) => item.id === smaller)?.complete,
+              });
+            } catch {
+              /* The offer could not be worked out, so the fault is reported as
+                 it would have been. Never nothing: a run that stopped must say
+                 so however this goes. */
+              onError(progressMessage(event.payload.description));
+            }
+          })();
+        } else {
+          onError(progressMessage(event.payload.description));
+        }
       }
     }).then((stop) => {
       if (active) unlisten = stop;
@@ -490,6 +635,28 @@ export default function Detail({
       unlisten?.();
     };
   }, [id, onError, progressMessage]);
+
+  /* The language editor landing while this screen is open. Nothing else on it
+     depends on a download, so the listener exists only while one of ours is
+     running — and if the reader walks away before it finishes, the setting was
+     already written and the next visit reads the files off the disk. */
+  useEffect(() => {
+    if (!editorDownloading) return;
+    let active = true;
+    let unlisten: (() => void) | undefined;
+    listen("download:complete", () => {
+      if (!active) return;
+      setEditorDownloading(false);
+      void load();
+    }).then((stop) => {
+      if (active) unlisten = stop;
+      else stop();
+    });
+    return () => {
+      active = false;
+      unlisten?.();
+    };
+  }, [editorDownloading, load]);
 
   // Events can be emitted between starting the backend thread and resolving
   // the invoke call. Polling the small status object keeps the displayed phase
@@ -1307,6 +1474,56 @@ export default function Detail({
   const diarizeSpeakers = useCallback(() => onDiarize(id), [id, onDiarize]);
 
   // ---------------------------------------------------------------- export
+  /** Ask, once, before the first document.
+   *
+   *  The language editor is the largest thing this application downloads and it
+   *  is wanted by some people and never by others, which is why it left the
+   *  first run: it was 81 % of a first installation for a feature its own screen
+   *  calls optional. It is asked for here instead, at the moment somebody wants
+   *  what it makes, with one sentence naming the size.
+   *
+   *  There is no second question about which model. The runtime follows the
+   *  drivers — the same rule `tools.rs` uses when it looks for `llama-cli` —
+   *  and the model follows what has already been said: whatever was chosen on
+   *  `Jazyková úprava`, and where nothing has been, the tier the wizard's one
+   *  answer implies. That order matters and is the reason this is not simply
+   *  `EDITOR_TIER`: this offer is also reached with a model already chosen but
+   *  its runtime missing, and fetching the tier there would replace somebody's
+   *  choice with an inference, and download several gigabytes to do it.
+   *
+   *  What is asked is the only thing the reader knows better than the machine:
+   *  whether they want it.
+   */
+  const askForEditor = useCallback(async () => {
+    try {
+      const [components, settings, tools] = await Promise.all([
+        api.catalog(),
+        api.loadSettings(),
+        api.checkTools(),
+      ]);
+      const chosen = Object.keys(EDITOR_MODELS).find(
+        (id) => EDITOR_MODELS[id] === settings.editor_model
+      );
+      const tier = chosen ?? EDITOR_TIER[qualityChoice(settings)];
+      const runtime = tools.vulkan_driver ? "editor-vulkan" : "editor-cpu";
+      const ids = [tier, runtime].filter(
+        (component) => !components.find((item) => item.id === component)?.complete
+      );
+      setEditorOffer({
+        ids,
+        megabytes: ids.reduce(
+          (total, component) =>
+            total + (components.find((item) => item.id === component)?.megabytes ?? 0),
+          0
+        ),
+        model: EDITOR_MODELS[tier],
+      });
+      setAiDialog("missing");
+    } catch (error) {
+      onError(userMessage(error));
+    }
+  }, [onError, userMessage]);
+
   const openAiAction = useCallback(async () => {
     // A generated document remains useful even if the source transcript or
     // selected model changed later. Let the user inspect and save it first;
@@ -1316,28 +1533,100 @@ export default function Detail({
       setAiDialog("preview");
       return;
     }
+    /* This branch used to open the reading window whenever any document made
+       from an instruction was saved, improved transcript or not — and the
+       reported defect is what that costs. Improve a transcript, delete the
+       result, press `Vylepšit`: the press landed in the preview, whose first
+       three tabs are gated on the improved transcript that had just been
+       deleted, so the window opened with `Vlastní prompt` as its only pill and
+       an empty state under it. A transcript never improved at all, but with one
+       custom document saved, met the same thing by the other road.
+
+       **The offer is fixed.** What `Vylepšit` opens cannot depend on what
+       happens to be stored beside the recording, because the button's whole
+       promise is that the three improvements are available. With no improved
+       transcript it goes to the choice, every time.
+
+       The one case that is not about making anything: the model is gone from
+       this machine and something was already made with it. Offering a
+       multi-gigabyte download to somebody who wants to read their own saved
+       text is the wrong answer, so that press opens the window it can. */
     if (!aiConfigured || !aiReady) {
-      setAiDialog("missing");
+      if (aiCustomDocuments.length > 0) {
+        setPreviewTab("custom");
+        setAiDialog("preview");
+      } else if (editorDownloading) setAiDialog("missing");
+      else await askForEditor();
       return;
     }
     setAiMode("faithful");
     setAiDialog("configure");
-  }, [aiConfigured, aiReady, aiDocument]);
+  }, [aiConfigured, aiReady, aiCustomDocuments, aiDocument, askForEditor, editorDownloading]);
 
-  const startAiEdit = useCallback(async () => {
-    // Separating speakers is not a language-model pass at all; it shares this
-    // dialog because from the reader's side both are "let the machine work on
-    // this recording". It therefore runs its own way out of here.
-    if (aiMode === "speakers") {
-      setAiDialog(null);
-      if (!speakersReady) {
-        onToModule("model-hlasy");
-        return;
-      }
-      void diarizeSpeakers();
+  /** Speaker recognition, from its own button.
+   *
+   *  It used to be a card in the language-editing dialog, among two ways of
+   *  rewriting the text — and it is not language editing at all: no model is
+   *  loaded, nothing is rewritten, the transcript is divided between the voices
+   *  that produced it. Its own button is what it always was.
+   *
+   *  The components may not be installed. Then the press goes where they are
+   *  fetched, as the card's own `Stáhnout` badge did. */
+  const recognizeSpeakers = useCallback(() => {
+    if (!speakersReady) {
+      onToModule("model-hlasy");
       return;
     }
+    diarizeSpeakers();
+  }, [diarizeSpeakers, onToModule, speakersReady]);
+
+
+  /** Yes. Fetch what is missing and record that the feature is wanted.
+   *
+   *  The download runs behind this screen — `download` in `downloads.rs` starts
+   *  a thread and returns — so the reader goes on reading, and the
+   *  application's own progress bubble reports it with a way to stop.
+   *
+   *  The setting is written now rather than when the files land. It says what
+   *  was asked for; `resolve_editor_model` in `tools.rs` falls back to whatever
+   *  model is actually on the disk, so a name written ahead of its file is not
+   *  a dead end — and a listener that had to survive the reader walking to the
+   *  Archive would not have survived it. */
+  const acceptEditor = useCallback(async () => {
+    if (!editorOffer) return;
     setAiDialog(null);
+    try {
+      if (editorOffer.ids.length > 0) {
+        await api.download(editorOffer.ids);
+        setEditorDownloading(true);
+      }
+      const settings = await api.loadSettings();
+      await api.saveSettings({ ...settings, editor_model: editorOffer.model });
+      await load();
+      // Everything was already on the disk: there is nothing to wait for, so
+      // the press that asked for a document goes on to ask what kind.
+      if (editorOffer.ids.length === 0) {
+        setAiMode("faithful");
+        setAiDialog("configure");
+      }
+    } catch (error) {
+      /* `download.already_running` is said rather than swallowed. The wizard
+         hides it because there the refused call and the running download are
+         the same batch, watched on the same screen; here they need not be —
+         it may be the reader's own editor download from a minute ago, or a
+         graphics build started in Settings — and a press that produced nothing
+         and said nothing would be the worst of the three. */
+      onError(userMessage(error));
+    }
+  }, [editorOffer, load, onError, userMessage]);
+
+  /** The improved transcript, in one of the two prepared ways. The mode is
+   *  passed rather than read from state, so the caller — the one place that
+   *  also knows about the third card — says which of the two it means. */
+  const startAiEdit = useCallback(async (mode: "faithful" | "clean") => {
+    lastRun.current = { kind: "edit", mode };
+    setAiDialog(null);
+    setPreviewTab("improved");
     setAiRunning(true);
     setAiProgress({
       recording_id: id,
@@ -1346,7 +1635,7 @@ export default function Detail({
       description: localMessage(t("detail.progress.preparingModel")),
     });
     try {
-      await api.startAiEdit(id, aiMode);
+      await api.startAiEdit(id, mode);
       const status = await api.aiEditStatus(id);
       setAiRunning(status.running);
       if (status.progress) setAiProgress(status.progress);
@@ -1354,14 +1643,16 @@ export default function Detail({
       setAiRunning(false);
       onError(userMessage(error));
     }
-  }, [aiMode, diarizeSpeakers, id, onError, onToModule, speakersReady, t, userMessage]);
+  }, [id, onError, t, userMessage]);
 
   const startAiOutput = useCallback(async (
-    kind: "summary" | "translation",
+    kind: "summary" | "translation" | "custom",
     variant: string
   ) => {
+    lastRun.current = { kind: "output", output: kind, variant };
     if (!aiConfigured || !aiReady) {
-      setAiDialog("missing");
+      if (editorDownloading) setAiDialog("missing");
+      else await askForEditor();
       return;
     }
     setAiDialog(null);
@@ -1373,7 +1664,9 @@ export default function Detail({
       description: localMessage(
         kind === "summary"
           ? t("detail.progress.preparingSummary")
-          : t("detail.progress.preparingTranslation")
+          : kind === "custom"
+            ? t("detail.progress.preparingCustom")
+            : t("detail.progress.preparingTranslation")
       ),
     });
     try {
@@ -1381,12 +1674,81 @@ export default function Detail({
       const status = await api.aiEditStatus(id);
       setAiRunning(status.running);
       setAiOutputs(status.outputs);
+      setAiCustomDocuments(status.custom);
       if (status.progress) setAiProgress(status.progress);
     } catch (error) {
       setAiRunning(false);
       onError(userMessage(error));
     }
-  }, [aiConfigured, aiReady, id, onError, t, userMessage]);
+  }, [aiConfigured, aiReady, askForEditor, editorDownloading, id, onError, t, userMessage]);
+
+  /** The instruction as it will be stored and looked up: without the spaces
+   *  and newlines a field collects, so the same instruction typed twice is one
+   *  instruction and not two. */
+  const writtenPrompt = customPrompt.trim();
+  /** What this recording already answered to exactly this instruction. Change
+   *  a word of it and this is nothing, which is the honest answer: the text
+   *  below would otherwise be somebody else's question. */
+  const customDocument = aiCustomDocuments.find((document) => document.prompt === writtenPrompt);
+
+  /** Run the reader's own instruction over the transcript.
+   *
+   *  An empty field never starts a run — the buttons that call this are
+   *  disabled without one, and Rust refuses it a second time. Falling back to a
+   *  prepared mode was the alternative and it is worse: a document nobody
+   *  described is a document nobody can trust. */
+  const startCustomDocument = useCallback(() => {
+    const prompt = customPrompt.trim();
+    if (!prompt) return;
+    setPreviewTab("custom");
+    void startAiOutput("custom", prompt);
+  }, [customPrompt, startAiOutput]);
+
+  /** Decline the offer and run the same model again, changing nothing.
+   *
+   *  A failed load is a measurement of one moment, not of the computer. What is
+   *  known is that it did not start; what is not known is whether something
+   *  else held the memory while it tried. This is the press for the reader who
+   *  thinks it was that. */
+  const retrySameEditor = useCallback(() => {
+    setSmallerOffer(null);
+    const last = lastRun.current;
+    if (last?.kind === "edit") void startAiEdit(last.mode);
+    else if (last?.kind === "output") void startAiOutput(last.output, last.variant);
+  }, [startAiEdit, startAiOutput]);
+
+  /** Take the offer: write the smaller model into the settings and carry the
+   *  run over. One press, and the thing that failed happens.
+   *
+   *  **The setting is written rather than used once, and the way back matters
+   *  because of it.** A machine that could not load the model now will probably
+   *  not load it in a minute, and repeating a load that ends in
+   *  `ai.model_load_timeout` costs five minutes each time — which is what the
+   *  writing avoids. But *probably* is the whole of it: this may have been one
+   *  bad moment, so `Zkusit znovu` stands beside this button, and the sentence
+   *  above them says the choice can be changed back on `Jazyková úprava`, where
+   *  the two cards are one click apart. */
+  const takeSmallerEditor = useCallback(async () => {
+    const offer = smallerOffer;
+    if (!offer) return;
+    setSmallerOffer(null);
+    if (!offer.installed) {
+      /* Not here yet, so the offer is a download and that screen owns it —
+         the same route the missing-editor dialog takes, with the component
+         already named. */
+      onToModule(offer.smaller);
+      return;
+    }
+    try {
+      const settings = await api.loadSettings();
+      await api.saveSettings({ ...settings, editor_model: EDITOR_MODELS[offer.smaller] });
+      const last = lastRun.current;
+      if (last?.kind === "edit") void startAiEdit(last.mode);
+      else if (last?.kind === "output") void startAiOutput(last.output, last.variant);
+    } catch (error) {
+      onError(userMessage(error));
+    }
+  }, [onError, onToModule, smallerOffer, startAiEdit, startAiOutput, userMessage]);
 
   const openOriginalPreview = useCallback(async () => {
     setPreviewTab("original");
@@ -1414,7 +1776,7 @@ export default function Detail({
   );
 
   const saveAiOutput = useCallback(async (
-    kind: "summary" | "translation",
+    kind: "summary" | "translation" | "custom",
     variant: string,
     format: "txt" | "md"
   ) => {
@@ -1426,7 +1788,11 @@ export default function Detail({
       // A whole sentence per kind. Czech declines the verb with the noun, so
       // there is nothing here to assemble from two halves.
       onInfo(t(
-        kind === "summary" ? "detail.saved.summary" : "detail.saved.translation",
+        kind === "summary"
+          ? "detail.saved.summary"
+          : kind === "custom"
+            ? "detail.saved.custom"
+            : "detail.saved.translation",
         { path: destination }
       ));
     } catch (error) {
@@ -1456,6 +1822,17 @@ export default function Detail({
   const running =
     status === "transcribing" ||
     (progress != null && !["complete", "cancelled", "error"].includes(progress.phase));
+  /** When speaker recognition may not be started: nothing to divide yet, or
+   *  something already has this recording — a transcription, a diarization
+   *  under way, or the language model.
+   *
+   *  **One expression for both ways in.** The header pill and the sidebar's own
+   *  action each carried their own list, and the lists had drifted: the
+   *  sidebar's was missing `aiRunning`, so while the model worked the header
+   *  was correctly dead and the sidebar was still pressable — two answers to
+   *  one question, several hundred lines apart. It sits under `running` because
+   *  that is the one of the four that is derived rather than held. */
+  const speakersBusy = segments.length === 0 || running || diarizing || aiRunning;
   // The segment that last began, rather than the one the playhead sits
   // inside. Between two sentences there is a pause that belongs to neither,
   // and demanding a strict match made the highlight blink out for it before
@@ -1531,7 +1908,9 @@ export default function Detail({
       ? originalPreview
       : previewTab === "summary"
         ? summaryOutput?.text ?? ""
-        : translationOutput?.text ?? "";
+        : previewTab === "custom"
+          ? customDocument?.text ?? ""
+          : translationOutput?.text ?? "";
 
   const copyPreviewText = async () => {
     if (!previewText.trim()) return;
@@ -1546,7 +1925,9 @@ export default function Detail({
             ? "detail.copied.original"
             : previewTab === "summary"
               ? "detail.copied.summary"
-              : "detail.copied.translation"
+              : previewTab === "custom"
+                ? "detail.copied.custom"
+                : "detail.copied.translation"
       ));
     } catch (error) {
       onError(error instanceof ClipboardRefused
@@ -1562,6 +1943,8 @@ export default function Detail({
       await exportRecording(format);
     } else if (previewTab === "summary") {
       await saveAiOutput("summary", summaryLength, format);
+    } else if (previewTab === "custom") {
+      await saveAiOutput("custom", writtenPrompt, format);
     } else {
       await saveAiOutput("translation", translationLanguage, format);
     }
@@ -1660,6 +2043,36 @@ export default function Detail({
             />
           )}
           <MiniRecorder onOpen={onOpenRecorder} />
+          {/* Speaker recognition, beside the other things that are done to this
+              recording rather than among the ways of rewriting its text. It
+              was a card in the dialog next door and it never belonged there:
+              nothing is rewritten, no language model is loaded, the transcript
+              is divided between the voices that produced it. The sidebar's
+              section keeps its own action — that one is the way back out of a
+              corner, next to the speakers it would change; this is the way in.
+
+              They no longer say the same words, and the reason is the header
+              rather than the act. `Rozpoznat mluvčí` is right in the sidebar,
+              under a heading that has already said what these are and beside a
+              list it would change. In the header it stood between `Uložit` and
+              `AI nástroje` as the one verb in a row of names. So the pill has a
+              key of its own — `detail.header.speakersButton`, `Mluvčí` — and
+              the sidebar keeps the verb it was written for. */}
+          <button
+            className="button"
+            onClick={recognizeSpeakers}
+            disabled={speakersBusy}
+            title={speakersReady ? undefined : t("detail.header.speakersMissing")}
+          >
+            <LineIcon name="speakers" size={15} />
+            {/* The name does not change when speakers exist — a door is not
+                renamed because there is something behind it, which is the rule
+                `AI nástroje` is named on. The running state stays: that is not
+                a second name, it is the button saying it is busy. */}
+            {diarizing
+              ? t("detail.speakers.diarizing")
+              : t("detail.header.speakersButton")}
+          </button>
           <button
             className={`button ai-edit-button ${aiDocument ? "ready" : ""}`}
             onClick={openAiAction}
@@ -1778,6 +2191,14 @@ export default function Detail({
           onSeek={updateCursor}
           trailingControl={(
             <>
+            {/* A keyboard button stood here — the way back to the shortcut
+                strip, put beside the player on the reasoning that a way back
+                belongs where the thing disappeared rather than three clicks
+                away in Settings. The owner has now seen both and prefers the
+                switch: *dejme jim toggle v nastavení rozhraní tak, jak jsme ho
+                měly*. The principle was not wrong; it lost to the screen. The
+                switch is on `Rozhraní` and reads the same
+                `localStorage["rychle-tipy"]` this strip writes. */}
             {/* Beside the panel toggle, because both are tools of the screen
                 rather than of playback — and without a target of its own the
                 find bar existed only for whoever knew Ctrl+F. */}
@@ -2020,7 +2441,7 @@ export default function Detail({
                   {t("detail.speakers.add")}
                 </button>
                 <button className="sidebar-text-action" onClick={diarizeSpeakers}
-                        disabled={diarizing || running || segments.length === 0}>
+                        disabled={speakersBusy}>
                   <LineIcon name="speakers" size={15} />
                   {diarizing
                     ? t("detail.speakers.diarizing")
@@ -2328,7 +2749,7 @@ export default function Detail({
                         className="sticky-editor"
                         value={noteDraft}
                         autoFocus
-                        rows={2}
+                        rows={3}
                         ref={fitNoteTextarea}
                         placeholder={t("detail.notes.placeholder")}
                         onChange={(event) => {
@@ -2530,28 +2951,90 @@ export default function Detail({
         />
       )}
 
+      {/* The one question about language editing, asked where it is wanted.
+          It used to be a notice saying the feature was not ready and a button
+          reading `Vybrat model`, which walked to the component list and asked
+          which of three — a second question about something the first run had
+          already answered, in a screen the reader had not asked to open. Now it
+          is yes or no, with the size in the sentence, and yes starts the
+          download behind this screen.
+
+          Pressed again while that download is running it says so rather than
+          offering again: asked once means once. */}
       {aiDialog === "missing" && (
         <div className="dialog-overlay" role="presentation" onMouseDown={() => setAiDialog(null)}>
           <div ref={missingDialog} className="dialog" role="dialog" aria-modal="true"
                aria-labelledby="ai-missing-title"
                onMouseDown={(event) => event.stopPropagation()}>
-            <h2 id="ai-missing-title">{t("detail.ai.missingTitle")}</h2>
-            <p>{t("detail.ai.missingText")}</p>
+            <h2 id="ai-missing-title">
+              {t(editorDownloading ? "detail.ai.downloadingTitle" : "detail.ai.offerTitle")}
+            </h2>
+            <p>
+              {editorDownloading
+                ? t("detail.ai.downloadingText")
+                : t("detail.ai.offerText", {
+                    size: dataSize(editorOffer?.megabytes ?? 0),
+                  })}
+            </p>
             <div className="dialog-footer">
               <button className="button quiet" onClick={() => setAiDialog(null)}>
                 {t("common.close")}
               </button>
-              <button
-                className="button primary"
-                onClick={() => onToModule(
-                  aiModel.includes("12b")
-                    ? "editor-model-best"
-                    : aiModel.includes("e2b")
-                      ? "editor-model-light"
-                      : "editor-model-balanced"
-                )}
-              >
-                {t("detail.ai.chooseModel")}
+              {!editorDownloading && (
+                <button className="button primary" onClick={() => void acceptEditor()}>
+                  {t("common.download")}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* The machine could not start the chosen model, and this says so and
+          offers the one below it. It is not a warning worked out in advance —
+          `tools.rs` refuses to decide anything by `memory_gb`, on the grounds
+          that nothing here has ever measured what a model needs, and that
+          refusal is right. A model that would not load is a measurement, and
+          it is the only one this application can honestly make: the graphics
+          card's memory, which is what usually runs out, is not readable at
+          all.
+
+          The reader presses. Nothing is switched behind their back, and it is
+          the press that makes the changed setting theirs — the same bargain
+          `Grafická karta je vybraná, ale…` makes on the settings screen. */}
+      {smallerOffer && (
+        <div className="dialog-overlay" role="presentation" onMouseDown={() => setSmallerOffer(null)}>
+          <div ref={smallerDialog} className="dialog" role="dialog" aria-modal="true"
+               aria-labelledby="ai-smaller-title"
+               onMouseDown={(event) => event.stopPropagation()}>
+            <h2 id="ai-smaller-title">{t("detail.smaller.title")}</h2>
+            <p>
+              {t(smallerOffer.installed
+                ? "detail.smaller.text"
+                : "detail.smaller.textDownload")}
+            </p>
+            <div className="dialog-footer">
+              <button className="button quiet" onClick={() => setSmallerOffer(null)}>
+                {t("common.close")}
+              </button>
+              {/* Because one failed load is not a verdict on the machine. The
+                  paint may have been momentary — another program holding the
+                  graphics memory, a transcription running beside this, a driver
+                  that stumbled — and the application cannot tell that from a
+                  computer too small, so it must not decide. Trying the same
+                  model again is the answer it would be arrogant not to offer.
+
+                  Quiet, and the switch stays primary: retrying costs another
+                  wait and may end here again, while switching is the answer
+                  most likely to end with a document. Which is a reason to rank
+                  them, not a reason to leave one out. */}
+              <button className="button quiet" onClick={() => void retrySameEditor()}>
+                {t("detail.smaller.again")}
+              </button>
+              <button className="button primary" onClick={() => void takeSmallerEditor()}>
+                {t(smallerOffer.installed
+                  ? "detail.smaller.switch"
+                  : "detail.smaller.download")}
               </button>
             </div>
           </div>
@@ -2594,28 +3077,18 @@ export default function Detail({
                   <span className="small-text">{t("detail.ai.modeCleanDescription")}</span>
                 </span>
               </button>
-              <button className={`choice with-icon ${aiMode === "speakers" ? "chosen" : ""} ${speakersReady ? "" : "missing"}`}
-                      onClick={() => setAiMode("speakers")}>
-                <span className="choice-icon" aria-hidden>
-                  <LineIcon name="speakers" />
-                </span>
-                <span className="choice-body">
-                  <span className="choice-title">{t("detail.ai.modeSpeakers")}</span>
-                  <span className="small-text">
-                    {t(
-                      !speakersReady
-                        ? "detail.ai.modeSpeakersMissing"
-                        : speakers.length > 0
-                          ? "detail.ai.modeSpeakersDone"
-                          : "detail.ai.modeSpeakersDescription"
-                    )}
-                  </span>
-                </span>
-                {!speakersReady && <em className="badge actions">{t("common.download")}</em>}
-                {speakersReady && speakers.length > 0 && (
-                  <em className="badge complete">{t("detail.ai.speakersDoneBadge")}</em>
-                )}
-              </button>
+              {/* Speaker recognition stood here, and then `Vlastní prompt`
+                  stood in its place with its own field under these cards. Both
+                  are gone and this dialog is one question again: which of two
+                  ways the transcript is rewritten.
+
+                  The instruction left on the owner's realisation, not on a
+                  preference — *nejdřív prostě MUSÍ být vylepšený přepis a pak
+                  teprve další věci*. A document made from an instruction is one
+                  of the further things, so offering it beside the two cards
+                  that make the thing it needs was offering step two next to
+                  step one. It lives in the window's fourth tab, which has had
+                  the field, the button and the regenerate all along. */}
             </div>
             <p className="small-text ai-edit-note">
               <svg className="ai-edit-note-icon" width="16" height="16" viewBox="0 0 16 16"
@@ -2630,25 +3103,41 @@ export default function Detail({
               <button className="button quiet" onClick={() => setAiDialog(null)}>
                 {t("common.cancel")}
               </button>
-              <button className="button primary" onClick={startAiEdit}>
-                {t(aiMode === "speakers"
-                  ? !speakersReady
-                    ? "common.download"
-                    : speakers.length > 0
-                      ? "detail.ai.startSpeakersAgain"
-                      : "detail.ai.startSpeakers"
-                  : "detail.ai.startEdit")}
+              {/* `Zobrazit uložený` stood here, added this morning: with the
+                  instruction living in this dialog, a document made from it had
+                  no other way back once `Vylepšit` stopped routing to the
+                  window. The instruction does not live here any more, and the
+                  window's fourth tab is reached the ordinary way — through the
+                  tabs — so there is nothing left to rescue.
+
+                  A correction of a correction, and both were right about the
+                  arrangement they were written for. */}
+              <button className="button primary" onClick={() => void startAiEdit(aiMode)}>
+                {t("detail.ai.startEdit")}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {aiDialog === "preview" && aiDocument && (
+      {/* The window opens for a document made from an instruction as well as
+          for the improved transcript: without that, the first is written,
+          shown once and unreachable afterwards. */}
+      {aiDialog === "preview" && (aiDocument || aiCustomDocuments.length > 0) && (
         <div className="dialog-overlay" role="presentation" onMouseDown={() => setAiDialog(null)}>
           <div ref={previewDialog} className="dialog ai-preview-dialog" role="dialog" aria-modal="true"
                aria-labelledby="ai-preview-title" onMouseDown={(event) => event.stopPropagation()}>
             <div className="ai-preview-header">
+              {/* One name, both states. It used to switch, because with no
+                  improved transcript the window held exactly one document and
+                  it was the custom one — naming it `Vylepšený přepis` would
+                  have named the thing the reader did not ask for.
+
+                  Neither half of that is true now: every visit shows four tabs,
+                  and with no improved transcript the window holds nothing at
+                  all. `Dokument podle vašeho pokynu` over an empty window would
+                  name a document that does not exist and is not what is being
+                  asked for anyway. */}
               <div>
                 <h2 id="ai-preview-title">{t("detail.preview.title")}</h2>
                 <p>{t("detail.preview.subtitle")}</p>
@@ -2661,14 +3150,32 @@ export default function Detail({
                 </svg>
               </button>
             </div>
-            {aiDocument.stale && (
+            {previewTab !== "custom" && aiDocument?.stale && (
               <div className="ai-preview-warning">{t("detail.preview.staleWarning")}</div>
+            )}
+            {/* A custom document is compared against the transcript alone: no
+                model is named in it, and nothing about it becomes wrong
+                because a different editing model was chosen since. */}
+            {previewTab === "custom" && aiDocument && customDocument?.stale && (
+              <div className="ai-preview-warning">{t("detail.custom.staleWarning")}</div>
             )}
             {/* The header's own buttons, and the playback speeds' own selected
                 state: a row of pills where the chosen one is filled. A
                 segmented control is right in the archive, where it switches how
                 a list is drawn; hanging under a header made of pills it read as
                 a borrowed part. */}
+            {/* All four, always — *myslím, že i po kliknutí na hotový vlastní
+                prompt vidět ostatní záložky*.
+
+                The first three used to be drawn only with the improved
+                transcript, because the middle two are made *from* it and Rust
+                refuses them without one (`ai.document_required`). That is a
+                true statement about what can be produced and it was answered in
+                the wrong place: hiding the tab hides the subject, and a window
+                showing one pill reads as broken rather than as empty. Where a
+                document cannot be made yet, the tab says so and offers the step
+                that comes first — which is what the two empty states below
+                already did for their own documents. */}
             <nav className="ai-document-tabs" role="tablist"
                  aria-label={t("detail.preview.tabsLabel")}>
               <button className={previewTab === "improved" || previewTab === "original" ? "active" : ""}
@@ -2689,9 +3196,20 @@ export default function Detail({
                 <DocumentViewIcon view="translation" />
                 {t("detail.preview.translationTab")}
               </button>
+              <button className={previewTab === "custom" ? "active" : ""}
+                      onClick={() => setPreviewTab("custom")} role="tab"
+                      aria-selected={previewTab === "custom"}>
+                <DocumentViewIcon view="custom" />
+                {t("detail.preview.customTab")}
+              </button>
             </nav>
 
-            {(previewTab === "improved" || previewTab === "original") && (
+            {/* The three toolbars pick a variant of a document. With no
+                improved transcript there is no document to vary, so they stay
+                down and the empty state below carries the whole tab — a length
+                chosen for a summary that cannot be made is a control with
+                nothing behind it. */}
+            {(previewTab === "improved" || previewTab === "original") && aiDocument && (
               <div className="ai-output-toolbar">
                 <div className="ai-output-options" role="radiogroup"
                      aria-label={t("detail.preview.versionLabel")}>
@@ -2708,7 +3226,7 @@ export default function Detail({
                 </div>
               </div>
             )}
-            {previewTab === "summary" && (
+            {previewTab === "summary" && aiDocument && (
               <div className="ai-output-toolbar">
                 {/* The three names say what they are. The group keeps its
                     accessible label for anyone who cannot see them. */}
@@ -2726,7 +3244,7 @@ export default function Detail({
                 </div>
               </div>
             )}
-            {previewTab === "translation" && (
+            {previewTab === "translation" && aiDocument && (
               <div className="ai-output-toolbar">
                 {/* No visible label: the tab above says Překlad and the value
                     in the control is a language. `Select` carries its own
@@ -2740,7 +3258,31 @@ export default function Detail({
               </div>
             )}
 
-            {previewTab === "improved" && (
+            {/* The instruction stands above its answer and stays editable
+                there: rewriting it is how the next document is asked for, and
+                the moment it changes the answer below is no longer to this
+                question — the tab says so by going back to its empty state. */}
+            {previewTab === "custom" && aiDocument && (
+              <div className="ai-output-toolbar ai-custom-bar">
+                <div className="field ai-custom-field">
+                  <label htmlFor="ai-custom-prompt-preview">{t("detail.custom.label")}</label>
+                  <textarea
+                    id="ai-custom-prompt-preview"
+                    rows={3}
+                    value={customPrompt}
+                    placeholder={t("detail.custom.placeholder")}
+                    onChange={(event) => setCustomPrompt(event.target.value)}
+                  />
+                  {/* The same note under the same field, from the same key. The
+                      tab is reached after the dialog, but it is also where the
+                      instruction is rewritten, and a reassurance that appears
+                      only the first time is one the reader cannot go back to. */}
+                  <InfoNote>{t("detail.custom.privacy")}</InfoNote>
+                </div>
+              </div>
+            )}
+
+            {previewTab === "improved" && aiDocument && (
               <article className="ai-preview-text">
                 {aiDocument.text
                   .split(/\n{2,}/)
@@ -2768,7 +3310,44 @@ export default function Detail({
                 .map((paragraph, index) => <p key={index}>{paragraph}</p>)}
               </article>
             )}
-            {previewTab === "summary" && !summaryOutput && (
+            {/* Every tab, when there is no improved transcript. One block for
+                all four rather than four: what is missing is the same thing,
+                and the step that fixes it is the same press. Only the sentence
+                changes — the first tab is the document itself, the other three
+                are made from it.
+
+                The fourth joined the other two when the instruction started
+                reading the improved document instead of the timed transcript.
+                That is the whole of *nejdřív prostě MUSÍ být vylepšený přepis*
+                on this screen: one precondition, said once, in front of
+                everything that has it.
+
+                The button goes to the choice rather than starting an edit,
+                because there is a choice: `Věrný` and `Vyčištěný` are two
+                different documents and one of them is only recommended. The
+                dialog that asks is the one this window's own button opens, so
+                nothing here invents a second way to decide. */}
+            {!aiDocument && (
+              <div className="ai-preview-empty">
+                <span className="ai-preview-empty-icon" aria-hidden>
+                  <DocumentViewIcon view="improved" />
+                </span>
+                <h3>{t("detail.preview.emptyTitle")}</h3>
+                <p>
+                  {t(previewTab === "improved" || previewTab === "original"
+                    ? "detail.preview.emptyText"
+                    : "detail.preview.emptyDerived")}
+                </p>
+                <button className="button primary"
+                        onClick={() => {
+                          setAiMode("faithful");
+                          setAiDialog("configure");
+                        }}>
+                  {t("detail.ai.startEdit")}
+                </button>
+              </div>
+            )}
+            {previewTab === "summary" && aiDocument && !summaryOutput && (
               <div className="ai-preview-empty">
                 <span className="ai-preview-empty-icon" aria-hidden>
                   <DocumentViewIcon view="summary" />
@@ -2783,7 +3362,7 @@ export default function Detail({
                 </button>
               </div>
             )}
-            {previewTab === "translation" && !translationOutput && (
+            {previewTab === "translation" && aiDocument && !translationOutput && (
               <div className="ai-preview-empty">
                 <span className="ai-preview-empty-icon" aria-hidden>
                   <DocumentViewIcon view="translation" />
@@ -2796,12 +3375,38 @@ export default function Detail({
                 </button>
               </div>
             )}
+            {previewTab === "custom" && aiDocument && customDocument && (
+              <article className="ai-preview-text">
+                {customDocument.text
+                  .split(/\n{2,}/)
+                  .map((paragraph, index) => <p key={index}>{paragraph}</p>)}
+              </article>
+            )}
+            {previewTab === "custom" && aiDocument && !customDocument && (
+              <div className="ai-preview-empty">
+                <span className="ai-preview-empty-icon" aria-hidden>
+                  <DocumentViewIcon view="custom" />
+                </span>
+                <h3>{t("detail.custom.title")}</h3>
+                <p>{t("detail.custom.emptyText")}</p>
+                <button className="button primary" onClick={startCustomDocument}
+                        disabled={!writtenPrompt}>
+                  {t("detail.custom.create")}
+                </button>
+              </div>
+            )}
 
-            {(previewTab === "improved" || previewTab === "original"
-              || (previewTab === "summary" && summaryOutput)
-              || (previewTab === "translation" && translationOutput)) && (
+            {/* Copy and Save act on a text, so the footer follows whether
+                there is one. With no improved transcript there is none on any
+                tab — the empty state has the whole window and carries its own
+                single button, which is the only thing to do from here. */}
+            {aiDocument
+              && (previewTab === "improved" || previewTab === "original"
+                || (previewTab === "summary" && summaryOutput)
+                || (previewTab === "translation" && translationOutput)
+                || (previewTab === "custom" && customDocument)) && (
               <div className="dialog-footer ai-preview-actions">
-                {previewTab === "improved" && (
+                {previewTab === "improved" && aiDocument && (
                   <button className="button quiet danger" onClick={async () => {
                     await api.deleteAiDocument(id);
                     setAiDocument(null);
@@ -2812,13 +3417,19 @@ export default function Detail({
                     {t("detail.preview.discard")}
                   </button>
                 )}
-                {previewTab === "improved" && (
+                {previewTab === "improved" && aiDocument && (
                   <button className="button quiet" onClick={() => {
                     setAiMode(aiDocument.mode === "clean" ? "clean" : "faithful");
                     setAiDialog("configure");
                   }}>
                     <RegenerateIcon />
                     {t("detail.preview.regenerateImproved")}
+                  </button>
+                )}
+                {previewTab === "custom" && customDocument && (
+                  <button className="button quiet" onClick={startCustomDocument}>
+                    <RegenerateIcon />
+                    {t("detail.preview.regenerateCustom")}
                   </button>
                 )}
                 {previewTab === "summary" && summaryOutput && (

@@ -1,65 +1,60 @@
 /** Strings belonging to the `wizard` screen. */
 export const csWizard = {
-  // ------------------------------------------------------------------ 0. welcome
-  "wizard.welcome.titleFirstRun": "První spuštění",
-  "wizard.welcome.titleAddModels": "Doplnit modely",
-  "wizard.welcome.intro":
-    "Před prvním přepisem je potřeba stáhnout nástroje a jazykový model. Stahování trvá několik minut, poté aplikace pracuje bez připojení k internetu.",
-  "wizard.welcome.configurationLabel": "Konfigurace",
-  "wizard.welcome.gpuNvidia": "Grafická karta NVIDIA",
-  "wizard.welcome.gpuVulkan": "Grafická karta (Vulkan)",
-  "wizard.welcome.gpuNone": "Bez podporované grafické karty",
-  "wizard.welcome.transcriptionLabel": "Přepis",
-  "wizard.welcome.onGpu": "na grafické kartě",
-  "wizard.welcome.onCpu": "na procesoru, tedy pomaleji",
-  "wizard.welcome.note": "Podle konfigurace je předvybrána vhodná sada. Změnit ji lze i později.",
+  // ---------------------------------------------- 0. what the machine can do
+  // Nothing. The welcome screen's title and introduction went with the screen
+  // on 13 August, and the seven `wizard.welcome.*` strings that survived it as
+  // a two-panel grid under the one question — `Konfigurace / Grafická karta
+  // (Vulkan)` beside `Přepis / na grafické kartě` — are gone with that block on
+  // 14 August. The sentence above it, `wizard.quality.introGpu`, already said
+  // the estimates were for the graphics card in this computer.
 
   // ------------------------------------------------------------------ 1. quality
   "wizard.quality.title": "Rychle, nebo přesně?",
-  "wizard.quality.introGpu": "Odhady časů platí pro grafickou kartu v tomto počítači.",
-  "wizard.quality.introCpu": "Poběží to na procesoru, takže odhady jsou vyšší, než byste čekali.",
+  // What was found in this computer, in one sentence over the two cards. Four
+  // of them, because the graphics card and the memory are two facts that can
+  // each be missing — and a machine that will not say how much memory it has
+  // gets the shorter sentence rather than a number nobody read.
+  //
+  // `wizard.quality.introGpu` and `introCpu` stood here and are retired with
+  // this block. They said the estimates were for the graphics card in this
+  // computer; these say what the computer is.
+  "wizard.quality.machineChecking": "Zjišťuji, co je v tomto počítači.",
+  "wizard.quality.machineGpu":
+    "V tomto počítači je grafická karta, takže přepis poběží na ní.",
+  "wizard.quality.machineGpuMemory":
+    "V tomto počítači je grafická karta a {memory} paměti, takže přepis poběží na kartě.",
+  "wizard.quality.machineCpu":
+    "V tomto počítači není podporovaná grafická karta, takže přepis poběží na procesoru.",
+  "wizard.quality.machineCpuMemory":
+    "V tomto počítači není podporovaná grafická karta a je v něm {memory} paměti, takže přepis poběží na procesoru.",
   "wizard.quality.fastestName": "Rychlý",
-  "wizard.quality.balancedName": "Vyvážený",
-  "wizard.quality.bestName": "Precizní",
-  "wizard.quality.fastestSummary":
-    "Hodinová nahrávka {duration}. Méně spolehlivý u vlastních jmen a odborných výrazů.",
-  "wizard.quality.balancedSummary":
-    "Hodinová nahrávka {duration}. Asi jedna chyba na odstavec. Vhodné pro většinu nahrávek.",
-  "wizard.quality.bestSummary":
-    "Hodinová nahrávka {duration}. Nejvyšší dosažitelná přesnost přepisu.",
+  "wizard.quality.bestName": "Přesný",
+  "wizard.quality.cost": "Hodinová nahrávka {duration}, ke stažení {size}.",
+  "wizard.quality.costHave": "Hodinová nahrávka {duration}.",
+  "wizard.quality.reasonGpu":
+    "Doporučeno pro tento počítač — na grafické kartě zvládne i větší model hodinu nahrávky bez dlouhého čekání.",
+  "wizard.quality.reasonCpu":
+    "Doporučeno pro tento počítač — bez grafické karty by větší model běžel podstatně déle.",
+  "wizard.quality.changeableNote":
+    "Časy jsou hrubý odhad, ne měření. Model lze změnit i později v nastavení, už hotové přepisy se tím ale nepřepočítají.",
 
-  // ---------------------------------------------------------------- 2. speakers
-  "wizard.speakers.title": "Přepisujete i rozhovory?",
-  "wizard.speakers.intro":
-    "Pokud mluví víc lidí, aplikace rozdělí text mezi ně.",
-  "wizard.speakers.singleName": "Většinou mluví jeden člověk",
-  "wizard.speakers.singleDescription": "Přednášky, diktování, poznámky. Nevyžaduje žádné doplňky.",
-  "wizard.speakers.multipleName": "Nahrávám i rozhovory",
-  "wizard.speakers.multipleDescription":
-    "Text se rozdělí mezi jednotlivé mluvčí, které pak můžete pojmenovat.",
-
-  // ------------------------------------------------------------ 3. language editing
-  "wizard.editor.title": "Chcete z přepisu hotový dokument?",
-  "wizard.editor.intro":
-    "Volitelný místní model opraví interpunkci, odstavce a zjevné chyby. Zachová původní přepis a nic neposílá ven.",
-  "wizard.editor.lightName": "Úsporná",
-  "wizard.editor.balancedName": "Doporučená",
-  "wizard.editor.bestName": "Nejvyšší kvalita",
-  "wizard.editor.lightDescription": "Interpunkce, věty a odstavce. Dobrá volba pro slabší CPU.",
-  "wizard.editor.balancedDescription":
-    "Lépe opravuje zjevné chyby a drží souvislosti delší výpovědi.",
-  "wizard.editor.bestDescription":
-    "Nejspolehlivější výsledek. Na počítači bez grafiky bude pomalejší.",
-  "wizard.editor.skip": "Přeskočit",
+  // The speaker step and the language-editing step are gone, and so are their
+  // words. Speaker recognition comes down with everything else and is switched
+  // on where the reader has a recording to switch it on for; language editing
+  // is asked for once, on the transcript screen, when a document is first
+  // wanted. Neither is a question for a first run.
 
   // ------------------------------------------------------ 4. choosing and downloading
   "wizard.download.failedTitle": "Stahování selhalo",
   "wizard.download.dismissError": "Rozumím",
-  "wizard.download.recommendedBadge": "doporučeno",
+  // `wizard.download.recommendedBadge` — the bare word `doporučeno` in a pill —
+  // is retired. A recommendation that names no reason is an assertion, and this
+  // screen now knows enough about the machine to make it an argument:
+  // `wizard.quality.reasonGpu` and `reasonCpu` say which fact about this
+  // computer the recommendation rests on.
   "wizard.download.downloadedBadge": "staženo",
-  "wizard.download.downloadedLabel": "Staženo",
   "wizard.download.runningTitle": "Probíhá stahování",
-  "wizard.download.reviewTitle": "Kontrola výběru",
+  "wizard.download.reviewTitle": "Co se stáhne",
   "wizard.download.summary.one": "Stáhne se {count} položka, dohromady {size}.",
   "wizard.download.summary.few": "Stáhnou se {count} položky, dohromady {size}.",
   "wizard.download.summary.many": "Stáhne se {count} položky, dohromady {size}.",
@@ -72,16 +67,34 @@ export const csWizard = {
   "wizard.download.statusError": "chyba",
   "wizard.download.statusWaiting": "čeká",
   "wizard.download.nothingNeeded": "Všechno potřebné už máte.",
-  "wizard.download.startTranscribing": "Jdeme přepisovat",
   "wizard.download.downloadWithSize": "Stáhnout ({size})",
+  "wizard.download.percent": "{percent} %",
+  "wizard.download.viewLabel": "Podrobnost výpisu",
+  "wizard.download.viewCompact": "Stručný výpis",
+  "wizard.download.viewFull": "Podrobný výpis",
 
   // ------------------------------------------------------------- choosing by hand
-  "wizard.manual.switchToSimple": "Jednoduchý výběr",
-  "wizard.manual.switchToManual": "Vybrat ručně",
-  "wizard.manual.groupPrograms": "Programy",
-  "wizard.manual.groupModels": "Jazykové modely",
-  "wizard.manual.groupSpeakers": "Rozpoznání mluvčích",
-  "wizard.manual.groupEditor": "Jazyková úprava",
+  "wizard.manual.title": "Modely a nástroje",
+  "wizard.manual.install": "Stáhnout",
+  "wizard.manual.reinstall": "Stáhnout znovu",
+  "wizard.manual.remove": "Smazat",
+  "wizard.manual.removeTitle": "Smazat {name}?",
+  "wizard.manual.removeText":
+    "Uvolní se {size}. Stáhnout to jde kdykoli znovu, ale znovu to potrvá.",
+  "wizard.manual.removeChosenText":
+    "Uvolní se {size}. Tenhle model má aplikace nastavený, takže místo něj " +
+    "vezme {next}. Stáhnout ho jde kdykoli znovu, ale znovu to potrvá.",
+  "wizard.manual.removeLastText":
+    "Uvolní se {size}. Tenhle model má aplikace nastavený a jiný stažený " +
+    "není — o stažení si řekne, až ho bude potřebovat.",
+  "wizard.manual.lockedBusy": "Právě se používá. Až práce skončí, půjde smazat.",
+  "wizard.manual.lockedUnlisted":
+    "Aplikace neví, které soubory k této součásti patří. Po opětovném stažení " +
+    "ji smazat půjde.",
+  "wizard.manual.groupPrograms": "Programy pro přepis",
+  "wizard.manual.groupModels": "Jazykové modely pro přepis",
+  "wizard.manual.groupSpeech": "Detekce řeči a mluvčích",
+  "wizard.manual.groupEditor": "Programy a modely pro jazykovou úpravu",
 
   // ------------------------------------------------------------- 5. conclusion
   "wizard.done.introReady": "Vše je připraveno. Přetažením nahrávky do okna začne přepis.",
@@ -96,59 +109,71 @@ export const csWizard = {
   "wizard.done.continueAnyway": "Pokračovat bez toho",
 
   // ---------------------------------------------------------------- navigation
-  "wizard.nav.stepCounter": "Krok {step} z {total}",
+  // `wizard.nav.stepCounter` — `Krok {step} z {total}` — is retired with the
+  // segmented bar it stood under. The guided run is a dialog over the archive
+  // now, and a three-segment walk drawn over a two-press errand was ceremony;
+  // the download step has a bar of its own, which reports something real.
 } as const;
 
 export const csWizardContext: Partial<Record<keyof typeof csWizard, string>> = {
-  "wizard.welcome.titleFirstRun":
-    "Nadpis prvního kroku průvodce, když se průvodce otevřel sám, protože bez stažených součástí nelze přepisovat.",
-  "wizard.welcome.titleAddModels":
-    "Nadpis prvního kroku průvodce, když si ho uživatel otevřel sám z nastavení, aby doplnil další modely.",
-  "wizard.welcome.configurationLabel":
-    "Popisek karty s hardwarem, který aplikace sama našla. Uživatel ho nezadával.",
-  "wizard.welcome.gpuNvidia":
-    "Zjištěný hardware: v počítači je grafická karta NVIDIA s ovladačem CUDA.",
-  "wizard.welcome.gpuVulkan":
-    "Zjištěný hardware: grafická karta ovládaná přes Vulkan. Vulkan běží na jakékoli grafické kartě, ne jen na AMD.",
-  "wizard.welcome.gpuNone": "Zjištěný hardware: žádná použitelná grafická karta, počítá se na procesoru.",
-  "wizard.welcome.transcriptionLabel":
-    "Popisek karty s tím, kde přepis poběží. Hodnota pod ním je „na grafické kartě“ nebo „na procesoru, tedy pomaleji“. Jde o činnost, ne o hotový dokument.",
-  "wizard.welcome.onGpu": "Hodnota pod popiskem „Přepis“. Malé písmeno je záměr.",
-  "wizard.welcome.onCpu": "Hodnota pod popiskem „Přepis“. Malé písmeno je záměr.",
-
   "wizard.quality.title":
-    "Nadpis druhého kroku průvodce, nad třemi kartami s volbou kvality. „To“ je přepis, který se chystá. Otázka staví rychlost proti přesnosti; jsou to dva konce jedné volby, ne dvě samostatné vlastnosti. Čárka před „nebo“ je záměr — je to vylučovací poměr, ne výčet.",
+    "Nadpis druhého kroku průvodce, nad dvěma kartami s volbou kvality. „To“ je přepis, který se chystá. Otázka staví rychlost proti přesnosti; jsou to dva konce jedné volby, ne dvě samostatné vlastnosti. Čárka před „nebo“ je záměr — je to vylučovací poměr, ne výčet.",
   "wizard.quality.fastestName":
     "Název volby kvality přepisu, ne název modelu. Nejmenší a nejrychlejší model Whisper.",
-  "wizard.quality.balancedName":
-    "Název volby kvality přepisu: kompromis mezi rychlostí a přesností. Rod se řídí slovem „kvalita“ jen volně, dnes je to střední rod.",
   "wizard.quality.bestName": "Název volby kvality přepisu: nejpřesnější a zároveň nejpomalejší.",
-  "wizard.quality.fastestSummary":
-    "Popis volby. {duration} je odhad doby přepisu, například „asi minutu“ nebo „asi 8 minut“.",
-  "wizard.quality.balancedSummary":
-    "Popis volby. {duration} je odhad doby přepisu, například „asi 3 minuty“.",
-  "wizard.quality.bestSummary":
-    "Popis volby. {duration} je odhad doby přepisu, například „asi 35 minut“.",
-
-  "wizard.speakers.singleName": "Název volby: v nahrávce mluví převážně jeden člověk.",
-  "wizard.speakers.multipleName": "Název volby: uživatel nahrává i rozhovory s více mluvčími.",
-
-  "wizard.editor.lightName":
-    "Název volby jazykové úpravy: nejmenší model, nejmenší nároky na výkon.",
-  "wizard.editor.balancedName": "Název volby jazykové úpravy, kterou průvodce doporučuje.",
-  "wizard.editor.bestName": "Název volby jazykové úpravy: největší a nejpomalejší model.",
-  "wizard.editor.lightDescription": "Popis volby. CPU je procesor, zkratku ponech.",
-  "wizard.editor.skip": "Tlačítko, kterým uživatel čtvrtý krok přeskočí a jazykovou úpravu nechce.",
+  "wizard.quality.changeableNote":
+    "Poznámka pod kartami, dvě věty a obě jsou tam schválně. První: časy na " +
+    "kartách nikdo neměřil, jsou to odhady z roku 2026 a na každém počítači " +
+    "vyjdou jinak — nesmí se z ní stát tvrzení, že jsou změřené. Druhá: volba " +
+    "není nevratná, ale zpětně se neprojeví na už hotových přepisech.",
+  "wizard.quality.machineChecking":
+    "Věta nad kartami, než dorazí odpověď z počítače. Trvá zlomek vteřiny; je " +
+    "tam proto, aby obrazovka po tu chvíli netvrdila, že grafickou kartu " +
+    "nenašla. První osoba jednotného čísla jako u „Připravuji“ a „Načítám“.",
+  "wizard.quality.machineGpu":
+    "Věta nad kartami: co aplikace v tomto počítači našla. Tahle varianta je " +
+    "pro počítač s grafickou kartou, který ale neřekl, kolik má paměti — " +
+    "číslo se v takovém případě nedoplňuje ani neodhaduje, věta se prostě " +
+    "zkrátí. Karta se nejmenuje (NVIDIA, Vulkan): aplikace nikde neříká " +
+    "čtenáři jméno sestavení, protože s ním stejně nic nedělá.",
+  "wizard.quality.machineGpuMemory":
+    "Táž věta, když počítač řekl i kolik má paměti. {memory} je celé číslo " +
+    "s jednotkou, například „16 GB“ — zaokrouhlené na to, co je napsané na " +
+    "krabici. Druhá půlka věty je ta podstatná: říká, proč jsou časy na " +
+    "kartách pod ní takové, jaké jsou.",
+  "wizard.quality.machineCpu":
+    "Táž věta pro počítač bez podporované grafické karty, který neřekl, kolik " +
+    "má paměti. „Podporovaná“ je přesné slovo — karta v počítači být může, ale " +
+    "bez ovladače, se kterým aplikace umí počítat.",
+  "wizard.quality.machineCpuMemory":
+    "Táž věta pro počítač bez podporované grafické karty, který řekl, kolik má " +
+    "paměti. {memory} je celé číslo s jednotkou, například „16 GB“.",
+  "wizard.quality.cost":
+    "Poslední řádek karty: co ta volba stojí na tomhle počítači. {duration} je " +
+    "odhad doby přepisu hodinové nahrávky, například „asi minutu“ nebo „asi 35 " +
+    "minut“ — ta čísla nikdo neměřil, viz poznámku pod kartami. {size} je " +
+    "velikost modelu ke stažení, například „3,0 GB“.",
+  "wizard.quality.costHave":
+    "Týž řádek u modelu, který v počítači už je: velikost se nevypisuje, " +
+    "protože stažení nic nestojí. Že je stažený, říká odznak u názvu.",
+  "wizard.quality.reasonGpu":
+    "Řádek na doporučené kartě, na počítači s grafickou kartou. Nahradil odznak " +
+    "„doporučeno“ — ten jen tvrdil, tohle říká proč, a to proč je fakt o tomhle " +
+    "počítači. „Větší model“ je ten přesný; jmenovat ho tu znovu by opakovalo " +
+    "název karty o tři řádky výš.",
+  "wizard.quality.reasonCpu":
+    "Týž řádek, když v počítači není podporovaná grafická karta, takže se " +
+    "doporučuje rychlý model. „Podstatně déle“ je schválně bez čísla: poměr " +
+    "mezi těmi dvěma časy je odhad jako ony samy, a číslo by z něj udělalo " +
+    "měření.",
 
   "wizard.download.dismissError": "Tlačítko, kterým uživatel zavře hlášku o selhaném stahování.",
-  "wizard.download.recommendedBadge":
-    "Odznak u doporučené volby. Malé písmeno a krátký tvar jsou záměr, je to štítek, ne věta.",
   "wizard.download.downloadedBadge":
     "Odznak u volby, jejíž součásti už jsou na disku. Malé písmeno je záměr.",
-  "wizard.download.downloadedLabel":
-    "Popisek pro odečítač obrazovky u zaškrtnutí vedle stažené položky v ručním výběru.",
   "wizard.download.reviewTitle":
-    "Nadpis pátého kroku před spuštěním stahování: přehled toho, co se stáhne.",
+    "Nadpis výpisu v průvodci před spuštěním stahování. Nic se v něm nedá " +
+    "měnit, takže ne „kontrola výběru“ — žádný výběr tam není. Ruční výpis ze " +
+    "Spravovat modely má vlastní nadpis, wizard.manual.title.",
   "wizard.download.summary.one":
     "Věta nad seznamem. {size} je celková velikost, například „1,6 GB“.",
   "wizard.download.preparing":
@@ -163,20 +188,85 @@ export const csWizardContext: Partial<Record<keyof typeof csWizard, string>> = {
   "wizard.download.statusWaiting":
     "Stav položky v seznamu stahování: ještě na ni nedošlo. Malé písmeno je záměr.",
   "wizard.download.nothingNeeded": "Ukáže se místo seznamu, když není co stahovat.",
-  "wizard.download.startTranscribing":
-    "Hlavní tlačítko, když už je vše stažené. Zavře průvodce a pustí uživatele do aplikace.",
   "wizard.download.downloadWithSize":
     "Hlavní tlačítko se spustí stahování. {size} je celková velikost výběru, například „1,6 GB“.",
+  "wizard.download.viewLabel":
+    "Popisek přepínače nad výpisem pro odečítač obrazovky. Nezobrazuje se.",
+  "wizard.download.viewCompact":
+    "Popisek jedné ze dvou poloh přepínače nad výpisem. Přepínač má jen ikony, " +
+    "takže se text nezobrazuje — čte ho odečítač obrazovky a ukáže se v bublině " +
+    "nad tlačítkem. Tahle poloha: řádek je jen název a velikost. Výchozí stav. " +
+    "Tvar věty drž stejný jako u „Kompaktní výpis“ v archivu, je to týž ovladač.",
+  "wizard.download.viewFull":
+    "Druhá poloha téhož přepínače, taky jen jako popisek: pod názvem je navíc " +
+    "věta, co ta položka dělá.",
 
-  "wizard.manual.switchToSimple": "Tlačítko zpět z ručního výběru součástí do průvodce po krocích.",
-  "wizard.manual.switchToManual":
-    "Tlačítko do ručního výběru, kde si uživatel odškrtává jednotlivé součásti sám.",
-  "wizard.manual.groupPrograms": "Nadpis skupiny v ručním výběru: spustitelné programy, ne modely.",
-  "wizard.manual.groupModels": "Nadpis skupiny v ručním výběru: modely pro rozpoznávání řeči.",
-  "wizard.manual.groupSpeakers":
-    "Nadpis skupiny v ručním výběru: součásti, které rozdělí text mezi jednotlivé mluvčí.",
+  "wizard.manual.install":
+    "Popisek kolečka na řádku výpisu, které stáhne jednu položku. Nezobrazuje " +
+    "se jako text — je v bublině a čte ho odečítač obrazovky. Sloveso.",
+  "wizard.manual.reinstall":
+    "Týž popisek, když už položka stažená je: kolečko pod kurzorem nabídne " +
+    "stáhnout ji znovu. Je to jediná oprava, kterou tahle obrazovka má pro " +
+    "soubor, co se stáhl poškozený — proto „znovu“, ne „aktualizovat“: nová " +
+    "verze se tím nezíská, komponenty jsou připíchnuté v components.json.",
+  "wizard.download.percent":
+    "Průběh stahování na řádku, místo velikosti. Mezera před procentem je " +
+    "česká typografie; v angličtině se nepíše.",
+  "wizard.manual.remove":
+    "Popisek koše na řádku výpisu. Nezobrazuje se jako text — je v bublině a " +
+    "čte ho odečítač obrazovky — a je i na potvrzovacím tlačítku v dialogu, " +
+    "kde vidět je. Sloveso, ne podstatné jméno.",
+  "wizard.manual.removeTitle":
+    "Nadpis potvrzovacího dialogu. {name} je název položky z katalogu, třeba " +
+    "„Větší model jazykové úpravy“.",
+  "wizard.manual.removeText":
+    "Věta v tom dialogu. {size} je uvolněné místo i s jednotkou. Druhá půlka " +
+    "věty je podstatná: smazání není nevratné, jen drahé — u sedmigigového " +
+    "modelu je to znovu celé stahování.",
+  "wizard.manual.removeChosenText":
+    "Táž věta, ale u modelu, který má aplikace nastavený — smazat ten, kterým " +
+    "se pracuje, je něco jiného než smazat rezervu, tak to dialog říká. " +
+    "{next} je název jiného staženého modelu, který nastavení převezme; " +
+    "aplikace ho tam opravdu zapíše, tohle není odhad.",
+  "wizard.manual.removeLastText":
+    "Táž věta, když už žádný jiný stažený model není. Nastavení se vyprázdní " +
+    "a aplikace si o model řekne, až ho bude potřebovat — proto ne varování, " +
+    "ale konstatování, co bude dál.",
+  "wizard.manual.lockedBusy":
+    "Bublina zámku na řádku výpisu, který teď nejde smazat, protože ho něco " +
+    "používá — běží přepis, převod zvuku, rozpoznávání mluvčích nebo jazyková " +
+    "úprava. Která z těch prací to je, se v bublině neříká schválně: čtenář " +
+    "s tím stejně nic nedělá. Druhá půlka věty je ta podstatná — je to dočasné " +
+    "a stačí počkat. Krátce; delší verze zněla jako výmluva.",
+  "wizard.manual.lockedUnlisted":
+    "Bublina zámku u součásti, která se nainstalovala dřív, než si aplikace " +
+    "začala zapisovat seznam souborů, a sdílí složku s ostatními programy — " +
+    "bez toho seznamu nejde smazat „jen ji“. Tohle všechno je mechanismus a do " +
+    "věty nepatří: čtenáře zajímá proč to nejde a co s tím. Opětovné stažení " +
+    "ten seznam zapíše, proto věta slibuje smazání až po něm, ne hned.",
+  "wizard.manual.title":
+    "Nadpis ručního výpisu ze Spravovat modely. Je pod ním všechno, co se dá " +
+    "stáhnout, včetně toho, co v počítači už je — proto ne „co se stáhne“, to " +
+    "je nadpis výpisu v průvodci.",
+  "wizard.manual.groupPrograms":
+    "Nadpis skupiny v ručním výběru: spustitelné programy, ne modely. Jsou pod " +
+    "ním sestavení whisperu, ffmpeg a stahovač online videí — všechno je to " +
+    "cesta k přepisu. „Pro přepis“ tam je proto, že programy pro jazykovou " +
+    "úpravu mají vlastní skupinu.",
+  "wizard.manual.groupModels":
+    "Nadpis skupiny v ručním výběru: modely, kterými se nahrávka přepisuje. " +
+    "„Pro přepis“ je nutné rozlišení — v seznamu jsou i jazykové modely pro " +
+    "úpravu textu, takže samotné „Jazykové modely“ by neoddělovalo nic.",
+  "wizard.manual.groupSpeech":
+    "Nadpis skupiny v ručním výběru. Jsou pod ním dvě položky: detekce řeči " +
+    "(kde se v nahrávce mluví) a rozpoznání mluvčích (kdo mluví). Obě rozhodují " +
+    "o zvuku, ne o slovech — nadpis proto pojmenovává tu práci, ne ty dva " +
+    "pojmy. Oba druhé pády jsou záměr, ne překlep.",
   "wizard.manual.groupEditor":
-    "Nadpis skupiny v ručním výběru: modely, které hotový přepis upraví do čitelného textu.",
+    "Nadpis skupiny v ručním výběru. Jsou pod ním dva programy (llama.cpp pro " +
+    "grafickou kartu a pro procesor) a jazykové modely, které hotový přepis " +
+    "upraví do čitelného textu. Nadpis vyjmenovává obojí schválně: jinak by " +
+    "čtenář hledal ty programy o tři skupiny výš, u ostatních programů.",
 
   "wizard.done.tabHint":
     "{key} je název klávesy F3, vypisuje se tučně a nepřekládá se.",
@@ -187,6 +277,4 @@ export const csWizardContext: Partial<Record<keyof typeof csWizard, string>> = {
   "wizard.done.backToSelection": "Tlačítko zpět na pátý krok, kde se vybírá, co se má stáhnout.",
   "wizard.done.continueAnyway":
     "Tlačítko, kterým uživatel zavře průvodce, přestože se něco nestáhlo.",
-
-  "wizard.nav.stepCounter": "Číslo kroku nad nadpisem, například „Krok 2 z 5“.",
 };

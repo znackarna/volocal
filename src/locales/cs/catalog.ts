@@ -16,9 +16,9 @@ export const csCatalog = {
     "Na kartách NVIDIA znatelně rychlejší než Vulkan. Velký kvůli knihovnám.",
   "catalog.ffmpeg.name": "Zpracování zvuku",
   "catalog.ffmpeg.description": "Připraví zvuk pro přepis. Bez něj to nepoběží.",
-  "catalog.yt-dlp.name": "Online videa",
+  "catalog.yt-dlp.name": "Podpora online zvuku a videa",
   "catalog.yt-dlp.description": "Stáhne zvuk z YouTube a dalších podporovaných webů.",
-  "catalog.deno.name": "JavaScript pro online videa",
+  "catalog.deno.name": "JavaScript pro online zvuk a video",
   "catalog.deno.description": "Řeší ověření YouTube při stahování zvuku.",
 
   // Transcription models.
@@ -26,11 +26,11 @@ export const csCatalog = {
   "catalog.vad.description":
     "Vynechá ticho a šum. Bez ní se přepis na začátku zasekne v opakování.",
   "catalog.model-turbo.name": "Rychlý model",
-  "catalog.model-turbo.description": "Několikanásobně rychlejší. Volba pro slabší počítače.",
+  "catalog.model-turbo.description": "Whisper 3 Turbo. Rychlejší přepis. Zvuk může získat mírný skluz.",
   "catalog.model-large-q5.name": "Vyvážený model",
-  "catalog.model-large-q5.description": "Kvalita skoro jako nejvyšší, třetinová velikost.",
-  "catalog.model-large.name": "Precizní model",
-  "catalog.model-large.description": "Nejpřesnější čeština. Vyplatí se na výkonném počítači.",
+  "catalog.model-large-q5.description": "Whisper 3 Large q5_0. Třetinová velikost, aplikace ho sama nenabízí.",
+  "catalog.model-large.name": "Přesný model",
+  "catalog.model-large.description": "Whisper 3 Large. Kvalitnější přepis. Precizní časové značky slov.",
 
   // Language editing.
   "catalog.editor-vulkan.name": "Jazyková úprava na grafické kartě",
@@ -38,15 +38,24 @@ export const csCatalog = {
   "catalog.editor-cpu.name": "Jazyková úprava na procesoru",
   "catalog.editor-cpu.description":
     "Univerzální varianta pro počítače bez podporované grafiky.",
-  "catalog.editor-model-light.name": "Úsporná jazyková úprava",
+  // Modely, které dělají touž práci s různým počtem parametrů. Co která z nich
+  // umí navíc, nikdo neměřil, takže se to tady netvrdí: názvem je velikost a
+  // v popisu jméno modelu s nároky, které z té velikosti plynou.
+  //
+  // A name here is read with nothing around it — `Stahuji {name}`, a row in the
+  // by-hand list, a line in the failed-items list — so it has to say what the
+  // thing is. `Stahuji Větší` is a sentence with a hole in it. The short labels
+  // `Menší` and `Větší` belong to the cards on `Jazyková úprava`, where the
+  // heading supplies the noun, and live in the settings dictionary.
+  "catalog.editor-model-light.name": "Menší model jazykové úpravy",
   "catalog.editor-model-light.description":
-    "Gemma 4 E2B. Interpunkce, věty a odstavce i na CPU.",
-  "catalog.editor-model-balanced.name": "Doporučená jazyková úprava",
+    "Gemma 4 E2B. Méně parametrů potřebuje míň paměti i času.",
+  "catalog.editor-model-balanced.name": "Střední model jazykové úpravy",
   "catalog.editor-model-balanced.description":
-    "Gemma 4 E4B. Lépe opravuje zjevné chyby a drží souvislosti.",
-  "catalog.editor-model-best.name": "Nejlepší jazyková úprava",
+    "Gemma 4 E4B. Aplikace ho sama nenabízí; funguje, pokud ho už v počítači máte.",
+  "catalog.editor-model-best.name": "Větší model jazykové úpravy",
   "catalog.editor-model-best.description":
-    "Gemma 4 12B. Nejspolehlivější výsledek, na CPU je pomalejší.",
+    "Gemma 4 12B. Více parametrů potřebuje víc paměti i času.",
 
   // Telling speakers apart.
   "catalog.model-hlasy.name": "Rozpoznání hlasů",
@@ -59,14 +68,56 @@ export const csCatalogContext: Partial<Record<keyof typeof csCatalog, string>> =
   "catalog.whisper-cpu.name": "Položka ke stažení. Varianta přepisu, která běží jen na procesoru.",
   "catalog.ffmpeg.name":
     "Položka ke stažení — program ffmpeg. Název programu se v seznamu nezobrazuje, jen tenhle popis.",
+  "catalog.yt-dlp.name":
+    "Položka ke stažení — program yt-dlp. Jmenovala se „Online videa“, což " +
+    "pojmenovávalo zdroj, ne práci: vytahuje z webové stránky **zvuk**, a " +
+    "podcasty i stránky bez obrazu jdou stejnou cestou. Proto obojí v názvu.",
+  "catalog.deno.name":
+    "Položka ke stažení — běhové prostředí Deno, které umí spustit JavaScript " +
+    "z YouTube a projít jeho ověřením. Je to dvojice s položkou nad ním: jedna " +
+    "stahuje, druhá se dostane přes kontrolu, a obě mluví o téže věci — proto " +
+    "„zvuk a video“ v obou názvech.",
   "catalog.vad.name":
     "Položka ke stažení. VAD najde v nahrávce místa, kde se skutečně mluví, a ticho vynechá.",
   "catalog.model-turbo.name":
-    "Položka ke stažení — přepisovací model. Jméno rodiny modelů (large-v3-turbo) se v názvu neuvádí schválně.",
+    "Položka ke stažení — přepisovací model. Jméno modelu se v názvu neuvádí " +
+    "schválně; stojí až v popisu pod ním, jako u všech ostatních.",
+  "catalog.model-turbo.description":
+    "Táž věta jako na kartě Rychlý v nastavení, slovo od slova. Od majitele, " +
+    "převzatá doslova — „mírný skluz“ je jeho slovo pro naměřených 3,34 s, viz " +
+    "záznam změn ze 14. srpna 2026.",
   "catalog.model-large.description":
-    "„Nejpřesnější čeština“ platí pro české nahrávky; u jiných jazyků je model taky nejlepší z nabízených.",
+    "Táž věta jako na kartě Přesný v nastavení, schválně slovo od slova — jeden " +
+    "model popsaný na dvou obrazovkách dvakrát jinak je to, co tenhle klíč " +
+    "dělal do 14. srpna 2026. Je od majitele a je převzatá doslova. " +
+    "„Kvalitnější“ je druhý stupeň schválně — srovnává se s modelem Rychlý na " +
+    "kartě vedle — a nesmí se z toho stát absolutní tvrzení. Viz záznam změn " +
+    "z toho dne.",
+  "catalog.editor-model-light.name":
+    "Položka ke stažení. Objevuje se i ve větě „Stahuji {name}“, takže musí " +
+    "sama o sobě říct, co to je — proto celé sousloví, ne jen „Menší“. Modely " +
+    "jazykové úpravy se jmenují podle velikosti, ne podle kvality; o jejich " +
+    "výstupu není nic změřeno.",
   "catalog.editor-model-light.description":
-    "Gemma 4 E2B je název modelu a nepřekládá se. CPU = procesor.",
+    "Gemma 4 E2B je název modelu a nepřekládá se — číslice i velká písmena " +
+    "nech tak, jak jsou. Obě věty u obou modelů jsou stavěné stejně: jméno " +
+    "modelu, a pak jen to, co plyne z počtu parametrů — paměť a čas. **Věta " +
+    "tam schválně končí.** Nedopisuj „a je přesnější“ ani nic o kvalitě " +
+    "výstupu: tyhle modely nikdy nikdo neporovnal a rozdíl v paměti a čase je " +
+    "aritmetika, ne měření.",
+  "catalog.editor-model-balanced.name":
+    "Prostřední velikost. Aplikace ji nikde nenabízí; název je potřeba pro " +
+    "počítače, kde už ten model je.",
+  "catalog.editor-model-best.name":
+    "Větší z dvou nabízených modelů jazykové úpravy. Taky se objevuje ve větě " +
+    "„Stahuji {name}“, proto celé sousloví.",
+  "catalog.editor-model-balanced.description":
+    "Gemma 4 E4B je název modelu. Tenhle model aplikace nikde nenabízí, jen " +
+    "ho umí použít, když ho uživatel má z dřívějška.",
+  "catalog.editor-model-best.description":
+    "Gemma 4 12B je název modelu, číslice i velká písmena nech tak. „Více " +
+    "parametrů“ je velikost modelu, ne lepší výsledek — to nikdo neměřil. Věta " +
+    "končí u paměti a času schválně; viz poznámka u menšího modelu.",
   "catalog.model-hlasy.name":
     "Identifikátor položky zůstal český z historických důvodů, název se překládá normálně.",
 };

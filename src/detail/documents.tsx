@@ -50,13 +50,16 @@ export const SUMMARY_LENGTH_KEYS: Record<
 export const TRANSLATION_LANGUAGES = ["cs", "en", "de", "sk", "pl", "fr", "es", "it", "uk"] as const;
 
 export type TranslationLanguage = (typeof TRANSLATION_LANGUAGES)[number];
-export type PreviewTab = "improved" | "summary" | "translation" | "original";
+export type PreviewTab = "improved" | "summary" | "translation" | "custom" | "original";
 
 /** Small outline icons shared by the document tabs and their empty states. */
 export function DocumentViewIcon({ view }: { view: PreviewTab }) {
   if (view === "improved") {
+    /* The only one of these drawn as a filled shape rather than a line. It says
+       so itself, because the tab row can no longer tell by position: the
+       improved transcript is not always the first tab there. */
     return (
-      <svg viewBox="0 0 20 20" aria-hidden>
+      <svg viewBox="0 0 20 20" className="solid" aria-hidden>
         <path d="m10 2 1.15 4.1L15 7.3l-3.85 1.2L10 12.6 8.85 8.5 5 7.3l3.85-1.2L10 2Zm5 9 .65 2.35L18 14l-2.35.65L15 17l-.65-2.35L12 14l2.35-.65L15 11Z" />
       </svg>
     );
@@ -65,6 +68,15 @@ export function DocumentViewIcon({ view }: { view: PreviewTab }) {
     return (
       <svg viewBox="0 0 20 20" aria-hidden>
         <path d="M4 5h12M4 10h9M4 15h7" />
+      </svg>
+    );
+  }
+  if (view === "custom") {
+    /* A line of writing with a pen over it: the instruction is the reader's
+       own, and the icon says who wrote it rather than what came out. */
+    return (
+      <svg viewBox="0 0 20 20" aria-hidden>
+        <path d="M3 5h9M3 9h5M3 13h4M16.6 8.1l1.3 1.3-5 5-1.8.5.5-1.8 5-5Z" />
       </svg>
     );
   }

@@ -12,6 +12,15 @@
   display: block; padding: 0 20px;
   scrollbar-gutter: stable;
 }
+/* Centres the page content. **A `.dialog-overlay` must never become one of
+   these children** — it is `position: fixed; inset: 0`, and a `max-width` on it
+   shrinks the veil to this column and leaves the rest of the window undimmed,
+   which is the defect the wizard shipped with; the whole reasoning is on
+   `.wizard.wizard > *` in 04-settings.css. The archive's dialogs are rendered
+   inside a row or up in `App`, so the rule is left exactly as it is: adding
+   `:not(.dialog-overlay)` here would raise it to the specificity of the two
+   overrides below and turn their win into a matter of file order. If a dialog
+   ever is put at this level, exclude it here and say so there. */
 .library.library > * { max-width: 900px; margin-inline: auto; }
 /* The hero and the filter row are pinned together, as one block, so the
    toolbar's offset is the wrapper's own edge rather than a copy of the

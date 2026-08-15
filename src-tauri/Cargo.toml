@@ -21,10 +21,14 @@ webview2-com = "0.38.2"
 # Win32_Security carries the SECURITY_ATTRIBUTES in CreateJobObjectW's
 # signature, which is passed as None; Win32_System_Threading carries
 # GetCurrentProcess; Win32_Foundation carries the HANDLE they trade in.
+# Win32_System_SystemInformation carries GlobalMemoryStatusEx and MEMORYSTATUSEX,
+# which is how `tools::total_memory_gb` reads how much memory this computer has —
+# the one fact the first-run question needs and had no way to ask for.
 windows = { version = "0.61.3", features = [
     "Win32_Foundation",
     "Win32_Security",
     "Win32_System_JobObjects",
+    "Win32_System_SystemInformation",
     "Win32_System_Threading",
 ] }
 # The graphics card, and the reason it is only asked for here. ONNX Runtime has

@@ -1,9 +1,9 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
+  AiCustomDocument,
   AiDocument,
   AiEditProgress,
   AiOutput,
-  BenchmarkResult,
   Detail,
   DictionaryEntry,
   DownloadComponent,
@@ -109,12 +109,23 @@ export const api = {
   search: (query: string) => invoke<SearchResult[]>("search", { query }),
 
   catalog: () => invoke<DownloadComponent[]>("catalog"),
+  /** Megabytes the tools and models folders take, measured on the disk rather
+   *  than added up from the catalogue's hand-written sizes — see
+   *  `installed_megabytes` in `download.rs`. How many components are installed
+   *  is counted from `catalog()`, which the screen already has. */
+  installedMegabytes: () => invoke<number>("installed_megabytes"),
   download: (ids: string[]) => invoke<void>("download", { ids }),
   cancelDownload: () => invoke<void>("cancel_download"),
+  /** Deletes one installed component. Refuses on the Rust side while something
+   *  is using it and where no file list was ever recorded — the screen draws a
+   *  lock on those rows, and the command does not rely on it having done so. */
+  removeComponent: (id: string) => invoke<void>("remove_component", { id }),
   createPortableCopy: (path: string) => invoke<number>("create_portable_copy", { path }),
 
-  benchmarkCompute: (recordingId?: string) =>
-    invoke<BenchmarkResult[]>("benchmark_compute", { recordingId: recordingId ?? null }),
+  /* `benchmarkCompute` stood here. Nothing in the window chooses a compute
+     backend any more, so nothing measures one either; `benchmark_compute` is
+     still registered in `main.rs` and is the only instrument this application
+     has for timing a backend, which is why it was kept rather than deleted. */
   machineName: () => invoke<string>("name_machine"),
 
   exportPreview: (id: string, format: string) =>
@@ -128,6 +139,7 @@ export const api = {
     invoke<{
       document: AiDocument | null;
       outputs: AiOutput[];
+      custom: AiCustomDocument[];
       running: boolean;
       progress: AiEditProgress | null;
     }>(
@@ -136,7 +148,9 @@ export const api = {
     ),
   startAiEdit: (id: string, mode: "faithful" | "clean") =>
     invoke<void>("start_ai_edit", { id, mode }),
-  startAiOutput: (id: string, kind: "summary" | "translation", variant: string) =>
+  /** For `custom`, `variant` is the instruction itself rather than the name of
+   *  a prepared choice — see `start_ai_output` in `commands/ai.rs`. */
+  startAiOutput: (id: string, kind: "summary" | "translation" | "custom", variant: string) =>
     invoke<void>("start_ai_output", { id, kind, variant }),
   cancelAiEdit: (id: string) => invoke<void>("cancel_ai_edit", { id }),
   deleteAiDocument: (id: string) => invoke<void>("delete_ai_document", { id }),
@@ -146,14 +160,14 @@ export const api = {
     invoke<string>("suggested_ai_name", { id, format }),
   saveAiOutput: (
     id: string,
-    kind: "summary" | "translation",
+    kind: "summary" | "translation" | "custom",
     variant: string,
     format: "txt" | "md",
     path: string
   ) => invoke<string>("save_ai_output", { id, kind, variant, format, path }),
   suggestedAiOutputName: (
     id: string,
-    kind: "summary" | "translation",
+    kind: "summary" | "translation" | "custom",
     variant: string,
     format: "txt" | "md"
   ) => invoke<string>("suggested_ai_output_name", { id, kind, variant, format }),

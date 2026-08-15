@@ -80,7 +80,8 @@ export const csApp = {
   "app.player.sourceMissing": "soubor chybí",
   "app.player.preparingShort": "připravuji…",
   "app.player.stop": "Zastavit přehrávání",
-  "app.updateAvailable": "Je k dispozici verze {version}. Najdete ji v Nastavení → O aplikaci.",
+  "app.updateAvailable": "Je k dispozici verze {version}.",
+  "app.updateOpen": "Zobrazit",
 } as const;
 
 export const csAppContext: Partial<Record<keyof typeof csApp, string>> = {
@@ -147,5 +148,7 @@ export const csAppContext: Partial<Record<keyof typeof csApp, string>> = {
     "Text místo času v mini přehrávači, dokud se zvuk načítá. Malé písmeno je záměr.",
   "app.player.stop": "Popis křížku v mini přehrávači. Přehrávání skončí a přehrávač zmizí.",
   "app.updateAvailable":
-    "Hláška v notifikační liště po spuštění, když je zapnutá automatická kontrola. Nic se nestahuje — jen říká, kde je tlačítko. {version} je číslo verze, například 0.9.1.",
+    "Hláška v notifikační liště po spuštění, když je zapnutá automatická kontrola. Nic se nestahuje. Dřív končila větou „Najdete ji v Nastavení → O aplikaci“ — ta se zrušila, protože cestu teď nese tlačítko vedle a Aktualizace mezitím dostaly vlastní kartu. {version} je číslo verze, například 0.9.1.",
+  "app.updateOpen":
+    "Tlačítko v té liště. Otevře Nastavení rovnou na kartě Aktualizace, kde je co je nového i stažení. Nestahuje nic samo — proto „Zobrazit“ a ne „Nainstalovat“.",
 };

@@ -105,8 +105,16 @@ export interface Settings {
   /** Ask about a newer Volocal on start, not only when the button is pressed. */
   update_check_automatic: boolean;
   model: string;
+  /** `fast` | `accurate` | `""` — the answer to the wizard's one question.
+   *  Empty means nobody was ever asked; read it through `qualityChoice`. */
+  quality_choice: string;
   /** Optional local model used to turn a transcript into a readable document. */
   editor_model: string;
+  /** The instruction last written for a custom-prompt document. One per
+   *  installation: what somebody wants made of a recording is usually what
+   *  they want made of the next one, and a prompt lost is worse than a prompt
+   *  retyped knowingly. Empty means nobody has written one. */
+  custom_prompt: string;
   language: string;
   vad: boolean;
   vad_threshold: number;
@@ -128,7 +136,10 @@ export interface Settings {
   temperature: number;
   /** How much the temperature rises with each further attempt. */
   temperature_increment: number;
-  compute: "auto" | "cuda" | "vulkan" | "cpu" | string;
+  /** Where the transcription computes: `auto`, `gpu` or `cpu`. Settings
+   *  written before 14 August 2026 may instead name a build, `cuda` or
+   *  `vulkan`; `computeMode` in `Settings.tsx` reads both. */
+  compute: "auto" | "gpu" | "cpu" | "cuda" | "vulkan" | string;
   last_machine: string;
   /** system | light | dark */
   theme: string;
@@ -136,7 +147,9 @@ export interface Settings {
   font_text: string;
   /** transcript font size, px */
   transcript_font_size: number;
-  /** transcript line height */
+  /** Stored and no longer read: the leading is derived from the size by
+   *  `transcriptLineHeight`. The field stays so that settings written by an
+   *  older build still load and so that nothing has to migrate. */
   transcript_line_height: number;
 }
 
@@ -212,6 +225,41 @@ export const THEME_KEY = "theme";
 
 export type ThemeChoice = "system" | "light" | "dark";
 
+/** When a server was last asked whether there is a newer Volocal, RFC 3339.
+ *
+ *  Here rather than in the settings record, and the reason is worth keeping.
+ *  Writing it as a setting made pressing `Zkontrolovat aktualizace` answer
+ *  `Uloženo` — *nic se přece neukládá* — because the confirmation belongs to
+ *  the settings record being written and the reader had asked a different
+ *  question. The fix is not a flag on that write but a rule about what the
+ *  record is: **it holds what the reader decided.** A moment the application
+ *  notes down for itself is not a decision, so it is not in there, and the next
+ *  such value cannot trip the confirmation either without somebody deliberately
+ *  putting it back among the settings.
+ *
+ *  It is also the more honest home. A settings record travels — into a portable
+ *  copy, into a backup and back out of one — and a restored archive claiming a
+ *  check that never happened on the machine reading it would be a lie the
+ *  reader cannot see. This is a fact about one installation.
+ *
+ *  Both ways of asking write it: the button on `Aktualizace` and the automatic
+ *  check on start. Which one looked is not a distinction the row's reader has.
+ */
+export const UPDATE_CHECKED_AT = "update-checked-at";
+
+/** Empty where nothing has ever asked, which is what a fresh installation is
+ *  and what the row says in words rather than with a dash. */
+export function lastUpdateCheck(): string {
+  return localStorage.getItem(UPDATE_CHECKED_AT) ?? "";
+}
+
+/** After an answer came back, and never after a failure: a server that could
+ *  not be reached told this computer nothing, and a moment stamped on that
+ *  would read as *asked, and all is well*. */
+export function noteUpdateCheck() {
+  localStorage.setItem(UPDATE_CHECKED_AT, new Date().toISOString());
+}
+
 /** One `MediaQueryList`, kept.
  *
  *  `matchMedia` returns a *new* object on every call, and `removeEventListener`
@@ -263,14 +311,28 @@ export function rememberedTheme(): ThemeChoice {
   return stored === "light" || stored === "dark" ? stored : "system";
 }
 
-export function applyFonts(
-  n: Pick<Settings, "font_ui" | "font_text" | "transcript_font_size" | "transcript_line_height">
-) {
+/** The leading that goes with a size, rather than a second thing to decide.
+ *
+ *  Settings had two sliders and one of them is a consequence of the other:
+ *  large type needs proportionally less leading than small type to read as the
+ *  same block, which is why every type scale that ships with one ships with the
+ *  other. The line is drawn through the pair the application shipped with —
+ *  17.5 px at 1.72 — so a transcript nobody ever adjusted does not move; across
+ *  the slider's whole 14–26 px it runs from 1.75 down to 1.65.
+ *
+ *  Kept deliberately gentle. This is one number chosen once, not a curve worth
+ *  fitting: what it has to avoid is a 26 px transcript at a 14 px transcript's
+ *  leading, and it does. */
+export function transcriptLineHeight(size: number): number {
+  return 1.86 - 0.008 * (size || 17.5);
+}
+
+export function applyFonts(n: Pick<Settings, "font_ui" | "font_text" | "transcript_font_size">) {
   const k = document.documentElement.style;
   k.setProperty("--font", FONTS[n.font_ui]?.stack ?? FONTS.geist.stack);
   k.setProperty("--font-body", FONTS[n.font_text]?.stack ?? FONTS.literata.stack);
   k.setProperty("--text-size", `${n.transcript_font_size || 17.5}px`);
-  k.setProperty("--line-height", String(n.transcript_line_height || 1.72));
+  k.setProperty("--line-height", String(transcriptLineHeight(n.transcript_font_size)));
 }
 
 export interface ToolCheck {
@@ -291,6 +353,9 @@ export interface ToolCheck {
   available_compute_backends: string[];
   nvidia_driver: boolean;
   vulkan_driver: boolean;
+  /** Whole gigabytes of memory, or `null` where the machine would not say.
+   *  Null is drawn as a shorter sentence, never as a guess. */
+  memory_gb: number | null;
   found_models: string[];
   issues: UserMessage[];
   issues_diarization: UserMessage[];
@@ -317,6 +382,24 @@ export interface AiOutput {
   updated_at: string;
 }
 
+/** One answer to one instruction somebody wrote, for one recording.
+ *
+ *  Its own shape rather than an `AiOutput` with a `kind`: it is made from the
+ *  timed transcript instead of the improved document, it is keyed by the
+ *  instruction that made it, and it outlives that document being regenerated
+ *  or discarded. */
+export interface AiCustomDocument {
+  recording_id: string;
+  /** The instruction, which is also this document's key. */
+  prompt: string;
+  source_hash: string;
+  model: string;
+  text: string;
+  updated_at: string;
+  /** The transcript has been rewritten since this was made. */
+  stale: boolean;
+}
+
 export interface AiEditProgress {
   recording_id: string;
   phase: "preparing" | "processing" | "complete" | "error" | "cancelled";
@@ -331,10 +414,35 @@ export interface DownloadComponent {
   /** Dictionary key for the sentence under it, `catalog.<id>.description`. */
   description_code: string;
   megabytes: number;
-  group: "program" | "model" | "speakers" | string;
+  group: "program" | "model" | "speech" | "editor" | string;
   required: boolean;
   recommended: boolean;
   complete: boolean;
+  /** Whether the bin may be drawn on this row. Answered in Rust by `catalog()`:
+   *  false while nothing is installed, false while something is using the
+   *  component, and false where the installation recorded no list of its own
+   *  files. The row draws a lock rather than a bin that refuses. */
+  removable: boolean;
+  /** Why not, when something *is* installed and the bin is still not drawn.
+   *  `busy` is waited out; `unlisted` is fixed by fetching the component again,
+   *  which writes the file list this machine never had. The lock's tooltip says
+   *  which — an absent control explains nothing, and the two have different
+   *  answers. `null` on a row with a bin and on a row with nothing to delete. */
+  remove_block: "busy" | "unlisted" | null;
+  /** Whether it may be fetched again over itself. False while the component is
+   *  working — renaming a fresh file over one whisper has open is how a model
+   *  is lost mid-run. **Not the same question as `removable`**: a component
+   *  whose files were never recorded cannot be deleted but replaces perfectly
+   *  well, so it is replaceable and not removable. */
+  replaceable: boolean;
+  /** This is the model `settings.model` or `editor_model` names right now. Not
+   *  a lock — deleting it while nothing runs is allowed — but the confirmation
+   *  reads differently for it, because removing the one that works is a
+   *  different act from removing a spare. */
+  configured: boolean;
+  /** Which component id the setting would name instead. `null` means nothing
+   *  installed can take over and the setting would be cleared. */
+  replaced_by: string | null;
 }
 
 export interface DownloadProgress {
@@ -346,16 +454,114 @@ export interface DownloadProgress {
   message: UserMessage | null;
 }
 
-export interface BenchmarkResult {
-  compute: string;
-  seconds: number;
-  realtime_factor: number;
-  error: UserMessage | null;
+/* `BenchmarkResult` stood here and is gone with `Změřit rychlost`. The button
+   set `compute`, and there is no `compute` to set: the machine picks the
+   backend from its drivers. The Rust command it called is still registered and
+   is now the application's only instrument for timing a backend — see the
+   change record for 14 August 2026. */
+
+/** The one question the first run asks, and everything that follows from it.
+ *
+ *  Two ends of one choice, and the reader answers it once. It decides which
+ *  transcription model the wizard downloads and, later and separately, how
+ *  large a language-editing model is fetched when a document is first wanted.
+ *  Nothing asks a second time.
+ */
+export type QualityChoice = "fast" | "accurate";
+
+/** What the stored answer means, including on a machine that was never asked.
+ *
+ *  Empty is every installation set up before 14 August 2026. Rather than
+ *  inventing an answer for them, it is read off the model they transcribe
+ *  with — which is what the same question produced when they were set up. The
+ *  turbo model is the fast side of that question; anything else is the other.
+ */
+export function qualityChoice(settings: Pick<Settings, "quality_choice" | "model">): QualityChoice {
+  if (settings.quality_choice === "fast" || settings.quality_choice === "accurate") {
+    return settings.quality_choice;
+  }
+  return settings.model.includes("turbo") ? "fast" : "accurate";
 }
 
-/** Identifiers the backend uses for compute backends. Their names live in the
- *  translation dictionary and are read through `useLabels`. */
-export const COMPUTE_IDS = ["cuda", "vulkan", "cpu", "default", "auto"] as const;
+/** Every language-editing model, by the catalogue component that installs it.
+ *
+ *  **Largest first**, and that is the order `Jazyková úprava` draws its cards
+ *  in — *dej větší model jako první volbu*. It matches the quality cards, where
+ *  `Přesný` is drawn before `Rychlý`, so the two columns of cards on `Přepis`
+ *  read the same way down the screen. The instinct when listing a pair by size
+ *  is to go small to large; that instinct is what this comment exists to stop.
+ *
+ *  Three are in the catalogue and two are offered. The middle one keeps its
+ *  place in the middle — the column is one monotonic run of sizes, not two
+ *  offers with a leftover after them — so that a machine which already holds it
+ *  keeps working and keeps being named: nothing fetches it, but where it is on
+ *  the disk it is shown, in the by-hand list and as a third card.
+ *
+ *  The order is read as a preference in exactly one place: ticking more than
+ *  one editor model by hand in the wizard's component list takes the first of
+ *  them, so the larger now wins where the smaller used to. That agrees with
+ *  `resolve_editor_model` in `tools.rs`, whose own fallback list has always run
+ *  12B, E4B, E2B.
+ */
+export const EDITOR_MODELS: Record<string, string> = {
+  "editor-model-best": "gemma-4-12b-q4",
+  "editor-model-balanced": "gemma-4-e4b-q4",
+  "editor-model-light": "gemma-4-e2b-q4",
+};
+
+/** The two transcription models offered, by the catalogue component that
+ *  installs each — accurate first, which is `MODEL_IDS`' own order and the
+ *  order the wizard's two cards are drawn in.
+ *
+ *  The same shape and the same rule as `EDITOR_MODELS`: `Model` on `Přepis`
+ *  draws these two whether or not they are on the disk, and picking one that is
+ *  not fetches it. Anything else already installed — `large-v3-q5_0` on a
+ *  machine set up before 13 August 2026, or an older generation — is drawn
+ *  beside them off `check.found_models`, because a list that is partly an offer
+ *  and partly the disk must not hide what the disk holds.
+ *
+ *  `SetupWizard.tsx` keeps its own table with the same two components in it.
+ *  That one also carries the answer each writes to `quality_choice` and the
+ *  estimate shown beside it, neither of which belongs here; what must not drift
+ *  is the pairing of component to model file, and both sides name the same two
+ *  strings. */
+export const TRANSCRIPTION_MODELS: Record<string, string> = {
+  "model-large": "large-v3",
+  "model-turbo": "large-v3-turbo-q5_0",
+};
+
+/** Which of them the one question implies — the default, not the answer.
+ *
+ *  The wizard asks one thing, `rychle` or `přesně`, and this is that answer
+ *  applied to the language editor: it decides which model is badged
+ *  `doporučeno` on `Jazyková úprava` and which one the offer in `Detail.tsx`
+ *  fetches for somebody who has never chosen. **A model chosen in Settings is
+ *  stored in `editor_model` and wins over it**, exactly as the transcription
+ *  model chosen there wins over the one the wizard downloaded — Settings is
+ *  where a decision is revisited, not where it is asked a second time. Nothing
+ *  writes `editor_model` back from `quality_choice` afterwards; both readers of
+ *  this table look at the stored value first.
+ *
+ *  Sizes are not written here: the catalogue carries them, and a second copy is
+ *  the one that goes stale. */
+export const EDITOR_TIER: Record<QualityChoice, string> = {
+  fast: "editor-model-light",
+  accurate: "editor-model-best",
+};
+
+/** Components nothing offers any more, though the catalogue still installs and
+ *  verifies them. They are drawn in the by-hand list only when they are already
+ *  on the disk, where a tick is a fact about this machine rather than an offer:
+ *  hiding a model somebody has downloaded would make the list say the disk is
+ *  emptier than it is. */
+export const UNOFFERED_COMPONENTS = ["model-large-q5", "editor-model-balanced"];
+
+/* `COMPUTE_IDS` stood here, with `labels.compute` beside it in `labels.ts` and
+   the five `domain.compute.*` names in the dictionary — `Grafická karta
+   (Vulkan)`, `Procesor (CPU)` and the rest. Nothing names a build to the reader
+   any more: `Výkon` asks for the card or the processor, and which build suits
+   the card is `choose_compute`'s business. The names went with the last thing
+   that printed one. */
 
 /** Whisper models the interface knows how to name, in the order they are
  *  offered: best first, then the older generation, also best first. Within a

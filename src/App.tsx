@@ -28,7 +28,7 @@ import wordmark from "./wordmark.svg?raw";
    and the two have nothing to do with each other. */
 import { check as checkForUpdate } from "@tauri-apps/plugin-updater";
 import type { ConfirmationRequest } from "./ConfirmationDialog";
-import { formatTime, applyFonts, applyTheme, fileName } from "./types";
+import { formatTime, applyFonts, applyTheme, fileName, noteUpdateCheck } from "./types";
 import { rememberSpeakerNames } from "./speakerNames";
 import { useI18n } from "./i18n";
 import type { TranslationKey } from "./i18n";
@@ -70,6 +70,9 @@ import type {
  */
 const Detail = lazy(() => import("./Detail"));
 const SettingsScreen = lazy(() => import("./Settings"));
+/* A type, so it costs nothing at runtime and does not undo the lazy import
+   above — this names which tab to open on, it does not load the screen. */
+import type { SettingsTab } from "./Settings";
 const SetupWizard = lazy(() => import("./SetupWizard"));
 
 /** Fetches the deferred screens once the window has something on it.
@@ -219,7 +222,25 @@ export default function App() {
     "library" | "detail" | "settings" | "wizard"
   >("library");
   const [wizardReturnScreen, setWizardReturnScreen] = useState<"library" | "detail" | "settings">("library");
-  const [wizardRequired, setWizardRequired] = useState(false);
+  /** Which tab Settings opens on when something sent the reader there — the
+   *  update notice is the first such thing. Null is the ordinary way in, where
+   *  the screen picks up wherever the reader left it. */
+  const [settingsTab, setSettingsTab] = useState<SettingsTab | null>(null);
+  /** The first-run question, as a dialog over whatever is on screen.
+   *
+   *  **It is a separate state and not a fourth `screen`, because it is not a
+   *  screen.** It used to be: a required first run replaced the archive with
+   *  the wizard, and the reader met an application they had not seen yet by
+   *  being shown something else instead. The dialog leaves the archive drawn
+   *  behind it — *you have arrived*, with one errand in front of you, rather
+   *  than *you are blocked*.
+   *
+   *  `screen === "wizard"` still exists and is now only ever the by-hand
+   *  component listing, which is a page reached from Settings or from a
+   *  document asking for its model. That is why `required` can be read straight
+   *  off which of the two rendered it, and why `wizardRequired` is gone: it
+   *  said the same thing twice and the two could disagree. */
+  const [setupOpen, setSetupOpen] = useState(false);
   // When settings sends the user to the modules for one specific thing, the
   // wizard preselects it instead of walking through every step.
   const [missingModule, setMissingModule] = useState<string | null>(null);
@@ -272,9 +293,15 @@ export default function App() {
    * was added to the dictionary is not a warning, and shouting it in red made
    * a routine action feel like a fault.
    */
-  const [notice, setNotice] = useState<{ text: string; kind: "info" | "error" } | null>(
-    null
-  );
+  const [notice, setNotice] = useState<{
+    text: string;
+    kind: "info" | "error";
+    /** A way on, for the rare notice that names something the reader may want
+     *  to go and do. Without it a bar can only describe a place and hope the
+     *  reader finds it — which is what the update notice did, in prose, at a
+     *  tab that has since been renamed. */
+    action?: { label: string; run: () => void };
+  } | null>(null);
   const [noticeClosing, setNoticeClosing] = useState(false);
 
   // Rust sends a code, not a sentence; these turn one into the other.
@@ -284,10 +311,13 @@ export default function App() {
     setNoticeClosing(false);
     setNotice({ text, kind: "error" });
   }, []);
-  const reportInfo = useCallback((text: string) => {
-    setNoticeClosing(false);
-    setNotice({ text, kind: "info" });
-  }, []);
+  const reportInfo = useCallback(
+    (text: string, action?: { label: string; run: () => void }) => {
+      setNoticeClosing(false);
+      setNotice({ text, kind: "info", action });
+    },
+    []
+  );
 
   // A notice that stays until it is dismissed becomes furniture. Give it long
   // enough to be read twice and then let it go on its own; the Close button
@@ -295,8 +325,14 @@ export default function App() {
   //
   // Errors linger longer than confirmations — a confirmation only says that
   // what you asked for happened, an error asks you to do something about it.
+  //
+  // A notice carrying an action does not leave on its own, and neither does it
+  // draw the ring: the ring exists to say *this will go, and this soon*, and a
+  // button that walks away while it is being read is worse than no button. One
+  // press decides it — the way on, or Close.
   useEffect(() => {
     if (!notice) return;
+    if (notice.action && !noticeClosing) return;
     const delay = noticeClosing ? 280 : NOTICE_LIFE[notice.kind];
     const timer = setTimeout(() => {
       if (noticeClosing) {
@@ -359,10 +395,40 @@ export default function App() {
       const settings = await api.loadSettings();
       if (!settings.update_check_automatic) return;
       const update = await checkForUpdate();
-      if (update) reportInfo(t("app.updateAvailable", { version: update.version }));
+      /* The same moment the button on `Aktualizace` writes, from the other way
+         of asking: a start that asked must move it, or that row would say
+         *nikdy* on a machine checking every morning. Not through the settings
+         record — see `UPDATE_CHECKED_AT`. */
+      noteUpdateCheck();
+      /* The bar carries the way there rather than describing it. It used to
+         end *Najdete ji v Nastavení → O aplikaci* — a sentence that was one
+         reorganisation away from being wrong, and by the time this was written
+         it was: updates have a tab of their own now. A button cannot go stale
+         about where it leads.
+
+         It opens the tab and not the download. What is in a version is read
+         before it is agreed to, which is what the release notes dialog on that
+         tab is for; a start-up bar is the wrong place to begin something that
+         closes the application and runs an installer. */
+      if (update) {
+        reportInfo(t("app.updateAvailable", { version: update.version }), {
+          label: t("app.updateOpen"),
+          /* No `loadToolCheck()`, unlike the two ordinary ways into Settings.
+             That call refreshes the *archive's* view of what is installed, and
+             `onComplete` runs it again on the way out; Settings reads its own
+             `checkTools` on mount either way. It is also declared below this
+             one, so naming it here would be a dependency on a `const` that
+             does not exist yet. */
+          run: () => {
+            setSettingsTab("updates");
+            setScreen("settings");
+          },
+        });
+      }
     } catch {
       /* An unreachable server is not worth interrupting a start for. The
-         button on the About page reports what went wrong; this does not. */
+         button on the `Aktualizace` tab reports what went wrong; this does
+         not. */
     }
   }, [reportInfo, t]);
 
@@ -540,11 +606,10 @@ export default function App() {
     // constant list compiled into the backend, not something that changes.
     api.catalog().then(setCatalogItems).catch(() => {});
     loadToolCheck().then((k) => {
-      if (k && k.issues.length > 0) {
-        setWizardRequired(true);
-        setWizardReturnScreen("library");
-        setScreen("wizard");
-      }
+      // Over the archive rather than instead of it. The reader sees the
+      // application they have just installed, with the one question they have
+      // to answer standing in front of it.
+      if (k && k.issues.length > 0) setSetupOpen(true);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadRecordings, loadToolCheck]);
@@ -1099,7 +1164,6 @@ export default function App() {
   }, [formats, labels, recordings, selectedId]);
 
   const leaveWizard = useCallback(() => {
-    setWizardRequired(false);
     setMissingModule(null);
     loadToolCheck();
     if (wizardReturnScreen === "library") loadRecordings();
@@ -1111,12 +1175,25 @@ export default function App() {
      that, so it lands in the Archive whatever screen the wizard was opened
      from — `Zpět` is what returns to the origin. */
   const finishWizard = useCallback(() => {
-    setWizardRequired(false);
     setMissingModule(null);
     loadToolCheck();
     loadAppearance();
     loadRecordings();
     setScreen("library");
+  }, [loadAppearance, loadRecordings, loadToolCheck]);
+
+  /** Closing the first-run dialog, whichever button did it.
+   *
+   *  One callback for both `Zavřít` and `Hotovo`, because from out here they
+   *  are the same event: the dialog is gone and whatever it downloaded has to
+   *  be noticed. There is no screen to return to — the archive was never left —
+   *  so this is the whole of it. `loadToolCheck` is what makes the archive's own
+   *  band say what is still missing, or stop saying it. */
+  const closeSetup = useCallback(() => {
+    setSetupOpen(false);
+    loadToolCheck();
+    loadAppearance();
+    loadRecordings();
   }, [loadAppearance, loadRecordings, loadToolCheck]);
 
   return (
@@ -1255,9 +1332,25 @@ export default function App() {
           style={{ "--notice-life": `${NOTICE_LIFE[notice.kind]}ms` } as CSSProperties}
         >
           {/* The ring empties over the seconds the bar has left, so it is
-              visible that it will go on its own — and how soon. */}
-          <CountdownRing className="notice-countdown" size={16} />
+              visible that it will go on its own — and how soon. A bar that
+              waits does not draw it: an emptying ring over a bar that is not
+              leaving is a promise about the wrong thing. */}
+          {!notice.action && <CountdownRing className="notice-countdown" size={16} />}
           <span>{notice.text}</span>
+          {/* The way on before the way out, and the strong one of the two.
+              Reading order is the order of the two answers: here is the thing,
+              go to it, or not now. */}
+          {notice.action && (
+            <button
+              className="notice-action"
+              onClick={() => {
+                notice.action?.run();
+                setNoticeClosing(true);
+              }}
+            >
+              {notice.action.label}
+            </button>
+          )}
           <button onClick={() => setNoticeClosing(true)}>{t("common.close")}</button>
         </div>
       )}
@@ -1344,11 +1437,7 @@ export default function App() {
             setAddRecordingView("source");
             setAddRecordingOpen(true);
           }}
-          onFinishSetup={() => {
-            setWizardRequired(true);
-            setWizardReturnScreen("library");
-            setScreen("wizard");
-          }}
+          onFinishSetup={() => setSetupOpen(true)}
         />
       )}
 
@@ -1392,7 +1481,6 @@ export default function App() {
             onDiarize={beginDiarization}
             diarizing={diarizingIds.includes(selectedId)}
             onToModule={(module) => {
-              setWizardRequired(false);
               setMissingModule(module ?? null);
               setWizardReturnScreen("detail");
               setScreen("wizard");
@@ -1401,10 +1489,14 @@ export default function App() {
         </Suspense>
       )}
 
+      {/* The by-hand component listing, as a page. `required` is false by
+          construction here — every way in sets `missingModule` or comes from
+          `Spravovat modely a nástroje` — and the wizard reads it to know it is
+          drawing a page rather than the first-run dialog. */}
       {screen === "wizard" && (
         <Suspense fallback={null}>
           <SetupWizard
-            required={wizardRequired}
+            required={false}
             missingModule={missingModule}
             onBack={leaveWizard}
             onComplete={finishWizard}
@@ -1415,15 +1507,19 @@ export default function App() {
       {screen === "settings" && (
         <Suspense fallback={null}>
           <SettingsScreen
+            /* Cleared on the way out so the next manual visit is a manual
+               visit again — otherwise one press on an update notice would fix
+               where Settings opens for good. */
+            initialTab={settingsTab ?? undefined}
             onComplete={() => {
               loadToolCheck();
               loadAppearance();
+              setSettingsTab(null);
               setScreen("library");
             }}
             onError={reportError}
             onInfo={reportInfo}
             onToModule={(module) => {
-              setWizardRequired(false);
               setMissingModule(module ?? null);
               setWizardReturnScreen("settings");
               setScreen("wizard");
@@ -1507,6 +1603,22 @@ export default function App() {
             </div>
           )}
         </footer>
+      )}
+
+      {/* The first run, over whatever is behind it — which is the archive,
+          because that is where a fresh installation lands. It is rendered here
+          with the other dialogs rather than among the screens, since that is
+          what it is; `setupOpen` and `screen === "wizard"` are never both true,
+          the first being the guided question and the second the by-hand list. */}
+      {setupOpen && (
+        <Suspense fallback={null}>
+          <SetupWizard
+            required
+            missingModule={null}
+            onBack={closeSetup}
+            onComplete={closeSetup}
+          />
+        </Suspense>
       )}
 
       {addRecordingOpen && (

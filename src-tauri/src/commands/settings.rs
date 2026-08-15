@@ -103,10 +103,11 @@ pub fn diagnostic_report(app: State<'_, AppState>) -> Reported<String> {
         "nvidia driver: {}   language: {}",
         found.nvidia_driver, settings.language
     );
+    // Always on now; only the threshold is still worth reporting.
     let _ = writeln!(
         out,
-        "speech detection: {} (threshold {})",
-        settings.vad, settings.vad_threshold
+        "speech detection: on (threshold {})",
+        settings.vad_threshold
     );
     let _ = writeln!(
         out,

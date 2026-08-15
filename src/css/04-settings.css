@@ -8,6 +8,21 @@
 /* ---------------------------------------------------------------- settings */
 
 .settings { flex: 1; overflow-y: auto; padding: 34px 24px 96px; }
+/* 720 px, and the wizard's by-hand listing is now the same column — see
+ * `.wizard.wizard-listing` further down this file, where the reasoning for both
+ * this width and the exclusion the wizard's rule carries is written out.
+ *
+ * **A `.dialog-overlay` must never become one of these children.** It is
+ * `position: fixed; inset: 0`, and a `max-width` on it shrinks the veil to this
+ * column and leaves the rest of the window undimmed — the defect the wizard
+ * shipped with. Settings renders its dialogs inside the cards that raise them
+ * rather than at this level, so the rule stands as it is; if one is ever put
+ * here, exclude it the way the wizard's rule does.
+ *
+ * The doubled class is a specificity fight that nothing in the history explains
+ * — it predates the English rename. It is left doubled rather than reduced
+ * blind: it beats any single-class rule landing on a direct child, which is a
+ * fight it can only lose by being made weaker. */
 .settings.settings > * { max-width: 720px; margin-inline: auto; }
 .settings-head {
   display: flex; align-items: center; justify-content: space-between;
@@ -93,25 +108,70 @@
 .settings-panels {
   display: flex; flex-direction: column; gap: 16px;
 }
-/* The transcription tab reads model → what is in the recording → speakers →
-   language editing, whatever order the JSX happens to declare them in. */
+/* Přepis reads what comes out of a recording, in the order somebody wants it:
+   the model and the language, then the speakers, then the language editing,
+   then the corrections, and last everything folded away. What is downloaded
+   used to stand between the last two; it is about the machine rather than the
+   transcript and is on Nástroje now.
+   The JSX may declare them in any order it likes; this is the reading order. */
 .settings-card-transcription { order: 1; }
-.settings-card-speech { order: 2; }
+/* The recording's language stands between the model that reads it and the
+   people in it: still about the recording, and the last thing on this tab that
+   is. Everything below is about what is done with the words afterwards. */
+.settings-card-language { order: 2; }
 .settings-card-speakers { order: 3; }
 .settings-card-language-edit { order: 4; }
+.settings-card-dictionary { order: 5; }
+.settings-card-advanced { order: 6; }
+/* Výkon holds one card, and it still gets a number: without a rule it takes
+   `order: 0` and the next card put beside it jumps above whatever asked for 1.
+   That is the defect this whole block exists to prevent, and a tab with one
+   card is exactly where somebody would think the rule is not needed. */
+.settings-card-compute { order: 1; }
+/* Nástroje: whether what is needed is downloaded, then where it is kept, then
+   what was found where. The compute card led this tab until `Výkon` was given
+   one of its own; these three were always the rest of it and their order is
+   unchanged — only their numbers moved up. */
 .settings-card-modules { order: 1; }
-.settings-card-performance { order: 2; }
-.settings-card-locations { order: 3; }
-.settings-card-dictionary { order: 1; }
-.settings-card-appearance { order: 1; }
-.settings-card-quick-tips { order: 2; }
+.settings-card-locations { order: 2; }
+/* `settings-card-diagnostics` was 3 here and is gone with the block it ordered.
+   Two cards left on this tab and no gap. */
+/* Every card on a tab needs a number here, and the recordings folder had none:
+   without a rule it takes `order: 0` and sorts above cards that asked for 1, so
+   it rendered over the portable-mode banner no matter where the JSX put it.
+   That includes the two tabs that hold a single card each — alone the number
+   changes nothing, and it is what stops the next card added beside them from
+   silently jumping to the top. */
+/* Jazyk a vzhled: the two halves the tab is named for, in the order it names
+   them. The language card was the appearance card's first field until the tab
+   stopped being called `Vzhled`. */
+.settings-card-app-language { order: 1; }
+.settings-card-appearance { order: 2; }
+.settings-card-updates { order: 1; }
+/* Složky a zálohy: the banner first when there is one, because it says what
+   kind of installation everything under it belongs to; then where recordings
+   are put, where new ones are looked for, and last the copies of the archive
+   and of the whole application, which are what you go to when something has
+   already gone wrong. */
 .settings-card-portable { order: 1; }
-.settings-card-watch-folder { order: 2; }
-.settings-card-backups { order: 3; }
-.settings-card-portable-copy { order: 4; }
+.settings-card-recordings { order: 2; }
+.settings-card-watch-folder { order: 3; }
+.settings-card-backups { order: 4; }
+.settings-card-portable-copy { order: 5; }
+/* Informace: what it is, what it does, what it stands on. */
 .settings-card-about { order: 1; }
 .settings-card-abilities { order: 2; }
 .settings-card-credits { order: 3; }
+/* The card whose whole content is one folded-away block — `Pokročilé` at the
+   foot of `Přepis`. Its disclosure carries the 14 px rule that separates it from
+   whatever stood above it inside a card, and here nothing does, so the rule
+   would be drawn along the card's own top edge, 26 px in from both sides and
+   parallel to the border. Zeroed, and only here: everywhere else that rule is
+   doing its job. `Technické podrobnosti` was the second card on this selector
+   until 14 August 2026. */
+.settings-card-advanced > .settings-disclosure {
+  margin-top: 0; padding-top: 0; border-top: 0;
+}
 .settings section {
   background: var(--panel); border: 1px solid var(--line);
   border-radius: var(--r-large); padding: 26px 28px;
@@ -129,6 +189,11 @@
   max-width: 62ch; margin: 8px 0 24px;
   color: var(--text-quiet); font-size: 14px; line-height: 1.55;
 }
+/* A card's first field under a heading with no sentence between them.
+   `.settings-toggle:not(.section)` was on this selector for an hour, for
+   `Rozlišení mluvčích` under a `Mluvčí` heading; that arrangement is gone —
+   the phrase is the heading now and the switch is on it — and the selector is
+   narrow again rather than left waiting for a caller that no longer exists. */
 .settings section > h2 + .field { margin-top: 24px; }
 /* A card whose content follows its heading with no introductory sentence
    between them takes the same 24 px that a field does. Without this the list
@@ -155,7 +220,19 @@
 .settings-toggle-title {
   display: block; font-size: 15px; line-height: 1.35; font-weight: 680;
 }
-.field + .settings-toggle:not(.section) {
+/* A plain switch below the controls it qualifies, on the divider between them —
+   `Automaticky` under the two cards on `Výkon`. This is the pairing's own rule,
+   not the section variant's borrowed: a column of choice cards is a block of
+   controls exactly as a field is, so `.choices` joins the selector that already
+   places a plain switch after a field. `.settings-toggle.separated` is 22/20 and
+   is the other case — a switch after free-flowing text, as on `Aktualizace`. */
+.field + .settings-toggle:not(.section),
+.choices + .settings-toggle:not(.section),
+/* …and after the live sample at the foot of the appearance card, which is the
+   block the shortcut-strip switch follows. A framed sample is a block of
+   controls in the way that matters here — the switch is the next thing after
+   it, and it takes the same divider a switch after a field takes. */
+.preview-font + .settings-toggle:not(.section) {
   margin-top: 24px; padding-top: 22px; border-top: 1px solid var(--line);
 }
 .settings-toggle:not(.section) + .field {
@@ -202,8 +279,8 @@
    The row is `space-between`, which is right for a note and a button and wrong
    the moment there are two: it would put one button at each end and strand the
    note in the middle of them. Export and import are one choice with two
-   directions and have to sit as one. 8 px is `.diagnostics-actions`' gap, the
-   other place on this screen where two buttons stand together. */
+   directions and have to sit as one. 8 px was `.diagnostics-actions`' gap, the
+   other place two buttons stood together until that block was removed. */
 .settings-action-row-buttons { display: flex; gap: 8px; flex: 0 0 auto; }
 .settings-success { color: var(--success); }
 .field { margin-bottom: 24px; }
@@ -291,11 +368,33 @@
   border: 1px solid var(--line-field); background: var(--ground);
   border-radius: var(--r-pill); padding: 0 15px; outline: none; font-size: 14px;
 }
+/* The rule above is for one-line controls and fixes their height at 38 px. An
+   instruction to a language model is a sentence or three, so it gets a
+   textarea, which cannot share that declaration and repeats the border, the
+   ground and the padding rather than inventing its own. Two differences, both
+   because it is a box and not a line: the card radius, since a pill crops the
+   corners of the first and last line inside it, and a height it can be dragged
+   taller from. Everything a `.field` textarea needs is here — a second one
+   added later belongs to this rule, not beside it. */
+.field textarea {
+  /* 84 px is three lines at 14/1.5 with the padding, which is what an
+     instruction to a model actually is; 160 is six, and it is a ceiling rather
+     than a preference. The handle may not be able to resize the dialog around
+     it: 160 keeps the tallest dialog holding one of these inside the smallest
+     window the application allows (660 px, `tauri.conf.json`), so the footer
+     cannot be dragged off the bottom of the screen. Past six lines the box
+     scrolls, the way the release notes do at 240. */
+  width: 100%; height: 84px; min-height: 84px; max-height: 160px;
+  resize: vertical;
+  border: 1px solid var(--line-field); background: var(--ground);
+  border-radius: var(--r-card); padding: 9px 14px; outline: none;
+  font-size: 14px; line-height: 1.5;
+}
 /* A field lights up when it is being filled in. A slider is not filled in,
    it is grabbed — so dragging one does not light anything up (Jakub's ask).
    `:focus-visible` further down still gives it a ring on keyboard focus, which
    is the only way to see where the focus stands without a pointer. */
-.field input:not([type="range"]):focus, .field select:focus {
+.field input:not([type="range"]):focus, .field select:focus, .field textarea:focus {
   border-color: var(--accent); box-shadow: var(--ring-field);
 }
 .field input[type="range"] { width: 100%; accent-color: hsl(var(--ds-foreground)); height: auto; }
@@ -355,60 +454,27 @@
 }
 .portable-info p { margin: 0 0 8px; }
 
-/* What is installed and where. Three columns — mark, what it is, where it is —
-   so the eye can run down either the names or the paths without meeting the
-   other. The tick is the same circular mark the manual download list uses,
-   rather than a character glued to the label with `::before`. */
-/* The same container the archive backups use: one bordered, quietly filled
-   panel whose rows are separated by rules, rather than a bare list leaning on
-   the disclosure's own indent. Both are the same kind of thing — a short
-   table of facts about where things are — and they should not look like two
-   different ideas. */
-.check {
-  list-style: none; margin: 0; overflow: hidden;
-  border: 1px solid var(--line); border-radius: var(--r-card);
-  background: var(--subtle); font-size: 13px; padding: 0;
-}
-.check li {
-  display: grid; grid-template-columns: 22px minmax(0, 190px) minmax(0, 1fr);
-  align-items: center; gap: 12px;
-  min-height: 40px; padding: 6px 14px;
-}
-.check li + li { border-top: 1px solid var(--line); }
-.check-mark {
-  display: grid; place-items: center; width: 22px; height: 22px;
-  border-radius: 50%; background: hsl(var(--ds-grass) / 0.14); color: var(--success-text);
-}
-.check li.no .check-mark { background: var(--danger-light); color: var(--danger); }
-.check-name { font-weight: 600; line-height: 1.35; }
-.check li.no .check-name { color: var(--danger); }
-/* The end of a path is what identifies the file, so the beginning is what
-   gets cut. `direction: rtl` puts the ellipsis there; `bdi` keeps the text
-   itself reading left to right. */
-.check-path {
-  color: var(--text-quiet); font-size: 12.5px;
-  font-family: var(--font-path);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  /* No `unicode-bidi: plaintext` here: it re-derives the direction from the
-     text and moves the ellipsis back to the end, which cuts off the file
-     name — the one part of a path worth reading. */
-  direction: rtl; text-align: left;
-}
+/* `.check` and its four children stood here — the found-paths table inside
+   `Technické podrobnosti`, three columns of mark, name and path. Deleted with
+   that block on 14 August 2026: it was the only thing that ever drew them, and
+   a rule kept for a screen nobody can reach is a rule the next person has to
+   work out the absence of. The circular tick lives on in `.downloaded-mark`,
+   which is where it came from. */
 .problems { color: var(--danger); font-size: 13px; padding-left: 18px; }
 
-.benchmark { list-style: none; margin: 14px 0 0; padding: 0; font-size: 13px; }
-.benchmark li {
-  display: flex; justify-content: space-between; gap: 12px;
-  padding: 7px 0; border-bottom: 1px solid var(--line); font-weight: 600;
-}
-.benchmark li:last-child { border-bottom: 0; }
-.benchmark li.yes span:last-child { color: var(--success); font-variant-numeric: tabular-nums; }
-.benchmark li.no span:last-child { color: var(--danger); font-weight: 500; }
-/* The label used to be `content: " — nejrychlejší"` here, which meant a Czech
-   sentence in the English interface — and `i18n:check` cannot see it, because
-   it reads TypeScript. The word is in the dictionary now and the component
-   renders it; this rule only styles it. */
-.benchmark .fastest { color: var(--text-quiet); font-weight: 500; }
+/* `.benchmark` stood here — the list of measured backends under `Změřit
+   rychlost`. Both are gone: `benchmark_compute` in Rust is the application's
+   only instrument for timing a backend and has no caller, and until somebody
+   runs it there is nothing measured to list. The card on `Nástroje` chooses
+   between the processor and the card and then says, from `.about-panel`, which
+   build actually ran — the panel of facts the About page and the archive's
+   backups already share. */
+/* A `.about-panel` rule stood here, for a `Používá se` row under the two cards.
+   The row is gone: under a card already drawn as chosen it said the same thing
+   a third time, and where it had something to say — a pick that could not be
+   met — a label and a value were too quiet for it. What is under the cards now
+   is one sentence chosen by the state, and `.choices + .settings-info-note.
+   compact` and `.settings-action-row.spaced` already place both shapes. */
 
 .preview-font {
   border: 1px solid var(--line); border-radius: var(--r-card);
@@ -427,19 +493,56 @@
 
 /* ---------------------------------------------------------------- wizard */
 
-.wizard { flex: 1; overflow-y: auto; padding: 36px 20px 40px; }
-.wizard.wizard > * { max-width: 620px; margin-inline: auto; }
+/* The wizard's column, and the one screen in it that is a different width.
+ *
+ * **`:not(.dialog-overlay)` is a defect fix, not tidiness.** `ConfirmationDialog`
+ * renders at the end of this `<main>`, so the scrim was one of the children this
+ * rule centres — and `max-width` on a `position: fixed; inset: 0` box does not
+ * bounce off it: the box shrinks to 620 px and `margin-inline: auto` centres it.
+ * The veil covered a strip down the middle of the window and left the rest of
+ * the screen undimmed, which is the *divný šedý pruh* on both sides of the
+ * owner's screenshot. Nothing was wrong with the scrim's colour and nothing
+ * behind it was two surfaces; it simply was not covering the window. The other
+ * three screens that centre their children do **not** carry the exclusion, and
+ * that is a decision rather than an oversight: none of them renders a dialog at
+ * that level, and `:not()` adds its argument's specificity — on the archive it
+ * would lift the rule to what `.library.library > .archive-sticky` and
+ * `.archive-scroll-content` have, turning two specificity wins into a matter of
+ * file order. Each of the three carries a comment saying what must never become
+ * one of its children, which costs nothing and cannot go stale.
+ *
+ * **The width rides on a variable** rather than on a second `max-width` rule,
+ * so there is one declaration of the column and nothing new has to win a
+ * cascade fight to change it. 720 px is the settings column's own width, on the
+ * owner's ask — the listing is reached from Settings and is a table, and a
+ * column that moved 100 px under the reader between the two screens was a
+ * change nobody could see a reason for. The guided run keeps 620: it is one
+ * question with two cards, which is prose and choices, and prose does not want
+ * the width a table does.
+ *
+ * The doubled class is a specificity fight and is left as it stands: nothing in
+ * the history says what it was written to beat, and it beats any single-class
+ * rule that lands on a direct child of this screen — which is a fight it can
+ * only lose by being reduced. */
+.wizard { flex: 1; overflow-y: auto; padding: 36px 20px 40px; --wizard-column: 620px; }
+.wizard.wizard-listing { --wizard-column: 720px; }
+.wizard.wizard > :not(.dialog-overlay) {
+  /* The fallback is not decoration: an undefined `var()` drops the declaration
+     silently, and this one decides the shape of every screen in the wizard. */
+  max-width: var(--wizard-column, 620px); margin-inline: auto;
+}
 
-.steps { display: flex; gap: 6px; margin-bottom: 28px; }
-.steps span { height: 3px; flex: 1; background: var(--line); border-radius: var(--r-pill); transition: background 0.25s; }
-.steps span.finished { background: var(--accent); }
-
-.step-number { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: var(--text-quiet); margin: 0 0 6px; }
+/* `.steps`, `.step-number`, `.step-intro`, `.step-outro` and its two children
+   stood here — the three-segment bar, the `KROK 1 ZE 3` above the heading, the
+   quiet sentence under it, and the centred conclusion. All six are deleted with
+   the screen they were the furniture of: the guided run is a dialog over the
+   archive now, and a dialog has its own rhythm — 19 px heading, 4 px to its
+   sentence, 18 px to the content, which `.dialog h2`, `.dialog p` and
+   `.dialog h2 + p` already own. A bar counting three screens inside the one
+   thing being counted was ceremony, and centred prose in a dialog reads as a
+   certificate. `.step` and `.step h1` stay: the by-hand listing is still a page
+   and still wants a 28 px heading. */
 .step h1 { font-size: 28px; line-height: 1.15; margin: 0 0 8px; letter-spacing: -0.025em; font-weight: 700; }
-.step-intro { color: var(--text-quiet); margin: 0 0 22px; max-width: 52ch; font-size: 14px; line-height: 1.55; }
-.step-outro { text-align: center; padding-top: 40px; }
-.step-outro .step-intro, .step-outro .small-text { margin-left: auto; margin-right: auto; }
-.step-outro .step-footer { justify-content: center; }
 
 .step-footer {
   display: flex; justify-content: space-between; align-items: center; gap: 10px;
@@ -447,23 +550,20 @@
 }
 .step-footer .button.primary { margin-left: auto; }
 
-.detected {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 1px;
-  background: var(--line); border: 1px solid var(--line);
-  border-radius: var(--r-large); overflow: hidden; margin-bottom: 14px;
-}
-/* A row, not a stack: the icon names the thing and the two lines of text sit
-   beside it, the same way a module tile is built. */
-.detected > div { background: var(--panel); padding: 13px 16px; display: flex; align-items: center; gap: 13px; }
-.detected-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-.detected-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: var(--text-quiet); }
-.detected-value { font-size: 14px; font-weight: 600; }
+/* `.detected` and its three children stood here — a two-panel grid on the
+   wizard's one question, saying which graphics driver was found and where the
+   transcription would run. Deleted with the block: the sentence directly above
+   it already told the reader the estimates were for the graphics card in this
+   computer, and two panels restating the line above them were the most words on
+   the screen with the fewest. The 11/700/0.09em micro-label lives on in
+   `.detected-label`'s twin elsewhere in the visual system, so nothing was lost
+   from the type scale either. */
 
 .choices { display: flex; flex-direction: column; gap: 8px; }
-/* One frame for every row of this kind — a choice card and a status tile
-   alike. They carry different content but must read as one family, so the
-   padding, the radius and the vertical rhythm live here and nowhere else. */
-.choice, .module-tile {
+/* One frame for every row of this kind. They carry different content but must
+   read as one family, so the padding, the radius and the vertical rhythm live
+   here and nowhere else. */
+.choice {
   border: 1px solid var(--line); background: var(--panel);
   border-radius: var(--r-large); padding: 12px 14px;
 }
@@ -486,7 +586,48 @@
 .choice.chosen { border-color: var(--accent-line); background: var(--accent-light); }
 .choice-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
 .choice-title { font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 8px; }
-.choice-size { font-size: 13px; color: var(--text-quiet); white-space: nowrap; font-variant-numeric: tabular-nums; font-weight: 600; }
+/* Every size in this application is one pair: 13 px, 500, `--text-quiet`,
+   `tabular-nums`. *Velikost těch souborů nedávej tučně.*
+
+   500 is chosen against its two neighbours rather than picked off the scale.
+   Prose beside it is 400 — `.small-text` — and the name above it is 600, and a
+   figure somebody scans down a column belongs between them: heavier than a
+   sentence so the column reads as a column, lighter than the name so it
+   supports the thing it belongs to instead of competing with it. At 600 it was
+   the name's own weight, which is what made it loud.
+
+   No exception for the cards, and it was considered: on a `.choice` the size is
+   part of the decision — pressing that card fetches those gigabytes — while in
+   a listing it is reference. But on a card the figure is already privileged by
+   having its own column at the right edge and by being the only number there.
+   Weight is not what makes it findable, and at 600 beside a 15/600 title the
+   two read as equals. */
+.choice-size { font-size: 13px; font-weight: 500; color: var(--text-quiet); white-space: nowrap; font-variant-numeric: tabular-nums; }
+/* What a choice costs, as a line inside the card rather than a figure in a
+   column at its edge. The wizard's two quality cards are the only cards that
+   need it: a size alone answers *how many megabytes*, and what somebody
+   choosing a transcription model is weighing is minutes against megabytes,
+   which is one sentence and not two columns.
+
+   It is `.choice-size`'s own type — 13 px, 500, `--text-quiet`, `tabular-nums`,
+   the pair documented above — and deliberately not that class, for the one
+   property it must not take: `.choice-size` is `nowrap`, which is right for a
+   figure in a column and wrong for a sentence that has to wrap at 520 px in
+   whatever language it is read in. */
+.choice-cost { font-size: 13px; font-weight: 500; color: var(--text-quiet); font-variant-numeric: tabular-nums; }
+/* Three points on top of `.choice-body`'s own three, so the card reads as a
+   name over its detail and then two statements of a different kind. At the
+   plain 3 px all four lines sat in one block: the description and the cost are
+   both 13 px and both quiet, and 500 against 400 is the whole of what tells
+   them apart within a line. Six is what separates them as blocks. */
+.choice-cost, .choice-reason { margin-top: 3px; }
+/* Why this card is the one for this computer. It replaced a `doporučeno` badge,
+   and the colour is the badge's accent kept: this is still the application
+   pointing at one of two cards, and losing the accent would have made the
+   recommendation quieter than the sentence above it, which is the wrong way
+   round. 600 rather than the 700 a badge carries — it is a sentence now, and
+   700 over three lines of it reads as shouting. */
+.choice-reason { font-size: 13px; font-weight: 600; color: var(--accent); line-height: 1.45; }
 
 .badge {
   font-style: normal; font-size: 11px; font-weight: 700;
@@ -513,34 +654,204 @@
 .summary li.done span:last-child { color: var(--success); font-weight: 600; }
 .summary li.selhala span:last-child { color: var(--danger); }
 
+/* The wizard's download listing: a read-only row that is one line or two, and
+   neither of the two things it resembles.
+
+   Not `.summary`, which is one line and cannot hold a sentence. Not
+   `.component`, which is a control — a checkbox, a hit area, a pointer — and
+   nothing on this screen can be ticked. So the container is `.summary`'s, line
+   for line, and only the row differs: a two-column grid instead of a flex pair,
+   because the name and its sentence are one block against the size rather than
+   two things at opposite ends.
+
+   `align-items: center` and no margins anywhere: the size sits against the whole
+   row in both views, which is the only way it stays right when the row grows a
+   second line. */
+.download-list {
+  list-style: none; margin: 0; padding: 0; overflow: hidden;
+  border: 1px solid var(--line); border-radius: var(--r-large);
+}
+.download-list li {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px;
+  align-items: center;
+  padding: 10px 16px; background: var(--panel); font-size: 14px; font-weight: 500;
+  border-bottom: 1px solid var(--line);
+}
+.download-list li:last-child { border-bottom: 0; }
+.download-list li.done { color: var(--text-quiet); }
+.download-list li.done .download-row-side { color: var(--success); }
+.download-list li.failed .download-row-side { color: var(--danger); }
+.download-row-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.download-row-side {
+  color: var(--text-quiet); font-size: 13px; font-weight: 500;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+/* The switch above it, at the right-hand end where the archive's own sits.
+   10 px is the gap `.detected` took to what followed it on this screen, and it
+   is now the only rule placing it: `.manual > div { margin-bottom: 16px }` used
+   to catch the switch as one of the by-hand list's children, and the override
+   that beat it went with it when the group spacing moved above the headings. */
+.download-view { display: flex; justify-content: flex-end; margin-bottom: 10px; }
+/* Icon-only, so the button is square. 30 px in the 36 px track is the plain
+   segmented control's own geometry — the archive's 32-in-40 is matched to the
+   filter select standing beside it there and has no counterpart on either of
+   these screens, so the shape is carried over and the measurement is not. */
+.listing-view-toggle button { width: 30px; min-height: 30px; padding: 0; }
+.listing-view-toggle button svg { flex: 0 0 auto; }
+
 .progress-large { margin-bottom: 20px; }
 .progress-large .progress-bar { height: 6px; }
 .progress-large .progress-label { font-size: 13px; margin-top: 7px; }
 
-.manual { margin-bottom: 4px; }
-.manual > div { margin-bottom: 16px; }
+/* 20 px under the whole list, which is what the last group's own 16 plus this
+   4 used to come to. The block spacing moved above the headings and the outer
+   distance did not change with it. */
+.manual { margin-bottom: 20px; }
+/* **The space belongs above a heading, not below it.** A heading names what
+   follows, so the gap that separates it from the group before is what makes the
+   listing read as sections; a gap underneath detaches it from the rows it
+   names. It was 16 px between blocks against 8 under the heading — close enough
+   that a heading floated between two groups and belonged to neither.
+   24 px is the amount this stylesheet already separates the bands inside a card
+   by; 16 is what it puts between cards, and a group boundary inside one listing
+   is the larger of those two kinds of gap. It is more than half a row's height
+   in either listing view, so the boundary reads whether the rows are one line
+   or two.
+   `+` and not a plain rule: the first group must sit against the view switch at
+   the 10 px that control keeps, or the list opens with a hole. */
+.manual-group + .manual-group { margin-top: 24px; }
 /* Only the gap under the label. The type comes from `.wizard h2` — see the
    note there; this rule used to restate it and beat it on file order. */
 .manual h2 { margin: 0 0 8px; }
 
-.components { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-.component { border: 1px solid var(--line); background: var(--panel); border-radius: var(--r-card); padding: 12px 15px; }
-.component.done { background: var(--subtle); }
-.component.done .component-text { color: var(--text-quiet); }
-.component label { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: start; cursor: pointer; }
-.component.done label { cursor: default; }
-.component input { margin-top: 3px; accent-color: var(--accent); }
-.component-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.component-name { font-weight: 600; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.component-size { color: var(--text-quiet); font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.downloaded-mark {
-  display: inline-grid; place-items: center;
-  width: 22px; height: 22px; border-radius: 50%;
-  background: hsl(var(--ds-grass) / 0.14); color: var(--success-text);
-  /* Centred against the whole row, not against its first line: the mark is
-     about the component, while the checkbox belongs to the title beside it. */
-  align-self: center;
+/* The by-hand list. The same row as `.download-list` above, plus the two things
+   this one has: a mark that is also the action, and a bin.
+
+   **One ground for the whole list.** The group sat in a container while each row
+   carried its own shade, so the rows and the thing holding them competed —
+   *tady to pozadí u modelu je špatně*. Installed rows had been the grey ones,
+   which put the most contrast on what needs the least attention. The container
+   draws the border and every row inside it is `--panel`; what is installed is
+   said by the green mark, which is the column that exists to say it. */
+/* The dictionary's saved entries join these four rules rather than copying
+   their values — *použijme na slovník stejné řádky jako mají položky v kartě
+   modely*. It is a list of items that grows, with a bin at the right, which is
+   this row's geometry and not the two-fact summary panel's. Its own file is
+   `05-later.css`, which only sets what genuinely differs: the columns, because
+   a dictionary row carries a pair of fields and an arrow where a component row
+   carries a mark, a name and a size. Everything else — the ground, the
+   hairlines, the 44 px, the 16 px edge, the bin — is one declaration for both,
+   so neither can drift. */
+.components,
+.dictionary-list {
+  list-style: none; margin: 0; padding: 0; overflow: hidden;
+  border: 1px solid var(--line); border-radius: var(--r-large);
+  background: var(--panel);
 }
+.component,
+.dictionary-list li { border-bottom: 1px solid var(--line); }
+.component:last-child,
+.dictionary-list li:last-child { border-bottom: 0; }
+/* Four columns, each fixed or shared so the eye runs down any of them: the mark,
+   the text, a size column with one right edge, and the bin — whose 26 px is
+   reserved on every row whether or not there is a bin in it. */
+.component-row,
+.dictionary-list li {
+  display: grid; grid-template-columns: 26px minmax(0, 1fr) auto 26px; gap: 12px;
+  align-items: center; min-height: 44px; padding: 9px 16px;
+  font-size: 14px;
+}
+/* The mark, at the bin's diameter so the row is bracketed by two circles of one
+   size. Three states share it and none of them changes its geometry, which is
+   what keeps the text edge still as a row goes from offer to progress to fact. */
+/* No `position: relative` any more: it was here for the punched-out middle of
+   the old conic ring, and the ring the mini player lends is an SVG in the same
+   grid cell as the glyph. */
+.component-mark {
+  display: grid; place-items: center; width: 26px; height: 26px; padding: 0;
+  border: 0; border-radius: 50%; cursor: pointer;
+  transition: background var(--hover-duration) var(--hover-ease),
+    color var(--hover-duration) var(--hover-ease);
+}
+.component-mark.static { cursor: default; }
+/* Not here yet: the accent, because fetching it is the ordinary thing to do on
+   this screen and the accent is what this application uses for the ordinary
+   thing to do. */
+.component-mark.get { background: var(--accent-light); color: var(--accent); }
+.component-mark.get:hover { background: var(--accent); color: #fff; }
+/* Here: the grass tint the tick has worn since it was `.downloaded-mark`. */
+.component-mark.have { background: hsl(var(--ds-grass) / 0.14); color: var(--success-text); }
+.component-mark.have:hover:not(.static) { background: var(--accent-light); color: var(--accent); }
+/* The tick gives way to the turning arrow under the pointer. Both are drawn and
+   one is hidden, rather than swapped in JavaScript: a mark that re-renders on
+   hover flickers, and the pair has to cross-fade to read as one control
+   changing rather than two controls trading places. */
+.component-mark .mark-hover { display: none; }
+.component-mark.have:hover:not(.static) .mark-rest { display: none; }
+.component-mark.have:hover:not(.static) .mark-hover { display: block; }
+/* Running: the ring fills as the bytes arrive, and the glyph is a stop square.
+   A ring rather than a spinner, because the number is known — a spinner would
+   say *something is happening* where the row can say how much.
+
+   **The ring is the mini player's**, weight and technique both: two SVG circles
+   with a 2 px stroke, `.mini-track` and `.mini-progress` reused rather than
+   copied, and the arc shortened with `stroke-dashoffset`. It was a 3 px conic
+   band running edge to edge with the middle punched out — *moc silný* — and the
+   answer to how thin came from the owner as *stejně, jako je v mini playeru*:
+   the application already had a ring for how far through something is, and a
+   second weight would have been two languages for one idea. The disc stays
+   `--accent-light` under it, so the running row is still one of the three
+   filled 26 px circles this column is built from. */
+.component-mark.running { background: var(--accent-light); color: var(--accent); }
+/* Both children in the same grid cell, the way `.mini-play` stacks its own ring
+   and glyph — without it the grid would give them a row each and the circle
+   would grow. The quarter turn starts the arc at twelve o'clock. */
+.component-mark > svg { grid-area: 1 / 1; }
+.component-ring { transform: rotate(-90deg); }
+.component-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+/* The name leads and the sentence supports it. Both sat within a point of each
+   other, so fifteen rows of two lines had no first thing to read. */
+.component-name {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  font-weight: 600;
+}
+.component-text .small-text { line-height: 1.45; }
+/* A column, rather than a value that happens to sit on the right. */
+.component-size {
+  min-width: 58px; text-align: right;
+  color: var(--text-quiet); font-size: 13px; font-weight: 500;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+/* The bin, drawn always: hover-to-reveal is undiscoverable for a destructive
+   action, and revealing it moved the size column as the pointer travelled.
+   Quiet by default, the danger colour under the pointer where the intent is
+   already formed. */
+/* 26 px, and the dictionary's bin is the same button: it stood at 28 because
+   it ended a 34 px field row, and it does not end one any more — it ends a
+   44 px listing row, which is where 26 comes from. Two bins one row apart at
+   two diameters is the drift this selector exists to prevent. */
+.component-remove,
+.dictionary-remove {
+  display: grid; place-items: center; width: 26px; height: 26px; padding: 0;
+  border: 0; border-radius: var(--r-card); background: none; cursor: pointer;
+  color: var(--text-quiet);
+  transition: background var(--hover-duration) var(--hover-ease),
+    color var(--hover-duration) var(--hover-ease);
+}
+.component-remove:hover,
+.dictionary-remove:hover { background: var(--danger-light); color: var(--danger); }
+/* The lock, in the bin's own column and at the bin's own 26 px, so a row that
+   cannot be deleted lines up with the rows that can. Quiet rather than red: it
+   states a fact, it does not warn. No hover and no pointer — it is not a
+   button, and anything suggesting it could be pressed would be a lie; the
+   tooltip on it is the whole of what it has to offer. */
+.component-lock {
+  display: grid; place-items: center; width: 26px; height: 26px;
+  color: var(--text-quiet);
+}
+/* Still needed: a row with nothing installed has neither a bin nor a lock, and
+   the column has to keep its width or the size column moves. */
+.component-remove-space { display: block; width: 26px; }
 
 /* ---------------------------------------------------------------- dialog */
 
@@ -555,10 +866,18 @@
   display: flex; align-items: center; justify-content: center;
   padding: 24px;
 }
+/* The dialog owns its size, and the last of those numbers is the one that says
+   so: `calc(100vh - 48px)` is the window less the overlay's own 24 px on each
+   side, so no dialog can reach past the screen it is centred on whatever ends
+   up inside it. It scrolls instead — which puts the footer at the end of a
+   scroll rather than under the bottom edge, where it cannot be pressed at all.
+   The reading window sets its own height above this and never uses the scroll;
+   it is the ceiling for everything else. */
 .dialog {
   background: var(--panel); border: 1px solid var(--line);
   border-radius: var(--r-large); box-shadow: var(--shadow-high);
   padding: 24px 26px; width: 100%; max-width: 420px;
+  max-height: calc(100vh - 48px); overflow-y: auto;
   animation: dialog-nabehne 0.14s ease-out;
 }
 @keyframes dialog-nabehne {
@@ -625,12 +944,32 @@
 /* Two widths: 420 px for a question with a field, 520 px for a column of
    choice cards. 520 is the wider of the two former numbers because the cards
    in the AI dialog carry a badge in a third column (.choice.with-icon > .badge),
-   and the narrower dialog took that width out of their descriptions. */
-.ai-edit-dialog, .add-recording-dialog { max-width: 520px; }
+   and the narrower dialog took that width out of their descriptions.
+
+   The first-run wizard is the third of them and takes the same 520 for the same
+   reason: two stacked cards, each holding a name, a sentence about the model, a
+   line of cost and — on one of them — the reason it is recommended here. It was
+   a 620 px screen, and the 100 px it gives up is width those cards never used:
+   they were a column already, but each was one line of text with a size pinned
+   at the far edge, so the extra width went to the gap between them. */
+.ai-edit-dialog, .add-recording-dialog, .setup-dialog { max-width: 520px; }
+/* The failure banner, when the first-run dialog is drawing one. It stands
+   between the dialog's sentence and its content, and it owns the 18 px below
+   itself rather than above: `.dialog h2 + p` has already placed the gap above
+   it, and no content block in a dialog carries a `margin-top`. 18, not the 20
+   `.warning` gives itself in the archive, because in here the number belongs to
+   the dialog's rhythm and not to the banner. */
+.setup-dialog > .warning { margin-bottom: 18px; }
 .ai-edit-note {
   display: flex; align-items: flex-start; gap: 8px;
   margin-top: 14px !important;
 }
+/* The instruction field stands between the cards and that note, so it takes
+   the same 14 px the note takes above itself, and gives up the 24 px a field
+   carries in Settings — the note below brings its own. Adjacency, like
+   `.choices + .settings-info-note.compact`: a dialog's content blocks do not
+   carry a margin of their own, they say what follows what. */
+.ai-edit-dialog .choices + .field { margin: 14px 0 0; }
 .ai-edit-note-icon { flex: 0 0 auto; margin-top: 1px; color: var(--accent); }
 
 .add-recording-options .small-text { margin: 0; }
@@ -684,7 +1023,23 @@ button.mic-play:disabled { cursor: default; opacity: 0.6; }
 .mic-status, .about-status { font-size: 13.5px; font-weight: 600; }
 .mic-status.failed, .about-status.failed { color: var(--danger); }
 .about-status { margin: 12px 0 0; }
-.about-updates { margin-top: 22px; }
+/* `.settings section > h2 + .about-updates` stood here with 24 px, for the day
+   this block followed the card's heading directly. It follows the card's
+   opening sentence now, and `.settings-section-description` already ends with
+   the same 24 — one amount from one declaration, rather than a rule that can
+   only ever be right while nothing is said between the two. */
+/* The two facts, then the errand.
+
+   22 px under the panel and no rule with it, which is `.settings-action-row.
+   spaced` exactly — its comment is written for this case: content under
+   something already framed, where a hairline would draw the panel's own
+   boundary a second time.
+
+   The ⓘ line that used to stand between them is gone — it claimed the
+   application only looks when asked, which the switch at the foot of this card
+   makes untrue whenever it is on. Its own 22 above and 12 below went with it,
+   and the panel now spaces the buttons directly at the same 22. */
+.about-updates > .about-panel + .about-updates-actions { margin-top: 22px; }
 .about-updates-actions { display: flex; gap: 10px; }
 /* The explanation belongs to the whole block above it, not to one button. */
 .about-updates .settings-section-description { margin: 14px 0 0; }
@@ -1068,7 +1423,11 @@ button.mic-play:disabled { cursor: default; opacity: 0.6; }
   fill: none; stroke: currentColor; stroke-width: 1.5;
   stroke-linecap: round; stroke-linejoin: round;
 }
-.ai-document-tabs button:first-child svg { fill: currentColor; stroke: none; }
+/* The sparkle is a filled shape, the other three are drawn with a line. It
+   used to be selected as `button:first-child`, which stopped being true when
+   the tab row began leaving the improved transcript out; the icon says which
+   it is (`DocumentViewIcon`). */
+.ai-document-tabs button svg.solid { fill: currentColor; stroke: none; }
 /* This row belongs to the document, not to the dialog: it chooses a version,
    a length, a language — of the thing being read, not which thing to read.
    So it lives on the grey with the document and carries the edge between the
@@ -1079,6 +1438,13 @@ button.mic-play:disabled { cursor: default; opacity: 0.6; }
   border-top: 1px solid var(--line);
 }
 .ai-output-toolbar .select { width: 190px; }
+/* The instruction stands in that same strip, where the other tabs keep their
+   length and their language: it is what this document was asked for. A column
+   rather than a row, because it is a field with a label and a sentence under
+   it, so the strip closes its own 14 px at the bottom instead of leaving that
+   to the text below. */
+.ai-custom-bar { display: block; padding-bottom: 14px; }
+.ai-custom-bar .field { margin-bottom: 0; }
 /* 36, the height of the tabs beside it — this strip held three different
    heights until every control in it became the same one. */
 .ai-output-toolbar .select-trigger { height: 36px; background: var(--panel); font-size: 13px; }
@@ -1150,23 +1516,18 @@ button.mic-play:disabled { cursor: default; opacity: 0.6; }
 
 
 
-/* The two ways out of a problem, side by side: copy what we need, or open the
-   log and read it.
-
-   18 px above them, not the 14 a paragraph would take. A bordered panel ends
-   on a line, and a button 14 px under a line reads as stuck to it — the same
-   amount that looks generous under text looks tight under a frame.
-
-   `align-self` because the disclosure is a flex column: without it they would
-   stretch the full width of the card, which no other button here does. The
-   note below keeps its own 8 px — it belongs to these buttons, not the panel.
-
-   This rule was lost once, in a rebase, and nothing said so: `.diagnostics-copy`
-   went on existing while the markup had moved to `.diagnostics-actions`, and
-   the buttons only looked right because `.button` is inline-flex. */
-.diagnostics-actions {
-  display: flex; gap: 8px; margin-top: 18px; align-self: flex-start;
-}
+/* `.diagnostics-actions` stood here — `Zkopírovat údaje` and `Otevřít log`
+   side by side at the foot of `Technické podrobnosti`, and gone with that block.
+   Its 8 px gap is still quoted by `.settings-action-row-buttons` above as the
+   other place two buttons stand together; that reference is now to a rule that
+   was, which is why this note keeps the number. */
+/* And a button standing on its own inside a folded block — `Zpět na výchozí`
+   at the foot of `Pokročilé` — for exactly the same reason as the row above.
+   The disclosure is a flex column, so left alone it stretches to the full width
+   of the card, which no other button in Settings does. It stretched before this
+   rule existed, when it was one short block's own reset; at the foot of a block
+   this long it is the last thing the eye lands on. */
+.settings-disclosure-content > .button { align-self: flex-start; }
 
 /* The backups, one row each: when it was taken, how large it is, and the way
    back. The date leads because it is the only thing anybody chooses by; the

@@ -116,6 +116,11 @@ export const csErrors = {
   // Downloading modules.
   "errors.download.unknown_component": "Neznámý modul: {component}",
   "errors.download.already_running": "Stahování už běží.",
+  "errors.download.component_busy": "Právě se používá. Až práce skončí, půjde smazat.",
+  "errors.download.cannot_remove":
+    "Aplikace neví, které soubory k této součásti patří. Po opětovném stažení " +
+    "ji smazat půjde.",
+  "errors.download.remove_failed": "Smazat se nepodařilo: {detail}",
   "errors.download.cancelled": "Zrušeno",
   "errors.download.connection_failed": "Nepodařilo se spojit se serverem ({url})",
   "errors.download.rejected": "Server odmítl soubor vydat",
@@ -159,6 +164,9 @@ export const csErrors = {
   "errors.ai.unknown_translation_language":
     "Jazyková úprava selhala: neznámý cílový jazyk překladu",
   "errors.ai.unknown_output_kind": "Jazyková úprava selhala: neznámý druh jazykového výstupu",
+  "errors.ai.empty_prompt": "Napište prosím pokyn, podle kterého má model dokument vytvořit.",
+  "errors.ai.prompt_too_long":
+    "Pokyn je příliš dlouhý. Vejde se do něj nejvýše {limit} znaků.",
   "errors.ai.server_launch_failed":
     "Jazyková úprava selhala: nelze spustit místní jazykový server",
   "errors.ai.server_exited_while_loading":
@@ -197,6 +205,26 @@ export const csErrors = {
 } as const;
 
 export const csErrorsContext: Partial<Record<keyof typeof csErrors, string>> = {
+  "errors.download.component_busy":
+    "Odmítnutí, když uživatel chce smazat něco, co aplikace zrovna používá — " +
+    "běží přepis, převod zvuku, rozpoznávání mluvčích nebo jazyková úprava. " +
+    "Je to **stejná věta jako wizard.manual.lockedBusy**, protože je to jeden " +
+    "fakt řečený na dvou místech: v bublině zámku na řádku a tady, když se " +
+    "práce rozeběhne mezi vykreslením seznamu a stiskem. Přelož obě stejně.",
+  "errors.download.cannot_remove":
+    "Odmítnutí u součásti nainstalované dřív, než si aplikace začala zapisovat " +
+    "seznam souborů; sdílí složku s ostatními programy, takže bez toho seznamu " +
+    "nejde smazat „jen ji“. To všechno je mechanismus a do věty nepatří. " +
+    "**Stejná věta jako wizard.manual.lockedUnlisted** — přelož obě stejně. " +
+    "Nemluv o chybě, je to hranice, ne porucha.",
+  "errors.download.remove_failed":
+    "Mazání selhalo na úrovni disku. {detail} je hlášení systému, nepřekládá se.",
+  "errors.ai.empty_prompt":
+    "Odmítnutí, když má vzniknout dokument podle vlastního pokynu a pokyn není napsaný. " +
+    "Prázdný pokyn se modelu neposílá. Tlačítko v okně je v takové chvíli vypnuté; tohle je pojistka.",
+  "errors.ai.prompt_too_long":
+    "{limit} je největší povolený počet znaků pokynu, číslo. Pokyn se posílá s každou částí " +
+    "přepisu, proto má strop.",
   "errors.tools.whisper_model_missing":
     "{model} je název přepisovacího modelu, například large-v3. Soubor se jmenuje ggml-<model>.bin, název souboru nepřekládej.",
   "errors.tools.vad_model_missing":

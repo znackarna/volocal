@@ -127,7 +127,42 @@ fn holds_the_tools(folder: &Path) -> bool {
     folder.join("bin").is_dir() || folder.join("models").is_dir()
 }
 
+// A root of one test's own, in place of the machine's.
+//
+// `tools_root()` is not derived from the settings — `bin` and `models` are, but
+// everything beside them is not, and `installed.json` is the one that matters
+// here. So a test that built a scratch folder and pointed both settings at it
+// still wrote its installation records into
+// `%LOCALAPPDATA%\cz.znackarna.volocal\installed.json`: the real one, on the
+// machine running the tests. Four of them did, and because
+// `record_installation` reads the whole map, edits it and writes it back, two
+// running side by side each dropped the other's entry — which is the
+// intermittent `no entry found for key`. The same runs were also editing the
+// record of the developer's own installation.
+//
+// It is a thread-local and not an environment variable because `LOCALAPPDATA`
+// is process-wide and `cargo test` runs these beside each other in one process
+// — the reason `rename_tools_root` takes its folder as an argument. `cargo
+// test` gives each test a thread of its own and the work it calls happens on
+// that thread, so a root set here belongs to exactly one test.
+#[cfg(test)]
+thread_local! {
+    static TEST_ROOT: std::cell::RefCell<Option<PathBuf>> =
+        const { std::cell::RefCell::new(None) };
+}
+
+/// Points everything under `tools_root()` at this test's own folder, for the
+/// rest of this test. Call it once, with a directory nothing else uses.
+#[cfg(test)]
+pub fn use_tools_root_for_this_test(root: &Path) {
+    TEST_ROOT.with(|slot| *slot.borrow_mut() = Some(root.to_path_buf()));
+}
+
 pub fn tools_root() -> PathBuf {
+    #[cfg(test)]
+    if let Some(root) = TEST_ROOT.with(|slot| slot.borrow().clone()) {
+        return root;
+    }
     if is_portable() {
         return app_directory();
     }
@@ -344,6 +379,11 @@ pub fn has_vulkan() -> bool {
 ///
 /// `cpu` and `vychozi` always work; for the rest the system's driver decides.
 /// Those two names are stored settings and folder names on disk, so they stay.
+///
+/// `gpu` is deliberately not answered here. It is not a build — it is the
+/// reader's word for "the card, whichever build is right" — and whether it can
+/// be honoured depends on which builds are on the disk, which this function is
+/// not told. `choose_compute` decides it, because it knows both.
 pub fn usable_compute(backend: &str) -> bool {
     match backend {
         "cuda" => has_nvidia(),
@@ -352,33 +392,120 @@ pub fn usable_compute(backend: &str) -> bool {
     }
 }
 
+/// The graphics builds, fastest first.
+///
+/// CUDA before Vulkan is the same order `choose_compute` has always used when
+/// deciding by itself, and it is the reason the reader is never asked which of
+/// the two: on an NVIDIA card CUDA is the faster of the builds we ship, and on
+/// anything else it cannot run at all. That is a fact about the drivers, not a
+/// preference, so it is read off the machine rather than put on the screen.
+const GRAPHICS_BUILDS: [&str; 2] = ["cuda", "vulkan"];
+
 /// Picks the compute build. "auto" decides by what the machine has.
+///
+/// The stored choice is one of four things: `auto`, `cpu`, `gpu`, or — on a
+/// machine set up before 14 August 2026 — one of the build names `cuda` and
+/// `vulkan`. All four still load and all four are still honoured here; what
+/// changed is that `Nástroje` now offers only the first three, because which
+/// graphics build is right for a card is not a question a reader can answer
+/// better than the drivers can.
+///
+/// The substitution below is silent by design — a transcription must run — but
+/// it must not be silent on screen. `ToolCheck::compute` is this function's
+/// answer, not the stored setting, and that is what `Nástroje` shows: when the
+/// two differ, the card says which was asked for, what ran instead, and why.
 pub fn choose_compute(bin: &Path, choice: &str) -> String {
     let available = available_compute_backends(bin);
     if available.is_empty() {
         return "vychozi".into();
     }
-    // A downloaded folder does not mean this computer can run what is in it.
-    //
-    // It used to be enough that `bin\cuda` existed for the choice to be
-    // accepted. Anybody with `cuda` saved and an AMD card in the machine got a
-    // CUDA build, which found no device and transcribed on the processor —
-    // while the settings went on saying it was running on the graphics card.
-    // The hardware check lived only in the "automatic" branch, which is exactly
-    // where it is not needed.
-    if choice != "auto" && available.iter().any(|x| x == choice) && usable_compute(choice) {
+    // Downloaded and runnable are two different questions, and both have to be
+    // asked. A `bin\cuda` folder used to be enough for a stored `cuda` to be
+    // honoured, so anybody with an AMD card got a CUDA build that found no
+    // device and transcribed on the processor — while the screen went on saying
+    // it ran on the graphics card. The hardware check lived only in the
+    // automatic branch, which is exactly where it is not needed.
+    let runnable = |name: &str| available.iter().any(|x| x == name) && usable_compute(name);
+    // The fastest graphics build this machine can actually run, if any. It is
+    // both what `gpu` means and what automatic prefers, which is why it is one
+    // expression: the reader chooses the processor or the card, and the drivers
+    // choose which card build. If neither can run, `gpu` falls through to the
+    // same order automatic uses and ends on the processor — a transcription
+    // must run — and the card on `Nástroje` says so instead of hiding it.
+    let graphics = || GRAPHICS_BUILDS.iter().find(|name| runnable(name)).copied();
+    if choice == "gpu" {
+        if let Some(build) = graphics() {
+            return build.to_string();
+        }
+    } else if choice != "auto" && runnable(choice) {
         return choice.to_string();
     }
-    if available.iter().any(|x| x == "cuda") && usable_compute("cuda") {
-        return "cuda".into();
-    }
-    if available.iter().any(|x| x == "vulkan") && usable_compute("vulkan") {
-        return "vulkan".into();
+    if let Some(build) = graphics() {
+        return build.to_string();
     }
     if available.iter().any(|x| x == "cpu") {
         return "cpu".into();
     }
     available[0].clone()
+}
+
+// ---------------------------------------------------------------- memory
+
+/// How much memory this computer has, in whole gigabytes, or nothing.
+///
+/// The drivers and the graphics card have been read off this machine since the
+/// wizard was written; memory never was, and the first-run question now names
+/// what it found. **`None` is a real answer and the screen must be able to draw
+/// it** — on a platform this cannot ask, or a call that fails, the sentence
+/// says what it does know and stops, rather than printing a guess that a reader
+/// can check against their own machine in ten seconds and find wrong.
+pub fn total_memory_gb() -> Option<u32> {
+    installed_memory_bytes().and_then(memory_gigabytes)
+}
+
+/// Bytes to the number a reader would use for the same machine.
+///
+/// Rounded rather than truncated, and that is the whole of the arithmetic worth
+/// explaining: Windows reports what the operating system may use, which on a
+/// 16 GB machine is about 15.8 GiB because the firmware and the graphics chip
+/// hold some of it back. Truncating prints `15 GB` on a box that says 16, which
+/// is exactly the kind of number somebody goes looking for the missing part of.
+///
+/// Below half a gigabyte nothing is reported. No computer that could run this
+/// application has that little, so such an answer is a failed reading rather
+/// than a small machine, and a failed reading must not reach the screen.
+fn memory_gigabytes(bytes: u64) -> Option<u32> {
+    const GIB: f64 = 1024.0 * 1024.0 * 1024.0;
+    if bytes < 512 * 1024 * 1024 {
+        return None;
+    }
+    Some((bytes as f64 / GIB).round().max(1.0) as u32)
+}
+
+#[cfg(windows)]
+fn installed_memory_bytes() -> Option<u64> {
+    use windows::Win32::System::SystemInformation::{GlobalMemoryStatusEx, MEMORYSTATUSEX};
+    let mut status = MEMORYSTATUSEX {
+        // The call reads this to know which version of the struct it was given.
+        // Left at zero it fails, which is the one way this can be got wrong.
+        dwLength: std::mem::size_of::<MEMORYSTATUSEX>() as u32,
+        ..Default::default()
+    };
+    // Safe: `status` is a live, correctly sized struct on this stack, and the
+    // call writes only into it. `GetPhysicallyInstalledSystemMemory` was the
+    // other candidate — it reads the memory modules out of SMBIOS and would
+    // give the number on the box exactly — but it fails outright on firmware
+    // whose tables it dislikes, and a fact the screen may not get at all is
+    // worse than one it has to round.
+    unsafe { GlobalMemoryStatusEx(&mut status) }.ok()?;
+    (status.ullTotalPhys > 0).then_some(status.ullTotalPhys)
+}
+
+#[cfg(not(windows))]
+fn installed_memory_bytes() -> Option<u64> {
+    // The application ships for Windows. Everything else builds and reports
+    // nothing, which is a state the screen already has to draw.
+    None
 }
 
 pub fn compute_directory(bin: &Path, compute: &str) -> PathBuf {
@@ -414,6 +541,10 @@ pub struct ToolCheck {
     pub available_compute_backends: Vec<String>,
     pub nvidia_driver: bool,
     pub vulkan_driver: bool,
+    /// Whole gigabytes of memory, or `None` where it could not be read. The
+    /// first-run question names it; nothing decides anything by it, because
+    /// nothing here has ever measured what a model needs.
+    pub memory_gb: Option<u32>,
     /// The models found in the models folder, without the ggml- prefix.
     pub found_models: Vec<String>,
 
@@ -434,6 +565,7 @@ pub fn check(n: &crate::db::Settings) -> ToolCheck {
     k.webview2_bundled = app_directory().join("webview2").is_dir();
     k.nvidia_driver = has_nvidia();
     k.vulkan_driver = has_vulkan();
+    k.memory_gb = total_memory_gb();
     k.available_compute_backends = available_compute_backends(&bin);
     k.compute = choose_compute(&bin, &n.compute);
 
@@ -733,6 +865,41 @@ pub fn remove_playback_proxies(db_path: &Path, recording_id: &str) {
     }
 }
 
+/// How many playback copies are being encoded right now.
+///
+/// It exists for one question, asked by the module listing: may ffmpeg be
+/// deleted? Every other program this application runs is owned by a registry
+/// that already answers it — `TranscriptionTask`, `AiEditTask`,
+/// `OnlineImportTask`, the waveform jobs — and this one is owned by nobody, as
+/// the comment at its only caller has said since it was written: it is prepared
+/// on demand when a finished transcript is opened.
+///
+/// A count rather than a flag, because two recordings can be prepared at once,
+/// and raised and lowered by a guard rather than by a line at the end — the same
+/// shape as `WaveformJob` and `INSTALLING`, and for the same reason: a panic in
+/// between would otherwise leave ffmpeg locked for the life of the process.
+static PLAYBACK_CONVERSIONS: std::sync::atomic::AtomicUsize =
+    std::sync::atomic::AtomicUsize::new(0);
+
+pub fn playback_conversion_running() -> bool {
+    PLAYBACK_CONVERSIONS.load(std::sync::atomic::Ordering::Relaxed) > 0
+}
+
+struct PlaybackConversion;
+
+impl PlaybackConversion {
+    fn begin() -> Self {
+        PLAYBACK_CONVERSIONS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        Self
+    }
+}
+
+impl Drop for PlaybackConversion {
+    fn drop(&mut self) {
+        PLAYBACK_CONVERSIONS.fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
+    }
+}
+
 /// Returns a source whose media timeline supports precise word-level seeking.
 ///
 /// Formats with their own accurate sample/index tables are played directly.
@@ -790,6 +957,8 @@ pub fn ensure_seekable_playback(
             "+faststart",
         ])
         .arg(&temporary);
+    // From here until this function returns, ffmpeg is working.
+    let _conversion = PlaybackConversion::begin();
     let outcome = runner.run(program)?;
     let Some((status, stderr)) = outcome else {
         // Killed mid-encode: the half-written temporary is ours alone, and
@@ -1071,6 +1240,57 @@ mod compute_choice_tests {
         assert_eq!(choose_compute(&bin, "cpu"), "cpu");
         assert_eq!(choose_compute(&bin, "auto"), "cpu");
         assert_eq!(choose_compute(&bin, "cuda"), "cpu");
+        assert_eq!(choose_compute(&bin, "gpu"), "cpu");
+    }
+
+    /// `gpu` is the reader's word for the card and never names a build. It
+    /// resolves to whichever graphics build this machine can run, and to the
+    /// processor when it can run neither — which is the state `Nástroje` has
+    /// to report rather than hide.
+    #[test]
+    fn the_card_is_chosen_as_a_family_not_as_a_build() {
+        let bin = machine_with(&["cuda", "vulkan", "cpu"]);
+        let chosen = choose_compute(&bin, "gpu");
+        if has_nvidia() {
+            assert_eq!(chosen, "cuda", "CUDA is the faster build on an NVIDIA card");
+        } else if has_vulkan() {
+            assert_eq!(chosen, "vulkan", "no NVIDIA driver leaves Vulkan");
+        } else {
+            assert_eq!(
+                chosen, "cpu",
+                "no graphics driver at all: it must still run"
+            );
+        }
+    }
+
+    /// Asking for the processor is honoured even where a card would be faster.
+    /// Automatic is the state that prefers the card; a pick is a pick.
+    #[test]
+    fn the_processor_can_be_asked_for_over_a_usable_card() {
+        let bin = machine_with(&["cuda", "vulkan", "cpu"]);
+        assert_eq!(choose_compute(&bin, "cpu"), "cpu");
+    }
+
+    /// Automatic takes the fastest build the machine can run, which is the
+    /// whole promise of the resting state.
+    #[test]
+    fn automatic_prefers_the_card_over_the_processor() {
+        let bin = machine_with(&["vulkan", "cpu"]);
+        let expected = if has_vulkan() { "vulkan" } else { "cpu" };
+        assert_eq!(choose_compute(&bin, "auto"), expected);
+    }
+
+    /// A build that is not downloaded cannot be chosen, however it was asked
+    /// for. The processor pick on a machine that only downloaded the graphics
+    /// build is the reported case: it runs on the card, and the screen has to
+    /// say that it did.
+    #[test]
+    fn a_build_that_is_not_downloaded_is_not_chosen() {
+        let bin = machine_with(&["vulkan"]);
+        // Vulkan either because the driver is there, or as the only build on
+        // the disk when it is not. Both are the same answer to this test: the
+        // processor was asked for and is not what will run.
+        assert_eq!(choose_compute(&bin, "cpu"), "vulkan");
     }
 }
 
@@ -1099,5 +1319,45 @@ mod tests {
         // The path is a UUID-named child of the system temp directory created
         // by this test, never a shared model or application directory.
         std::fs::remove_dir_all(directory).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod memory_tests {
+    use super::*;
+
+    /// Windows reports what the operating system may use, not what is in the
+    /// slots. A 16 GB machine answers about 15.8 GiB, and the screen has to say
+    /// 16 — that is the number the reader can check against their own computer.
+    #[test]
+    fn the_reading_is_rounded_to_the_number_on_the_box() {
+        assert_eq!(memory_gigabytes(17_179_869_184), Some(16), "a clean 16 GiB");
+        assert_eq!(
+            memory_gigabytes(17_005_137_920),
+            Some(16),
+            "16 GB with the firmware's share taken out"
+        );
+        assert_eq!(memory_gigabytes(8_465_104_896), Some(8));
+        assert_eq!(memory_gigabytes(34_284_924_928), Some(32));
+    }
+
+    /// A reading that cannot be true is not a small machine; it is a failed
+    /// call. Nothing goes on screen for it.
+    #[test]
+    fn an_unbelievable_reading_is_not_reported() {
+        assert_eq!(memory_gigabytes(0), None);
+        assert_eq!(memory_gigabytes(64 * 1024 * 1024), None);
+    }
+
+    /// The reading itself, on the machine running the tests. It is the half
+    /// that no arithmetic can check: whether the call is wired up at all.
+    #[cfg(windows)]
+    #[test]
+    fn this_machine_says_how_much_memory_it_has() {
+        let gigabytes = total_memory_gb().expect("Windows must be able to answer this");
+        assert!(
+            (1..=4096).contains(&gigabytes),
+            "implausible reading: {gigabytes} GB"
+        );
     }
 }
