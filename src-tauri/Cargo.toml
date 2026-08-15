@@ -24,12 +24,21 @@ webview2-com = "0.38.2"
 # Win32_System_SystemInformation carries GlobalMemoryStatusEx and MEMORYSTATUSEX,
 # which is how `tools::total_memory_gb` reads how much memory this computer has —
 # the one fact the first-run question needs and had no way to ask for.
+# Three more for the window's own icon, which the title bar was stretching from
+# 16 px: Win32_UI_WindowsAndMessaging carries LoadImageW, SendMessageW and the
+# metrics constants; Win32_UI_HiDpi carries GetDpiForWindow, which is what makes
+# the metric this screen's rather than a nominal 96 dpi one; and
+# Win32_System_LibraryLoader carries GetModuleHandleW, which names the module
+# the icon resource lives in.
 windows = { version = "0.61.3", features = [
     "Win32_Foundation",
     "Win32_Security",
     "Win32_System_JobObjects",
+    "Win32_System_LibraryLoader",
     "Win32_System_SystemInformation",
     "Win32_System_Threading",
+    "Win32_UI_HiDpi",
+    "Win32_UI_WindowsAndMessaging",
 ] }
 # The graphics card, and the reason it is only asked for here. ONNX Runtime has
 # no Vulkan provider and never has, so the AMD route is DirectML — which exists
