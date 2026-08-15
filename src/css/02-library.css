@@ -605,11 +605,48 @@
   transition: min-height 0.18s ease, padding 0.18s ease, border-radius 0.18s ease,
     background 0.18s ease, box-shadow 0.18s ease;
 }
-.archive-drop-zone-mark { grid-area: mark; margin-bottom: 4px; opacity: 0.9; }
+/* 63 px, not the cube's 56, and no `opacity: 0.9` with it. The height is the
+   2.4× the owner settled on at the drawing's own 26.2 unit box; the cube was
+   dimmed because a three-colour solid at full strength shouted over the sentence
+   under it, and a black outline with nothing in it has no such problem.
+
+   The face is written rather than placed, so its two layers and the pen between
+   them live here. The outline is the same line colour as the dashed panel around
+   it — it belongs to the empty state and not to the mark yet. */
+.archive-drop-zone-mark { grid-area: mark; margin-bottom: 4px; }
 .archive-drop-zone-mark svg {
-  height: 56px; width: auto; display: block;
+  height: 63px; width: auto; display: block;
   transition: height 0.18s ease;
 }
+.olo-face { display: block; }
+.olo-face-guide path { fill: var(--line-field); }
+.olo-face-ink path { fill: var(--text); }
+/* A flat front, not a round one. A round cap is a disc of half the stroke's
+   width, and on a ring whose centreline is 4.35 across that disc reaches parts
+   of the letter the pen has not got to yet — black appears where the pen is not.
+   A flat front advances as a clean radial cut and may be wider than the shape,
+   because the letterform clips whatever spills.
+
+   `100 200` and a resting offset of 101, not `100` and `100`: the browser
+   rescales the real curve onto the hundred units `pathLength` declares, and at
+   exactly 100 the resting state sits on the boundary between the drawn and
+   undrawn halves of the pattern. Rounding then leaves a sliver at the start of
+   each stroke — on a six-unit-wide pen, a visible tick on the outline before
+   anything has begun. One unit of slack puts the rest inside the undrawn part.
+   It costs 1 % of a stroke's time drawing nothing. */
+.olo-pen {
+  fill: none; stroke: #fff;
+  stroke-linecap: butt; stroke-linejoin: round;
+  stroke-dasharray: 100 200; stroke-dashoffset: 101;
+  transition-property: stroke-dashoffset;
+  transition-timing-function: var(--olo-ease);
+  transition-duration: calc(var(--olo-writing) * var(--pen-duration));
+  transition-delay: calc(var(--olo-writing) * var(--pen-start));
+}
+.olo-pen-1, .olo-pen-3 { stroke-width: 6; }
+.olo-pen-2, .olo-pen-4 { stroke-width: 5; }
+.olo-face.drawn .olo-pen { stroke-dashoffset: 0; }
+.olo-face.still .olo-pen { transition: none; }
 .archive-drop-zone-copy { grid-area: copy; min-width: 0; }
 .archive-drop-zone-copy h1 {
   font-size: 26px; font-weight: 700; margin: 0;
@@ -638,7 +675,7 @@
   justify-items: stretch; gap: 12px; min-height: 85px; padding: 14px 16px;
 }
 .archive-drop-zone.compact .archive-drop-zone-mark { margin: 0; align-self: center; }
-.archive-drop-zone.compact .archive-drop-zone-mark svg { height: 34px; }
+.archive-drop-zone.compact .archive-drop-zone-mark svg { height: 38px; }
 .archive-drop-zone.compact .archive-drop-zone-copy {
   align-self: center; text-align: left;
 }

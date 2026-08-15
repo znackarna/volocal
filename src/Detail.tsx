@@ -13,7 +13,7 @@ import NameDialog from "./NameDialog";
 import Select from "./Select";
 import { LineIcon, type LineIconName } from "./icons";
 import { changedWords, plain } from "./transcriptText";
-import mark from "./mark.svg?raw";
+import { Wordmark } from "./Brand";
 import {
   EMPTY_WAVEFORM,
   MiniPlayer,
@@ -1954,11 +1954,13 @@ export default function Detail({
     <main className="detail">
       <div className="detail-header">
         <div ref={headerLeftRef} className="detail-header-left">
+          {/* Already closed by the time anybody is here: the intro belongs to
+              starting the application, and this screen is always reached from
+              the archive. It opens under the pointer like the archive's does,
+              which is the one place in the application where the full name is
+              still a keystroke away from a reader who wants it. */}
           <span className="detail-mark header-brand-mark" aria-hidden>
-            <span
-              className="logotype"
-              dangerouslySetInnerHTML={{ __html: mark }}
-            />
+            <Wordmark label="" />
           </span>
           <button className="button quiet detail-back-button" onClick={onBack}>
             <svg width="14" height="12" viewBox="0 0 14 12" aria-hidden>
