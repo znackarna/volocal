@@ -367,7 +367,7 @@
         </span>
       </div>
       <div class="appbar">
-        <div class="brand" id="hero" data-variant="a" style="--u:1; --dur:620ms; --dur-hover:310ms; --ease:cubic-bezier(.65,0,.35,1)"></div>
+        <div class="brand" id="hero" data-variant="b" style="--u:1; --dur:1000ms; --dur-hover:500ms; --ease:cubic-bezier(.65,0,.35,1)"></div>
         <div class="appbar-right">
           <span>+ Nový přepis</span>
           <span>Nastavení</span>
@@ -383,12 +383,12 @@
           <input type="range" id="hold" min="0" max="15000" step="250" value="5000">
         </div>
         <div class="ctl">
-          <label for="dur">Délka přechodu <span class="val" id="dur-v">620 ms</span></label>
-          <input type="range" id="dur" min="160" max="1600" step="20" value="620">
+          <label for="dur">Délka přechodu <span class="val" id="dur-v">1000 ms</span></label>
+          <input type="range" id="dur" min="160" max="1600" step="20" value="1000">
         </div>
         <div class="ctl">
-          <label for="durh">Rozvinutí na hover <span class="val" id="durh-v">310 ms</span></label>
-          <input type="range" id="durh" min="80" max="700" step="10" value="310">
+          <label for="durh">Rozvinutí na hover <span class="val" id="durh-v">500 ms</span></label>
+          <input type="range" id="durh" min="80" max="700" step="10" value="500">
         </div>
         <div class="ctl">
           <label for="tmgap">Mezera před ™ <span class="val" id="tmgap-v">0,00</span></label>
@@ -425,12 +425,12 @@
       <p>Všechny končí stejně. Liší se tím, co udělají <code>v</code> a <code>cal</code> cestou ven — a to je ta volba. Hover funguje na všech třech, zkuste na ně najet.</p>
     </div>
     <div class="variants" id="variants">
-      <div class="variant picked" data-v="a">
+      <div class="variant" data-v="a">
         <h3><b>A</b> Výřez</h3>
         <div class="variant-stage"><div class="brand" data-variant="a" style="--u:1.15"></div></div>
         <p>Krajní písmena zhasnou na místě, <code>olo</code> se sveze doleva. Jedna doba, jedna křivka. Nejtišší.</p>
       </div>
-      <div class="variant" data-v="b">
+      <div class="variant picked" data-v="b">
         <h3><b>B</b> Vysunutí</h3>
         <div class="variant-stage"><div class="brand" data-variant="b" style="--u:1.15"></div></div>
         <p>Nic nebledne. <code>v</code> odjede vlevo z rámu, <code>cal</code> vpravo. Fyzičtější, ale <code>cal</code> musí urazit 44 jednotek.</p>
