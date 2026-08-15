@@ -6,6 +6,18 @@ The reasoning behind individual decisions lives in `docs/history/`, day by day,
 and every published version also has its notes on the
 [releases page](../../releases).
 
+## 1.2.4 — 17 August 2026
+
+- **The header's letters leave the frame instead of fading.** Closing to the
+  mark, `v` drives off to the left and `cal` to the right, and the box clips them
+  because it closes at the same time. It takes a second now rather than 620 ms,
+  and opening under the pointer takes half a second rather than 310 ms — the
+  same time over a longer distance read as a snatch rather than a departure.
+
+It also puts the header in step with what the mark does while a transcript runs:
+the rolling mill is machinery, and letters leaving on rails belong with it in a
+way that fading in place did not.
+
 ## 1.2.3 — 17 August 2026
 
 - **The update notice now hands over what it found.** Told a version was
