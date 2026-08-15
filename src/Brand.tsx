@@ -12,12 +12,18 @@ import {
  *  because two of them decide when a `setTimeout` fires as well as how long a
  *  transition runs, and a duration split across two files goes out of step. */
 const HEADER = {
-  /** The change between the two states, whichever way it goes.
+  /** How long the full name stands before it closes.
    *
-   *  One number now, where there were two. The staged 620 ms belonged to an
-   *  introduction that ran on a clock; both directions are an answer to a hand,
-   *  and an answer that takes 600 ms reads as an application thinking about it. */
-  turn: 310,
+   *  Ten seconds, on the owner's word after watching two and a half: *je to moc
+   *  rychlé*. The full name is the only place the application says what it is
+   *  called, and a reader who looked away for a moment had missed it. */
+  hold: 10_000,
+  /** The closing itself. */
+  collapse: 620,
+  /** Opening again under the pointer. Shorter than the closing on purpose: the
+   *  intro is staged, this is an answer to a hand, and an answer that takes
+   *  600 ms reads as an application that is thinking about it. */
+  hover: 310,
   ease: "cubic-bezier(.65,0,.35,1)",
 };
 
@@ -34,6 +40,15 @@ const FACE = {
   writing: 1800,
   ease: "cubic-bezier(.45,.05,.35,1)",
 };
+
+/** When the application started, near enough.
+ *
+ *  The intro is counted from here rather than from the header mounting, because
+ *  the header unmounts on the way into a transcript and mounts again on the way
+ *  back. At two and a half seconds that hardly mattered; at ten it would mean
+ *  the countdown restarting on every navigation, so the name would keep
+ *  re-introducing itself to anybody moving around the application. */
+const APP_STARTED = Date.now();
 
 /** What the mark does while a transcript is running.
  *
@@ -62,47 +77,65 @@ const MILL = {
   smileTurn: 62,
 };
 
-/** The face is written once per launch, not once per arrival: the archive is
- *  left and re-entered all day, and a mark that wrote itself out every time
- *  would be the same joke told twenty times before lunch. */
+/** Both animations belong to starting the application, not to arriving at a
+ *  screen. The archive is left and re-entered all day — from a transcript, from
+ *  Settings — and a mark that re-introduced itself every time would be the same
+ *  joke told twenty times before lunch. */
+let headerIntroPlayed = false;
 let faceWritten = false;
 
 const stillWanted = () =>
   typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /**
- * The application's name, whole or cropped to its own middle.
+ * The application's name in the header, which closes to its own middle.
  *
- * `volocal` holds `olo`, and the smile is already centred under it, so the two
- * states are not two logos but one drawing and a crop of it that was always
- * there. `v` and `cal` fade, the middle slides to the left edge, the ™ comes to
- * rest against the second `o`, and the box closes to match.
- *
- * **Which state is the resting one belongs to the screen** — *ať je na stránce
- * archivu logo celé a na hover se smrskne, a na detailu to nechme jak to je,
- * naopak*. The archive is where somebody arrives and where there is room, so it
- * carries the name in full; a transcript is somebody's own recording and the
- * mark steps back to its middle. The pointer shows the other state either way,
- * so neither screen hides anything.
- *
- * **The timed introduction went with this**, and it had to: it closed the mark
- * ten seconds after launch, which on a screen whose resting state is now open
- * would have contradicted itself within those ten seconds. The crop is not lost
- * — it happens on the way into a transcript, where it is caused by something the
- * reader did rather than by a clock.
+ * `volocal` holds `olo`, and the smile is already centred under it, so what
+ * happens here is not a change of logo but a crop that was always there. `v`
+ * and `cal` fade, the middle slides to the left edge, the ™ comes to rest
+ * against the second `o`, and the box closes to match.
  */
-export function Wordmark({ label, rest }: { label: string; rest: "open" | "closed" }) {
+export function Wordmark({ label }: { label: string }) {
+  const [closed, setClosed] = useState(headerIntroPlayed);
+  /** Only after the intro has landed does the pointer get to open it again. A
+   *  hand already resting on the header at start would otherwise cancel the
+   *  intro before anybody saw it. */
+  const [ready, setReady] = useState(headerIntroPlayed);
   const [still] = useState(stillWanted);
+
+  useEffect(() => {
+    if (headerIntroPlayed) return undefined;
+    if (still) {
+      headerIntroPlayed = true;
+      setClosed(true);
+      setReady(true);
+      return undefined;
+    }
+    /* The flag is set when the closing starts rather than when this effect
+       runs, so a mount that is torn down again before anything moved does not
+       spend the intro. */
+    const left = Math.max(0, APP_STARTED + HEADER.hold - Date.now());
+    const close = window.setTimeout(() => {
+      headerIntroPlayed = true;
+      setClosed(true);
+    }, left);
+    const settle = window.setTimeout(() => setReady(true), left + HEADER.collapse + 60);
+    return () => {
+      window.clearTimeout(close);
+      window.clearTimeout(settle);
+    };
+  }, [still]);
 
   return (
     <span
-      className={`wordmark rest-${rest}${still ? " still" : ""}`}
+      className={`wordmark${closed ? " closed" : ""}${ready ? " ready" : ""}${still ? " still" : ""}`}
       style={
         {
           "--wordmark-closed": CLOSED_WIDTH,
           "--wordmark-shift": -WORDMARK.oloStart,
           "--wordmark-tm": TM_SHIFT,
-          "--wordmark-turn": `${HEADER.turn}ms`,
+          "--wordmark-collapse": `${HEADER.collapse}ms`,
+          "--wordmark-hover": `${HEADER.hover}ms`,
           "--wordmark-ease": HEADER.ease,
         } as React.CSSProperties
       }
