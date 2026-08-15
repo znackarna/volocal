@@ -203,7 +203,17 @@ export function ZnackarnaMark({ label }: { label: string }) {
  */
 export function OloFace({ working = false }: { working?: boolean }) {
   const maskId = `pen-${useId()}`;
+  /** The pen has been told to go. */
   const [drawn, setDrawn] = useState(faceWritten);
+  /** The pen has arrived, and the outline and the mask can go.
+   *
+   *  **Two states rather than one, and the one was a defect.** `drawn` did three
+   *  jobs at once: it started the pen, and it also took away the outline and the
+   *  mask — and the mask is what makes the pen visible at all. So the moment the
+   *  pen was told to draw, the thing it draws on disappeared and the face simply
+   *  appeared. The writing has to keep both until it has finished, not until it
+   *  has begun. */
+  const [written, setWritten] = useState(faceWritten);
   const [still] = useState(stillWanted);
   /** Lags `working` on the way down, so the last sheet can come to rest. */
   const [milling, setMilling] = useState(false);
@@ -214,13 +224,21 @@ export function OloFace({ working = false }: { working?: boolean }) {
     if (still) {
       faceWritten = true;
       setDrawn(true);
+      setWritten(true);
       return undefined;
     }
     const pen = window.setTimeout(() => {
       faceWritten = true;
       setDrawn(true);
     }, FACE.after);
-    return () => window.clearTimeout(pen);
+    /* A little past the last stroke's end. The margin is there because the
+       outline sits exactly under the ink: taking it away a frame early would
+       show nothing, and a frame late costs nothing. */
+    const home = window.setTimeout(() => setWritten(true), FACE.after + FACE.writing + 120);
+    return () => {
+      window.clearTimeout(pen);
+      window.clearTimeout(home);
+    };
   }, [still]);
 
   /* Starting is immediate; stopping waits.
@@ -277,7 +295,7 @@ export function OloFace({ working = false }: { working?: boolean }) {
         {/* The outline is the pen's own target and has no business being there
             once the pen has finished: while the mark is turning, an unmoved grey
             copy of the face would sit behind the machine. */}
-        {!drawn && (
+        {!written && (
           <g className="olo-face-guide">
             <path d={GLYPH.o1} />
             <path d={GLYPH.l1} />
@@ -308,7 +326,7 @@ export function OloFace({ working = false }: { working?: boolean }) {
             and once the travel is over it can only get in the way — the sheet
             leaves the drawing's own box on every pass, and a mask sized to that
             box would cut it off mid-journey. */}
-        <g className="olo-face-ink" mask={drawn ? undefined : `url(#${maskId})`}>
+        <g className="olo-face-ink" mask={written ? undefined : `url(#${maskId})`}>
           <g className="olo-rot">
             <g className="olo-eyes">
               <path d={GLYPH.o1} />
