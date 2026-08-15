@@ -6,6 +6,20 @@ The reasoning behind individual decisions lives in `docs/history/`, day by day,
 and every published version also has its notes on the
 [releases page](../../releases).
 
+## 1.2.3 — 17 August 2026
+
+- **The update notice now hands over what it found.** Told a version was
+  waiting and pressing the button that says so, a reader arrived at the
+  Aktualizace tab with nothing to press and had to ask for the same answer
+  again. The archive runs that check, so it keeps the answer and passes it on;
+  the panel now opens already naming the version and offering it.
+- **A ghost row under the filter bar.** Rolling the archive back up left a strip
+  of a row that was no longer there. The two blur layers below the sticky
+  header keep the last frame they sampled when the block moves back up the
+  scroller; they are asked for a compositing layer of their own now.
+- **The name holds for five seconds** rather than ten before the header closes
+  to the mark.
+
 ## 1.2.2 — 17 August 2026
 
 Two things put back that 1.2.1 took away.
