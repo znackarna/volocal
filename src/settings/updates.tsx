@@ -128,14 +128,28 @@ export function UpdateCheck({
   onInfo,
   automatic,
   onAutomaticChange,
+  found,
 }: {
   onError: (message: string) => void;
   onInfo: (message: string) => void;
   automatic: boolean;
   onAutomaticChange: (on: boolean) => void;
+  /** What the check at start-up already found, if it found anything.
+   *
+   *  **The notice carries a way here and this is what it hands over.** Without
+   *  it the reader is told a version is waiting, presses the button that says so,
+   *  and arrives at a panel in its resting state with nothing to press —
+   *  having to ask again for an answer the application already had.
+   *
+   *  The version and its notes rather than the update object itself, because
+   *  that is all this panel shows: installing calls `check` again for its own
+   *  reasons, which are written where it does so. */
+  found?: { version: string; notes: string } | null;
 }) {
   const { t, formatDate } = useI18n();
-  const [state, setState] = useState<State>({ at: "idle" });
+  const [state, setState] = useState<State>(
+    found ? { at: "found", version: found.version, notes: found.notes } : { at: "idle" }
+  );
   /** Read once and kept in state so the row moves the moment the button
    *  answers, rather than waiting for somebody to leave the tab and come back.
    *  `localStorage` is the store; this is only what is on screen. */
