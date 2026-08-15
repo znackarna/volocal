@@ -12,8 +12,12 @@ import {
  *  because two of them decide when a `setTimeout` fires as well as how long a
  *  transition runs, and a duration split across two files goes out of step. */
 const HEADER = {
-  /** How long the full name stands before it closes. */
-  hold: 2500,
+  /** How long the full name stands before it closes.
+   *
+   *  Ten seconds, on the owner's word after watching two and a half: *je to moc
+   *  rychlé*. The full name is the only place the application says what it is
+   *  called, and a reader who looked away for a moment had missed it. */
+  hold: 10_000,
   /** The closing itself. */
   collapse: 620,
   /** Opening again under the pointer. Shorter than the closing on purpose: the
@@ -24,12 +28,27 @@ const HEADER = {
 };
 
 const FACE = {
-  /** After the header has finished, not with it. Both are the same drawing and
-   *  two of them moving at once ask for one pair of eyes twice. */
-  after: 260,
+  /** Straight away, and it used to wait for the header.
+   *
+   *  The reason for waiting was that both are the same drawing and two of them
+   *  moving at once ask for one pair of eyes twice. What the hold going to ten
+   *  seconds showed is that the objection was to two things *moving*, and during
+   *  the hold the header does not move — it stands. Sequencing them now would
+   *  leave the empty state as a grey outline for eleven seconds, which reads as
+   *  a screen that failed to load rather than as a mark waiting its turn. */
+  after: 400,
   writing: 2000,
   ease: "cubic-bezier(.45,.05,.35,1)",
 };
+
+/** When the application started, near enough.
+ *
+ *  The intro is counted from here rather than from the header mounting, because
+ *  the header unmounts on the way into a transcript and mounts again on the way
+ *  back. At two and a half seconds that hardly mattered; at ten it would mean
+ *  the countdown restarting on every navigation, so the name would keep
+ *  re-introducing itself to anybody moving around the application. */
+const APP_STARTED = Date.now();
 
 /** Both animations belong to starting the application, not to arriving at a
  *  screen. The archive is left and re-entered all day — from a transcript, from
@@ -68,11 +87,12 @@ export function Wordmark({ label }: { label: string }) {
     /* The flag is set when the closing starts rather than when this effect
        runs, so a mount that is torn down again before anything moved does not
        spend the intro. */
+    const left = Math.max(0, APP_STARTED + HEADER.hold - Date.now());
     const close = window.setTimeout(() => {
       headerIntroPlayed = true;
       setClosed(true);
-    }, HEADER.hold);
-    const settle = window.setTimeout(() => setReady(true), HEADER.hold + HEADER.collapse + 60);
+    }, left);
+    const settle = window.setTimeout(() => setReady(true), left + HEADER.collapse + 60);
     return () => {
       window.clearTimeout(close);
       window.clearTimeout(settle);
@@ -120,6 +140,32 @@ export function Wordmark({ label }: { label: string }) {
 }
 
 /**
+ * The publisher's mark: a red triangle, a green circle, a blue square.
+ *
+ * Its colours are fixed rather than `currentColor`, which is the opposite of
+ * what the product's own mark does and is right for the same reason — a
+ * publisher's mark is a signature and keeps its colours in both themes, where
+ * the product's takes the colour of the text it stands in.
+ *
+ * The three are also where this application's palette came from. The cube that
+ * stood in the header until today was built out of exactly these three values
+ * and no others, so what changed when it left is not that the colours went but
+ * that they stopped belonging to the product.
+ */
+export function ZnackarnaMark({ label }: { label: string }) {
+  return (
+    <svg className="znackarna-mark" viewBox="0 0 88 28" role="img" aria-label={label}>
+      <path d="M31.4428 27.5216H0L15.801 0L31.4428 27.5216Z" fill="#FF1C26" />
+      <path
+        d="M50.7702 1.89426C52.903 3.1567 54.5945 4.86591 55.8459 7.01948C57.0961 9.17304 57.7219 11.5141 57.7219 14.039C57.7219 16.565 57.0961 18.8988 55.8459 21.039C54.5945 23.1791 52.903 24.875 50.7702 26.124C48.6375 27.3743 46.319 27.9988 43.8174 27.9988C41.3157 27.9988 39.0045 27.3743 36.885 26.124C34.7643 24.875 33.0861 23.1791 31.8479 21.039C30.6097 18.8988 29.9912 16.565 29.9912 14.039C29.9912 11.5129 30.6097 9.17304 31.8479 7.01948C33.0861 4.86591 34.7643 3.1567 36.885 1.89426C39.0057 0.631826 41.3169 0 43.8186 0C46.3202 0 48.6375 0.631826 50.7702 1.89426Z"
+        fill="#7AC942"
+      />
+      <path d="M88 27.5215H61.1784V0.438232H87.9988V27.5215H88Z" fill="#007AFF" />
+    </svg>
+  );
+}
+
+/**
  * The mark on its own, written rather than placed.
  *
  * The outline stands there in the line colour from the first frame and a pen
@@ -128,7 +174,7 @@ export function Wordmark({ label }: { label: string }) {
  * a mask, so what advances is the reveal of the black shapes, not a stroke
  * pretending to be them.
  */
-export function OloFace({ delayed = false }: { delayed?: boolean }) {
+export function OloFace() {
   const maskId = `pen-${useId()}`;
   const [drawn, setDrawn] = useState(faceWritten);
   const [still] = useState(stillWanted);
@@ -140,13 +186,12 @@ export function OloFace({ delayed = false }: { delayed?: boolean }) {
       setDrawn(true);
       return undefined;
     }
-    const wait = delayed ? HEADER.hold + HEADER.collapse + FACE.after : FACE.after;
     const pen = window.setTimeout(() => {
       faceWritten = true;
       setDrawn(true);
-    }, wait);
+    }, FACE.after);
     return () => window.clearTimeout(pen);
-  }, [delayed, still]);
+  }, [still]);
 
   return (
     <span

@@ -1954,14 +1954,24 @@ export default function Detail({
     <main className="detail">
       <div className="detail-header">
         <div ref={headerLeftRef} className="detail-header-left">
-          {/* Already closed by the time anybody is here: the intro belongs to
-              starting the application, and this screen is always reached from
-              the archive. It opens under the pointer like the archive's does,
-              which is the one place in the application where the full name is
-              still a keystroke away from a reader who wants it. */}
-          <span className="detail-mark header-brand-mark" aria-hidden>
-            <Wordmark label="" />
-          </span>
+          {/* The mark goes back to the archive here as it does in the archive's
+              own header — *logo volocal by taky mělo vést do archivu na
+              kliknutí*. It was a decorative `span` and the back button beside it
+              carried the whole job, which made the same drawing clickable on one
+              screen and inert on the next.
+
+              So it stops being `aria-hidden` and carries a name: a control that
+              does something has to say what. The back button stays, and the two
+              saying the same thing is not a repetition — one is the way back
+              somebody looks for, the other is the way back everybody already
+              tries. */}
+          <button
+            className="mark detail-mark header-brand-mark"
+            onClick={onBack}
+            title={t("common.archive")}
+          >
+            <Wordmark label={t("common.archive")} />
+          </button>
           <button className="button quiet detail-back-button" onClick={onBack}>
             <svg width="14" height="12" viewBox="0 0 14 12" aria-hidden>
               <path d="M6 1L1 6l5 5M1 6h12" fill="none" stroke="currentColor"

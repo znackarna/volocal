@@ -1062,10 +1062,8 @@ function LibraryDropZone({
   return (
     <div className={`archive-drop-zone ${compact ? "compact" : ""}`}>
       <div className="archive-drop-zone-surface">
-        {/* `delayed`: the header is closing at the same moment on a first run,
-            and both are the same drawing. One after the other, not together. */}
         <span className="archive-drop-zone-mark">
-          <OloFace delayed />
+          <OloFace />
         </span>
         <div className="archive-drop-zone-copy">
           <h1>{t("library.dropZone.title")}</h1>

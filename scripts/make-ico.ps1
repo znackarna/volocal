@@ -4,7 +4,11 @@ param([string]$PngDir, [string]$Out)
 
 Add-Type -AssemblyName System.Drawing
 
-$sizes = 16, 20, 24, 32, 36, 40, 48, 64, 96, 128
+# Zebricek, jaky mela puvodni kostka. `tauri icon` dela sest velikosti; tenhle
+# soubor jich nese devatenact, aby Windows nikdy nemusely prevzorkovavat —
+# 24 chce zahlavi okna a 36 hlavni panel pri 150 %, a ani jedna z nich v sestce
+# nebyla.
+$sizes = 16, 20, 24, 28, 30, 32, 36, 40, 44, 48, 56, 60, 64, 72, 80, 96, 128, 192
 $entries = @()
 
 foreach ($s in $sizes) {

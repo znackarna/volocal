@@ -237,7 +237,11 @@ button, input, select, textarea { font: inherit; color: inherit; }
   display: block; overflow: hidden;
   width: 82px; height: 25px;
   color: var(--text);
-  transform: translateY(2px);
+  /* `position`/`top`, not `transform: translateY`. The offset is the same, but a
+     transform on this box makes it a compositing layer and hands everything
+     inside it to the rasteriser; `top` moves it in layout and leaves the drawing
+     a drawing. */
+  position: relative; top: 2px;
   transition: width var(--wordmark-collapse) var(--wordmark-ease);
 }
 .wordmark-svg { display: block; width: 82px; height: 25px; flex: 0 0 auto; }

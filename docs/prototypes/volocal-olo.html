@@ -305,7 +305,7 @@
         </span>
       </div>
       <div class="appbar">
-        <div class="brand" id="hero" data-variant="a" style="--u:1; --dur:620ms; --dur-hover:220ms; --ease:cubic-bezier(.65,0,.35,1)"></div>
+        <div class="brand" id="hero" data-variant="a" style="--u:1; --dur:620ms; --dur-hover:310ms; --ease:cubic-bezier(.65,0,.35,1)"></div>
         <div class="appbar-right">
           <span>+ Nový přepis</span>
           <span>Nastavení</span>
@@ -317,20 +317,20 @@
     <div class="panel">
       <div class="controls">
         <div class="ctl">
-          <label for="hold">Výdrž plného nápisu <span class="val" id="hold-v">900 ms</span></label>
-          <input type="range" id="hold" min="0" max="2500" step="50" value="900">
+          <label for="hold">Výdrž plného nápisu <span class="val" id="hold-v">10000 ms</span></label>
+          <input type="range" id="hold" min="0" max="15000" step="250" value="10000">
         </div>
         <div class="ctl">
           <label for="dur">Délka přechodu <span class="val" id="dur-v">620 ms</span></label>
           <input type="range" id="dur" min="160" max="1600" step="20" value="620">
         </div>
         <div class="ctl">
-          <label for="durh">Rozvinutí na hover <span class="val" id="durh-v">220 ms</span></label>
-          <input type="range" id="durh" min="80" max="700" step="10" value="220">
+          <label for="durh">Rozvinutí na hover <span class="val" id="durh-v">310 ms</span></label>
+          <input type="range" id="durh" min="80" max="700" step="10" value="310">
         </div>
         <div class="ctl">
-          <label for="tmgap">Mezera před ™ <span class="val" id="tmgap-v">2,56</span></label>
-          <input type="range" id="tmgap" min="0" max="5" step="0.02" value="2.56">
+          <label for="tmgap">Mezera před ™ <span class="val" id="tmgap-v">0,00</span></label>
+          <input type="range" id="tmgap" min="0" max="5" step="0.02" value="0">
         </div>
         <div class="ctl">
           <label for="size">Velikost <span class="val" id="size-v">1,00×</span></label>
@@ -399,8 +399,7 @@
       </p>
       <p style="margin:10px 0 0;color:var(--muted);font-size:12.5px">
         <b style="color:var(--ink)">Zvolené hodnoty:</b> psaní 2000 ms · překryv 35 % ·
-        křivka <code>cubic-bezier(.45,.05,.35,1)</code> · obličej 260 ms po hlavičce ·
-        velikost 2,4×. Posuvníky zůstávají, ale tohle je stav, ve kterém se to otevře.
+        křivka <code>cubic-bezier(.45,.05,.35,1)</code> · velikost 2,4× · psaní 400 ms po spuštění. Posuvníky zůstávají, ale tohle je stav, ve kterém se to otevře.
       </p>
     </div>
 
@@ -429,8 +428,8 @@
           <span class="hint" id="ov-note">úsměv dojede o 123 ms po oku</span>
         </div>
         <div class="ctl">
-          <label for="lag">Obličej po hlavičce <span class="val" id="lag-v">+260 ms</span></label>
-          <input type="range" id="lag" min="-600" max="900" step="20" value="260">
+          <label for="lag">Psaní po spuštění <span class="val" id="lag-v">400 ms</span></label>
+          <input type="range" id="lag" min="0" max="3000" step="20" value="400">
         </div>
         <div class="ctl">
           <label for="dease">Křivka tahu</label>
@@ -714,23 +713,23 @@
     requestAnimationFrame(() => face.classList.add('drawn'));
   }
 
-  /* Start aplikace: hlavička se sesune, a teprve až dojede, začne se psát.
-     Naráz by to byly dvě věci, které chtějí totéž oko. */
+  /* Start aplikace: obojí běží od spuštění. Řadit je za sebe mělo smysl, dokud
+     hlavička držela 2,5 s; při 10 s by obličej zůstal šedivý jedenáct sekund a
+     to čte jako obrazovka, která se nenačetla. Námitka byla proti dvěma
+     pohybům naráz — a hlavička se během výdrže nehýbe, jen stojí. */
   function playBoth() {
     const s = settings();
     playHero();
     clearTimeout(playBoth._t);
     face.classList.remove('drawn');
-    const lag = Math.max(0, s.hold + s.dur + (+$('lag').value));
-    playBoth._t = setTimeout(playFace, reduced() ? 0 : lag);
+    /* Obojí od spuštění, ne jedno po druhém. Hlavička během výdrže nestojí
+       v cestě — ona stojí, tečka — takže obličej nemá na co čekat. */
+    playBoth._t = setTimeout(playFace, reduced() ? 0 : Math.max(0, +$('lag').value));
   }
 
   ['hold','dur','durh','tmgap','draw','size','ease','dease','ov'].forEach(id => $(id).addEventListener('input', apply));
   $('ov').addEventListener('change', playFace);
-  $('lag').addEventListener('input', () => {
-    const v = +$('lag').value;
-    $('lag-v').textContent = (v > 0 ? '+' : '') + v + ' ms';
-  });
+  $('lag').addEventListener('input', () => { $('lag-v').textContent = $('lag').value + ' ms'; });
   $('lag').addEventListener('change', playBoth);
   $('dease').addEventListener('change', () => { apply(); playFace(); });
   $('fsize').addEventListener('input', () => {
