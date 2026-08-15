@@ -20,11 +20,11 @@ const HEADER = {
    *  the thing on screen that has not settled yet. */
   hold: 5_000,
   /** The closing itself. */
-  collapse: 620,
+  collapse: 1_000,
   /** Opening again under the pointer. Shorter than the closing on purpose: the
    *  intro is staged, this is an answer to a hand, and an answer that takes
    *  600 ms reads as an application that is thinking about it. */
-  hover: 310,
+  hover: 500,
   ease: "cubic-bezier(.65,0,.35,1)",
 };
 
