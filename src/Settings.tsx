@@ -15,6 +15,7 @@ import ConfirmationDialog from "./ConfirmationDialog";
 import type { ConfirmationRequest } from "./ConfirmationDialog";
 import CountdownRing from "./CountdownRing";
 import InfoNote from "./InfoNote";
+import { ZnackarnaMark } from "./Brand";
 import { LineIcon, ModelMark, type LineIconName } from "./icons";
 import Select from "./Select";
 import { useI18n, type AppLanguage } from "./i18n";
@@ -2284,6 +2285,15 @@ export default function SettingsScreen({
  *  i18n-ignore: an address, the same in every language */
 const WEBSITE = "https://github.com/znackarna/volocal";
 
+/** Who made this, on the `Autor` row and as the drawn mark's accessible name.
+ *
+ *  Named once because it is now read twice — the drawing carries it for anybody
+ *  listening, the type carries it for anybody looking — and two literals would
+ *  be two chances to correct only one of them.
+ *
+ *  i18n-ignore: a company name, and it mirrors `src-tauri/Cargo.toml` */
+const PUBLISHER = "značkárna s.r.o.";
+
 /**
  * What the application is, what it does, and what it is made of.
  *
@@ -2393,8 +2403,20 @@ function About({ onError }: { onError: (message: string) => void }) {
               <span className="about-mark"><LineIcon name="author" size={17} /></span>
               {t("settings.about.author")}
             </dt>
-            {/* i18n-ignore: a company name, and it mirrors src-tauri/Cargo.toml */}
-            <dd>značkárna s.r.o.</dd>
+            {/* The drawn mark rather than the name set in the interface font.
+                This is the row that answers *who made this*, and until now it
+                answered in type while the publisher has a drawing of its own —
+                the same three colours the product's cube was built from before
+                it left the interface.
+
+                The name stays beside it rather than being replaced by it: a
+                mark alone says who to somebody who already knows, and this row
+                exists for everybody else. The accessible name is on the drawing,
+                so a screen reader hears it once and not twice. */}
+            <dd className="about-author">
+              <ZnackarnaMark label={PUBLISHER} />
+              <span aria-hidden>{PUBLISHER}</span>
+            </dd>
           </div>
           <div className="about-row">
             <dt>

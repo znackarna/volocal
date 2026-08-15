@@ -211,28 +211,75 @@ button, input, select, textarea { font: inherit; color: inherit; }
   background: none; border: 0; cursor: pointer;
   border-radius: var(--r-pill);
 }
-/* The mark is an upright isometric cube; 24 px suits it in the bar. */
-.logotype { display: block; }
-.logotype svg { height: 24px; width: auto; display: block; }
-/* The drawn wordmark beside the mark, in the archive's header. Both numbers
-   are measured off the printed lockup (`src-tauri/nsis/header.bmp`) rather
-   than chosen, so the pair sits here the way it sits on the installer: there
-   the cube's ink is 81 px tall, the wordmark's is 50, and 19 px separate them.
-   Against a 24 px cube that is 14.8 px and 5.6 px. If the cube's height
-   changes, scale both from it — do not round them to whole pixels first.
-   `currentColor` inside the file, `--text` here: black on the light theme,
-   white on the dark one, one file for both.
+/* `.logotype` and `.header-brand-name` stood here — the isometric cube at 24 px
+   and the wordmark beside it at 14.8, with 5.6 px between them and the wordmark
+   dropped 1.9 px. Every one of those numbers was measured off the printed lockup
+   in `src-tauri/nsis/header.bmp` so that the header would sit the way the
+   installer sits, and every one of them described a pair. The header carries one
+   drawing now, so there is no pair to keep in step and nothing left to measure
+   against. The installer art still shows the cube and is the open half of this
+   change.
 
-   And it is not centred on the cube. On the installer the cube's ink is
-   centred at y 56 and the wordmark's at 62.5 — the wordmark sits 6.5 px lower,
-   which is 1.9 px at this size. That offset is the lockup, not a mistake: the
-   ™ lifts the top of the wordmark's ink box and the smile under the `o` drops
-   its bottom, so ink-centring the two would not look like the artwork. */
-.header-brand-name {
-  display: block; margin-left: 5.6px; color: var(--text);
-  transform: translateY(1.9px);
+   82 × 25 is the drawing's own viewBox at 1:1. The geometry of the closed state
+   is not repeated here — `--wordmark-closed`, `--wordmark-shift` and
+   `--wordmark-tm` arrive from `brand.ts`, which is where the outlines are, so a
+   redrawn letterform cannot leave this file saying something else. */
+/* 2 px down, and this is a correction that was here before and got deleted with
+   the rest of the lockup. The old rule dropped the wordmark 1.9 px and said why:
+   the ™ lifts the top of the drawing's box and the smile under the `o` drops its
+   bottom, so a box centred in the bar does not put the letters where the eye
+   expects them. The letters themselves run y 0.08 to 16.52 in a 25 tall box —
+   their weight sits above the middle, and the mark reads as flying upward.
+
+   That reasoning was never about the cube, so it survived the cube. Two, on the
+   owner's word, where the artwork gave 1.9. */
+.wordmark {
+  display: block; overflow: hidden;
+  width: 82px; height: 25px;
+  color: var(--text);
+  /* `position`/`top`, not `transform: translateY`. The offset is the same, but a
+     transform on this box makes it a compositing layer and hands everything
+     inside it to the rasteriser; `top` moves it in layout and leaves the drawing
+     a drawing. */
+  position: relative; top: 2px;
+  transition: width var(--wordmark-collapse) var(--wordmark-ease);
 }
-.header-brand-name svg { height: 14.8px; width: auto; display: block; }
+.wordmark-svg { display: block; width: 82px; height: 25px; flex: 0 0 auto; }
+.wordmark-svg path { fill: currentColor; }
+.wordmark-shift, .wordmark-v, .wordmark-cal, .wordmark-tm {
+  transition: transform var(--wordmark-collapse) var(--wordmark-ease),
+              opacity var(--wordmark-collapse) var(--wordmark-ease);
+}
+.wordmark.closed { width: calc(var(--wordmark-closed) * 1px); }
+.wordmark.closed .wordmark-shift { transform: translateX(calc(var(--wordmark-shift) * 1px)); }
+.wordmark.closed .wordmark-tm { transform: translateX(calc(var(--wordmark-tm) * 1px)); }
+.wordmark.closed .wordmark-v { opacity: 0; transform: translateX(-7px); }
+.wordmark.closed .wordmark-cal { opacity: 0; transform: translateX(7px); }
+
+/* Under the pointer it opens again, and quicker than it closed: the closing is
+   staged and this is an answer to a hand.
+
+   `:focus-visible` beside `:hover`, because this mark is a button — it goes back
+   to the archive — and an affordance only a pointer can reach would leave every
+   keyboard reader with a name they never see. `.ready` is what keeps a hand that
+   happens to be resting here at start from cancelling the intro. */
+.wordmark.ready, .wordmark.ready .wordmark-shift, .wordmark.ready .wordmark-v,
+.wordmark.ready .wordmark-cal, .wordmark.ready .wordmark-tm {
+  transition-duration: var(--wordmark-hover);
+}
+.header-brand-mark:hover .wordmark.ready,
+.header-brand-mark:focus-visible .wordmark.ready { width: 82px; }
+.header-brand-mark:hover .wordmark.ready .wordmark-shift,
+.header-brand-mark:hover .wordmark.ready .wordmark-tm,
+.header-brand-mark:hover .wordmark.ready .wordmark-v,
+.header-brand-mark:hover .wordmark.ready .wordmark-cal,
+.header-brand-mark:focus-visible .wordmark.ready .wordmark-shift,
+.header-brand-mark:focus-visible .wordmark.ready .wordmark-tm,
+.header-brand-mark:focus-visible .wordmark.ready .wordmark-v,
+.header-brand-mark:focus-visible .wordmark.ready .wordmark-cal {
+  transform: none; opacity: 1;
+}
+.wordmark.still, .wordmark.still * { transition: none !important; }
 .bar-left { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .bar-right { display: flex; align-items: center; gap: 4px; }
 /* The pills sit at the right edge, before the named actions. Half the space

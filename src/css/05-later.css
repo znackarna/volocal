@@ -438,6 +438,19 @@ button.current > .row-play { color: var(--accent); }
   font-weight: 600; text-align: right; font-variant-numeric: tabular-nums;
 }
 
+/* The publisher's mark beside its name, on the row that answers who made this.
+   `dd` sets `text-align: right`, which does nothing to a flex box, so the row
+   is pushed to its right edge from here instead.
+
+   14 px tall, which is the cap height of the 14 px name beside it rather than
+   the name's line box — the mark is three solid shapes and would out-weigh the
+   type at the same nominal size. 9 px between them: the amount a label and its
+   field take everywhere else, and the two are that same kind of pair. */
+.about-author {
+  display: flex; align-items: center; justify-content: flex-end; gap: 9px;
+}
+.znackarna-mark { display: block; height: 14px; width: auto; flex: 0 0 auto; }
+
 /* -------------------------------------------------------------- about */
 /* What the application can do, one line each. The 30 px circle and the 17 px
    icon are the sidebar headings' geometry, so a row here weighs the same as

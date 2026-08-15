@@ -17,9 +17,7 @@ import RecordingMetadataIcon from "./RecordingMetadataIcon";
 import ProgressBubble from "./ProgressBubble";
 import type { CSSProperties } from "react";
 import type { RecordingMetadataKind } from "./RecordingMetadataIcon";
-// inlined into the page rather than via <img>, for sharpness and colours
-import mark from "./mark.svg?raw";
-import wordmark from "./wordmark.svg?raw";
+import { Wordmark } from "./Brand";
 /* Imported plainly rather than behind `await import(...)`. Deferring it looked
    like it kept the updater out of the bundle until somebody turned the check
    on — it did not: the About page imports the same module directly, so it is
@@ -1208,28 +1206,17 @@ export default function App() {
             loadRecordings();
           }}
         >
-          <span
-            className="logotype"
-            aria-label={t("app.name")}
-            dangerouslySetInnerHTML={{ __html: mark }}
-          />
-          {/* Only in the Archive. Deeper in, the header carries the recording
-              or the screen the reader is in, and a wordmark repeated there
-              would take room from what actually changes. */}
-          {screen === "library" && (
-            /* The drawn wordmark rather than the name set in the interface
-               font: it carries its own letterforms, the smile under the `o`
-               and the ™, none of which type can reproduce. Its paths are
-               `currentColor`, so it is black on the light theme and white on
-               the dark one without a second file.
-               Hidden from assistive technology — the mark it stands beside
-               already carries the application's name. */
-            <span
-              className="header-brand-name"
-              aria-hidden
-              dangerouslySetInnerHTML={{ __html: wordmark }}
-            />
-          )}
+          {/* One drawing, on every screen this header appears on. The cube and
+              the wordmark stood here as a pair, and the wordmark only in the
+              archive, because two marks side by side were too much anywhere
+              else. There is no pair to ration now: the name closes to `olo™`
+              and stays that size, which is what made the cube unnecessary.
+
+              The drawn letterforms rather than the name set in the interface
+              font — they carry the smile under the `o` and the ™, neither of
+              which type can reproduce — and `currentColor` throughout, so one
+              file serves the light theme and the dark one. */}
+          <Wordmark label={t("app.name")} />
         </button>
 
         {/* Back navigation follows the brand and precedes the current screen

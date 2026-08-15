@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "./api";
-import mark from "./mark.svg?raw";
+import { OloFace } from "./Brand";
 import InfoNote from "./InfoNote";
 import RecordingMetadataIcon from "./RecordingMetadataIcon";
 import type { RecordingMetadataKind } from "./RecordingMetadataIcon";
@@ -1062,11 +1062,9 @@ function LibraryDropZone({
   return (
     <div className={`archive-drop-zone ${compact ? "compact" : ""}`}>
       <div className="archive-drop-zone-surface">
-        <span
-          className="archive-drop-zone-mark"
-          aria-hidden
-          dangerouslySetInnerHTML={{ __html: mark }}
-        />
+        <span className="archive-drop-zone-mark">
+          <OloFace />
+        </span>
         <div className="archive-drop-zone-copy">
           <h1>{t("library.dropZone.title")}</h1>
           <p>
