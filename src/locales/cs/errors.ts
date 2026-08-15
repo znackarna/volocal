@@ -174,6 +174,9 @@ export const csErrors = {
   "errors.ai.model_load_timeout":
     "Jazyková úprava selhala: načítání jazykového modelu překročilo pět minut",
   "errors.ai.empty_response": "Jazyková úprava selhala: model vrátil prázdný text",
+  "errors.ai.answer_truncated":
+    "Jazyková úprava selhala: modelu došlo místo dřív, než dokument dopsal. " +
+    "Nedopsaný dokument se neukládá, aby nevypadal jako hotový.",
   "errors.ai.server_failed": "Jazyková úprava selhala: jazykový server selhal: {reason}",
   "errors.ai.server_disconnected":
     "Jazyková úprava selhala: spojení s jazykovým serverem se přerušilo",

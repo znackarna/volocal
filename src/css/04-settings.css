@@ -1432,10 +1432,48 @@ button.mic-play:disabled { cursor: default; opacity: 0.6; }
    a length, a language — of the thing being read, not which thing to read.
    So it lives on the grey with the document and carries the edge between the
    two. The tabs above it choose the view and stay with the heading. */
+/* 8 px under the controls where there were none, so the first line of the
+   document clears them by 24 rather than by the 16 its own padding gave. The
+   row is a set of pills on the same grey as the text, with nothing between
+   them, and at 16 the reading started against the buttons. */
 .ai-output-toolbar {
+  position: relative;
   display: flex; align-items: center; gap: 10px;
-  padding: 14px 26px 0; background: var(--ground);
+  padding: 14px 26px 8px; background: var(--ground);
   border-top: 1px solid var(--line);
+}
+/* The document dissolves into the controls above it rather than sliding under
+   a hard edge — the archive's own fade under its sticky header, with the same
+   two layers and the same amounts: a short strong blur against the block and a
+   longer weak one below it, each masked to nothing at its far end so neither
+   has a boundary of its own. One drawing for scrolled-away content, wherever
+   the application shows it.
+
+   Only while something is actually passing underneath: at the top of a document
+   there is nothing to dissolve, and a permanent strip would sit blurring the
+   first line of every one of them. */
+.ai-output-toolbar::before,
+.ai-output-toolbar::after {
+  content: ""; position: absolute; left: 0; right: 0; top: 100%;
+  pointer-events: none;
+  opacity: 0; transition: opacity 0.16s ease;
+}
+.ai-preview-dialog.scrolled .ai-output-toolbar::before,
+.ai-preview-dialog.scrolled .ai-output-toolbar::after { opacity: 1; }
+.ai-output-toolbar::before {
+  height: 42px;
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  background: linear-gradient(to bottom, var(--ground) 0%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0%, #000 15%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 15%, transparent 100%);
+}
+.ai-output-toolbar::after {
+  height: 18px;
+  backdrop-filter: blur(9px);
+  -webkit-backdrop-filter: blur(9px);
+  mask-image: linear-gradient(to bottom, #000, transparent);
+  -webkit-mask-image: linear-gradient(to bottom, #000, transparent);
 }
 .ai-output-toolbar .select { width: 190px; }
 /* The instruction stands in that same strip, where the other tabs keep their

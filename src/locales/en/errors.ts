@@ -119,6 +119,9 @@ export const enErrors: Partial<Record<keyof typeof csErrors, string>> = {
   "errors.ai.server_exited_while_loading": "Language editing failed: the language server exited while loading ({status})",
   "errors.ai.model_load_timeout": "Language editing failed: loading the language model took longer than five minutes",
   "errors.ai.empty_response": "Language editing failed: the model returned empty text",
+  "errors.ai.answer_truncated":
+    "Language editing failed: the model ran out of room before it finished the " +
+    "document. An unfinished document is not kept, so that it cannot look complete.",
   "errors.ai.server_failed": "Language editing failed: the language server failed: {reason}",
   "errors.ai.server_disconnected": "Language editing failed: the connection to the language server was interrupted",
   "errors.ai.server_exited": "Language editing failed: the language server exited during editing ({status})",
