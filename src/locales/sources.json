@@ -400,6 +400,7 @@
     "domain.modelDescription.small": "27aaa58460a6",
     "errors.ai.already_running_elsewhere": "5c9e35da68f9",
     "errors.ai.already_running_here": "8ead3c84271f",
+    "errors.ai.answer_truncated": "473918aaeed1",
     "errors.ai.cancelled": "aa0ef99aff00",
     "errors.ai.document_empty": "445d8d888c09",
     "errors.ai.document_missing": "67ccec1f23e7",
