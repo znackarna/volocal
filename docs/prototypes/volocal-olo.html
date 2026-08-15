@@ -245,6 +245,68 @@
   .dz-note svg { flex: 0 0 auto; }
   .dz-btn { background: var(--ink); color: var(--panel); border-color: var(--ink); margin-top: 4px; }
 
+  /* ---------- válcovna ----------
+     Otočením o 90° se z obličeje stane stroj: dvě `o` přestanou být oči a
+     stanou se válci, dřík přestane být nos a stane se plechem. Nic se
+     nedokresluje — je to táž kresba z jiné strany, což je jediný důvod, proč
+     tenhle nápad může fungovat.
+
+     Plech se hýbe v nepootočených souřadnicích po ose y; teprve rotace rodiče
+     z toho udělá vodorovný průjezd. Kdyby se posouval po x, jel by po rotaci
+     svisle a projel by válci podél, ne mezi nimi. */
+  .mill { display: block; }
+  .mill-svg { display: block; height: calc(34px * var(--mu, 2.2)); width: auto; }
+  .mill-svg path { fill: var(--ink); }
+  /* Střed značky, ne střed rámu: kresba je široká 30,4 a vysoká 24,1, takže
+     otáčení kolem středu viewBoxu by ji odneslo stranou. */
+  .mill-rot {
+    transform-origin: 27.655px 12.13px;
+    transition: transform var(--mill-turn) cubic-bezier(.65,0,.35,1);
+  }
+  /* Úsměv se otáčí kolem středu svého vlastního oblouku — (27,66 / 13,81),
+     poloměr 8,81 — takže klouže po křivce, kterou sám tvoří. Nedeformuje se a
+     nejede po přímce: přesně to dělá „přitočí se podle osy svého radiusu".
+
+     Odejít pouhým otočením nemůže: od svého středu je pořád stejně daleko, tedy
+     jen obíhá a z rámu se nedostane. Proto k tomu patří i zhasnutí — otočení
+     nese pohyb, průhlednost odchod.
+
+     Zpoždění je na základním pravidle, ne na `busy`, takže platí jen pro návrat:
+     odchází hned, ale vrací se až po tom, co se značka otočí zpátky. Stroj se
+     nejdřív stane obličejem a úsměv přijede poslední. */
+  .mill-smile {
+    transform-origin: 27.66px 13.81px;
+    transition: opacity calc(var(--mill-turn) * .7) ease,
+                transform calc(var(--mill-turn) * .9) cubic-bezier(.34, 1.25, .64, 1);
+    transition-delay: var(--mill-turn);
+  }
+  .mill.busy .mill-rot { transform: rotate(90deg); }
+  .mill.busy .mill-smile {
+    transition-delay: 0ms;
+    opacity: 0;
+    transform: rotate(var(--mill-smile-turn));
+  }
+  /* Plech se rozjede ještě během otáčení — *at je to plynulé*.
+
+     První verze čekala na dojetí rotace a byla to zbytečná pauza: podmínka není
+     „nerozjíždět se dřív", ale „nedorazit k válcům dřív". Plech startuje 26
+     jednotek za rámem, takže mu cesta k válcům trvá zhruba třetinu průjezdu —
+     může se tedy rozjet o tu třetinu dřív, než rotace skončí, a k válcům dorazí
+     přesně ve chvíli, kdy stojí. Mezi otočením a prací pak není okamžik, kdy se
+     nic neděje. */
+  .mill.busy .mill-sheet {
+    animation: mill-pass var(--mill-pass) linear infinite;
+    animation-delay: calc(var(--mill-turn) * var(--mill-lead));
+  }
+  @keyframes mill-pass {
+    from { transform: translateY(26px); }
+    to   { transform: translateY(-26px); }
+  }
+  .mill-stage {
+    background: var(--panel-2); border-radius: 12px;
+    display: grid; place-items: center; padding: 22px; min-height: 190px;
+  }
+
   /* ---------- swatches ---------- */
   .swatches { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; }
   .sw { display: grid; grid-template-columns: 34px 1fr; grid-template-rows: auto auto; column-gap: 12px; align-items: center; }
@@ -398,13 +460,13 @@
         věc, která na obrazovce dosedne, což je u pointy správné pořadí.
       </p>
       <p style="margin:10px 0 0;color:var(--muted);font-size:12.5px">
-        <b style="color:var(--ink)">Zvolené hodnoty:</b> psaní 2000 ms · překryv 35 % ·
+        <b style="color:var(--ink)">Zvolené hodnoty:</b> psaní 1800 ms · překryv 35 % ·
         křivka <code>cubic-bezier(.45,.05,.35,1)</code> · velikost 2,4× · psaní 400 ms po spuštění. Posuvníky zůstávají, ale tohle je stav, ve kterém se to otevře.
       </p>
     </div>
 
     <div class="dropzone">
-      <div class="face" id="face" style="--fu:2.4; --draw:2000ms; --draw-ease:cubic-bezier(.45,.05,.35,1)"></div>
+      <div class="face" id="face" style="--fu:2.4; --draw:1800ms; --draw-ease:cubic-bezier(.45,.05,.35,1)"></div>
       <h3 class="dz-title">Co dnes přepíšeme?</h3>
       <p class="dz-note">
         <svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true">
@@ -419,8 +481,8 @@
     <div class="panel">
       <div class="controls">
         <div class="ctl">
-          <label for="draw">Doba psaní <span class="val" id="draw-v">2000 ms</span></label>
-          <input type="range" id="draw" min="400" max="3200" step="50" value="2000">
+          <label for="draw">Doba psaní <span class="val" id="draw-v">1800 ms</span></label>
+          <input type="range" id="draw" min="400" max="3200" step="50" value="1800">
         </div>
         <div class="ctl">
           <label for="ov">Překryv tahů <span class="val" id="ov-v">35 %</span></label>
@@ -487,6 +549,71 @@
         mezerou <b>3,15</b>, jakou má dnes za posledním <code>l</code>. Šířka nápisu jde
         z <b>82</b> na <b>39,64</b> jednotky. Žádná nová kresba, žádná knihovna.
       </p>
+    </div>
+  </section>
+
+  <!-- ============ válcovna ============ -->
+  <section class="section">
+    <div>
+      <h2>Co obličej dělá, když běží přepis</h2>
+      <p>
+        Značka se otočí na bok a přestane být obličejem: <b>dvě <code>o</code> jsou
+        válce a dřík je plech</b>, který mezi nimi opakovaně projíždí. Úsměv odejde
+        první — stroj se neusmívá, dokud nemá hotovo. Až přepis skončí, všechno se
+        vrátí zpátky.
+      </p>
+    </div>
+
+    <div class="mill-stage">
+      <div class="mill" id="mill" style="--mu:2.2; --mill-turn:520ms; --mill-pass:1100ms; --mill-lead:0; --mill-smile-turn:62deg"></div>
+    </div>
+
+    <div class="panel">
+      <div class="controls">
+        <div class="ctl">
+          <label for="turn">Otočení <span class="val" id="turn-v">520 ms</span></label>
+          <input type="range" id="turn" min="200" max="1400" step="20" value="520">
+        </div>
+        <div class="ctl">
+          <label for="pass">Jeden průjezd <span class="val" id="pass-v">1100 ms</span></label>
+          <input type="range" id="pass" min="300" max="2600" step="50" value="1100">
+        </div>
+        <div class="ctl">
+          <label for="lead">Náběh plechu <span class="val" id="lead-v">0 %</span></label>
+          <input type="range" id="lead" min="0" max="100" step="5" value="0">
+          <span class="hint" id="lead-note">rozjede se během otáčení</span>
+        </div>
+        <div class="ctl">
+          <label for="smileturn">Přitočení úsměvu <span class="val" id="smileturn-v">62°</span></label>
+          <input type="range" id="smileturn" min="-140" max="140" step="2" value="62">
+          <span class="hint">otáčí se kolem středu svého oblouku</span>
+        </div>
+        <div class="ctl">
+          <label for="msize">Velikost <span class="val" id="msize-v">2,20×</span></label>
+          <input type="range" id="msize" min="1.2" max="4" step="0.1" value="2.2">
+        </div>
+      </div>
+      <div class="row">
+        <button class="primary" id="mill-start">Spustit přepis</button>
+        <button id="mill-stop">Hotovo — zpátky do normálu</button>
+      </div>
+      <p style="margin:16px 0 0;color:var(--muted);font-size:13px">
+        <b style="color:var(--ink)">Nic se nedokresluje.</b> Je to táž čtveřice tvarů
+        z jiné strany, což je jediný důvod, proč tenhle nápad může fungovat — kdyby
+        se pro ten stav muselo cokoliv přikreslit, byla by to druhá značka.
+      </p>
+    </div>
+
+    <div class="panel">
+      <ol class="q">
+        <li><div><b>Plech se hýbe po ose y, ne po x.</b><p>Rotace rodiče z toho udělá vodorovný průjezd. Po ose x by po otočení jel svisle a projel by válci podél, ne mezi nimi.</p></div></li>
+        <li><div><b>Otáčí se kolem středu kresby, ne rámu.</b><p>Značka je široká 30,4 a vysoká 24,1; otáčení kolem středu viewBoxu by ji odneslo stranou. Rám je proto čtvercový, aby se do něj vešla naležato i nastojato.</p></div></li>
+        <li><div><b>Plech se rozjede současně s otáčením.</b><p>Podmínka není „nerozjíždět se dřív", ale „nedorazit k válcům dřív". Plech startuje 26 jednotek za rámem, takže mu cesta k válcům trvá polovinu průjezdu — při 520 a 1100 ms dorazí 30 ms po dotočení, tedy bez pauzy mezi otočením a prací.</p></div></li>
+        <li><div><b>Úsměv se otáčí kolem středu svého oblouku.</b><p>Ne kolem sebe a ne po přímce: oblouk má poloměr 8,81 se středem v (27,66 / 13,81), takže otáčením kolem <em>toho</em> bodu klouže po křivce, kterou sám tvoří — nedeformuje se a přijede po své vlastní dráze. Odejít pouhým otočením ale nemůže, protože od svého středu je pořád stejně daleko, takže jen obíhá; proto k tomu patří i zhasnutí. Otočení nese pohyb, průhlednost odchod.</p></div></li>
+        <li><div><b>Poslední plech zůstane nosem.</b><p>Konec se netrhne: průjezd vede z +26 do −26, takže nos je přesně v polovině. Stačí počkat na nejbližší příští polovinu a v ten okamžik animaci sundat — klidový stav nemá žádný posun, takže plech zůstane stát tam, kam dojel, a teprve pak se to otočí zpátky.</p></div></li>
+        <li><div><b>Otevřené: neříká to, jak daleko přepis je.</b><p>Smyčka je stav „pracuje se", ne postup. Aplikace má vlastní procenta a popisky, takže je otázka, jestli to tahle značka má opakovat — nebo jestli má být právě jen tím, že se něco děje.</p></div></li>
+        <li><div><b>Otevřené: kde to bude.</b><p>Tenhle obličej žije v prázdném stavu archivu. Během přepisu ale archiv prázdný není, takže je potřeba rozhodnout, jestli se stav odehrává tam, v hlavičce, nebo u řádku té nahrávky.</p></div></li>
+      </ol>
     </div>
   </section>
 
@@ -603,6 +730,18 @@
 
   const face = document.getElementById('face');
   face.innerHTML = FACE;
+
+  /* Čtvercový rám 34 × 34 se středem na středu kresby, aby se značka vešla
+     naležato (30,4 široká) i nastojato (30,4 vysoká). */
+  const mill = document.getElementById('mill');
+  mill.innerHTML = `
+    <svg class="mill-svg" viewBox="10.655 -4.87 34 34" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="olo">
+      <g class="mill-rot">
+        <g class="mill-eyes">${p(P.o1)}${p(P.o2)}</g>
+        <g class="mill-sheet">${p(P.l1)}</g>
+        <g class="mill-smile">${p(P.smile)}</g>
+      </g>
+    </svg>`;
 
   const hero = document.getElementById('hero');
   const $ = id => document.getElementById(id);
@@ -736,6 +875,60 @@
     face.style.setProperty('--fu', $('fsize').value);
     $('fsize-v').textContent = (+$('fsize').value).toFixed(2).replace('.', ',') + '×';
   });
+  const millApply = () => {
+    const lead = +$('lead').value / 100;
+    mill.style.setProperty('--mill-turn', $('turn').value + 'ms');
+    mill.style.setProperty('--mill-pass', $('pass').value + 'ms');
+    mill.style.setProperty('--mill-lead', lead);
+    mill.style.setProperty('--mill-smile-turn', $('smileturn').value + 'deg');
+    mill.style.setProperty('--mu', $('msize').value);
+    $('turn-v').textContent = $('turn').value + ' ms';
+    $('pass-v').textContent = $('pass').value + ' ms';
+    $('lead-v').textContent = $('lead').value + ' %';
+    $('smileturn-v').textContent = $('smileturn').value + '°';
+    $('msize-v').textContent = (+$('msize').value).toFixed(2).replace('.', ',') + '×';
+    /* Kdy plech dorazí k válcům, proti tomu, kdy dojede otáčení. Plech startuje
+       26 jednotek za rámem a k místu nosu má polovinu průjezdu, takže jeho
+       příjezd je delay + pass/2. */
+    const arrive = lead * +$('turn').value + +$('pass').value / 2;
+    const turn = +$('turn').value;
+    const diff = Math.round(arrive - turn);
+    $('lead-note').textContent =
+      Math.abs(diff) <= 40 ? 'k válcům dorazí přesně, když dotočí'
+      : diff < 0 ? `k válcům dorazí o ${-diff} ms dřív, než dotočí`
+      : `k válcům dorazí o ${diff} ms po dotočení`;
+  };
+  ['turn', 'pass', 'lead', 'smileturn', 'msize'].forEach((id) => $(id).addEventListener('input', millApply));
+
+  $('mill-start').addEventListener('click', () => {
+    clearTimeout(mill._stop);
+    mill.classList.add('busy');
+  });
+
+  /* Konec se netrhne: poslední plech dojede do místa nosu a teprve pak se to
+     otočí zpátky — *poslední nos co přijede by měl zůstat jako nos*.
+     Průjezd vede z +26 do −26, takže nos je přesně v polovině; stačí tedy počkat
+     na nejbližší příští polovinu a v ten okamžik animaci sundat. Klidový stav
+     nemá žádný posun, takže plech zůstane stát tam, kam právě dojel. */
+  $('mill-stop').addEventListener('click', () => {
+    clearTimeout(mill._stop);
+    const sheet = mill.querySelector('.mill-sheet');
+    const anim = sheet && sheet.getAnimations()[0];
+    if (!mill.classList.contains('busy') || !anim) {
+      mill.classList.remove('busy');
+      return;
+    }
+    const pass = +$('pass').value;
+    const delay = (+$('lead').value / 100) * +$('turn').value;
+    const progress = anim.effect.getComputedTiming().progress;
+    const wait = progress === null
+      ? (delay - anim.currentTime) + pass / 2
+      : ((progress <= 0.5 ? 0.5 - progress : 1.5 - progress)) * pass;
+    mill._stop = setTimeout(() => mill.classList.remove('busy'), Math.max(0, wait));
+  });
+
+  millApply();
+
   $('play-face').addEventListener('click', playFace);
   $('reset-face').addEventListener('click', () => { clearTimeout(playBoth._t); face.classList.remove('drawn'); });
   $('play-both').addEventListener('click', playBoth);
