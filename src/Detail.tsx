@@ -2008,7 +2008,7 @@ export default function Detail({
             onClick={onBack}
             title={t("common.archive")}
           >
-            <Wordmark label={t("common.archive")} rest="closed" />
+            <Wordmark label={t("common.archive")} />
           </button>
           <button className="button quiet detail-back-button" onClick={onBack}>
             <svg width="14" height="12" viewBox="0 0 14 12" aria-hidden>

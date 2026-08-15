@@ -1216,7 +1216,7 @@ export default function App() {
               font — they carry the smile under the `o` and the ™, neither of
               which type can reproduce — and `currentColor` throughout, so one
               file serves the light theme and the dark one. */}
-          <Wordmark label={t("app.name")} rest="open" />
+          <Wordmark label={t("app.name")} />
         </button>
 
         {/* Back navigation follows the brand and precedes the current screen
