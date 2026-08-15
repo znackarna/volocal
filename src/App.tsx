@@ -70,6 +70,9 @@ import type {
  */
 const Detail = lazy(() => import("./Detail"));
 const SettingsScreen = lazy(() => import("./Settings"));
+/* A type, so it costs nothing at runtime and does not undo the lazy import
+   above — this names which tab to open on, it does not load the screen. */
+import type { SettingsTab } from "./Settings";
 const SetupWizard = lazy(() => import("./SetupWizard"));
 
 /** Fetches the deferred screens once the window has something on it.
@@ -219,6 +222,10 @@ export default function App() {
     "library" | "detail" | "settings" | "wizard"
   >("library");
   const [wizardReturnScreen, setWizardReturnScreen] = useState<"library" | "detail" | "settings">("library");
+  /** Which tab Settings opens on when something sent the reader there — the
+   *  update notice is the first such thing. Null is the ordinary way in, where
+   *  the screen picks up wherever the reader left it. */
+  const [settingsTab, setSettingsTab] = useState<SettingsTab | null>(null);
   /** The first-run question, as a dialog over whatever is on screen.
    *
    *  **It is a separate state and not a fourth `screen`, because it is not a
@@ -286,9 +293,15 @@ export default function App() {
    * was added to the dictionary is not a warning, and shouting it in red made
    * a routine action feel like a fault.
    */
-  const [notice, setNotice] = useState<{ text: string; kind: "info" | "error" } | null>(
-    null
-  );
+  const [notice, setNotice] = useState<{
+    text: string;
+    kind: "info" | "error";
+    /** A way on, for the rare notice that names something the reader may want
+     *  to go and do. Without it a bar can only describe a place and hope the
+     *  reader finds it — which is what the update notice did, in prose, at a
+     *  tab that has since been renamed. */
+    action?: { label: string; run: () => void };
+  } | null>(null);
   const [noticeClosing, setNoticeClosing] = useState(false);
 
   // Rust sends a code, not a sentence; these turn one into the other.
@@ -298,10 +311,13 @@ export default function App() {
     setNoticeClosing(false);
     setNotice({ text, kind: "error" });
   }, []);
-  const reportInfo = useCallback((text: string) => {
-    setNoticeClosing(false);
-    setNotice({ text, kind: "info" });
-  }, []);
+  const reportInfo = useCallback(
+    (text: string, action?: { label: string; run: () => void }) => {
+      setNoticeClosing(false);
+      setNotice({ text, kind: "info", action });
+    },
+    []
+  );
 
   // A notice that stays until it is dismissed becomes furniture. Give it long
   // enough to be read twice and then let it go on its own; the Close button
@@ -309,8 +325,14 @@ export default function App() {
   //
   // Errors linger longer than confirmations — a confirmation only says that
   // what you asked for happened, an error asks you to do something about it.
+  //
+  // A notice carrying an action does not leave on its own, and neither does it
+  // draw the ring: the ring exists to say *this will go, and this soon*, and a
+  // button that walks away while it is being read is worse than no button. One
+  // press decides it — the way on, or Close.
   useEffect(() => {
     if (!notice) return;
+    if (notice.action && !noticeClosing) return;
     const delay = noticeClosing ? 280 : NOTICE_LIFE[notice.kind];
     const timer = setTimeout(() => {
       if (noticeClosing) {
@@ -378,10 +400,35 @@ export default function App() {
          *nikdy* on a machine checking every morning. Not through the settings
          record — see `UPDATE_CHECKED_AT`. */
       noteUpdateCheck();
-      if (update) reportInfo(t("app.updateAvailable", { version: update.version }));
+      /* The bar carries the way there rather than describing it. It used to
+         end *Najdete ji v Nastavení → O aplikaci* — a sentence that was one
+         reorganisation away from being wrong, and by the time this was written
+         it was: updates have a tab of their own now. A button cannot go stale
+         about where it leads.
+
+         It opens the tab and not the download. What is in a version is read
+         before it is agreed to, which is what the release notes dialog on that
+         tab is for; a start-up bar is the wrong place to begin something that
+         closes the application and runs an installer. */
+      if (update) {
+        reportInfo(t("app.updateAvailable", { version: update.version }), {
+          label: t("app.updateOpen"),
+          /* No `loadToolCheck()`, unlike the two ordinary ways into Settings.
+             That call refreshes the *archive's* view of what is installed, and
+             `onComplete` runs it again on the way out; Settings reads its own
+             `checkTools` on mount either way. It is also declared below this
+             one, so naming it here would be a dependency on a `const` that
+             does not exist yet. */
+          run: () => {
+            setSettingsTab("updates");
+            setScreen("settings");
+          },
+        });
+      }
     } catch {
       /* An unreachable server is not worth interrupting a start for. The
-         button on the About page reports what went wrong; this does not. */
+         button on the `Aktualizace` tab reports what went wrong; this does
+         not. */
     }
   }, [reportInfo, t]);
 
@@ -1285,9 +1332,25 @@ export default function App() {
           style={{ "--notice-life": `${NOTICE_LIFE[notice.kind]}ms` } as CSSProperties}
         >
           {/* The ring empties over the seconds the bar has left, so it is
-              visible that it will go on its own — and how soon. */}
-          <CountdownRing className="notice-countdown" size={16} />
+              visible that it will go on its own — and how soon. A bar that
+              waits does not draw it: an emptying ring over a bar that is not
+              leaving is a promise about the wrong thing. */}
+          {!notice.action && <CountdownRing className="notice-countdown" size={16} />}
           <span>{notice.text}</span>
+          {/* The way on before the way out, and the strong one of the two.
+              Reading order is the order of the two answers: here is the thing,
+              go to it, or not now. */}
+          {notice.action && (
+            <button
+              className="notice-action"
+              onClick={() => {
+                notice.action?.run();
+                setNoticeClosing(true);
+              }}
+            >
+              {notice.action.label}
+            </button>
+          )}
           <button onClick={() => setNoticeClosing(true)}>{t("common.close")}</button>
         </div>
       )}
@@ -1444,9 +1507,14 @@ export default function App() {
       {screen === "settings" && (
         <Suspense fallback={null}>
           <SettingsScreen
+            /* Cleared on the way out so the next manual visit is a manual
+               visit again — otherwise one press on an update notice would fix
+               where Settings opens for good. */
+            initialTab={settingsTab ?? undefined}
             onComplete={() => {
               loadToolCheck();
               loadAppearance();
+              setSettingsTab(null);
               setScreen("library");
             }}
             onError={reportError}

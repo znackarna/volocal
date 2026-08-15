@@ -1,7 +1,7 @@
 /** Strings belonging to the `library` screen. */
 export const csLibrary = {
   // Drop zone above the archive list.
-  "library.dropZone.title": "Sem přetáhněte nahrávku",
+  "library.dropZone.title": "Sem přetáhněte svou nahrávku",
   "library.dropZone.automatic": "Přepis se spustí automaticky. Data neopustí počítač.",
   "library.dropZone.manual": "Přepis spustíte tlačítkem přepsat. Data neopustí počítač.",
   "library.dropZone.add": "Nový přepis",

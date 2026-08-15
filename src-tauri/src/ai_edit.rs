@@ -17,7 +17,59 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter};
 
-const CHUNK_TARGET_CHARS: usize = 6_000;
+/// Characters of Czech per token, as a divisor.
+///
+/// Deliberately pessimistic. Czech tokenises worse than English — diacritics
+/// and inflection both cost — and every use of this number decides how much
+/// text is claimed to fit. Guessing high is the failure that corrupts an
+/// answer; guessing low only wastes memory.
+const CHARS_PER_TOKEN: usize = 2;
+
+/// The widest `max_tokens` any step asks for, so the context always has room
+/// for a whole answer on top of what it was given.
+const OUTPUT_TOKENS: usize = 4_096;
+
+/// The instruction and the chat template around it.
+const OVERHEAD_TOKENS: usize = 512;
+
+/// What the editor server is started with, at the two ends.
+///
+/// **The floor is what this was before, and it was the ceiling too.**
+/// `--ctx-size 8192` stood in `start_server` as the one flag in that block with
+/// no reason written beside it, and 8192 is a fraction of what the models this
+/// application ships can hold. Everything that reads badly about a long
+/// recording follows from it: a transcript is cut into pieces that fit, an
+/// instruction meant for the whole thing is applied to each piece, and the
+/// answers are stacked up.
+///
+/// **The ceiling is a memory decision, not a model one.** The KV cache grows
+/// with the context, and this runs on whatever computer the reader has. 32768
+/// is enough for about an hour of speech in one request, which covers the
+/// recordings this is for, and small enough that a modest graphics card is not
+/// asked for something it cannot hold beside six and a half gigabytes of
+/// weights.
+const CONTEXT_MIN: usize = 8_192;
+const CONTEXT_MAX: usize = 32_768;
+
+/// How much context one source needs, and how many characters one request may
+/// then be given.
+///
+/// **One function, because the two numbers are the same decision.** A chunk
+/// size chosen apart from the context it is fed into is how a request comes to
+/// overflow the window it was sized against — and nothing downstream would say
+/// so: the server truncates or refuses, and what comes back is a worse answer
+/// rather than an error.
+///
+/// A short recording asks for a small context and pays no memory for a window
+/// it will not fill. A long one asks for as much as the ceiling allows and is
+/// cut into pieces of exactly that size, rather than into the fixed 6000
+/// characters that had to fit the smallest window this ever ran with.
+fn context_plan(source_chars: usize) -> (usize, usize) {
+    let wanted = source_chars / CHARS_PER_TOKEN + OUTPUT_TOKENS + OVERHEAD_TOKENS;
+    let context = wanted.clamp(CONTEXT_MIN, CONTEXT_MAX);
+    let chunk_chars = (context - OUTPUT_TOKENS - OVERHEAD_TOKENS) * CHARS_PER_TOKEN;
+    (context, chunk_chars)
+}
 
 /// Result of anything that can end up in front of the user.
 type Reported<T> = std::result::Result<T, UserMessage>;
@@ -338,12 +390,18 @@ fn chunk_step(code: &str, index: usize, total: usize) -> UserMessage {
         .with("total", total)
 }
 
-fn split_chunks(text: &str) -> Vec<String> {
+/// `target` comes from `context_plan` and never from a constant here: how much
+/// text may go in one request is a fact about the window it goes into.
+///
+/// A source that fits returns one chunk, which is what every caller wants and
+/// what none of them could get before — at 6000 characters a recording of any
+/// length was always several.
+fn split_chunks(text: &str, target: usize) -> Vec<String> {
     let mut chunks = Vec::new();
     let mut current = String::new();
     for paragraph in text.split("\n\n").map(str::trim).filter(|p| !p.is_empty()) {
         let projected = current.chars().count() + paragraph.chars().count() + 2;
-        if !current.is_empty() && projected > CHUNK_TARGET_CHARS {
+        if !current.is_empty() && projected > target {
             chunks.push(std::mem::take(&mut current));
         }
         if !current.is_empty() {
@@ -499,12 +557,52 @@ fn czech_review_prompt() -> &'static str {
      týká` nebo `ovlivnění lidé`. Vrať pouze opravený český text."
 }
 
-fn summary_notes_prompt() -> &'static str {
-    "Z následující části upraveného přepisu vytvoř podklady pro celkové shrnutí. \
-     Piš ve stejném jazyce jako přepis; v této fázi nic nepřekládej. \
-     Zachovej všechna důležitá fakta, jména, čísla, postoje a souvislosti. Nevymýšlej nic, \
-     co v textu není. Vrať nejvýše osm stručných bodů bez úvodu."
+/// Added to both halves of the summary, and the reason is what separates it
+/// from `czech_review_prompt` next door.
+///
+/// **A summary is written, not edited.** The improved transcript is the
+/// speaker's own words with the punctuation repaired, and `is_an_edit_of`
+/// guards that; a summary is new sentences, so its Czech is the model's own —
+/// and a model quantised to four bits reaches for the shape of the English it
+/// saw most of. What comes back reads as translated from a text nobody wrote:
+/// `protiintuitivních myšlenek`, `odpovědnostních hodnot`, `akční kroky`.
+///
+/// **It is about the model's phrasing and never about the speaker's.** People
+/// really do say `koučovské otázky` in this subject, and a summary that tidied
+/// the vocabulary of the person being summarised would be putting words in
+/// their mouth — which is the one thing a summary must not do. So the rule is
+/// narrow: a borrowed word is allowed when it was heard, and is not to be
+/// invented when it was not.
+///
+/// Declension is in here with the calques because it fails the same way and in
+/// the same output — `vizie` for `vize`, `Úkolem kazatel není` for `kazatele`.
+/// One sentence about writing Czech properly, rather than two rules a step
+/// apart.
+const CZECH_NOTE: &str = " Piš plynulou češtinou: české vazby a přirozený \
+     slovosled, ne doslovné obraty z angličtiny. Cizí nebo odborné slovo použij \
+     jen tehdy, když zaznělo v nahrávce; nová si nevymýšlej a nespřahuj \
+     přídavná jména, která v češtině nejsou. Dbej na pády a slovesné vazby.";
+
+fn summary_notes_prompt() -> String {
+    format!(
+        "Z následující části upraveného přepisu vytvoř podklady pro celkové shrnutí. \
+         Piš ve stejném jazyce jako přepis; v této fázi nic nepřekládej. \
+         Zachovej všechna důležitá fakta, jména, čísla, postoje a souvislosti. Nevymýšlej nic, \
+         co v textu není. Vrať nejvýše osm stručných bodů bez úvodu.{CZECH_NOTE}"
+    )
 }
+
+/// Added to the reduce instruction only when the notes came from more than one
+/// part, and it is the sentence that was missing: the reduce was told what to
+/// produce and never what it was reading. Given `ČÁST 1` to `ČÁST 7` and asked
+/// for a well-organised summary, the model reproduced the organisation it was
+/// shown — one paragraph per part, each starting as though the recording began
+/// there. Nothing about that division is about the conversation; it is where
+/// the text had to be cut to fit a window.
+const SPLIT_NOTE: &str = " Podklady jsou z jedné nahrávky, která byla kvůli \
+     délce rozdělena na části. Shrnutí nesmí být členěné podle nich a nesmí je \
+     zmiňovat: piš o celém rozhovoru jako o jednom celku, v jedné souvislé \
+     linii, bez opakovaných úvodů.";
 
 fn summary_prompt(variant: &str) -> Option<&'static str> {
     match variant {
@@ -617,6 +715,7 @@ fn start_server(
     server: &Path,
     model: &Path,
     uses_vulkan: bool,
+    context: usize,
     cancellation: &AtomicBool,
     registry: &Arc<Mutex<Option<Child>>>,
 ) -> Reported<EditorServer> {
@@ -634,7 +733,7 @@ fn start_server(
             "--port",
             &port.to_string(),
             "--ctx-size",
-            "8192",
+            &context.to_string(),
             "--parallel",
             "1",
             // Transcript correction needs the edited document, not a hidden
@@ -833,13 +932,23 @@ fn generate_document(
         .editor_model
         .map(PathBuf::from)
         .ok_or_else(|| UserMessage::new("ai.model_missing"))?;
-    let chunks = split_chunks(&source);
+    /* One number decides both: the window the server opens and how much text
+    one request may put in it. See `context_plan`. */
+    let (context, chunk_chars) = context_plan(source.chars().count());
+    let chunks = split_chunks(&source, chunk_chars);
     let mut output = Vec::with_capacity(chunks.len());
     reporter.say("preparing", 3.0, UserMessage::new("ai.loading_model"));
     let uses_vulkan = server_path
         .parent()
         .is_some_and(|parent| parent.ends_with("editor-vulkan"));
-    let mut server = start_server(&server_path, &model, uses_vulkan, cancellation, registry)?;
+    let mut server = start_server(
+        &server_path,
+        &model,
+        uses_vulkan,
+        context,
+        cancellation,
+        registry,
+    )?;
     let mut instruction = system_prompt(mode);
     // Name the language of this recording. The rule against translating is in
     // the prompt already, but it is abstract, and on a long English document
@@ -967,12 +1076,22 @@ fn generate_output(
         .map(PathBuf::from)
         .ok_or_else(|| UserMessage::new("ai.model_missing"))?;
 
+    /* One number decides both: the window the server opens and how much text
+    one request may put in it. See `context_plan`. */
+    let (context, chunk_chars) = context_plan(source.chars().count());
     reporter.say("preparing", 3.0, UserMessage::new("ai.loading_model"));
     let uses_vulkan = server_path
         .parent()
         .is_some_and(|parent| parent.ends_with("editor-vulkan"));
-    let mut server = start_server(&server_path, &model, uses_vulkan, cancellation, registry)?;
-    let chunks = split_chunks(&source);
+    let mut server = start_server(
+        &server_path,
+        &model,
+        uses_vulkan,
+        context,
+        cancellation,
+        registry,
+    )?;
+    let chunks = split_chunks(&source, chunk_chars);
 
     let text = if let Some(language) = translation {
         let instruction = translation_prompt(variant, language);
@@ -1036,18 +1155,44 @@ fn generate_output(
             notes.push(reporter.run_step(
                 step,
                 chunk,
-                summary_notes_prompt(),
+                &summary_notes_prompt(),
                 768,
                 cancellation,
                 &mut server,
             )?);
         }
-        let combined = notes
-            .iter()
-            .enumerate()
-            .map(|(index, note)| format!("ČÁST {}:\n{}", index + 1, note))
-            .collect::<Vec<_>>()
-            .join("\n\n");
+        /* **The labels are gone when there is nothing to label**, which after
+        the context was sized to the source is the ordinary case: one part,
+        and `ČÁST 1:` over the whole of it told the model that the material
+        has a structure and there is one section of it.
+
+        When there are several they stay — the notes have to be kept apart —
+        but the instruction now says what they are. A reduce reading
+        `ČÁST 1..7` and asked for *dobře členěné shrnutí* was handed a ready
+        made outline, and it obliged: the summaries that came back were seven
+        paragraphs, each opening as if the recording started there. The parts
+        are an accident of memory and the summary must not be organised by
+        them. */
+        let split = notes.len() > 1;
+        let combined = if split {
+            notes
+                .iter()
+                .enumerate()
+                .map(|(index, note)| format!("ČÁST {}:\n{}", index + 1, note))
+                .collect::<Vec<_>>()
+                .join("\n\n")
+        } else {
+            notes.join("\n\n")
+        };
+        /* The Czech note goes on every variant rather than into the three
+        prompts, which would be one rule written three times and two of them
+        eventually out of step. The split note only when there is a split. */
+        let instruction = format!(
+            "{}{}{}",
+            summary_instruction.unwrap(),
+            if split { SPLIT_NOTE } else { "" },
+            CZECH_NOTE,
+        );
         let step = Step {
             from: if translate_summary { 57.0 } else { 78.0 },
             to: if translate_summary { 70.0 } else { 95.0 },
@@ -1065,7 +1210,7 @@ fn generate_output(
         let source_summary = reporter.run_step(
             step,
             &combined,
-            summary_instruction.unwrap(),
+            &instruction,
             max_tokens,
             cancellation,
             &mut server,
@@ -1154,13 +1299,26 @@ fn generate_custom_document(
     reporter.say("preparing", 2.0, UserMessage::new("ai.preparing_model"));
 
     let connection = db::open(db_path)?;
-    // The timed transcript, not the improved document that summaries and
-    // translations derive from. The instruction is given about the recording,
-    // and it is asked for from the dialog that offers to make the improved
-    // transcript — which is exactly when there is none.
-    let source = transcript_source(&connection, recording_id)?;
+    // The improved document, like the summary and the translation — this reads
+    // the timed transcript no longer.
+    //
+    // It did, and the reason recorded here was that the instruction is given
+    // about the recording and asked for from the dialog that offers to make the
+    // improved transcript, which is exactly when there is none. The owner
+    // corrected the premise rather than the code: *nejdřív prostě MUSÍ být
+    // vylepšený přepis a pak teprve další věci*. A custom document is one of
+    // the further things, so the dialog stopped offering it, and the question
+    // of what to do when there is no improved transcript stopped being asked.
+    //
+    // What is gained is not only consistency. The timed transcript is speech as
+    // it was heard — no punctuation it did not earn, no paragraphs, every
+    // false start still in it — and an instruction like *shrň to* was being
+    // given about the worst copy of the text this application holds.
+    let document = db::ai_document(&connection, recording_id)?
+        .ok_or_else(|| UserMessage::new("ai.document_required"))?;
+    let source = document.text.trim().to_string();
     if source.is_empty() {
-        return Err(UserMessage::new("ai.transcript_empty"));
+        return Err(UserMessage::new("ai.document_empty"));
     }
     let source_hash = source_hash(&source);
     let check = tools::check(settings);
@@ -1176,20 +1334,37 @@ fn generate_custom_document(
         .map(PathBuf::from)
         .ok_or_else(|| UserMessage::new("ai.model_missing"))?;
 
+    /* One number decides both: the window the server opens and how much text
+    one request may put in it. See `context_plan`. */
+    let (context, chunk_chars) = context_plan(source.chars().count());
     reporter.say("preparing", 3.0, UserMessage::new("ai.loading_model"));
     let uses_vulkan = server_path
         .parent()
         .is_some_and(|parent| parent.ends_with("editor-vulkan"));
-    let mut server = start_server(&server_path, &model, uses_vulkan, cancellation, registry)?;
+    let mut server = start_server(
+        &server_path,
+        &model,
+        uses_vulkan,
+        context,
+        cancellation,
+        registry,
+    )?;
     let instruction = custom_document_prompt(prompt);
 
-    // A long transcript does not fit in one request, so the instruction is
-    // applied to each part in turn and the answers follow one another — what
-    // the translation does. An instruction that asks for one whole thing then
-    // returns one per part. The summary's two-stage pipeline is the cure, and
-    // it cannot be borrowed: it knows what it is collecting notes for, which is
-    // the one thing this feature deliberately does not know.
-    let chunks = split_chunks(&source);
+    // A transcript that does not fit in one request is still applied to in
+    // parts, and the answers still follow one another — what the translation
+    // does. An instruction that asks for one whole thing then returns one per
+    // part.
+    //
+    // **The window is sized to the source now, so for the recordings this is
+    // for there is one part and the fault does not arise.** An hour of speech
+    // goes to the model whole and `na 300 slov` is obeyed once. That is a
+    // ceiling and not a cure: past it the old behaviour returns, and the real
+    // answer is still a second pass over the parts. The summary's two-stage
+    // pipeline is the shape of it and cannot simply be borrowed — it knows what
+    // it is collecting notes for, which is the one thing this feature
+    // deliberately does not know.
+    let chunks = split_chunks(&source, chunk_chars);
     let mut output = Vec::with_capacity(chunks.len());
     for (index, chunk) in chunks.iter().enumerate() {
         if cancellation.load(Ordering::Relaxed) {
@@ -1238,8 +1413,33 @@ mod tests {
     fn chunks_only_between_paragraphs() {
         let first = "a".repeat(4_000);
         let second = "b".repeat(3_000);
-        let chunks = split_chunks(&format!("{first}\n\n{second}"));
+        let chunks = split_chunks(&format!("{first}\n\n{second}"), 6_000);
         assert_eq!(chunks, vec![first, second]);
+    }
+
+    /// The point of sizing the window to the source: a recording that fits goes
+    /// to the model whole. It is what an instruction about the whole recording
+    /// needs, and it was impossible while the target was a constant.
+    #[test]
+    fn a_source_that_fits_is_one_chunk() {
+        // About an hour of Czech speech.
+        let source = vec!["odstavec ".repeat(600); 10].join("\n\n");
+        let (context, chunk_chars) = context_plan(source.chars().count());
+        assert!(context <= CONTEXT_MAX);
+        assert_eq!(split_chunks(&source, chunk_chars).len(), 1);
+    }
+
+    /// And the guarantee underneath it: whatever one request may be given still
+    /// leaves the window room for a whole answer. A chunk sized past that is
+    /// how a request overflows the context it was sized against.
+    #[test]
+    fn a_chunk_always_leaves_room_for_the_answer() {
+        for chars in [0, 1_000, 50_000, 500_000, 5_000_000] {
+            let (context, chunk_chars) = context_plan(chars);
+            assert!((CONTEXT_MIN..=CONTEXT_MAX).contains(&context), "{chars}");
+            let worst = chunk_chars / CHARS_PER_TOKEN + OUTPUT_TOKENS + OVERHEAD_TOKENS;
+            assert!(worst <= context, "{chars}: {worst} > {context}");
+        }
     }
 
     #[test]

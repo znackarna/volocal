@@ -1028,16 +1028,18 @@ button.mic-play:disabled { cursor: default; opacity: 0.6; }
    opening sentence now, and `.settings-section-description` already ends with
    the same 24 — one amount from one declaration, rather than a rule that can
    only ever be right while nothing is said between the two. */
-/* The two facts, then the terms the press is made on, then the errand.
+/* The two facts, then the errand.
 
    22 px under the panel and no rule with it, which is `.settings-action-row.
    spaced` exactly — its comment is written for this case: content under
    something already framed, where a hairline would draw the panel's own
-   boundary a second time. Then 12 px from the note to the button it qualifies,
-   which is `.about-status`'s own distance from the row above it two rules up:
-   one line of small text against the block it belongs to, twice in one card. */
-.about-updates > .about-panel + .settings-info-note { margin-top: 22px; }
-.about-updates > .settings-info-note + .about-updates-actions { margin-top: 12px; }
+   boundary a second time.
+
+   The ⓘ line that used to stand between them is gone — it claimed the
+   application only looks when asked, which the switch at the foot of this card
+   makes untrue whenever it is on. Its own 22 above and 12 below went with it,
+   and the panel now spaces the buttons directly at the same 22. */
+.about-updates > .about-panel + .about-updates-actions { margin-top: 22px; }
 .about-updates-actions { display: flex; gap: 10px; }
 /* The explanation belongs to the whole block above it, not to one button. */
 .about-updates .settings-section-description { margin: 14px 0 0; }

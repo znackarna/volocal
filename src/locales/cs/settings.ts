@@ -136,7 +136,6 @@ export const csSettings = {
   "settings.about.version": "Verze",
   "settings.about.author": "Autor",
   "settings.about.updateCheck": "Zkontrolovat aktualizace",
-  "settings.about.updateNote": "Aplikace hledá novou verzi pouze na vaši žádost.",
   "settings.about.updateAutoDescription":
     "Po spuštění hledá novější verzi. Stáhne ji na vaši žádost.",
   "settings.about.website": "Stránky",
@@ -183,7 +182,7 @@ export const csSettings = {
   // What Whisper is told to do.
   "settings.transcription.model": "Model přepisu",
   "settings.transcription.modelDescription": "Stažený model.",
-  "settings.transcription.modelNote": "Chybějící model se výběrem automaticky stáhne.",
+  "settings.transcription.modelNote": "Výběr nestaženého modelu zahájí stahování.",
   "settings.transcription.modelDownloading": "stahuje se…",
   "settings.transcription.language": "Jazyk nahrávky",
   "settings.transcription.languageNote":
@@ -196,13 +195,13 @@ export const csSettings = {
   "settings.dictionary.title": "Slovník oprav",
   "settings.dictionary.description":
     "Slova, která se v nových přepisech opraví pokaždé stejně: jména, místa, odborné výrazy.",
-  "settings.dictionary.newEntry": "Nový výraz",
   "settings.dictionary.find": "Co přepis slyší",
-  "settings.dictionary.findPlaceholder": "součas DNA",
+  "settings.dictionary.findPlaceholder": "Chybný výraz",
   "settings.dictionary.replace": "Jak to má být",
-  "settings.dictionary.replacePlaceholder": "součást DNA",
-  "settings.dictionary.add": "Přidat",
-  "settings.dictionary.empty": "Slovník je zatím prázdný.",
+  "settings.dictionary.replacePlaceholder": "Správný výraz",
+  "settings.dictionary.add": "Přidat výraz",
+  "settings.dictionary.saving":
+    "Změny se ukládají samy. Nedopsaný řádek se zahodí.",
 
   "settings.speakers.title": "Rozlišení mluvčích",
   "settings.speakers.description":
@@ -412,10 +411,6 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
     "NOTICE, ne tady.",
   "settings.about.abilityReview":
     "Nejistý je přepis, ne čtenář — model sám označí místa s nízkou jistotou.",
-  "settings.about.updateNote":
-    "Věta s ⓘ nad tlačítkem Zkontrolovat aktualizace. Patří tomu tlačítku, ne " +
-    "přepínači dole na kartě, a nemění se s ním. Aplikace slibuje, že sama " +
-    "nikam nic neposílá; tohle je jediné místo, kde se ptá vnějšího serveru.",
   "settings.about.website":
     "Popisek řádku na kartě Informace. Hodnota vedle něj je adresa stránek " +
     "projektu a otevře se v systémovém prohlížeči, ne v okně aplikace.",
@@ -501,7 +496,10 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
     "v seznamu: karta modelu, který v počítači není, ukazuje velikost a " +
     "kliknutím se ten model rovnou stáhne. Nepřepisuj ji na větu o tom, co " +
     "seznam obsahuje — dřív tam taková byla a posílala uživatele stahovat " +
-    "jinam.",
+    "jinam. Podmětem je čtenářův úkon, ne model: „Chybějící model se výběrem " +
+    "automaticky stáhne.“ tu stálo a popisovalo vlastnost modelu, přičemž " +
+    "„automaticky“ neneslo nic, co by „se stáhne“ neřeklo. Taky „nestažený“ " +
+    "a ne „chybějící“: ten model nechybí, jen tu ještě není.",
   "settings.transcription.modelDownloading":
     "Místo velikosti na kartě modelu, který se právě stahuje. Malé písmeno a " +
     "tři tečky jsou jeden znak, stejně jako u ostatních průběhových textů. " +
@@ -528,15 +526,17 @@ export const csSettingsContext: Partial<Record<keyof typeof csSettings, string>>
     "plete. Nadpis „Slovník oprav“ nápravu pojmenoval, takže ji věta nemusí " +
     "nést podruhé a zbyde místo na příklady. Bez toho nadpisu by zkrácená " +
     "nefungovala. „Přepis“ je tu hotový text, ne činnost.",
-  "settings.dictionary.newEntry":
-    "Popisek řádku, ve kterém se zakládá nová dvojice. „Výraz“, ne „záznam“: záznam je v téhle aplikaci všude jinde nahrávka, takže ve slovníku četl jako nová nahrávka. Výraz je i proto, že ta dvojice může být sousloví, ne jen slovo.",
-  "settings.dictionary.find": "Popisek pole: co se v přepisu objevuje špatně.",
+  "settings.dictionary.find":
+    "Jméno pole pro odečítač obrazovky: co se v přepisu objevuje špatně. Na obrazovce vidět není — tam to říká červený křížek před polem. Bylo to i záhlaví sloupce, než se záhlaví zrušila jako zbytečná.",
   "settings.dictionary.findPlaceholder":
-    "Ukázka v poli. Skutečná chyba z reálné nahrávky; klidně nahraď příkladem ze svého jazyka.",
-  "settings.dictionary.replace": "Popisek pole: čím se to má nahradit.",
-  "settings.dictionary.replacePlaceholder": "Ukázka v poli: správný tvar předchozího příkladu.",
-  "settings.dictionary.add": "Tlačítko, které přidá nový záznam do slovníku.",
-  "settings.dictionary.empty": "Text místo seznamu, dokud slovník nemá žádný záznam.",
+    "Zástupný text v levém poli nedopsaného řádku. Říká, co se do něj píše, ne jak by to mohlo vypadat: stála tu ukázka („součas DNA“), a ta po jazycích putuje jako chyba, kterou musí každý překladatel vymyslet znovu pro svůj jazyk, a přitom ten řádek nikdy nevysvětlila. „Chybný“, ne „špatný“: špatný výraz je nevhodně zvolený, chybný je přeslechnutý — a chybný se páruje se „správný“ v pravém poli, kde špatný by se pároval s „dobrý“. „Výraz“ ze stejného důvodu jako u tlačítka: může to být sousloví. Vidí se jen v řádku, který se právě píše — a v prázdné tabulce, která takový řádek drží pořád.",
+  "settings.dictionary.replace":
+    "Jméno pole pro odečítač obrazovky: čím se to má nahradit. Na obrazovce to říká zelená fajfka před polem.",
+  "settings.dictionary.replacePlaceholder": "Druhá půlka téhož v pravém poli. „Správný“, ne „dobrý“: výraz není dobrý ani špatný sám o sobě, je správný nebo špatný v tomhle přepisu — a „správný“ je i to, co říká zelená fajfka před polem.",
+  "settings.dictionary.add":
+    "Tlačítko pod tabulkou, vpravo. Přidá do ní prázdný řádek, do kterého se rovnou píše — proto „Přidat výraz“ a ne jen „Přidat“: stojí pod tabulkou, ne vedle polí, která by řekla co. „Výraz“, ne „záznam“: záznam je v téhle aplikaci všude jinde nahrávka. Výraz je i proto, že ta dvojice může být sousloví, ne jen slovo.",
+  "settings.dictionary.saving":
+    "Věta s ⓘ vlevo od toho tlačítka. Říká jedinou věc o té tabulce, která není vidět: nic se nepotvrzuje a nedopsaný řádek se nedrží. Jinak by se to dalo zjistit jedině tím, že to člověk zkusí — což je u něčeho, co právě napsal, ten nejhorší způsob. Dvě věty, ne jedna delší: „jakmile z řádku odejdete“ tam stálo a šlo pryč, protože kdy se to uloží není otázka, kterou si někdo klade — otázka je jestli vůbec.",
   "settings.speakers.title":
     "Nadpis karty o rozpoznávání mluvčích (diarizaci) a zároveň jméno " +
     "přepínače, který na téhle kartě stojí vedle nadpisu — jeden klíč pro " +

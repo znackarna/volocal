@@ -16,7 +16,6 @@ import { useEffect, useState } from "react";
 import { check } from "@tauri-apps/plugin-updater";
 import { getVersion } from "@tauri-apps/api/app";
 import { api } from "../api";
-import InfoNote from "../InfoNote";
 import { LineIcon } from "../icons";
 import { SettingsToggle } from "./toggle";
 import { useI18n } from "../i18n";
@@ -300,20 +299,29 @@ export function UpdateCheck({
         ))}
       </dl>
 
-      {/* The line above the button rather than under it, on the owner's word —
-          *tlačítko Zkontrolovat aktualizace dejme až za Info větičku*. It reads
-          as the terms the press is made on, which is what somebody wants before
-          pressing a thing that leaves this computer, not after.
+      {/* `Aplikace hledá novou verzi pouze na vaši žádost.` stood here, above
+          the button, as one fixed sentence.
 
-          One fixed sentence. It was built to switch with the toggle at the foot
-          of the card and that was turned down: *místo toho se přepíná ta jedna
-          věta s ikonkou nad, to nechci*. This line belongs to the button under
-          it, not to the switch — and a sentence that rewrites itself while
-          somebody is looking elsewhere makes them wonder what else moved. What
-          the switch does is said under the switch, the way every other block on
-          this screen says it. */}
-      <InfoNote>{t("settings.about.updateNote")}</InfoNote>
+          It was false half the time. With the switch at the foot of this card
+          on, the application looks after every start — which is what that switch
+          exists to do and what its own sentence says two lines further down. The
+          owner sent the screen back with the line and the button ringed and an
+          arrow drawn from them to the switch.
 
+          A two-state version of this line was built earlier and turned down for
+          a reason that still holds: *místo toho se přepíná ta jedna věta s
+          ikonkou nad, to nechci* — what a switch does is said under the switch.
+          Which leaves nothing for this line to say that is both true and not
+          already said. The switch says when the application looks by itself; the
+          button says the press is available; a line claiming the switch is off
+          says only what the switch itself shows. So it goes rather than being
+          rewritten a third time.
+
+          The button stays, and that was the owner's call in as many words:
+          *nevím co udělat s klasickým tlačítkem když je aktivní auto kontrola,
+          asi nic*. It is right — the automatic check happens at start, and
+          wanting to ask now is a different question from wanting to be told at
+          start. */}
       <div className="about-updates-actions">
         <button className="button" onClick={look} disabled={busy}>
           {state.at === "checking"

@@ -333,6 +333,17 @@ button, input, select, textarea { font: inherit; color: inherit; }
   background: rgb(0 0 0 / 0.18); border: 0; border-radius: var(--r-pill);
   padding: 5px 13px; cursor: pointer; color: #fff; font-weight: 600; font-size: 13px;
 }
+/* The way on, when a bar has one. Two chips of the same darkened veil would be
+   two ways out; this one is the bar's own colour on white, which is how a
+   primary button is drawn everywhere else — filled with the surface it sits
+   against reversed. `--accent-solid` and `--danger-solid` are the two bar
+   grounds, so the text takes whichever this bar is wearing. */
+.notice .notice-action {
+  background: #fff; color: var(--accent-solid);
+}
+.notice.error .notice-action { color: var(--danger-solid); }
+/* No ring on a bar that waits, so nothing is reserving space for one: the gap
+   is the flex row's own 16 and the text starts at the padding edge. */
 @keyframes notice-enter {
   from { max-height: 0; padding-block: 0; opacity: 0; transform: translateY(-2px); }
   to { max-height: 120px; padding-block: 10px; opacity: 1; transform: none; }

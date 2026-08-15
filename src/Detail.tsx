@@ -33,6 +33,7 @@ import {
   CONFIDENCE_THRESHOLD,
   EDITOR_MODELS,
   EDITOR_TIER,
+  UNOFFERED_COMPONENTS,
   formatTime,
   fileName,
   qualityChoice,
@@ -203,6 +204,28 @@ export default function Detail({
    *  fetch them when they are not, rather than failing on the way out. */
   const [speakersReady, setSpeakersReady] = useState(false);
   const [aiDialog, setAiDialog] = useState<"configure" | "preview" | "missing" | null>(null);
+  /** The offer made after this computer failed to start the chosen editor
+   *  model: which smaller one there is, and whether it is already here.
+   *
+   *  **Nothing is guessed and nothing is switched.** `tools.rs` says beside
+   *  `memory_gb` that nothing decides anything by it, *because nothing here has
+   *  ever measured what a model needs* — so this does not weigh the machine
+   *  against a number somebody invented. It waits for the model to fail to
+   *  load, which is a measurement, and then offers. The press is the reader's,
+   *  which is what makes changing their setting theirs. */
+  const [smallerOffer, setSmallerOffer] = useState<{
+    smaller: string;
+    installed: boolean;
+  } | null>(null);
+  /** What was last asked of the language model, so the offer can carry the run
+   *  over rather than switching the setting and leaving somebody to press the
+   *  same button again. The arguments and not a closure: the two functions that
+   *  start a run cannot name themselves from inside their own bodies. */
+  const lastRun = useRef<
+    | { kind: "edit"; mode: "faithful" | "clean" }
+    | { kind: "output"; output: "summary" | "translation" | "custom"; variant: string }
+    | null
+  >(null);
   /** What language editing would cost on this machine, worked out the moment
    *  somebody first wants a document: which components are missing and how many
    *  megabytes that is. Which model is not among the questions — the size
@@ -223,7 +246,14 @@ export default function Detail({
   const missingDialog = useDialog<HTMLDivElement>(closeAiDialog, aiDialog === "missing");
   const configureDialog = useDialog<HTMLDivElement>(closeAiDialog, aiDialog === "configure");
   const previewDialog = useDialog<HTMLDivElement>(closeAiDialog, aiDialog === "preview");
-  const [aiMode, setAiMode] = useState<"faithful" | "clean" | "custom">("faithful");
+  const smallerDialog = useDialog<HTMLDivElement>(
+    useCallback(() => setSmallerOffer(null), []),
+    !!smallerOffer
+  );
+  /* Two, not three. `custom` was one of these while the instruction stood in
+     the same dialog; it is a document made *from* the improved transcript now,
+     so it is not a way of making one. */
+  const [aiMode, setAiMode] = useState<"faithful" | "clean">("faithful");
   const [previewTab, setPreviewTab] = useState<PreviewTab>("improved");
   const [summaryLength, setSummaryLength] = useState<SummaryLength>("standard");
   const [translationLanguage, setTranslationLanguage] =
@@ -551,7 +581,50 @@ export default function Detail({
           setAiDialog("preview");
         });
       } else if (event.payload.phase === "error") {
-        onError(progressMessage(event.payload.description));
+        /* These two are the machine saying it could not hold the model: the
+           server died while loading, or never answered `/health` at all. They
+           are already distinct from a missing binary and from a server that
+           fell over mid-answer, so nothing new had to be measured to tell them
+           apart — the names were there.
+
+           Everything else is reported the ordinary way. A notice for a fault
+           somebody can do nothing about is right; a dialog for it would be a
+           second thing to dismiss. */
+        const code = event.payload.description.code;
+        if (code === "ai.model_load_timeout" || code === "ai.server_exited_while_loading") {
+          void (async () => {
+            try {
+              const [components, settings] = await Promise.all([
+                api.catalog(),
+                api.loadSettings(),
+              ]);
+              const ladder = Object.keys(EDITOR_MODELS);
+              const at = ladder.findIndex((tier) => EDITOR_MODELS[tier] === settings.editor_model);
+              /* Everything below the one that failed, and the first of those
+                 that is offered at all — `editor-model-balanced` is in
+                 `UNOFFERED_COMPONENTS` and must not be proposed by name here
+                 when nothing else proposes it. */
+              const smaller = ladder
+                .slice(at + 1)
+                .find((tier) => !UNOFFERED_COMPONENTS.includes(tier));
+              if (at === -1 || !smaller) {
+                onError(progressMessage(event.payload.description));
+                return;
+              }
+              setSmallerOffer({
+                smaller,
+                installed: !!components.find((item) => item.id === smaller)?.complete,
+              });
+            } catch {
+              /* The offer could not be worked out, so the fault is reported as
+                 it would have been. Never nothing: a run that stopped must say
+                 so however this goes. */
+              onError(progressMessage(event.payload.description));
+            }
+          })();
+        } else {
+          onError(progressMessage(event.payload.description));
+        }
       }
     }).then((stop) => {
       if (active) unlisten = stop;
@@ -1507,6 +1580,7 @@ export default function Detail({
     diarizeSpeakers();
   }, [diarizeSpeakers, onToModule, speakersReady]);
 
+
   /** Yes. Fetch what is missing and record that the feature is wanted.
    *
    *  The download runs behind this screen — `download` in `downloads.rs` starts
@@ -1550,6 +1624,7 @@ export default function Detail({
    *  passed rather than read from state, so the caller — the one place that
    *  also knows about the third card — says which of the two it means. */
   const startAiEdit = useCallback(async (mode: "faithful" | "clean") => {
+    lastRun.current = { kind: "edit", mode };
     setAiDialog(null);
     setPreviewTab("improved");
     setAiRunning(true);
@@ -1574,6 +1649,7 @@ export default function Detail({
     kind: "summary" | "translation" | "custom",
     variant: string
   ) => {
+    lastRun.current = { kind: "output", output: kind, variant };
     if (!aiConfigured || !aiReady) {
       if (editorDownloading) setAiDialog("missing");
       else await askForEditor();
@@ -1627,6 +1703,52 @@ export default function Detail({
     setPreviewTab("custom");
     void startAiOutput("custom", prompt);
   }, [customPrompt, startAiOutput]);
+
+  /** Decline the offer and run the same model again, changing nothing.
+   *
+   *  A failed load is a measurement of one moment, not of the computer. What is
+   *  known is that it did not start; what is not known is whether something
+   *  else held the memory while it tried. This is the press for the reader who
+   *  thinks it was that. */
+  const retrySameEditor = useCallback(() => {
+    setSmallerOffer(null);
+    const last = lastRun.current;
+    if (last?.kind === "edit") void startAiEdit(last.mode);
+    else if (last?.kind === "output") void startAiOutput(last.output, last.variant);
+  }, [startAiEdit, startAiOutput]);
+
+  /** Take the offer: write the smaller model into the settings and carry the
+   *  run over. One press, and the thing that failed happens.
+   *
+   *  **The setting is written rather than used once, and the way back matters
+   *  because of it.** A machine that could not load the model now will probably
+   *  not load it in a minute, and repeating a load that ends in
+   *  `ai.model_load_timeout` costs five minutes each time — which is what the
+   *  writing avoids. But *probably* is the whole of it: this may have been one
+   *  bad moment, so `Zkusit znovu` stands beside this button, and the sentence
+   *  above them says the choice can be changed back on `Jazyková úprava`, where
+   *  the two cards are one click apart. */
+  const takeSmallerEditor = useCallback(async () => {
+    const offer = smallerOffer;
+    if (!offer) return;
+    setSmallerOffer(null);
+    if (!offer.installed) {
+      /* Not here yet, so the offer is a download and that screen owns it —
+         the same route the missing-editor dialog takes, with the component
+         already named. */
+      onToModule(offer.smaller);
+      return;
+    }
+    try {
+      const settings = await api.loadSettings();
+      await api.saveSettings({ ...settings, editor_model: EDITOR_MODELS[offer.smaller] });
+      const last = lastRun.current;
+      if (last?.kind === "edit") void startAiEdit(last.mode);
+      else if (last?.kind === "output") void startAiOutput(last.output, last.variant);
+    } catch (error) {
+      onError(userMessage(error));
+    }
+  }, [onError, onToModule, smallerOffer, startAiEdit, startAiOutput, userMessage]);
 
   const openOriginalPreview = useCallback(async () => {
     setPreviewTab("original");
@@ -1700,6 +1822,17 @@ export default function Detail({
   const running =
     status === "transcribing" ||
     (progress != null && !["complete", "cancelled", "error"].includes(progress.phase));
+  /** When speaker recognition may not be started: nothing to divide yet, or
+   *  something already has this recording — a transcription, a diarization
+   *  under way, or the language model.
+   *
+   *  **One expression for both ways in.** The header pill and the sidebar's own
+   *  action each carried their own list, and the lists had drifted: the
+   *  sidebar's was missing `aiRunning`, so while the model worked the header
+   *  was correctly dead and the sidebar was still pressable — two answers to
+   *  one question, several hundred lines apart. It sits under `running` because
+   *  that is the one of the four that is derived rather than held. */
+  const speakersBusy = segments.length === 0 || running || diarizing || aiRunning;
   // The segment that last began, rather than the one the playhead sits
   // inside. Between two sentences there is a pause that belongs to neither,
   // and demanding a strict match made the highlight blink out for it before
@@ -1917,19 +2050,28 @@ export default function Detail({
               is divided between the voices that produced it. The sidebar's
               section keeps its own action — that one is the way back out of a
               corner, next to the speakers it would change; this is the way in.
-              Both say the same words, from the same keys. */}
+
+              They no longer say the same words, and the reason is the header
+              rather than the act. `Rozpoznat mluvčí` is right in the sidebar,
+              under a heading that has already said what these are and beside a
+              list it would change. In the header it stood between `Uložit` and
+              `AI nástroje` as the one verb in a row of names. So the pill has a
+              key of its own — `detail.header.speakersButton`, `Mluvčí` — and
+              the sidebar keeps the verb it was written for. */}
           <button
             className="button"
             onClick={recognizeSpeakers}
-            disabled={segments.length === 0 || running || diarizing || aiRunning}
+            disabled={speakersBusy}
             title={speakersReady ? undefined : t("detail.header.speakersMissing")}
           >
             <LineIcon name="speakers" size={15} />
+            {/* The name does not change when speakers exist — a door is not
+                renamed because there is something behind it, which is the rule
+                `AI nástroje` is named on. The running state stays: that is not
+                a second name, it is the button saying it is busy. */}
             {diarizing
               ? t("detail.speakers.diarizing")
-              : speakers.length > 0
-                ? t("detail.speakers.diarizeAgain")
-                : t("detail.speakers.diarize")}
+              : t("detail.header.speakersButton")}
           </button>
           <button
             className={`button ai-edit-button ${aiDocument ? "ready" : ""}`}
@@ -2299,7 +2441,7 @@ export default function Detail({
                   {t("detail.speakers.add")}
                 </button>
                 <button className="sidebar-text-action" onClick={diarizeSpeakers}
-                        disabled={diarizing || running || segments.length === 0}>
+                        disabled={speakersBusy}>
                   <LineIcon name="speakers" size={15} />
                   {diarizing
                     ? t("detail.speakers.diarizing")
@@ -2848,6 +2990,57 @@ export default function Detail({
         </div>
       )}
 
+      {/* The machine could not start the chosen model, and this says so and
+          offers the one below it. It is not a warning worked out in advance —
+          `tools.rs` refuses to decide anything by `memory_gb`, on the grounds
+          that nothing here has ever measured what a model needs, and that
+          refusal is right. A model that would not load is a measurement, and
+          it is the only one this application can honestly make: the graphics
+          card's memory, which is what usually runs out, is not readable at
+          all.
+
+          The reader presses. Nothing is switched behind their back, and it is
+          the press that makes the changed setting theirs — the same bargain
+          `Grafická karta je vybraná, ale…` makes on the settings screen. */}
+      {smallerOffer && (
+        <div className="dialog-overlay" role="presentation" onMouseDown={() => setSmallerOffer(null)}>
+          <div ref={smallerDialog} className="dialog" role="dialog" aria-modal="true"
+               aria-labelledby="ai-smaller-title"
+               onMouseDown={(event) => event.stopPropagation()}>
+            <h2 id="ai-smaller-title">{t("detail.smaller.title")}</h2>
+            <p>
+              {t(smallerOffer.installed
+                ? "detail.smaller.text"
+                : "detail.smaller.textDownload")}
+            </p>
+            <div className="dialog-footer">
+              <button className="button quiet" onClick={() => setSmallerOffer(null)}>
+                {t("common.close")}
+              </button>
+              {/* Because one failed load is not a verdict on the machine. The
+                  paint may have been momentary — another program holding the
+                  graphics memory, a transcription running beside this, a driver
+                  that stumbled — and the application cannot tell that from a
+                  computer too small, so it must not decide. Trying the same
+                  model again is the answer it would be arrogant not to offer.
+
+                  Quiet, and the switch stays primary: retrying costs another
+                  wait and may end here again, while switching is the answer
+                  most likely to end with a document. Which is a reason to rank
+                  them, not a reason to leave one out. */}
+              <button className="button quiet" onClick={() => void retrySameEditor()}>
+                {t("detail.smaller.again")}
+              </button>
+              <button className="button primary" onClick={() => void takeSmallerEditor()}>
+                {t(smallerOffer.installed
+                  ? "detail.smaller.switch"
+                  : "detail.smaller.download")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {aiDialog === "configure" && (
         <div className="dialog-overlay" role="presentation" onMouseDown={() => setAiDialog(null)}>
           <div ref={configureDialog} className="dialog ai-edit-dialog" role="dialog" aria-modal="true"
@@ -2884,48 +3077,19 @@ export default function Detail({
                   <span className="small-text">{t("detail.ai.modeCleanDescription")}</span>
                 </span>
               </button>
-              {/* Where speaker recognition stood. Two prepared ways of
-                  rewriting the text, and then the reader's own — the same
-                  question the other two answer, asked of the person who knows
-                  what they want out of this recording. */}
-              <button className={`choice with-icon ${aiMode === "custom" ? "chosen" : ""}`}
-                      onClick={() => setAiMode("custom")}>
-                <span className="choice-icon" aria-hidden>
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-                       stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"
-                       strokeLinejoin="round">
-                    <path d="M4 6h10M4 11h6M4 16h5M19.4 10.1l1.6 1.6-6 6-2.2.6.6-2.2 6-6Z" />
-                  </svg>
-                </span>
-                <span className="choice-body">
-                  <span className="choice-title">{t("detail.ai.modeCustom")}</span>
-                  <span className="small-text">{t("detail.ai.modeCustomDescription")}</span>
-                </span>
-              </button>
-            </div>
-            {/* The field appears with the card that needs it, rather than
-                standing empty under two cards it has nothing to do with. */}
-            {aiMode === "custom" && (
-              <div className="field ai-custom-field">
-                <label htmlFor="ai-custom-prompt">{t("detail.custom.label")}</label>
-                <textarea
-                  id="ai-custom-prompt"
-                  rows={3}
-                  value={customPrompt}
-                  placeholder={t("detail.custom.placeholder")}
-                  onChange={(event) => setCustomPrompt(event.target.value)}
-                />
-                {/* `Vlastní prompt` is the phrase that makes people assume a
-                    service somewhere on the internet, and this card is where
-                    somebody meets it first. The info mark is half the sentence:
-                    a circle-i beside `přímo ve vašem počítači` reads as
-                    reassurance without having to claim one.
+              {/* Speaker recognition stood here, and then `Vlastní prompt`
+                  stood in its place with its own field under these cards. Both
+                  are gone and this dialog is one question again: which of two
+                  ways the transcript is rewritten.
 
-                    Not compact: it belongs to the field above it, which is the
-                    8 px position `.settings-info-note` already carries. */}
-                <InfoNote>{t("detail.custom.privacy")}</InfoNote>
-              </div>
-            )}
+                  The instruction left on the owner's realisation, not on a
+                  preference — *nejdřív prostě MUSÍ být vylepšený přepis a pak
+                  teprve další věci*. A document made from an instruction is one
+                  of the further things, so offering it beside the two cards
+                  that make the thing it needs was offering step two next to
+                  step one. It lives in the window's fourth tab, which has had
+                  the field, the button and the regenerate all along. */}
+            </div>
             <p className="small-text ai-edit-note">
               <svg className="ai-edit-note-icon" width="16" height="16" viewBox="0 0 16 16"
                    fill="none" aria-hidden>
@@ -2939,35 +3103,17 @@ export default function Detail({
               <button className="button quiet" onClick={() => setAiDialog(null)}>
                 {t("common.cancel")}
               </button>
-              {/* The way back to an answer this instruction already has.
+              {/* `Zobrazit uložený` stood here, added this morning: with the
+                  instruction living in this dialog, a document made from it had
+                  no other way back once `Vylepšit` stopped routing to the
+                  window. The instruction does not live here any more, and the
+                  window's fourth tab is reached the ordinary way — through the
+                  tabs — so there is nothing left to rescue.
 
-                  It is here because `Vylepšit` no longer routes to the reading
-                  window when there is no improved transcript, and without a
-                  second route a saved document would be written, shown once and
-                  unreachable — which is the fault the window was built to fix.
-                  Here rather than on the button that opens this dialog: the
-                  instruction is what the answer is filed under, so the place to
-                  offer it is beside the instruction.
-
-                  Only when the written instruction matches one that was
-                  answered. Regenerating costs minutes of this computer, and the
-                  text is already on the disk. */}
-              {aiMode === "custom" && customDocument && (
-                <button className="button quiet" onClick={() => {
-                  setPreviewTab("custom");
-                  setAiDialog("preview");
-                }}>
-                  {t("detail.custom.openSaved")}
-                </button>
-              )}
-              {/* An instruction nobody wrote is not sent to the model, so the
-                  button that would send it cannot be pressed. */}
-              <button className="button primary"
-                      onClick={() =>
-                        aiMode === "custom" ? startCustomDocument() : void startAiEdit(aiMode)
-                      }
-                      disabled={aiMode === "custom" && !writtenPrompt}>
-                {t(aiMode === "custom" ? "detail.custom.create" : "detail.ai.startEdit")}
+                  A correction of a correction, and both were right about the
+                  arrangement they were written for. */}
+              <button className="button primary" onClick={() => void startAiEdit(aiMode)}>
+                {t("detail.ai.startEdit")}
               </button>
             </div>
           </div>
@@ -2982,14 +3128,19 @@ export default function Detail({
           <div ref={previewDialog} className="dialog ai-preview-dialog" role="dialog" aria-modal="true"
                aria-labelledby="ai-preview-title" onMouseDown={(event) => event.stopPropagation()}>
             <div className="ai-preview-header">
-              {/* With no improved transcript this window holds one document,
-                  and it is not that one: naming it `Vylepšený přepis` would be
-                  naming the thing the reader did not ask for. */}
+              {/* One name, both states. It used to switch, because with no
+                  improved transcript the window held exactly one document and
+                  it was the custom one — naming it `Vylepšený přepis` would
+                  have named the thing the reader did not ask for.
+
+                  Neither half of that is true now: every visit shows four tabs,
+                  and with no improved transcript the window holds nothing at
+                  all. `Dokument podle vašeho pokynu` over an empty window would
+                  name a document that does not exist and is not what is being
+                  asked for anyway. */}
               <div>
-                <h2 id="ai-preview-title">
-                  {t(aiDocument ? "detail.preview.title" : "detail.custom.title")}
-                </h2>
-                <p>{t(aiDocument ? "detail.preview.subtitle" : "detail.custom.subtitle")}</p>
+                <h2 id="ai-preview-title">{t("detail.preview.title")}</h2>
+                <p>{t("detail.preview.subtitle")}</p>
               </div>
               <button className="icon-button" onClick={() => setAiDialog(null)}
                       aria-label={t("detail.preview.closeLabel")} title={t("common.close")}>
@@ -3005,7 +3156,7 @@ export default function Detail({
             {/* A custom document is compared against the transcript alone: no
                 model is named in it, and nothing about it becomes wrong
                 because a different editing model was chosen since. */}
-            {previewTab === "custom" && customDocument?.stale && (
+            {previewTab === "custom" && aiDocument && customDocument?.stale && (
               <div className="ai-preview-warning">{t("detail.custom.staleWarning")}</div>
             )}
             {/* The header's own buttons, and the playback speeds' own selected
@@ -3013,34 +3164,38 @@ export default function Detail({
                 segmented control is right in the archive, where it switches how
                 a list is drawn; hanging under a header made of pills it read as
                 a borrowed part. */}
-            {/* The first three tabs are the improved transcript and the two
-                documents derived from it, so they appear with it. The fourth
-                stands on its own: it reads the transcript and can be asked for
-                before anything has been improved. */}
+            {/* All four, always — *myslím, že i po kliknutí na hotový vlastní
+                prompt vidět ostatní záložky*.
+
+                The first three used to be drawn only with the improved
+                transcript, because the middle two are made *from* it and Rust
+                refuses them without one (`ai.document_required`). That is a
+                true statement about what can be produced and it was answered in
+                the wrong place: hiding the tab hides the subject, and a window
+                showing one pill reads as broken rather than as empty. Where a
+                document cannot be made yet, the tab says so and offers the step
+                that comes first — which is what the two empty states below
+                already did for their own documents. */}
             <nav className="ai-document-tabs" role="tablist"
                  aria-label={t("detail.preview.tabsLabel")}>
-              {aiDocument && (
-                <>
-                  <button className={previewTab === "improved" || previewTab === "original" ? "active" : ""}
-                          onClick={() => setPreviewTab("improved")} role="tab"
-                          aria-selected={previewTab === "improved" || previewTab === "original"}>
-                    <DocumentViewIcon view="improved" />
-                    {t("detail.preview.transcriptTab")}
-                  </button>
-                  <button className={previewTab === "summary" ? "active" : ""}
-                          onClick={() => setPreviewTab("summary")} role="tab"
-                          aria-selected={previewTab === "summary"}>
-                    <DocumentViewIcon view="summary" />
-                    {t("detail.preview.summaryTab")}
-                  </button>
-                  <button className={previewTab === "translation" ? "active" : ""}
-                          onClick={() => setPreviewTab("translation")} role="tab"
-                          aria-selected={previewTab === "translation"}>
-                    <DocumentViewIcon view="translation" />
-                    {t("detail.preview.translationTab")}
-                  </button>
-                </>
-              )}
+              <button className={previewTab === "improved" || previewTab === "original" ? "active" : ""}
+                      onClick={() => setPreviewTab("improved")} role="tab"
+                      aria-selected={previewTab === "improved" || previewTab === "original"}>
+                <DocumentViewIcon view="improved" />
+                {t("detail.preview.transcriptTab")}
+              </button>
+              <button className={previewTab === "summary" ? "active" : ""}
+                      onClick={() => setPreviewTab("summary")} role="tab"
+                      aria-selected={previewTab === "summary"}>
+                <DocumentViewIcon view="summary" />
+                {t("detail.preview.summaryTab")}
+              </button>
+              <button className={previewTab === "translation" ? "active" : ""}
+                      onClick={() => setPreviewTab("translation")} role="tab"
+                      aria-selected={previewTab === "translation"}>
+                <DocumentViewIcon view="translation" />
+                {t("detail.preview.translationTab")}
+              </button>
               <button className={previewTab === "custom" ? "active" : ""}
                       onClick={() => setPreviewTab("custom")} role="tab"
                       aria-selected={previewTab === "custom"}>
@@ -3049,7 +3204,12 @@ export default function Detail({
               </button>
             </nav>
 
-            {(previewTab === "improved" || previewTab === "original") && (
+            {/* The three toolbars pick a variant of a document. With no
+                improved transcript there is no document to vary, so they stay
+                down and the empty state below carries the whole tab — a length
+                chosen for a summary that cannot be made is a control with
+                nothing behind it. */}
+            {(previewTab === "improved" || previewTab === "original") && aiDocument && (
               <div className="ai-output-toolbar">
                 <div className="ai-output-options" role="radiogroup"
                      aria-label={t("detail.preview.versionLabel")}>
@@ -3066,7 +3226,7 @@ export default function Detail({
                 </div>
               </div>
             )}
-            {previewTab === "summary" && (
+            {previewTab === "summary" && aiDocument && (
               <div className="ai-output-toolbar">
                 {/* The three names say what they are. The group keeps its
                     accessible label for anyone who cannot see them. */}
@@ -3084,7 +3244,7 @@ export default function Detail({
                 </div>
               </div>
             )}
-            {previewTab === "translation" && (
+            {previewTab === "translation" && aiDocument && (
               <div className="ai-output-toolbar">
                 {/* No visible label: the tab above says Překlad and the value
                     in the control is a language. `Select` carries its own
@@ -3102,7 +3262,7 @@ export default function Detail({
                 there: rewriting it is how the next document is asked for, and
                 the moment it changes the answer below is no longer to this
                 question — the tab says so by going back to its empty state. */}
-            {previewTab === "custom" && (
+            {previewTab === "custom" && aiDocument && (
               <div className="ai-output-toolbar ai-custom-bar">
                 <div className="field ai-custom-field">
                   <label htmlFor="ai-custom-prompt-preview">{t("detail.custom.label")}</label>
@@ -3150,7 +3310,44 @@ export default function Detail({
                 .map((paragraph, index) => <p key={index}>{paragraph}</p>)}
               </article>
             )}
-            {previewTab === "summary" && !summaryOutput && (
+            {/* Every tab, when there is no improved transcript. One block for
+                all four rather than four: what is missing is the same thing,
+                and the step that fixes it is the same press. Only the sentence
+                changes — the first tab is the document itself, the other three
+                are made from it.
+
+                The fourth joined the other two when the instruction started
+                reading the improved document instead of the timed transcript.
+                That is the whole of *nejdřív prostě MUSÍ být vylepšený přepis*
+                on this screen: one precondition, said once, in front of
+                everything that has it.
+
+                The button goes to the choice rather than starting an edit,
+                because there is a choice: `Věrný` and `Vyčištěný` are two
+                different documents and one of them is only recommended. The
+                dialog that asks is the one this window's own button opens, so
+                nothing here invents a second way to decide. */}
+            {!aiDocument && (
+              <div className="ai-preview-empty">
+                <span className="ai-preview-empty-icon" aria-hidden>
+                  <DocumentViewIcon view="improved" />
+                </span>
+                <h3>{t("detail.preview.emptyTitle")}</h3>
+                <p>
+                  {t(previewTab === "improved" || previewTab === "original"
+                    ? "detail.preview.emptyText"
+                    : "detail.preview.emptyDerived")}
+                </p>
+                <button className="button primary"
+                        onClick={() => {
+                          setAiMode("faithful");
+                          setAiDialog("configure");
+                        }}>
+                  {t("detail.ai.startEdit")}
+                </button>
+              </div>
+            )}
+            {previewTab === "summary" && aiDocument && !summaryOutput && (
               <div className="ai-preview-empty">
                 <span className="ai-preview-empty-icon" aria-hidden>
                   <DocumentViewIcon view="summary" />
@@ -3165,7 +3362,7 @@ export default function Detail({
                 </button>
               </div>
             )}
-            {previewTab === "translation" && !translationOutput && (
+            {previewTab === "translation" && aiDocument && !translationOutput && (
               <div className="ai-preview-empty">
                 <span className="ai-preview-empty-icon" aria-hidden>
                   <DocumentViewIcon view="translation" />
@@ -3178,14 +3375,14 @@ export default function Detail({
                 </button>
               </div>
             )}
-            {previewTab === "custom" && customDocument && (
+            {previewTab === "custom" && aiDocument && customDocument && (
               <article className="ai-preview-text">
                 {customDocument.text
                   .split(/\n{2,}/)
                   .map((paragraph, index) => <p key={index}>{paragraph}</p>)}
               </article>
             )}
-            {previewTab === "custom" && !customDocument && (
+            {previewTab === "custom" && aiDocument && !customDocument && (
               <div className="ai-preview-empty">
                 <span className="ai-preview-empty-icon" aria-hidden>
                   <DocumentViewIcon view="custom" />
@@ -3199,10 +3396,15 @@ export default function Detail({
               </div>
             )}
 
-            {(previewTab === "improved" || previewTab === "original"
-              || (previewTab === "summary" && summaryOutput)
-              || (previewTab === "translation" && translationOutput)
-              || (previewTab === "custom" && customDocument)) && (
+            {/* Copy and Save act on a text, so the footer follows whether
+                there is one. With no improved transcript there is none on any
+                tab — the empty state has the whole window and carries its own
+                single button, which is the only thing to do from here. */}
+            {aiDocument
+              && (previewTab === "improved" || previewTab === "original"
+                || (previewTab === "summary" && summaryOutput)
+                || (previewTab === "translation" && translationOutput)
+                || (previewTab === "custom" && customDocument)) && (
               <div className="dialog-footer ai-preview-actions">
                 {previewTab === "improved" && aiDocument && (
                   <button className="button quiet danger" onClick={async () => {

@@ -64,6 +64,12 @@ interface Props {
   onInfo: (z: string) => void;
   /** Opens the modules screen; with an id it preselects what to add. */
   onToModule: (module?: string) => void;
+  /** Which tab this visit opens on, when the reader was sent here rather than
+   *  arriving. It beats the remembered tab and is deliberately not written to
+   *  `settings-tab`: that key means *where the human last was*, and being
+   *  carried somewhere is not the same as going there. Click a tab while here
+   *  and the remembering resumes, because that is a choice. */
+  initialTab?: SettingsTab;
 }
 
 /* `EDITOR_CHOICES` stood here: three cards, `Úsporná`, `Doporučená`,
@@ -281,7 +287,9 @@ const DECODING_FIELDS: ReadonlyArray<{
    that name was the recordings folder, the watched folder and the archive's
    copies — and none of them is what a reader would look for behind the word
    `Aplikace`. */
-type SettingsTab =
+/** Exported because the screen can now be opened *on* a tab by whoever is
+ *  sending the reader here — see `initialTab`. */
+export type SettingsTab =
   | "transcription"
   | "interface"
   | "performance"
@@ -340,6 +348,16 @@ const SETTINGS_TAB_KEYS: Record<SettingsTab, TranslationKey> = {
  *  free to leave while several gigabytes come down and the promise has to
  *  survive that. */
 const MODEL_WANTED = "model-wanted";
+
+/** The id the dictionary's unwritten row wears while it is in the table and
+ *  not yet in the archive. Every saved entry's id is a uuid from the backend,
+ *  so this cannot be one of them. */
+const DRAFT_ROW = "draft-row";
+
+/** Both halves of an unwritten row. Named once because three places make one —
+ *  the button under the table, and either field when the row standing in an
+ *  empty table takes its first character. */
+const EMPTY_DRAFT = { find: "", replace: "" };
 
 /** The models on disk arrive sorted by file name, which is not an order
  *  anybody reads. They are shown in the order the interface offers them —
@@ -419,7 +437,13 @@ function SettingsDisclosure({
   );
 }
 
-export default function SettingsScreen({ onComplete, onError, onInfo, onToModule }: Props) {
+export default function SettingsScreen({
+  onComplete,
+  onError,
+  onInfo,
+  onToModule,
+  initialTab,
+}: Props) {
   const labels = useLabels();
   const formats = useFormats();
   const { language, setLanguage, t, tDynamic, tPlural, formatNumber } = useI18n();
@@ -453,9 +477,23 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
    *  edited in place, so `dictionary` follows every keystroke; this follows
    *  only what was saved, and is what a row with an emptied side goes back to. */
   const dictionaryRef = useRef<DictionaryEntry[]>([]);
-  const [entryFind, setEntryFind] = useState("");
-  const [entryReplace, setEntryReplace] = useState("");
+  /** The row that has been asked for and not yet written. It is a row of the
+   *  table and not a form above it, so it is held here rather than in the
+   *  archive: an entry with an empty side is not an entry, and the archive
+   *  should never hold one even for the moment between the press and the
+   *  typing. Leaving it empty simply takes it away again.
+   *
+   *  One at a time. `Přidat výraz` pressed while an empty row is already open
+   *  puts the cursor in that row instead of stacking a second one under it. */
+  const [draft, setDraft] = useState<{ find: string; replace: string } | null>(null);
+  const draftField = useRef<HTMLInputElement | null>(null);
+  const draftReplaceField = useRef<HTMLInputElement | null>(null);
   const [activeTab, setActiveTab] = useState<SettingsTab>(() => {
+    /* Whoever sent the reader here said where to put them, and that beats the
+       last visit. The screen unmounts on the way out and this initialiser runs
+       again on the way back in, so a prop is enough — there is nothing to
+       synchronise afterwards. */
+    if (initialTab) return initialTab;
     const remembered = localStorage.getItem("settings-tab");
     /* A remembered name this build does not have opens the first tab rather
        than an empty panel, which is what makes renaming one safe: `application`
@@ -478,20 +516,46 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
      the place you are already looking. There used to be a second switch above
      the list carrying the same name; it only chose this default, was stored
      nowhere, and read as a master switch over the column beneath it. */
-  const addEntry = useCallback(async () => {
-    const find = entryFind.trim();
-    const replace = entryReplace.trim();
+  const addEntry = useCallback(async (find: string, replace: string) => {
     if (!find || !replace) return;
     try {
       const entry = await api.addDictionaryEntry(find, replace);
       dictionaryRef.current = [...dictionaryRef.current, entry];
       setDictionary((current) => [...current, entry]);
-      setEntryFind("");
-      setEntryReplace("");
     } catch (e) {
       onError(userMessage(e));
     }
-  }, [entryFind, entryReplace, onError, userMessage]);
+  }, [onError, userMessage]);
+
+  /** Keeps the unwritten row's first field and puts the cursor in it as it
+   *  appears. A stable callback ref runs on mount and on unmount and not on
+   *  every render, which is what makes it the right place for the focus. */
+  const holdDraftField = useCallback((node: HTMLInputElement | null) => {
+    draftField.current = node;
+    node?.focus();
+  }, []);
+
+  /** The button under the table. A row appears at the end of it with the
+   *  cursor in its first field — the reader types in the table they are
+   *  looking at rather than in a form that describes it. */
+  const startDraft = useCallback(() => {
+    setDraft((current) => current ?? EMPTY_DRAFT);
+    /* Only reaches a row that is already open; a row being made this moment is
+       focused by the callback ref on its first field, which runs on mount. */
+    draftField.current?.focus();
+  }, []);
+
+  /** Leaving the draft row is what decides it, which is the rule the saved
+   *  rows already follow — no separate act of confirming, and nothing to
+   *  cancel. Both halves filled, it is written; either one empty, the row goes
+   *  away, because that is what an unfinished entry is worth. */
+  const closeDraft = useCallback(() => {
+    if (!draft) return;
+    const find = draft.find.trim();
+    const replace = draft.replace.trim();
+    setDraft(null);
+    void addEntry(find, replace);
+  }, [draft, addEntry]);
 
   const editEntry = useCallback((id: string, change: Partial<DictionaryEntry>) => {
     setDictionary((current) =>
@@ -857,6 +921,29 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
   const advancedChanged = (
     Object.keys(ADVANCED_DEFAULTS) as Array<keyof typeof ADVANCED_DEFAULTS>
   ).some((key) => n[key] !== ADVANCED_DEFAULTS[key]);
+
+  /* The row being written is a row of the table, so one block of markup draws
+     it and the saved ones together rather than a copy of that block standing
+     above them. That is what the composer was, and a copy is how the two came
+     to carry different marks, different heights and different left edges. The
+     id is what tells them apart in the handlers; the archive's ids are uuids,
+     so no entry can wear this one.
+
+     An empty table stands as one unwritten row rather than a sentence saying it
+     is empty — *já bych tam raději nechal jeden prázdný řádek tabulky
+     připravené pro zápis*. `Slovník je zatím prázdný.` described the table
+     instead of offering it, and the reader had to find the button under it to
+     learn that the table is writable at all. A row with its two placeholders in
+     it shows what a pair looks like and takes the first keystroke, which is the
+     same amount of screen and one step less.
+
+     The standing row is the draft row before anybody has typed: same markup,
+     same id, same handlers. `draft` stays the record of *somebody is writing
+     this* — that is what decides the focus and the bin below — so an empty
+     table has a row without having a draft. */
+  const dictionaryRows = draft || dictionary.length === 0
+    ? [...dictionary, { id: DRAFT_ROW, find: draft?.find ?? "", replace: draft?.replace ?? "" }]
+    : dictionary;
 
   return (
     <main className="settings">
@@ -1455,85 +1542,53 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
         <h2>{t("settings.dictionary.title")}</h2>
         <p className="settings-section-description">{t("settings.dictionary.description")}</p>
 
-        <div className="field">
-          <label htmlFor="dictionary-find">{t("settings.dictionary.newEntry")}</label>
-          {/* One row, like every other field in Settings that ends in an
-              action. The two halves say what they are through their
-              placeholders; a second visible label above one of two boxes on
-              the same line reads as two separate fields. */}
-          <div className="input-row dictionary-row">
-            {/* The same two marks the saved rows carry. The arrow was here too,
-                and *tu šipku ze slovníku dejme pryč* leaves none of them in the
-                card: the composer is where somebody learns what the two boxes
-                are for, so it is the last place that should say it differently
-                from the list it fills. */}
-            <span className="dictionary-pair">
-              <span className="dictionary-mark wrong" aria-hidden>
-                <svg width="10" height="10" viewBox="0 0 14 14" fill="none">
-                  <path d="M3.5 3.5l7 7M10.5 3.5l-7 7" stroke="currentColor"
-                        strokeWidth="2" strokeLinecap="round" />
-                </svg>
-              </span>
-              <input
-                id="dictionary-find"
-                value={entryFind}
-                onChange={(event) => setEntryFind(event.target.value)}
-                placeholder={t("settings.dictionary.findPlaceholder")}
-                aria-label={t("settings.dictionary.find")}
-                spellCheck={false}
-              />
-            </span>
-            <span className="dictionary-pair">
-              <span className="dictionary-mark right" aria-hidden>
-                <svg width="10" height="10" viewBox="0 0 14 14" fill="none">
-                  <path d="M3 7.2 5.7 10 11 4.5" stroke="currentColor" strokeWidth="2"
-                        strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </span>
-              <input
-                value={entryReplace}
-                onChange={(event) => setEntryReplace(event.target.value)}
-                placeholder={t("settings.dictionary.replacePlaceholder")}
-                aria-label={t("settings.dictionary.replace")}
-                spellCheck={false}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") void addEntry();
-                }}
-              />
-            </span>
-            <button
-              className="button primary"
-              onClick={() => void addEntry()}
-              disabled={!entryFind.trim() || !entryReplace.trim()}
-            >
-              {t("settings.dictionary.add")}
-            </button>
-          </div>
-        </div>
+        {/* The composer stood here — a labelled `Nový výraz` row of two fields
+            and a `Přidat` button, above the table it filled. It is gone on the
+            owner's word: *dejme pryč ten současný formulář ale dejme tam
+            tlačítko které umožní přidat nový řádek té tabulce*.
 
+            The reason it is right beyond being asked for: the card said the
+            same thing twice, in two shapes. A form above a table is a second
+            drawing of the table's own row — two marks, two fields, one on top
+            of the other — and the reader had to learn that the boxes above and
+            the boxes below are the same two columns. They are one thing now:
+            the table, and a button that lengthens it. */}
         <div className="dictionary-saved">
-          {dictionary.length > 0 ? (
-            <>
-              {/* A saved row is two bare words; without a heading the reader
-                  has to work out which half is the error and which is the fix.
-                  The marks in the rows below say that too, and say it per row,
-                  but they say *wrong* and *right* — this says which of the two
-                  the application heard and which one it will write, which is
-                  the sentence somebody needs the first time.
+              {/* The empty state stood around this list — `dictionaryRows` is
+                  never empty now, because a table with nothing in it draws the
+                  unwritten row instead, and a branch that cannot be taken is
+                  worse than no branch. */}
+              {/* `Co přepis slyší` and `Jak to má být` stood here, one over each
+                  column — *tyhle dva popisky dej pryč, nejsou nutné*.
 
-                  Three spans on the shared grid: a heading for each column and
-                  the bin's column left empty. Each one starts at its column's
-                  own edge, which is the mark's edge — the mark is part of what
-                  the heading names, so a heading indented to the text would
-                  leave the circle hanging outside the column it belongs to. */}
-              <div className="dictionary-head" aria-hidden>
-                <span>{t("settings.dictionary.find")}</span>
-                <span>{t("settings.dictionary.replace")}</span>
-                <span />
-              </div>
+                  They were written when a row was two bare words and the reader
+                  had to work out which half was the error. A row is not that any
+                  more: the red cross and the green tick say it on the fields
+                  themselves, per row, and the card's opening sentence says what
+                  the pair is for. Two headings over two marks that already speak
+                  is the same thing said twice.
+
+                  The sentence is not lost for anyone reading with something
+                  other than their eyes: both keys stay, on each input as its
+                  `aria-label`, which is where a field's name belongs. */}
               <ul className="dictionary-list">
-              {dictionary.map((entry) => (
-                <li key={entry.id}>
+              {dictionaryRows.map((entry) => {
+                /* The last row is the one being written when there is one. It
+                   is drawn by this same block — same marks, same columns, same
+                   height — and differs only in where its text goes and what
+                   leaving it means. */
+                const writing = entry.id === DRAFT_ROW;
+                return (
+                <li
+                  key={entry.id}
+                  /* Leaving the unwritten row decides it. `onBlur` bubbles, so
+                     this catches either half; moving from one half to the other
+                     is not leaving, which is what `relatedTarget` answers. */
+                  onBlur={writing ? (event) => {
+                    if (event.currentTarget.contains(event.relatedTarget)) return;
+                    closeDraft();
+                  } : undefined}
+                >
                   {/* A mark in front of each half instead of an arrow between
                       them — *tu šipku ze slovníku dejme pryč, je zbytečná*. An
                       arrow says *this becomes that* and leaves the reader to
@@ -1549,19 +1604,59 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
                       red against green alone is not a distinction every reader
                       has. */}
                   <span className="dictionary-pair">
-                    <span className="dictionary-mark wrong" aria-hidden>
+                    {/* The heading's own words, on the mark that replaced it.
+                        Taking `Co přepis slyší` off the screen was right — it
+                        was said on every row by this circle — but the first
+                        time somebody meets a red circle they may still want the
+                        sentence. Hovering the thing that says it is where to
+                        ask, and it costs no room while nobody is asking.
+
+                        `title` and not `aria-label`: the application draws its
+                        own bubble from `title`, and the field beside this mark
+                        already carries the same string as its accessible name.
+                        A second copy here would read every row twice. */}
+                    <span
+                      className="dictionary-mark wrong"
+                      title={t("settings.dictionary.find")}
+                      aria-hidden
+                    >
                       <svg width="10" height="10" viewBox="0 0 14 14" fill="none">
                         <path d="M3.5 3.5l7 7M10.5 3.5l-7 7" stroke="currentColor"
                               strokeWidth="2" strokeLinecap="round" />
                       </svg>
                     </span>
                     <input
+                      /* The callback ref is what puts the cursor in a row the
+                         moment the button makes it; `startDraft` uses the same
+                         node for the second press, when there is nothing to
+                         mount.
+
+                         `draft` and not `writing`: the row standing in an empty
+                         table is there before anybody asked for it, and a field
+                         that takes the cursor because a table happens to be
+                         empty would move it out of whatever the reader opened
+                         Settings for. The ref attaches on the first keystroke
+                         instead, where `focus()` lands on the field already
+                         being typed into and does nothing. */
+                      ref={writing && draft ? holdDraftField : undefined}
                       value={entry.find}
-                      onChange={(event) => editEntry(entry.id, { find: event.target.value })}
-                      onBlur={() => void saveEntry(entry)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter") event.currentTarget.blur();
+                      onChange={(event) => {
+                        const value = event.target.value;
+                        /* Typing into the standing row is what makes it a draft,
+                           so this starts one rather than requiring one. */
+                        if (writing) setDraft((current) => ({ ...(current ?? EMPTY_DRAFT), find: value }));
+                        else editEntry(entry.id, { find: value });
                       }}
+                      onBlur={writing ? undefined : () => void saveEntry(entry)}
+                      onKeyDown={(event) => {
+                        if (event.key !== "Enter") return;
+                        /* On a row being written, Enter is *next*, not *done* —
+                           blurring here would leave a half-filled row, and half
+                           a row is thrown away rather than saved. */
+                        if (writing) draftReplaceField.current?.focus();
+                        else event.currentTarget.blur();
+                      }}
+                      placeholder={writing ? t("settings.dictionary.findPlaceholder") : undefined}
                       aria-label={t("settings.dictionary.find")}
                       spellCheck={false}
                     />
@@ -1570,20 +1665,31 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
                     {/* The same tick as the release notes' list and the
                         listing's installed mark, at the same 10 px: one drawing
                         for *this is the good one* wherever the application says
-                        it. */}
-                    <span className="dictionary-mark right" aria-hidden>
+                        it. Its half of the sentence on hover, for the reason
+                        the cross carries. */}
+                    <span
+                      className="dictionary-mark right"
+                      title={t("settings.dictionary.replace")}
+                      aria-hidden
+                    >
                       <svg width="10" height="10" viewBox="0 0 14 14" fill="none">
                         <path d="M3 7.2 5.7 10 11 4.5" stroke="currentColor" strokeWidth="2"
                               strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
                     </span>
                     <input
+                      ref={writing ? draftReplaceField : undefined}
                       value={entry.replace}
-                      onChange={(event) => editEntry(entry.id, { replace: event.target.value })}
-                      onBlur={() => void saveEntry(entry)}
+                      onChange={(event) => {
+                        const value = event.target.value;
+                        if (writing) setDraft((current) => ({ ...(current ?? EMPTY_DRAFT), replace: value }));
+                        else editEntry(entry.id, { replace: value });
+                      }}
+                      onBlur={writing ? undefined : () => void saveEntry(entry)}
                       onKeyDown={(event) => {
                         if (event.key === "Enter") event.currentTarget.blur();
                       }}
+                      placeholder={writing ? t("settings.dictionary.replacePlaceholder") : undefined}
                       aria-label={t("settings.dictionary.replace")}
                       spellCheck={false}
                     />
@@ -1592,23 +1698,56 @@ export default function SettingsScreen({ onComplete, onError, onInfo, onToModule
                       now shares its shape with. A cross stood here, which is
                       the mark for closing something; deleting is a bin
                       everywhere else in the application, and the two acts are
-                      different enough that they must not wear one mark. */}
-                  <button
+                      different enough that they must not wear one mark.
+
+                      It is not drawn on the row standing in an empty table
+                      while nothing has been typed into it: that row cannot be
+                      thrown away — the table would draw it again — so a bin
+                      there would promise something it cannot do, which is the
+                      fault the listing's lock was built to stop telling. The
+                      first character makes it a draft and the bin appears with
+                      its ordinary meaning: what you typed goes. The 26 px
+                      column is declared in `grid-template-columns`, so an empty
+                      cell moves nothing. */}
+                  {(!writing || draft) && <button
                     type="button"
                     className="dictionary-remove"
                     title={t("common.delete")}
                     aria-label={t("common.delete")}
-                    onClick={() => void removeEntry(entry.id)}
+                    /* On a row being written, the press must not first take the
+                       focus out of the field: leaving decides the row, so the
+                       row would be gone — or saved — before the click landed on
+                       it. Holding the focus lets the bin mean one thing on both
+                       kinds of row: this row goes. */
+                    onMouseDown={writing ? (event) => event.preventDefault() : undefined}
+                    onClick={() => {
+                      if (writing) setDraft(null);
+                      else void removeEntry(entry.id);
+                    }}
                   >
                     <LineIcon name="remove" size={16} />
-                  </button>
+                  </button>}
                 </li>
-                ))}
+                );
+              })}
               </ul>
-            </>
-          ) : (
-            <p className="small-text">{t("settings.dictionary.empty")}</p>
-          )}
+          {/* 22 px under a bordered panel and no rule with it — the amount and
+              the reason `.settings-action-row.spaced` already carries, since a
+              rule drawn under a panel draws the same boundary twice.
+
+              A note at the left and the action at the right, which is what this
+              row is `space-between` for: the button had been standing alone at
+              the left end, where a lone child lands. The sentence is the one
+              thing about this table a reader cannot see — there is no saving to
+              do, and an unfinished row is not kept. It could only ever be
+              learned by trying it, which is the worst way to learn what happens
+              to something you typed. */}
+          <div className="settings-action-row spaced">
+            <InfoNote>{t("settings.dictionary.saving")}</InfoNote>
+            <button className="button" onClick={startDraft}>
+              {t("settings.dictionary.add")}
+            </button>
+          </div>
         </div>
       </section>}
 

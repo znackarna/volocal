@@ -10,7 +10,8 @@ export const enDetail: Partial<Record<keyof typeof csDetail, string>> = {
   "detail.export.button": "Save",
   "detail.export.rawGroup": "Raw transcript",
   "detail.export.improvedGroup": "Enhanced transcript",
-  "detail.header.improveButton": "Enhance",
+  "detail.header.speakersButton": "Speakers",
+  "detail.header.improveButton": "AI tools",
   "detail.header.improvedButton": "Enhanced transcript",
   "detail.header.staleHint": "Open the saved result; the transcript or the model has changed since",
   "detail.header.newTranscript": "New transcript",
@@ -108,7 +109,7 @@ export const enDetail: Partial<Record<keyof typeof csDetail, string>> = {
   "detail.ai.offerText": "A model on this computer edits the text, so nothing goes out. It downloads once, {size}, and the download runs in the background — you can carry on working.",
   "detail.ai.downloadingTitle": "The model is downloading",
   "detail.ai.downloadingText": "Once it has downloaded, language editing starts straight from here. You can carry on working in the meantime.",
-  "detail.ai.configureTitle": "AI enhancement",
+  "detail.ai.configureTitle": "AI tools",
   "detail.ai.configureText": "Creates a new document. The original transcript stays unchanged.",
   "detail.ai.modeFaithful": "Faithful edit",
   "detail.ai.modeFaithfulDescription": "Fixes punctuation, paragraphs and errors.",
@@ -116,10 +117,22 @@ export const enDetail: Partial<Record<keyof typeof csDetail, string>> = {
   "detail.ai.modeCleanDescription": "Removes obvious repetitions, slips and filler words.",
   "detail.custom.privacy":
     "The instruction is processed by the language model on your own computer.",
-  "detail.custom.openSaved": "Show the saved one",
   "detail.ai.recommended": "recommended",
   "detail.ai.configureNote": "You can keep reading or playing the recording while it edits.",
   "detail.ai.startEdit": "Enhance transcript",
+  "detail.smaller.title": "The model would not start on this computer",
+  "detail.smaller.text":
+    "It is probably too big for this computer. It may also have been a one-off — the computer may simply have been full at that moment — and then trying again is enough. The smaller model is already downloaded; switching runs the work straight away, and you can switch back at any time under Language editing in the settings.",
+  "detail.smaller.textDownload":
+    "It is probably too big for this computer. It may also have been a one-off — the computer may simply have been full at that moment — and then trying again is enough. The smaller model is not here yet; we can download it. You can switch back at any time under Language editing in the settings.",
+  "detail.smaller.again": "Try again",
+  "detail.smaller.switch": "Switch to the smaller one",
+  "detail.smaller.download": "Download the smaller one",
+  "detail.preview.emptyTitle": "The enhanced transcript has not been created",
+  "detail.preview.emptyText":
+    "The language model turns the transcript into text without timestamps, with paragraphs and punctuation.",
+  "detail.preview.emptyDerived":
+    "The summary and the translation are both made from the enhanced transcript, so that comes first.",
   "detail.preview.title": "Enhanced transcript",
   "detail.preview.subtitle": "A version without timestamps, processed by a language model.",
   "detail.preview.closeLabel": "Close preview",

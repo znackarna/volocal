@@ -12,7 +12,8 @@ export const csDetail = {
   "detail.export.rawGroup": "Hrubý přepis",
   "detail.export.improvedGroup": "Vylepšený přepis",
 
-  "detail.header.improveButton": "Vylepšit",
+  "detail.header.speakersButton": "Mluvčí",
+  "detail.header.improveButton": "AI nástroje",
   "detail.header.improvedButton": "Vylepšený přepis",
   "detail.header.staleHint": "Otevřít uložený výsledek; přepis nebo model se mezitím změnil",
   "detail.header.speakersMissing":
@@ -130,18 +131,30 @@ export const csDetail = {
   "detail.ai.downloadingTitle": "Model se stahuje",
   "detail.ai.downloadingText":
     "Až bude stažený, jazyková úprava se rovnou spustí odsud. Zatím můžete pracovat dál.",
-  "detail.ai.configureTitle": "AI vylepšení",
+  "detail.ai.configureTitle": "AI nástroje",
   "detail.ai.configureText": "Vytvoří nový dokument. Původní přepis zůstane beze změny.",
   "detail.ai.modeFaithful": "Věrná úprava",
   "detail.ai.modeFaithfulDescription": "Opraví interpunkci, odstavce a chyby.",
   "detail.ai.modeClean": "Vylepšená úprava",
   "detail.ai.modeCleanDescription": "Odstraní zjevná opakování, přeřeknutí a slovní vatu.",
-  "detail.ai.modeCustom": "Vlastní prompt",
-  "detail.ai.modeCustomDescription": "Napíšete vlastní pokyn a model se jím bude řídit.",
   "detail.ai.recommended": "doporučeno",
   "detail.ai.configureNote": "Během úpravy můžete dál číst nebo přehrávat nahrávku.",
   "detail.ai.startEdit": "Vylepšit přepis",
 
+  "detail.smaller.title": "Model se na tomhle počítači nespustil",
+  "detail.smaller.text":
+    "Nejspíš je na tenhle počítač velký. Mohlo to být i jednorázové — třeba měl počítač zrovna plno — a pak stačí zkusit znovu. Menší model je už stažený; po přepnutí se zpracování rovnou spustí a vrátit se dá kdykoliv v nastavení, v Jazykové úpravě.",
+  "detail.smaller.textDownload":
+    "Nejspíš je na tenhle počítač velký. Mohlo to být i jednorázové — třeba měl počítač zrovna plno — a pak stačí zkusit znovu. Menší model tu zatím není; můžeme ho stáhnout. Vrátit se dá kdykoliv v nastavení, v Jazykové úpravě.",
+  "detail.smaller.again": "Zkusit znovu",
+  "detail.smaller.switch": "Přepnout na menší",
+  "detail.smaller.download": "Stáhnout menší",
+
+  "detail.preview.emptyTitle": "Vylepšený přepis nebyl vytvořen",
+  "detail.preview.emptyText":
+    "Jazykový model z přepisu udělá text bez časových značek, s odstavci a interpunkcí.",
+  "detail.preview.emptyDerived":
+    "Shrnutí i překlad vznikají z vylepšeného přepisu, takže je potřeba nejdřív.",
   "detail.preview.title": "Vylepšený přepis",
   "detail.preview.subtitle": "Verze bez časových značek zpracovaná pomocí jazykového modelu.",
   "detail.preview.closeLabel": "Zavřít náhled",
@@ -191,9 +204,7 @@ export const csDetail = {
   "detail.custom.placeholder": "Například: Sepište z přepisu zápis z porady s úkoly a termíny.",
   "detail.custom.privacy": "Pokyn zpracuje jazykový model přímo ve vašem počítači.",
   "detail.custom.create": "Vytvořit dokument",
-  "detail.custom.openSaved": "Zobrazit uložený",
   "detail.custom.title": "Dokument podle vašeho pokynu",
-  "detail.custom.subtitle": "Vznikne nový dokument, přepis zůstane beze změny.",
   "detail.custom.emptyText": "Napište výše, co má model s přepisem udělat.",
   "detail.custom.staleWarning":
     "Přepis se od vytvoření tohoto dokumentu změnil. Starší výsledek můžete stále uložit, nebo ho vytvořit znovu.",
@@ -245,7 +256,10 @@ export const csDetailContext: Partial<Record<keyof typeof csDetail, string>> = {
   "detail.export.improvedGroup":
     "Nadpis skupiny v nabídce uložení. Verze přepisu upravená jazykovým modelem.",
 
-  "detail.header.improveButton": "Tlačítko spustí jazykovou úpravu přepisu jazykovým modelem.",
+  "detail.header.speakersButton":
+    "Tlačítko v hlavičce, které spustí rozpoznání mluvčích. Jen podstatné jméno, protože v hlavičce stojí v řadě jmen — vedle „AI nástroje“. Sloveso „Rozpoznat mluvčí“ zůstává v postranním panelu, kde je nadpis už řekl, o co jde.",
+  "detail.header.improveButton":
+    "Tlačítko v hlavičce, které otevře dialog s tím, co umí jazykový model. Název je množné číslo a věc, ne sloveso: pod tím tlačítkem jsou tři možnosti a nejsou to tři způsoby vylepšení. „Vylepšit“ stálo pod jednou z nich a slibovalo jen ji.",
   "detail.header.improvedButton":
     "Tlačítko v hlavičce, když už upravená verze existuje — otevře ji.",
   "detail.header.staleHint":
@@ -371,14 +385,22 @@ export const csDetailContext: Partial<Record<keyof typeof csDetail, string>> = {
     "například „3,3 GB“.",
   "detail.ai.downloadingTitle":
     "Nadpis téhož dialogu, když už stahování běží a uživatel zmáčkl tlačítko podruhé.",
-  "detail.ai.configureTitle": "Nadpis dialogu, který nastavuje úpravu přepisu jazykovým modelem.",
+  "detail.ai.configureTitle":
+    "Nadpis dialogu, který nastavuje úpravu přepisu jazykovým modelem. Stejné jméno jako tlačítko, které ho otevírá — dveře a místnost za nimi se jmenují stejně.",
   "detail.ai.modeFaithful": "Režim úpravy, který nemění formulace, jen je opraví.",
   "detail.ai.modeClean": "Režim úpravy, který text i přeformuluje do čitelnější podoby.",
-  "detail.ai.modeCustom":
-    "Volba, u které pokyn pro model napíše sám uživatel. „Prompt“ je zavedené slovo pro zadání jazykovému modelu a nepřekládá se.",
-  "detail.ai.modeCustomDescription": "Popis karty s vlastním pokynem.",
   "detail.ai.recommended": "Odznak u doporučené volby. Malé písmeno záměrně.",
   "detail.ai.startEdit": "Potvrzovací tlačítko dialogu, spustí jazykovou úpravu.",
+  "detail.smaller.title":
+    "Nadpis dialogu, který přijde poté, co se jazykový model na tomhle stroji nepodařilo spustit. Říká, co se stalo, ne co si aplikace myslí o počítači — nic neměřila dopředu, jen ten pokus selhal.",
+  "detail.smaller.text":
+    "Text toho dialogu, když menší model už na disku je. „Nejspíš“ je záměr: aplikace ví, že se to nespustilo, ne proč. Druhá věta přiznává, že to mohla být chvilková věc — proto je vedle přepnutí i „Zkusit znovu“. Poslední věta jmenuje kartu, kde se to dá vrátit; přepnutí je změna nastavení, ne jednorázová výjimka.",
+  "detail.smaller.textDownload":
+    "Totéž, když menší model stažený není. Tlačítko pak vede na stahování, ne na přepnutí.",
+  "detail.smaller.again":
+    "Tlačítko: zopakuje totéž s týmž modelem a nic nezmění. Pro případ, že selhání bylo chvilkové.",
+  "detail.smaller.switch": "Tlačítko: uloží menší model do nastavení a rovnou zopakuje, co se nepovedlo.",
+  "detail.smaller.download": "Tlačítko: otevře stahování menšího modelu.",
 
   "detail.custom.label": "Popisek pole, do kterého uživatel píše vlastní pokyn pro model.",
   "detail.custom.placeholder":
@@ -386,21 +408,20 @@ export const csDetailContext: Partial<Record<keyof typeof csDetail, string>> = {
   "detail.custom.privacy":
     "Poznámka s ikonkou „i“ pod polem pro vlastní pokyn. Ubezpečení, že model běží v počítači uživatele — právě u vlastního pokynu lidé předpokládají službu na internetu. Ubezpečení nese samo spojení „přímo ve vašem počítači“ vedle informační ikonky, proto věta nic dalšího netvrdí.",
   "detail.custom.create": "Tlačítko spustí zpracování přepisu podle napsaného pokynu.",
-  "detail.custom.openSaved":
-    "Tiché tlačítko vedle Vytvořit dokument. Ukáže se jen tehdy, když na " +
-    "napsaný pokyn už jednou odpověď vznikla a je uložená u nahrávky — otevře " +
-    "ji místo toho, aby se počítala znovu. „Uložený“ je dokument, proto mužský " +
-    "rod; slovo dokument se neopakuje, stojí na tlačítku vedle.",
   "detail.custom.title":
     "Název dokumentu, který vznikl podle vlastního pokynu. Nadpis okna i prázdné záložky.",
-  "detail.custom.subtitle":
-    "Věta pod tím nadpisem. Říká, že vzniká nový dokument a přepis zůstává nedotčený.",
   "detail.custom.emptyText": "Pobídka v prázdné záložce: pokyn se píše do pole nad ní.",
   "detail.custom.staleWarning":
     "Upozornění nad dokumentem, který vznikl z jiné podoby přepisu, než jaká je v archivu teď.",
   "detail.header.speakersMissing":
     "Popisek tlačítka Rozpoznat mluvčí, když k tomu chybí stažené součásti.",
 
+  "detail.preview.emptyTitle":
+    "Nadpis prázdné záložky ve všech třech kartách, které vylepšený přepis potřebují. Pojmenovává chybějící krok, ne stav: „nebyl vytvořen“ ukazuje na tlačítko pod tím, kdežto „zatím není“ to spojení nechávalo na čtenáři. Trpný rod je tu záměr — nezajímá, kdo ho nevytvořil.",
+  "detail.preview.emptyText":
+    "Věta v té prázdné záložce na kartě Přepis: co z toho vznikne.",
+  "detail.preview.emptyDerived":
+    "Táž věta na kartách Shrnutí a Překlad. Říká, proč je tam prázdno — obojí se dělá z vylepšeného přepisu, ne z původního.",
   "detail.preview.title": "Nadpis náhledu upravené verze přepisu.",
   "detail.preview.closeLabel": "Popisek křížku, který zavře náhled dokumentu.",
   "detail.preview.transcriptTab": "Záložka náhledu s celým textem přepisu.",
