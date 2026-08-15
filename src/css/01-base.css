@@ -253,8 +253,17 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .wordmark.closed { width: calc(var(--wordmark-closed) * 1px); }
 .wordmark.closed .wordmark-shift { transform: translateX(calc(var(--wordmark-shift) * 1px)); }
 .wordmark.closed .wordmark-tm { transform: translateX(calc(var(--wordmark-tm) * 1px)); }
-.wordmark.closed .wordmark-v { opacity: 0; transform: translateX(-7px); }
-.wordmark.closed .wordmark-cal { opacity: 0; transform: translateX(7px); }
+/* Variant B — the outer letters leave the frame instead of going out on the
+   spot. Nothing fades: `v` drives off to the left and `cal` to the right, and
+   the box clips them because it closes at the same time. The distances are what
+   it takes to clear that box — `cal` also carries the group's own −12.45, so its
+   44 is 31.5 of actual travel.
+
+   Variant A stood here and is two lines: `opacity: 0` with a 7 unit drift on
+   each. It is the quieter of the two, and this is the one that reads as
+   machinery. */
+.wordmark.closed .wordmark-v { transform: translateX(-16px); }
+.wordmark.closed .wordmark-cal { transform: translateX(44px); }
 
 /* Under the pointer it opens again, and quicker than it closed: the closing is
    staged and this is an answer to a hand.
