@@ -181,6 +181,80 @@ fn allow_microphone(window: &tauri::WebviewWindow) {
 /// Cost, stated because it is real: with the default context menu gone there
 /// is no right-click paste in a text field. Ctrl+V still pastes.
 #[cfg(windows)]
+/// Gives the title bar an icon drawn at the size it will be shown at.
+///
+/// **The window carried a 16 px icon and the title bar draws 24.** A window's
+/// small icon is loaded at `SM_CXSMICON`, which is 16 in the units a program
+/// asks in; the bar then draws it at whatever that comes to on this screen, and
+/// on a display at 150 % that is 24. Windows stretches the 16 to fill it, and a
+/// bitmap blown up by half is exactly as bad as it sounds.
+///
+/// The file already holds the right one. `icon.ico` carries nineteen sizes,
+/// all nineteen reach the executable, and 24 is among them — the window simply
+/// never asked. `GetSystemMetricsForDpi` gives the size this screen actually
+/// wants, and `LoadImageW` then picks the closest of the nineteen instead of
+/// scaling one.
+///
+/// Both slots are set. `ICON_SMALL` is the title bar and the task bar's
+/// thumbnail; `ICON_BIG` is Alt-Tab and the task manager, and it was empty.
+///
+/// Failure is silent on purpose: the icon is cosmetic and a window that opens
+/// with the stretched one is better than a window that refuses to open.
+#[cfg(windows)]
+fn sharpen_window_icon(window: &tauri::WebviewWindow) {
+    use windows::Win32::Foundation::{LPARAM, WPARAM};
+    use windows::Win32::System::LibraryLoader::GetModuleHandleW;
+    use windows::Win32::UI::HiDpi::{GetDpiForWindow, GetSystemMetricsForDpi};
+    use windows::Win32::UI::WindowsAndMessaging::{
+        LoadImageW, SendMessageW, ICON_BIG, ICON_SMALL, IMAGE_ICON, LR_DEFAULTCOLOR, SM_CXICON,
+        SM_CXSMICON, SM_CYICON, SM_CYSMICON, WM_SETICON,
+    };
+
+    let Ok(hwnd) = window.hwnd() else {
+        crate::note!("icon: no window handle, the stretched icon stays");
+        return;
+    };
+    let Ok(module) = (unsafe { GetModuleHandleW(None) }) else {
+        crate::note!("icon: no module handle, the stretched icon stays");
+        return;
+    };
+    let dpi = unsafe { GetDpiForWindow(hwnd) };
+
+    // 32512 is where the icon group sits in this executable — `IDI_APPLICATION`,
+    // which is what the resource compiler names a program's own icon. Asking by
+    // group rather than by one image is what lets Windows choose among the
+    // nineteen.
+    const ICON_GROUP: windows::core::PCWSTR = windows::core::PCWSTR(32512 as *const u16);
+
+    for (slot, cx, cy) in [
+        (ICON_SMALL, SM_CXSMICON, SM_CYSMICON),
+        (ICON_BIG, SM_CXICON, SM_CYICON),
+    ] {
+        let width = unsafe { GetSystemMetricsForDpi(cx, dpi) };
+        let height = unsafe { GetSystemMetricsForDpi(cy, dpi) };
+        match unsafe {
+            LoadImageW(
+                Some(module.into()),
+                ICON_GROUP,
+                IMAGE_ICON,
+                width,
+                height,
+                LR_DEFAULTCOLOR,
+            )
+        } {
+            Ok(icon) => unsafe {
+                SendMessageW(
+                    hwnd,
+                    WM_SETICON,
+                    Some(WPARAM(slot as usize)),
+                    Some(LPARAM(icon.0 as isize)),
+                );
+            },
+            Err(error) => crate::note!("icon: {width}x{height} could not be loaded: {error}"),
+        }
+    }
+}
+
 fn quiet_the_browser(window: &tauri::WebviewWindow) {
     use webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2Settings3;
     use windows::core::Interface;
@@ -380,6 +454,7 @@ fn main() {
             if let Some(window) = tauri::Manager::get_webview_window(app, "main") {
                 allow_microphone(&window);
                 quiet_the_browser(&window);
+                sharpen_window_icon(&window);
             }
             Ok(())
         })
