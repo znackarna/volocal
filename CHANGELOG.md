@@ -6,6 +6,25 @@ The reasoning behind individual decisions lives in `docs/history/`, day by day,
 and every published version also has its notes on the
 [releases page](../../releases).
 
+## 1.2.2 — 17 August 2026
+
+Two things put back that 1.2.1 took away.
+
+- **The face writes itself again when the archive opens.** It had stopped: one
+  flag both started the pen and removed the mask the pen is revealed through, so
+  from 1.2.1 the drawing simply appeared, fully formed, instead of being written
+  eye, stem, eye, smile. The pen was never broken — it ran, on time, over
+  nothing.
+- **The header is back to resting on the mark.** 1.2.1 swapped the two states
+  around, so the archive carried the whole name and shrank under the pointer. It
+  read badly in the hand: a resting state that shrinks when you approach it is a
+  control that retreats, and that mark is a button people aim at. The archive
+  holds the full name for ten seconds at launch and then closes to `olo™`, and
+  the pointer opens it again.
+
+The rolling mill is unchanged: while a transcript runs the mark still turns on
+its side, and the last sheet through still comes to rest as the nose.
+
 ## 1.2.1 — 17 August 2026
 
 The mark answers for what the application is doing, and its two states are given
