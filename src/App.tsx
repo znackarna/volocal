@@ -224,6 +224,12 @@ export default function App() {
    *  update notice is the first such thing. Null is the ordinary way in, where
    *  the screen picks up wherever the reader left it. */
   const [settingsTab, setSettingsTab] = useState<SettingsTab | null>(null);
+  /** What the check at start-up found, kept so the notice's button can hand it
+   *  over. Told about a waiting version and sent to the tab that offers it, a
+   *  reader used to arrive at a panel in its resting state and have to ask for
+   *  the same answer again. */
+  const [foundUpdate, setFoundUpdate] =
+    useState<{ version: string; notes: string } | null>(null);
   /** The first-run question, as a dialog over whatever is on screen.
    *
    *  **It is a separate state and not a fourth `screen`, because it is not a
@@ -409,6 +415,7 @@ export default function App() {
          tab is for; a start-up bar is the wrong place to begin something that
          closes the application and runs an installer. */
       if (update) {
+        setFoundUpdate({ version: update.version, notes: update.body ?? "" });
         reportInfo(t("app.updateAvailable", { version: update.version }), {
           label: t("app.updateOpen"),
           /* No `loadToolCheck()`, unlike the two ordinary ways into Settings.
@@ -1498,6 +1505,7 @@ export default function App() {
                visit again — otherwise one press on an update notice would fix
                where Settings opens for good. */
             initialTab={settingsTab ?? undefined}
+            foundUpdate={foundUpdate}
             onComplete={() => {
               loadToolCheck();
               loadAppearance();

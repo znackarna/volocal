@@ -71,6 +71,11 @@ interface Props {
    *  carried somewhere is not the same as going there. Click a tab while here
    *  and the remembering resumes, because that is a choice. */
   initialTab?: SettingsTab;
+  /** What the check at start-up found, passed through to the updates panel so
+   *  that arriving from the notice shows the version rather than an empty
+   *  panel. Carried rather than looked up: the archive is what runs that check
+   *  and this screen has no other way to know its answer. */
+  foundUpdate?: { version: string; notes: string } | null;
 }
 
 /* `EDITOR_CHOICES` stood here: three cards, `Úsporná`, `Doporučená`,
@@ -444,6 +449,7 @@ export default function SettingsScreen({
   onInfo,
   onToModule,
   initialTab,
+  foundUpdate,
 }: Props) {
   const labels = useLabels();
   const formats = useFormats();
@@ -2263,6 +2269,7 @@ export default function SettingsScreen({
             onInfo={onInfo}
             automatic={n.update_check_automatic}
             onAutomaticChange={(on) => save({ ...n, update_check_automatic: on })}
+            found={foundUpdate}
           />
         </section>
       )}
