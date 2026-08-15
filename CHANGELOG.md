@@ -6,6 +6,31 @@ The reasoning behind individual decisions lives in `docs/history/`, day by day,
 and every published version also has its notes on the
 [releases page](../../releases).
 
+## 1.2.1 — 17 August 2026
+
+The mark answers for what the application is doing, and its two states are given
+to the screens rather than to a clock.
+
+- **While a transcript runs, the mark turns on its side and becomes a rolling
+  mill.** The two `o` are rollers, the stem is sheet metal passing between them,
+  and the smile leaves — a machine does not smile until it is done. Nothing is
+  drawn for it: the same four shapes from another side. When the transcript
+  finishes the loop is not cut off; the last sheet through comes to rest as the
+  nose, and only then does the mark turn upright and the smile return, sliding
+  back along the curve of its own arc.
+- **The archive carries the whole name and shrinks under the pointer; a
+  transcript carries the mark and opens under it.** The archive is where somebody
+  arrives and where there is room. A transcript is somebody else's recording, and
+  the application's own name has no business taking width from its title.
+- **The ten-second introduction is gone**, and had to be: on a screen whose
+  resting state is the whole name it would have contradicted itself inside those
+  ten seconds. The crop still happens — on the way into a transcript, caused by
+  the reader rather than by a timer.
+- The writing of the mark in the archive's empty state takes 1800 ms rather than
+  2000.
+
+`prefers-reduced-motion` keeps the face a face: not a slower mill, none.
+
 ## 1.2.0 — 16 August 2026
 
 Settings answers one question instead of seven, the language model is handed a
