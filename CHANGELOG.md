@@ -6,6 +6,81 @@ The reasoning behind individual decisions lives in `docs/history/`, day by day,
 and every published version also has its notes on the
 [releases page](../../releases).
 
+## 1.2.0 — 16 August 2026
+
+Settings answers one question instead of seven, the language model is handed a
+whole recording instead of pieces of one, and the application signs itself with
+a new mark.
+
+### The interface
+
+- **The first run asks one question**, *rychle nebo přesně*, and that answer is
+  read everywhere it decides something — which transcription model, and how
+  large a language-editing model is fetched the first time somebody wants a
+  document. The default download went from 6.4 GB to about 1.2. The wizard is a
+  dialog over the archive rather than a screen replacing it, it reads this
+  machine's memory to argue its recommendation from a fact, and it says in as
+  many words that its time estimates are an estimate and not a measurement.
+- **Settings is seven one-word tabs** — `Přepis` · `Rozhraní` · `Výkon` ·
+  `Nástroje` · `Soubory` · `Informace` · `Aktualizace` — where it was seven tabs
+  and 59 controls arranged by nothing in particular. `Nástroje` is new and says
+  what is installed on this machine, where it is kept, and how much disk it
+  takes, measured off the disk rather than added up from the catalogue.
+- **Every component can be deleted**, and the ones that cannot wear a lock that
+  names which of the two reasons it is. The model list stopped being an
+  inventory and became an offer: picking one that is not downloaded fetches it.
+- **The correction dictionary is one table** and a button that lengthens it. The
+  form that stood above it was those same rows drawn a second time. An empty
+  dictionary is now an unwritten row with both fields labelled rather than a
+  sentence saying it is empty.
+
+### The language model
+
+- **An hour of speech goes to the model whole.** The editor was started with a
+  context of 8192 — the one flag in that block with no reason beside it — and
+  the 6000-character pieces, the instruction repeated per piece and the stacked
+  answers all followed from it. The window is sized to the source now, between
+  8192 and 32768, by one function that also decides how much text a request may
+  hold so the two cannot disagree.
+- **A machine that cannot start the chosen model is told so** and offered the
+  one below it, after the failure rather than before it — a threshold weighed
+  against memory would be an invented number, and it would miss the graphics
+  memory that actually runs out. The dialog also offers to try again, because
+  one failed load is not a verdict about a computer.
+- **Speaker recognition left the language-editing dialog** for a button of its
+  own: it never was language editing, no model is loaded and nothing is
+  rewritten. The card it vacated became `Vlastní prompt`, an instruction the
+  reader writes themselves, kept once per installation with its answers kept per
+  recording.
+- **The summary is asked to write Czech**, narrowly: Czech constructions rather
+  than literal English shapes, and a borrowed word allowed when it was heard and
+  not invented when it was not.
+
+### The mark
+
+- **`olo` is the middle of `volocal`**, and the smile was already centred under
+  it to the hundredth. The header holds the full name at start and then closes
+  to that middle; the pointer or the keyboard opens it again. In the archive's
+  empty state the same mark is written rather than placed, a pen filling the
+  outline in the order a hand takes.
+- **The icon, the installer and the interface are one drawing.** The isometric
+  cube is gone from all of them.
+- **The icon carries nineteen sizes again.** `tauri icon` produces six, which
+  left Windows resampling on any screen at 125 % or 150 %;
+  `scripts/make-ico.ps1` builds the full ladder and is in the repository because
+  regenerating without it silently undoes the fix.
+
+### Fixed
+
+- **The three seconds between the sound and the highlight** were the turbo model
+  rather than any code — measured, recorded, and closed by making the same model
+  return the same number twice.
+- **A backup taken twice in the same second** reported *SQL error or missing
+  database* about an archive that was fine.
+- **The development port** moved to 17420, chosen from outside the dynamic port
+  range rather than off today's exclusion list, which is what picked both
+  numbers that failed before it.
+
 ## 1.1.1 — 13 August 2026
 
 A patch for a defect that met **every fresh installation of 1.1.0**, found an
