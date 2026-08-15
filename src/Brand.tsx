@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import {
   CLOSED_WIDTH,
   GLYPH,
@@ -37,7 +37,7 @@ const FACE = {
    *  leave the empty state as a grey outline for eleven seconds, which reads as
    *  a screen that failed to load rather than as a mark waiting its turn. */
   after: 400,
-  writing: 2000,
+  writing: 1800,
   ease: "cubic-bezier(.45,.05,.35,1)",
 };
 
@@ -49,6 +49,33 @@ const FACE = {
  *  the countdown restarting on every navigation, so the name would keep
  *  re-introducing itself to anybody moving around the application. */
 const APP_STARTED = Date.now();
+
+/** What the mark does while a transcript is running.
+ *
+ *  **Turned on its side it stops being a face and becomes a machine.** The two
+ *  `o` are rollers, the stem is sheet metal passing between them, and the smile
+ *  leaves because a mill does not smile until it is done. Nothing is drawn for
+ *  this: it is the same four shapes seen from another side, which is the only
+ *  reason the idea works at all — anything that had to be added would be a
+ *  second mark rather than a state of the first.
+ *
+ *  `scale`: the drawing is 30.41 long and its frame is 26.2 tall, so turning it
+ *  upright would push the rollers out through the top and bottom. 26.2 / 30.41
+ *  is what it has to come down by to turn inside its own box.
+ *
+ *  `lead` is 0 — the sheet starts with the turn rather than after it. The rule
+ *  is not *do not set off early*, it is *do not reach the rollers early*: the
+ *  sheet begins 26 units outside the frame and takes half a pass to arrive, so
+ *  at these durations it reaches them 30 ms after the turn has finished. There
+ *  is no moment when nothing is happening.
+ */
+const MILL = {
+  turn: 520,
+  pass: 1100,
+  lead: 0,
+  /** How far the smile swings about the centre of its own arc on the way out. */
+  smileTurn: 62,
+};
 
 /** Both animations belong to starting the application, not to arriving at a
  *  screen. The archive is left and re-entered all day — from a transcript, from
@@ -174,10 +201,13 @@ export function ZnackarnaMark({ label }: { label: string }) {
  * a mask, so what advances is the reveal of the black shapes, not a stroke
  * pretending to be them.
  */
-export function OloFace() {
+export function OloFace({ working = false }: { working?: boolean }) {
   const maskId = `pen-${useId()}`;
   const [drawn, setDrawn] = useState(faceWritten);
   const [still] = useState(stillWanted);
+  /** Lags `working` on the way down, so the last sheet can come to rest. */
+  const [milling, setMilling] = useState(false);
+  const face = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
     if (faceWritten) return undefined;
@@ -193,23 +223,68 @@ export function OloFace() {
     return () => window.clearTimeout(pen);
   }, [still]);
 
+  /* Starting is immediate; stopping waits.
+   *
+   * **The last sheet through stays as the nose.** A pass runs from +26 to −26,
+   * so the nose is exactly halfway, and stopping means waiting for the next
+   * time the loop reaches that halfway point and dropping the animation there.
+   * The resting state carries no offset, so the sheet simply stays where it had
+   * got to — and only then does the mark turn back and the smile return.
+   *
+   * Cutting the loop the moment the transcript finishes would snap the sheet
+   * from wherever it was to the nose, which is the one frame that would say the
+   * whole thing was a trick. */
+  useEffect(() => {
+    if (still) return undefined;
+    if (working) {
+      setMilling(true);
+      return undefined;
+    }
+    if (!milling) return undefined;
+    const sheet = face.current?.querySelector(".olo-sheet");
+    const animation = sheet?.getAnimations()[0];
+    if (!animation) {
+      setMilling(false);
+      return undefined;
+    }
+    const progress = animation.effect?.getComputedTiming().progress ?? null;
+    const wait =
+      progress === null
+        ? MILL.lead * MILL.turn - Number(animation.currentTime ?? 0) + MILL.pass / 2
+        : (progress <= 0.5 ? 0.5 - progress : 1.5 - progress) * MILL.pass;
+    const home = window.setTimeout(() => setMilling(false), Math.max(0, wait));
+    return () => window.clearTimeout(home);
+  }, [working, milling, still]);
+
   return (
     <span
-      className={`olo-face${drawn ? " drawn" : ""}${still ? " still" : ""}`}
+      ref={face}
+      className={`olo-face${drawn ? " drawn" : ""}${still ? " still" : ""}${
+        milling ? " working" : ""
+      }`}
       style={
         {
           "--olo-writing": `${FACE.writing}ms`,
           "--olo-ease": FACE.ease,
+          "--olo-turn": `${MILL.turn}ms`,
+          "--olo-pass": `${MILL.pass}ms`,
+          "--olo-lead": MILL.lead,
+          "--olo-smile-turn": `${MILL.smileTurn}deg`,
         } as React.CSSProperties
       }
     >
       <svg className="olo-face-svg" viewBox="11.5 -1 32.3 26.2" role="img" aria-label="olo">
-        <g className="olo-face-guide">
-          <path d={GLYPH.o1} />
-          <path d={GLYPH.l1} />
-          <path d={GLYPH.o2} />
-          <path d={GLYPH.smile} />
-        </g>
+        {/* The outline is the pen's own target and has no business being there
+            once the pen has finished: while the mark is turning, an unmoved grey
+            copy of the face would sit behind the machine. */}
+        {!drawn && (
+          <g className="olo-face-guide">
+            <path d={GLYPH.o1} />
+            <path d={GLYPH.l1} />
+            <path d={GLYPH.o2} />
+            <path d={GLYPH.smile} />
+          </g>
+        )}
         {/* Generous region: the pen is wider than the letters and overshoots
             them at both ends, and a mask clipped to the drawing would cut the
             overshoot that exists precisely so nothing is left unfilled. */}
@@ -229,11 +304,23 @@ export function OloFace() {
             />
           ))}
         </mask>
-        <g className="olo-face-ink" mask={`url(#${maskId})`}>
-          <path d={GLYPH.o1} />
-          <path d={GLYPH.l1} />
-          <path d={GLYPH.o2} />
-          <path d={GLYPH.smile} />
+        {/* The mask goes with the outline. It is the shape of a pen's travel,
+            and once the travel is over it can only get in the way — the sheet
+            leaves the drawing's own box on every pass, and a mask sized to that
+            box would cut it off mid-journey. */}
+        <g className="olo-face-ink" mask={drawn ? undefined : `url(#${maskId})`}>
+          <g className="olo-rot">
+            <g className="olo-eyes">
+              <path d={GLYPH.o1} />
+              <path d={GLYPH.o2} />
+            </g>
+            <g className="olo-sheet">
+              <path d={GLYPH.l1} />
+            </g>
+            <g className="olo-smile">
+              <path d={GLYPH.smile} />
+            </g>
+          </g>
         </g>
       </svg>
     </span>

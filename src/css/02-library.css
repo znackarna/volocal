@@ -647,6 +647,57 @@
 .olo-pen-2, .olo-pen-4 { stroke-width: 5; }
 .olo-face.drawn .olo-pen { stroke-dashoffset: 0; }
 .olo-face.still .olo-pen { transition: none; }
+
+/* While a transcript runs the mark turns on its side and stops being a face:
+   the two `o` are rollers and the stem is sheet metal passing between them.
+   Nothing is drawn for it — the same four shapes from another side.
+
+   `scale(.861)` is 26.2 / 30.41: the drawing is 30.41 long and its frame 26.2
+   tall, so upright it would push the rollers out through the top and bottom.
+   The number is that ratio and not a taste. */
+.olo-rot {
+  transform-origin: 27.655px 12.13px;
+  transition: transform var(--olo-turn) cubic-bezier(.65, 0, .35, 1);
+}
+.olo-face.working .olo-rot { transform: rotate(90deg) scale(.861); }
+
+/* The sheet travels along y in unturned coordinates, and it is the parent's
+   rotation that makes the journey horizontal. Along x it would run lengthwise
+   through the rollers rather than between them. */
+@keyframes olo-pass {
+  from { transform: translateY(26px); }
+  to { transform: translateY(-26px); }
+}
+.olo-face.working .olo-sheet {
+  animation: olo-pass var(--olo-pass) linear infinite;
+  animation-delay: calc(var(--olo-turn) * var(--olo-lead));
+}
+
+/* The smile turns about the centre of its own arc — (27.66, 13.81), radius
+   8.81 — so it slides along the curve it is itself made of rather than moving
+   in a straight line. It cannot leave by turning alone, being always the same
+   distance from that centre, so the turn carries the movement and the fade
+   carries the departure.
+
+   The delay sits on the resting rule rather than on `.working`, so it applies
+   only to the return: the smile leaves at once and comes back after the mark
+   has turned upright. The machine becomes a face again, and the smile arrives
+   last. */
+.olo-smile {
+  transform-origin: 27.66px 13.81px;
+  transition: opacity calc(var(--olo-turn) * .7) ease,
+              transform calc(var(--olo-turn) * .9) cubic-bezier(.34, 1.25, .64, 1);
+  transition-delay: var(--olo-turn);
+}
+.olo-face.working .olo-smile {
+  transition-delay: 0ms;
+  opacity: 0;
+  transform: rotate(var(--olo-smile-turn));
+}
+/* Reduced motion keeps the face a face. Not a slower mill: none. */
+.olo-face.still .olo-rot,
+.olo-face.still .olo-smile { transition: none; transform: none; }
+.olo-face.still .olo-sheet { animation: none; }
 .archive-drop-zone-copy { grid-area: copy; min-width: 0; }
 .archive-drop-zone-copy h1 {
   font-size: 26px; font-weight: 700; margin: 0;

@@ -691,6 +691,7 @@ export default function Library({
           onAutomatic={onAutomatic}
           compact={dropZoneCompact}
           blocked={issues.length > 0}
+          working={running.length > 0}
         />
         <div className="library-bar">
           <div className="search">
@@ -1048,11 +1049,14 @@ function LibraryDropZone({
   onAutomatic,
   compact,
   blocked,
+  working,
 }: {
   onAdd: () => void;
   automatic: boolean;
   onAutomatic: (enabled: boolean) => void;
   compact: boolean;
+  /** Anything at all is being transcribed. */
+  working: boolean;
   /** Nothing can be transcribed yet. The hero must not say otherwise —
    *  `Přepis se spustí automaticky` over a missing whisper is a promise the
    *  application cannot keep, and it is the sentence a first-run reader sees. */
@@ -1062,8 +1066,12 @@ function LibraryDropZone({
   return (
     <div className={`archive-drop-zone ${compact ? "compact" : ""}`}>
       <div className="archive-drop-zone-surface">
+        {/* The mark answers for the machine while anything is being
+            transcribed. The drop zone stands at the top of the archive whether
+            or not the list below it is empty, so it is the one place the mark
+            is on screen for the whole of a run. */}
         <span className="archive-drop-zone-mark">
-          <OloFace />
+          <OloFace working={working} />
         </span>
         <div className="archive-drop-zone-copy">
           <h1>{t("library.dropZone.title")}</h1>
