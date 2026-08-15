@@ -36,7 +36,7 @@ body:
     attributes:
       label: Volocal version
       description: Settings → About, or the installer filename.
-      placeholder: "1.2.1"
+      placeholder: "1.2.2"
     validations:
       required: true
 
