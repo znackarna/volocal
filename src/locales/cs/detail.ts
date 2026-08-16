@@ -127,7 +127,7 @@ export const csDetail = {
 
   "detail.ai.offerTitle": "Chcete z přepisu hotový dokument?",
   "detail.ai.offerText":
-    "Text upraví model přímo v počítači, takže nic neodejde ven. Stáhne se jednou, {size}, a stahování běží na pozadí — můžete pracovat dál.",
+    "Model upraví váš přepis přímo v počítači. Jednorázově stáhne asi {size} dat. Stahování běží na pozadí, můžete pracovat dál.",
   "detail.ai.downloadingTitle": "Model se stahuje",
   "detail.ai.downloadingText":
     "Až bude stažený, jazyková úprava se rovnou spustí odsud. Zatím můžete pracovat dál.",
