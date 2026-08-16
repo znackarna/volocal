@@ -6,6 +6,14 @@ The reasoning behind individual decisions lives in `docs/history/`, day by day,
 and every published version also has its notes on the
 [releases page](../../releases).
 
+## 1.2.5 — 17 August 2026
+
+- **The bottom of an `o` was clipped while the mark was turned on its side.** The
+  scale that lets it turn inside its own frame ran past the room available by
+  0.022 of a unit — five hundredths of a pixel. At the extreme of a circle the
+  outline is tangent to the frame, so that sliver took a wide flat bite out of
+  the curve and read as one or two pixels missing.
+
 ## 1.2.4 — 17 August 2026
 
 - **The header's letters leave the frame instead of fading.** Closing to the
