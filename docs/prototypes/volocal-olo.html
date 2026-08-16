@@ -254,43 +254,25 @@
      `transform-box: fill-box` je tu to podstatné: bez něj se `transform-origin`
      počítá z viewBoxu, takže by se obě oči zmáčkly k jednomu bodu mezi sebou.
      S ním má každé oko svůj vlastní střed a mrkne na místě. */
-  /* Mrka jen dira, ne cele pismeno — *myslel jsem, ze mrknou jen ty prazdne
-     plochy v pismenu o, ne i obrys; takhle je to docela okate*.
+  /* Mrka cele pismeno, ne jen dira uvnitr.
 
-     Obrys tedy stoji a zaviraji se protilehle plochy uvnitr. Jde to proto, ze
-     `o` je jedna cesta ze dvou podcest: vnejsi obrys a vnitrni dira. Rozdelena
-     na dve, obrys se vykresli a dira se z nej vyreze maskou — a hybe se ta
-     maska. Diry tim zustanou pruhledne, ne prebarvene na pozadi, takze pod nimi
-     prosvita totez co predtim.
+     Zkusili jsme i tissi verzi, kde obrys stoji a zaviraji se jen protilehle
+     plochy — udelanou maskou, aby diry zustaly pruhledne. Byla zamitnuta:
+     *to predchozi mrknuti bylo lepsi*. Zpatky tedy cele oko.
 
-     `.08` a ne nula: zavrena dira necha misto sebe uzkou skulinu, ktera cte jako
-     zavrene oko. Uplna nula by z oka udelala plnou tecku. */
-  .alive-pupil {
+     `transform-box: fill-box` je tu to podstatne: bez nej se `transform-origin`
+     pocita z viewBoxu, takze by se obe oci zmackly k jednomu bodu mezi sebou.
+     S nim ma kazde oko svuj vlastni stred a mrkne na miste.
+
+     `.08` a ne nula: zavrene oko necha uzkou skulinu. Uplna nula by z `o`
+     udelala plnou tecku. */
+  .alive-eye {
     transform-box: fill-box; transform-origin: center;
     transition: transform var(--blink) cubic-bezier(.4,0,.6,1);
   }
-  .alive.blinking .alive-pupil { transform: scaleY(.08); }
-  /* Úsměv se prodlužuje po své vlastní kružnici, ne že by se nafukoval.
-     Poloměr zůstává 8,812 a mění se jen to, kolik oblouku je vidět — což je
-     rozdíl mezi „usměje se víc" a „obličej se přiblížil".
+  .alive.blinking .alive-eye { transform: scaleY(.08); }
+  .alive.still .alive-eye { transition: none; transform: none; }
 
-     Proto přestává být výplní a stává se tahem: dvě poloviny vedou od spodku
-     ven, každá s `pathLength="100"`, a `stroke-dashoffset` říká, kolik jich
-     je nakreslené. Rostou obě naráz, takže se úsměv rozšiřuje symetricky.
-
-     Rovné čelo (`butt`) je s původní kresbou totožné, ne přiblížení: konce toho
-     tvaru jsou seříznuté radiálně — z (20,35 / 21,15) do (22,54 / 18,95), což je
-     přesně směr poloměru — a to je právě to, co rovné čelo kreslí. */
-  .alive-smile {
-    fill: none;
-    stroke: var(--ink);
-    stroke-width: 3.103;
-    stroke-linecap: butt;
-    stroke-dasharray: 100 200;
-    transition: stroke-dashoffset var(--grin) cubic-bezier(.34,1.15,.64,1);
-  }
-  .alive.still .alive-pupil { transition: none; transform: none; }
-  .alive.still .alive-smile { transition: none; }
   .alive-svg { display: block; height: calc(26.2px * var(--au, 2.4)); width: auto; }
   .alive-svg path { fill: var(--ink); }
 
@@ -610,16 +592,15 @@
   <!-- ============ obličej žije ============ -->
   <section class="section">
     <div>
-      <h2>Obličej mrká a občas se usměje</h2>
+      <h2>Obličej mrká</h2>
       <p>
-        Tytéž čtyři tvary. Mrknutí je oko stlačené na osminu výšky; širší úsměv je
-        týž oblouk o téže kružnici, jen delší — poloměr se nemění, roste jen to,
-        kolik ho je vidět. Nic se nedokresluje.
+        Tytéž čtyři tvary, jen jinak natažené — mrknutí je oko stlačené na osminu
+        výšky. Nic se nedokresluje.
       </p>
     </div>
 
     <div class="mill-stage">
-      <div class="alive" id="alive" style="--au:2.4; --blink:120ms; --grin:420ms; --grin-scale:1.18"></div>
+      <div class="alive" id="alive" style="--au:2.4; --blink:120ms"></div>
     </div>
 
     <div class="panel">
@@ -633,30 +614,18 @@
           <label for="blinkfast">Mrknutí trvá <span class="val" id="blinkfast-v">120 ms</span></label>
           <input type="range" id="blinkfast" min="50" max="300" step="10" value="120">
         </div>
-        <div class="ctl">
-          <label for="grinevery">Úsměv po <span class="val" id="grinevery-v">14000 ms</span></label>
-          <input type="range" id="grinevery" min="4000" max="40000" step="1000" value="14000">
-        </div>
-        <div class="ctl">
-          <label for="grinsize">Šířka úsměvu <span class="val" id="grinsize-v">62&deg;</span></label>
-          <input type="range" id="grinsize" min="45" max="75" step="1" value="62">
-          <span class="hint">v klidu 44,9&deg; na každou stranu</span>
-        </div>
       </div>
       <div class="row">
         <button class="primary" id="alive-run">Nechat žít</button>
         <button id="alive-stop">Zastavit</button>
         <button id="alive-blink">Mrknout teď</button>
-        <button id="alive-grin">Usmát se teď</button>
       </div>
     </div>
 
     <div class="panel">
       <ol class="q">
-        <li><div><b>Mrká jen díra, obrys stojí.</b><p>Písmeno <code>o</code> je jedna cesta ze dvou podcest — vnější obrys a díra. Rozdělená na dvě se obrys vykreslí a díra se z něj vyřízne maskou; hýbe se ta maska. Díry tak zůstanou průhledné, ne přebarvené na pozadí, takže pod nimi prosvítá totéž co předtím.</p></div></li>
-        <li><div><b>Zavřená díra nechá skulinu, ne tečku.</b><p><code>scaleY(.08)</code> místo nuly: úzká štěrbina čte jako zavřené oko, kdežto úplná nula by z <code>o</code> udělala plný puntík.</p></div></li>
-        <li><div><b><code>transform-box: fill-box</code> je tu to podstatné.</b><p>Bez něj se střed počítá z celého viewBoxu, takže by se obě díry zmáčkly k jednomu bodu mezi sebou. S ním má každá svůj vlastní střed a zavře se na místě.</p></div></li>
-        <li><div><b>Úsměv se prodlužuje, nenafukuje.</b><p>První pokus ho zvětšoval kolem středu jeho oblouku, což mění poloměr — a to čte jako přiblížení obličeje, ne jako širší úsměv. Teď zůstává na téže kružnici a roste jen délka oblouku, každá půlka od spodku ven. Rovné čelo tahu je s původní výplní totožné, protože její konce jsou seříznuté radiálně.</p></div></li>
+        <li><div><b><code>transform-box: fill-box</code> je tu to podstatné.</b><p>Bez něj se střed počítá z celého viewBoxu, takže by se obě oči zmáčkly k jednomu bodu mezi sebou. S ním má každé svůj vlastní střed a mrkne na místě.</p></div></li>
+        <li><div><b>Širší úsměv tu není, a je to rozhodnutí.</b><p>Zkoušel se dvakrát: zvětšením kolem středu oblouku, což mění poloměr a čte se jako přiblížení obličeje, a pak prodloužením po téže kružnici pomocí dvou tahů. Druhá verze nechávala uprostřed artefakt, který se v ničem, čím to umím vyrenderovat, neprojevil — tah i původní výplň vykreslí naprosto totéž. Dokud ten artefakt neumím vidět, nemá cenu ho opravovat poslepu.</p></div></li>
         <li><div><b>Rozptyl, ne pevný interval.</b><p>Skutečné oko nemrká na metronom. Interval kolísá o &plusmn;40 %, jinak se ten rytmus dá po chvíli předvídat a začne rušit víc než samotný pohyb.</p></div></li>
         <li><div><b>Otevřené: mrká i během přepisu?</b><p>Tam je značka otočená na bok a mrknutí by bylo vodorovné stlačení válce. Nejspíš se má na tu dobu zastavit — stroj nemrká.</p></div></li>
       </ol>
@@ -1067,70 +1036,29 @@
 
 
   const alive = document.getElementById('alive');
-  /* Kazde `o` je jedna cesta ze dvou podcest oddelenych `ZM`: vnejsi obrys a
-     dira. Rozdelene na dve muze obrys stat a dira se hybat. */
-  const eyeParts = (d) => {
-    const [outer, inner] = d.split('ZM');
-    return [outer + 'Z', 'M' + inner];
-  };
-  const eye = (d, id) => {
-    const [outer, inner] = eyeParts(d);
-    return '<mask id="' + id + '" maskUnits="userSpaceOnUse" x="6" y="-6" width="44" height="38">' +
-      '<rect x="6" y="-6" width="44" height="38" fill="#fff"/>' +
-      '<path class="alive-pupil" d="' + inner + '" fill="#000"/>' +
-      '</mask>' +
-      '<path d="' + outer + '" mask="url(#' + id + ')"/>';
-  };
   alive.innerHTML =
     '<svg class="alive-svg" viewBox="11.5 -1 32.3 26.2" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="olo">' +
-    eye(P.o1, 'eye-left') +
+    '<path class="alive-eye" d="' + P.o1 + '"/>' +
     '<path d="' + P.l1 + '"/>' +
-    eye(P.o2, 'eye-right') +
-    '<path class="alive-smile" pathLength="100" d="M28.121 22.610A8.812 8.812 0 0 1 19.148 16.091"/>' +
-    '<path class="alive-smile" pathLength="100" d="M27.199 22.610A8.812 8.812 0 0 0 36.172 16.091"/>' +
+    '<path class="alive-eye" d="' + P.o2 + '"/>' +
+    '<path d="' + P.smile + '"/>' +
     '</svg>';
 
-  let blinkTimer = null, grinTimer = null;
+  let blinkTimer = null;
   /* Rozptyl, ne pevny interval: oko nemrka na metronom, a pravidelny rytmus
      zacne po chvili rusit vic nez samotny pohyb. */
   const jitter = (ms) => ms * (0.6 + Math.random() * 0.8);
 
-  /* Kazda pulka zacina o 3 stupne za spodkem, tedy uz na druhe strane stredu, a
-     je nakreslena na 78. Ten prekryv je kvuli spare: dve rovna cela na tomtez
-     bode se rasteruji kazde zvlast a jejich okraje se antialiasingem neslozi do
-     plne cerni, takze uprostred usmevu zustavala vlaskova cara. Prekryv je
-     stejny inkoust, takze videt neni.
-
-     Videt je tedy (3 + uhel) ze 78. V klidu 44,9 stupne, presne to, co ma
-     puvodni kresba. */
-  const SMILE_ARC = 78, SMILE_LAP = 3, SMILE_REST = 44.9;
-  const smileOffset = (deg) => (100 - ((deg + SMILE_LAP) / SMILE_ARC) * 100).toFixed(2);
-  const setSmile = (deg) => {
-    alive.querySelectorAll('.alive-smile').forEach(
-      (n) => n.style.strokeDashoffset = smileOffset(deg)
-    );
-  };
   const aliveApply = () => {
     alive.style.setProperty('--blink', $('blinkfast').value + 'ms');
     $('blinkevery-v').textContent = $('blinkevery').value + ' ms';
     $('blinkfast-v').textContent = $('blinkfast').value + ' ms';
-    $('grinevery-v').textContent = $('grinevery').value + ' ms';
-    $('grinsize-v').textContent = $('grinsize').value + '\u00b0';
-    setSmile(alive.classList.contains('grinning') ? +$('grinsize').value : SMILE_REST);
   };
   const blinkOnce = () => {
     alive.classList.add('blinking');
     setTimeout(() => alive.classList.remove('blinking'), +$('blinkfast').value);
   };
-  const grinOnce = () => {
-    alive.classList.add('grinning');
-    setSmile(+$('grinsize').value);
-    setTimeout(() => {
-      alive.classList.remove('grinning');
-      setSmile(SMILE_REST);
-    }, 1200);
-  };
-  const aliveStop = () => { clearTimeout(blinkTimer); clearTimeout(grinTimer); };
+  const aliveStop = () => clearTimeout(blinkTimer);
   const aliveRun = () => {
     aliveStop();
     alive.classList.toggle('still', reduced());
@@ -1139,20 +1067,12 @@
       blinkOnce();
       blinkTimer = setTimeout(nextBlink, jitter(+$('blinkevery').value));
     };
-    const nextGrin = () => {
-      grinOnce();
-      grinTimer = setTimeout(nextGrin, jitter(+$('grinevery').value));
-    };
     blinkTimer = setTimeout(nextBlink, jitter(+$('blinkevery').value));
-    grinTimer = setTimeout(nextGrin, jitter(+$('grinevery').value));
   };
-  ['blinkevery', 'blinkfast', 'grinevery', 'grinsize'].forEach(
-    (id) => $(id).addEventListener('input', aliveApply)
-  );
+  ['blinkevery', 'blinkfast'].forEach((id) => $(id).addEventListener('input', aliveApply));
   $('alive-run').addEventListener('click', aliveRun);
   $('alive-stop').addEventListener('click', aliveStop);
   $('alive-blink').addEventListener('click', blinkOnce);
-  $('alive-grin').addEventListener('click', grinOnce);
   aliveApply();
   aliveRun();
 

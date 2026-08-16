@@ -27,7 +27,7 @@ the time.
 | [2026-08-13](2026-08-13.md) | 40 | A backup taken twice in one second is one backup … |
 | [2026-08-14](2026-08-14.md) | 40 | Settings regrouped, then cut to seven one-word tabs … |
 | [2026-08-15](2026-08-15.md) | 4 | The empty dictionary is a row to write in … |
-| [2026-08-16](2026-08-16.md) | 13 | The cube leaves and the name closes to its own middle … |
+| [2026-08-16](2026-08-16.md) | 14 | The cube leaves and the name closes to its own middle … |
 | [2026-08-17](2026-08-17.md) | 19 | The mark turns on its side and becomes a rolling mill |
 
 ## What each day was about
