@@ -168,6 +168,5 @@ permissions your account gives it.
 | Geist, Inter, Schibsted Grotesk, Literata, Source Serif 4 | SIL OFL 1.1 |
 
 Everything except the Gemma models is open source. Gemma follows Google's own
-terms and FFmpeg is GPL v3 — worth remembering when you pass a portable copy
-on to somebody else. The full list is in [NOTICE](NOTICE) and in the
+licence and FFmpeg is GPL v3. The full list is in [NOTICE](NOTICE) and in the
 application under Settings → About.
