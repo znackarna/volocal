@@ -40,11 +40,11 @@ export const csDialogs = {
   "dialogs.addRecording.prompt": "Vyberte, odkud chcete zvuk přidat.",
   "dialogs.addRecording.localFile": "Místní soubor",
   "dialogs.addRecording.localFileNote": "Zvuk nebo video uložené v počítači.",
-  "dialogs.addRecording.onlineVideo": "Online zdroj",
-  "dialogs.addRecording.onlineVideoNote": "YouTube video nebo jiná podporovaná služba.",
+  "dialogs.addRecording.onlineVideo": "Online služba",
+  "dialogs.addRecording.onlineVideoNote": "YouTube, SoundCloud nebo jiná podporovaná služba.",
 
   // Add recording dialog — online video step.
-  "dialogs.addRecording.onlineTitle": "Online zdroj",
+  "dialogs.addRecording.onlineTitle": "Online služba",
   "dialogs.addRecording.onlinePrompt":
     "Vložte odkaz. Aplikace stáhne jen zvuk a přidá ho do archivu.",
   "dialogs.addRecording.urlLabel": "Odkaz na záznam",
@@ -54,7 +54,7 @@ export const csDialogs = {
   "dialogs.addRecording.invalidUrl": "Vložte platný odkaz začínající http:// nebo https://.",
   "dialogs.addRecording.preparingSupport": "Připravuji podporu online zvuku a videa · {percent} %",
   "dialogs.addRecording.finishingSupport": "Dokončuji podporu online zvuku a videa",
-  "dialogs.addRecording.preparingVideo": "Připravuji online zdroj",
+  "dialogs.addRecording.preparingVideo": "Připravuji zvuk",
   "dialogs.addRecording.percent": "{value} %",
   "dialogs.addRecording.submitting": "Přidávám…",
   "dialogs.addRecording.submit": "Stáhnout a přidat",
