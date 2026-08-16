@@ -660,6 +660,25 @@
 .olo-face.drawn .olo-pen { stroke-dashoffset: 0; }
 .olo-face.still .olo-pen { transition: none; }
 
+/* The face blinks: the whole `o` squashed to a slit, not just the counter
+   inside it. The quieter version was built — outline standing, only the
+   counters closing, done with a mask so the holes stayed transparent — and
+   rejected at the screen in favour of this one.
+
+   `transform-box: fill-box` is what makes it work at all. Without it
+   `transform-origin: center` is measured from the viewBox, so both eyes squash
+   toward a single point between them instead of each closing where it stands.
+
+   `.08` rather than 0: a closed eye leaves a slit. Zero turns the `o` into a
+   solid dot, which reads as a full stop rather than a blink. */
+.olo-eye {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform var(--olo-blink) cubic-bezier(.4, 0, .6, 1);
+}
+.olo-face.blinking .olo-eye { transform: scaleY(.08); }
+.olo-face.still .olo-eye { transition: none; transform: none; }
+
 /* While a transcript runs the mark turns on its side and stops being a face:
    the two `o` are rollers and the stem is sheet metal passing between them.
    Nothing is drawn for it — the same four shapes from another side.

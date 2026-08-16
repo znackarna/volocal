@@ -24,6 +24,31 @@ Until 2026-08-10 the log lived in this file. It reached 630 000 characters,
 four times what a session can read, and was being loaded in full before every
 task. The move changed no word of it.
 
+## Release notes are benefits, never a change list
+
+**Every release text says what the reader gains, and stops.** That is all three
+of them — the Czech dialog an installed copy shows, the English GitHub page, and
+`CHANGELOG.md`. None of them explains mechanism, names a file, or recounts what
+was done.
+
+One line per change. A release is a handful of lines, not a page. If a bullet
+needs a paragraph under it to make sense, the bullet is wrong — rewrite it as
+the gain, and let the paragraph live in `docs/history/`, which exists precisely
+so that a release note does not have to carry the reasoning.
+
+| not this | this |
+|---|---|
+| Nabídka nad přepisem nabízí jména mluvčích místo „výše/níže". | Zpřehlednění nabídky mluvčích |
+| The scale that lets the mark turn inside its own frame ran past the room available by 0.022 of a unit, so the outline took a flat bite out of the curve. | The mark no longer clips while a transcript runs. |
+
+The reader of a release note is deciding whether to restart their work for this.
+What they want is what improves, in the time it takes to read four words. Three
+audiences, three levels of detail, and only the last one is long: the dialog and
+the GitHub page say the gain, `docs/history/` says everything.
+
+Asked for on 2026-08-16, after several releases went out reading as a list of
+things that had been ticked off.
+
 ## Visual system
 
 These are the values a new screen inherits rather than re-invents. An exception
