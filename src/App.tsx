@@ -583,15 +583,38 @@ export default function App() {
     setPendingTranscription({ ids: [id], diarizeOnly: true });
   }, []);
 
+  /** How many things were missing the last time anybody asked.
+   *
+   *  `null` until the first answer arrives, which is what keeps a first run
+   *  quiet: on a machine that has never been set up everything is missing, and
+   *  the wizard opens by itself to say so. What this remembers is the other
+   *  case — it was all here a minute ago and now it is not. */
+  const knownMissing = useRef<number | null>(null);
+
   const loadToolCheck = useCallback(async () => {
     try {
       const k = await api.checkTools();
       setCheck(k);
+      /* **Say it, rather than only redrawing.** The check has always updated
+         the archive's notice silently, so a component deleted while the window
+         was open changed a banner nobody was looking at, and the next thing
+         that happened was a transcription refusing for reasons that seemed to
+         come from nowhere.
+         Only on the way from *nothing missing* to *something missing*: repeating
+         it on every poll would be a bar that never goes away. */
+      const before = knownMissing.current;
+      knownMissing.current = k.issues.length;
+      if (before === 0 && k.issues.length > 0) {
+        reportInfo(t("app.setupBroke"), {
+          label: t("settings.modules.add"),
+          run: () => setSetupOpen(true),
+        });
+      }
       return k;
     } catch {
       return null;
     }
-  }, []);
+  }, [reportInfo, t]);
 
   /* The archive's notice is drawn from the same check and was equally capable
      of standing there out of date — a folder emptied in Explorer while the
@@ -610,6 +633,22 @@ export default function App() {
       window.removeEventListener("focus", again);
       document.removeEventListener("visibilitychange", again);
     };
+  }, [loadToolCheck]);
+
+  /* A modest poll for the same reason the watched folder uses one: a permanent
+     operating-system watcher on the tools and models folders would fire through
+     every download and every unpack — hundreds of events for the one that
+     matters — and would have to be told which of them to ignore.
+
+     A minute is slow enough to cost nothing and quick enough that somebody who
+     deletes a folder and comes back to the window is told before they try to
+     transcribe. Focus covers the common case; this covers the window that was
+     never left. */
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      if (document.visibilityState === "visible") void loadToolCheck();
+    }, 60_000);
+    return () => window.clearInterval(id);
   }, [loadToolCheck]);
 
   // The watch folder deliberately uses a modest poll instead of a permanent
