@@ -1265,7 +1265,13 @@ function DownloadListing({
    *  listing page sees the long one here too. What went is the control, not the
    *  choice. */
   return (
-    <ul className="components">
+    /* `setup-list`, because this listing has no bin. `.component-row` reserves a
+       fourth 26 px column for one on every row whether or not that row has one —
+       right on the Settings page, where the column has to line up down fifteen
+       rows. Here nothing can be removed during a first run, so the reserved
+       column and its gap were 38 px of nothing holding the percentage away from
+       the right edge. */
+    <ul className="components setup-list">
       {ids.map((id) => {
         const item = items.find((x) => x.id === id);
         const phase = progress[id]?.phase;

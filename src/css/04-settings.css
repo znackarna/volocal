@@ -808,6 +808,14 @@
 /* No `position: relative` any more: it was here for the punched-out middle of
    the old conic ring, and the ring the mini player lends is an SVG in the same
    grid cell as the glyph. */
+/* The wizard's copy of this listing has no bin, so it has three columns rather
+   than four. On the Settings page the fourth is reserved on every row whether or
+   not that row can be removed — that is what keeps the bins on one axis down a
+   long table. In a first-run dialog nothing can be removed at all, and the
+   reserved column plus its gap were 38 px of nothing between the size and the
+   right edge. */
+.setup-list .component-row { grid-template-columns: 26px minmax(0, 1fr) auto; }
+
 .component-mark {
   display: grid; place-items: center; width: 26px; height: 26px; padding: 0;
   border: 0; border-radius: 50%; cursor: pointer;
