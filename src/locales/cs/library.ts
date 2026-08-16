@@ -52,7 +52,7 @@ export const csLibrary = {
   // side of the button.
   "library.issues.title": "Volocal je skoro připravený",
   "library.issues.text":
-    "Před prvním přepisem si ještě stáhne, co k němu potřebuje. Stačí nastavení dokončit.",
+    "Před prvním přepisem si ještě stáhne, co k němu potřebuje.",
   "library.issues.finish": "Dokončit nastavení",
   "library.dropZone.blocked":
     "Nahrávku můžete přidat rovnou. Přepis se spustí, jakmile dokončíte nastavení.",

@@ -107,6 +107,12 @@
   display: flex; gap: 16px; align-items: flex-start; justify-content: space-between;
   border-radius: var(--r-large); padding: 15px 18px; margin-bottom: 20px;
 }
+/* The button sits on the middle of the text beside it, not at the top of it.
+   `flex-start` is right for `.warning`, whose text is a heading over a list that
+   can run to several lines — a button level with the last of them would float.
+   This notice is two lines that never grow, so a button pinned to the first one
+   reads as hanging off the corner. */
+.setup-notice { align-items: center; }
 .warning {
   border: 1px solid hsl(var(--ds-destructive) / 0.25);
   background: var(--danger-light);

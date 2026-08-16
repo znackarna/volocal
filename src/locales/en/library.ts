@@ -36,7 +36,7 @@ export const enLibrary: Partial<Record<keyof typeof csLibrary, string>> = {
   "library.view.classic": "Classic list",
   "library.view.compact": "Compact list",
   "library.issues.title": "Volocal is nearly ready",
-  "library.issues.text": "Before the first transcript it still fetches what it needs. Just finish the setup.",
+  "library.issues.text": "Before the first transcript it still fetches what it needs.",
   "library.issues.finish": "Finish setup",
   "library.dropZone.blocked": "You can add a recording right away. Transcription starts once you finish the setup.",
   "library.watchFolder.title.one": "A new file appeared in the watched folder",
