@@ -840,20 +840,31 @@ export default function App() {
       // One call for the whole drop, after the loop. Per file it would open
       // the speaker question once per recording and each would replace the
       // one before it, so only the last file would ever be transcribed.
-      if (automaticRef.current && fresh.length > 0) {
-        await beginTranscriptionRef.current(fresh);
-        await loadRecordings();
-      }
       /* Say it out loud (Jakub's ask): from a detail, an added file lands in
          an archive that is not on screen, so without this notice nothing
          visible happens at all. The watched-folder import already says
-         exactly this sentence; one meaning, one key. */
+         exactly this sentence; one meaning, one key.
+
+         **The plain one first, and the transcription one only if a run really
+         began.** It used to choose between them on `automatic` — the switch —
+         which says what the application would *like* to do rather than what it
+         did, so a recording added while the model was still downloading was
+         announced with *Volocal zahájil přepis* over a card offering to
+         transcribe it.
+
+         Order matters here. If the run is refused, `beginTranscription` puts
+         its own message in the bar, and it arrives after this one and stays:
+         *why nothing is happening* is more use than *something was added*,
+         which the list already shows. */
       if (added > 0) {
-        reportInfo(
-          automaticRef.current
-            ? tPlural("app.watchFolder.transcribing", added)
-            : tPlural("app.watchFolder.added", added)
-        );
+        reportInfo(tPlural("app.watchFolder.added", added));
+      }
+      if (automaticRef.current && fresh.length > 0) {
+        const started = await beginTranscriptionRef.current(fresh);
+        if (started && added > 0) {
+          reportInfo(tPlural("app.watchFolder.transcribing", added));
+        }
+        await loadRecordings();
       }
     },
     [fileIntoOpenFolder, loadRecordings, reportError, reportInfo, t, tPlural, userMessage]
