@@ -246,22 +246,28 @@
   .dz-btn { background: var(--ink); color: var(--panel); border-color: var(--ink); margin-top: 4px; }
 
 
-  /* ---------- dvě polohy nadpisu ----------
-     Prolnutí s malým svislým posunem, ne posun sám: text, který jede, oko
-     sleduje; text, který se prolne, si oko všimne až když je vyměněný. To je
-     ten rozdíl mezi „nenásilně" a „něco se tu hýbe".
 
-     Obě věty leží přes sebe v mřížce na stejné buňce, takže si rezervují výšku
-     té vyšší a nadpis pod sebou nikdy nepodskočí. */
-  .swap { display: grid; place-items: center; min-height: 46px; }
-  .swap > span {
-    grid-area: 1 / 1;
-    font-size: 22px; font-weight: 700; letter-spacing: -.01em;
-    text-align: center;
-    transition: opacity var(--swap-fade) ease, transform var(--swap-fade) ease;
+  /* ---------- obličej žije ----------
+     Mrknutí i širší úsměv jsou tytéž tvary, jen jinak natažené. Nic se
+     nedokresluje, stejně jako u válcovny.
+
+     `transform-box: fill-box` je tu to podstatné: bez něj se `transform-origin`
+     počítá z viewBoxu, takže by se obě oči zmáčkly k jednomu bodu mezi sebou.
+     S ním má každé oko svůj vlastní střed a mrkne na místě. */
+  .alive-eye { transform-box: fill-box; transform-origin: center; }
+  .alive-eye { transition: transform var(--blink) cubic-bezier(.4,0,.6,1); }
+  .alive.blinking .alive-eye { transform: scaleY(.08); }
+  /* Úsměv roste kolem středu svého oblouku, ne kolem sebe — táž mechanika,
+     jakou odchází při válcování. Větší poloměr znamená hlubší i širší křivku,
+     tedy přesně to, co dělá úsměv, když se rozšíří. */
+  .alive-smile {
+    transform-origin: 27.66px 13.81px;
+    transition: transform var(--grin) cubic-bezier(.34,1.15,.64,1);
   }
-  .swap > span[data-off] { opacity: 0; transform: translateY(6px); }
-  .swap.still > span { transition: none; }
+  .alive.grinning .alive-smile { transform: scale(var(--grin-scale)); }
+  .alive.still .alive-eye, .alive.still .alive-smile { transition: none; transform: none; }
+  .alive-svg { display: block; height: calc(26.2px * var(--au, 2.4)); width: auto; }
+  .alive-svg path { fill: var(--ink); }
 
   /* ---------- válcovna ----------
      Otočením o 90° se z obličeje stane stroj: dvě `o` přestanou být oči a
@@ -576,52 +582,54 @@
   </section>
 
 
-  <!-- ============ dvě polohy nadpisu ============ -->
+  <!-- ============ obličej žije ============ -->
   <section class="section">
     <div>
-      <h2>Nadpis ve dvou polohách</h2>
+      <h2>Obličej mrká a občas se usměje</h2>
       <p>
-        Dvě věty, které se střídají. Prolnutí s malým posunem dolů — text, který
-        jede, oko sleduje; text, který se prolne, si oko všimne, až když je
-        vyměněný.
+        Tytéž čtyři tvary, jen jinak natažené — mrknutí je oko stlačené na osminu
+        výšky, širší úsměv je týž oblouk o větším poloměru. Nic se nedokresluje.
       </p>
     </div>
 
     <div class="mill-stage">
-      <div class="swap" id="swap" style="--swap-fade:600ms">
-        <span>Sem přetáhněte svou nahrávku</span>
-        <span data-off>Co spolu dnes přepíšeme?</span>
-      </div>
+      <div class="alive" id="alive" style="--au:2.4; --blink:120ms; --grin:420ms; --grin-scale:1.18"></div>
     </div>
 
     <div class="panel">
       <div class="controls">
         <div class="ctl">
-          <label for="swapevery">Jak často <span class="val" id="swapevery-v">5000 ms</span></label>
-          <input type="range" id="swapevery" min="2000" max="15000" step="250" value="5000">
+          <label for="blinkevery">Mrknutí po <span class="val" id="blinkevery-v">6000 ms</span></label>
+          <input type="range" id="blinkevery" min="2000" max="20000" step="500" value="6000">
+          <span class="hint">rozptyl &plusmn;40 %, aby to nebylo metronomem</span>
         </div>
         <div class="ctl">
-          <label for="swapfade">Prolnutí <span class="val" id="swapfade-v">600 ms</span></label>
-          <input type="range" id="swapfade" min="150" max="1600" step="50" value="600">
+          <label for="blinkfast">Mrknutí trvá <span class="val" id="blinkfast-v">120 ms</span></label>
+          <input type="range" id="blinkfast" min="50" max="300" step="10" value="120">
+        </div>
+        <div class="ctl">
+          <label for="grinevery">Úsměv po <span class="val" id="grinevery-v">14000 ms</span></label>
+          <input type="range" id="grinevery" min="4000" max="40000" step="1000" value="14000">
+        </div>
+        <div class="ctl">
+          <label for="grinsize">O kolik víc <span class="val" id="grinsize-v">1,18&times;</span></label>
+          <input type="range" id="grinsize" min="1.02" max="1.5" step="0.02" value="1.18">
         </div>
       </div>
       <div class="row">
-        <button class="primary" id="swap-run">Spustit střídání</button>
-        <button id="swap-stop">Zastavit</button>
+        <button class="primary" id="alive-run">Nechat žít</button>
+        <button id="alive-stop">Zastavit</button>
+        <button id="alive-blink">Mrknout teď</button>
+        <button id="alive-grin">Usmát se teď</button>
       </div>
-      <p style="margin:16px 0 0;color:var(--muted);font-size:13px">
-        <b style="color:var(--ink)">Nechte to běžet minutu, než to posoudíte.</b>
-        Tohle je jediná animace v aplikaci, která nikdy neskončí — všechny ostatní
-        mají konec. Dvanáctkrát za minutu, na obrazovce, u které se sedí.
-      </p>
     </div>
 
     <div class="panel">
       <ol class="q">
-        <li><div><b>Obě věty leží přes sebe.</b><p>V mřížce na stejné buňce, takže si rezervují výšku té vyšší a nic pod nimi nikdy nepodskočí.</p></div></li>
-        <li><div><b><code>prefers-reduced-motion</code> vybere jednu a nechá ji.</b><p>Ne pomalejší střídání: žádné. Věta, která se mění sama od sebe, je pro toho, kdo si pohyb vypnul, přesně to, co si vypnul.</p></div></li>
-        <li><div><b>Otevřené: co s tím při přepisu.</b><p>Vedle je pak válcovna, tedy druhý pohyb bez konce. Buď se střídání na tu dobu zastaví, nebo se obojí dělí o jednu pozornost.</p></div></li>
-        <li><div><b>Otevřené: co uslyší odečítač obrazovky.</b><p>Nadpis, který se mění sám, se buď ohlásí pokaždé, nebo se musí označit tak, aby se neohlašoval vůbec. To druhé je skoro jistě správně — je to ozdoba, ne zpráva.</p></div></li>
+        <li><div><b><code>transform-box: fill-box</code> je tu to podstatné.</b><p>Bez něj se střed počítá z celého viewBoxu, takže by se obě oči zmáčkly k jednomu bodu mezi sebou. S ním má každé oko svůj vlastní střed a mrkne na místě.</p></div></li>
+        <li><div><b>Úsměv roste kolem středu svého oblouku.</b><p>Ne kolem sebe. Větší poloměr dá hlubší i širší křivku — přesně to, co dělá úsměv, když se rozšíří. Táž mechanika, jakou už odchází při válcování.</p></div></li>
+        <li><div><b>Rozptyl, ne pevný interval.</b><p>Skutečné oko nemrká na metronom. Interval kolísá o &plusmn;40 %, jinak se ten rytmus dá po chvíli předvídat a začne rušit víc než samotný pohyb.</p></div></li>
+        <li><div><b>Otevřené: mrká i během přepisu?</b><p>Tam je značka otočená na bok a mrknutí by bylo vodorovné stlačení válce. Nejspíš se má na tu dobu zastavit — stroj nemrká.</p></div></li>
       </ol>
     </div>
   </section>
@@ -1028,29 +1036,62 @@
   });
 
 
-  const swap = document.getElementById('swap');
-  const swapWords = [...swap.querySelectorAll('span')];
-  let swapAt = 0, swapTimer = null;
-  const swapApply = () => {
-    swap.style.setProperty('--swap-fade', $('swapfade').value + 'ms');
-    $('swapevery-v').textContent = $('swapevery').value + ' ms';
-    $('swapfade-v').textContent = $('swapfade').value + ' ms';
+
+  const alive = document.getElementById('alive');
+  alive.innerHTML =
+    '<svg class="alive-svg" viewBox="11.5 -1 32.3 26.2" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="olo">' +
+    '<path class="alive-eye" d="' + P.o1 + '"/>' +
+    '<path d="' + P.l1 + '"/>' +
+    '<path class="alive-eye" d="' + P.o2 + '"/>' +
+    '<path class="alive-smile" d="' + P.smile + '"/>' +
+    '</svg>';
+
+  let blinkTimer = null, grinTimer = null;
+  /* Rozptyl, ne pevny interval: oko nemrka na metronom, a pravidelny rytmus
+     zacne po chvili rusit vic nez samotny pohyb. */
+  const jitter = (ms) => ms * (0.6 + Math.random() * 0.8);
+
+  const aliveApply = () => {
+    alive.style.setProperty('--blink', $('blinkfast').value + 'ms');
+    alive.style.setProperty('--grin-scale', $('grinsize').value);
+    $('blinkevery-v').textContent = $('blinkevery').value + ' ms';
+    $('blinkfast-v').textContent = $('blinkfast').value + ' ms';
+    $('grinevery-v').textContent = $('grinevery').value + ' ms';
+    $('grinsize-v').textContent = (+$('grinsize').value).toFixed(2).replace('.', ',') + '\u00d7';
   };
-  const swapStep = () => {
-    swapAt = (swapAt + 1) % swapWords.length;
-    swapWords.forEach((w, i) => w.toggleAttribute('data-off', i !== swapAt));
+  const blinkOnce = () => {
+    alive.classList.add('blinking');
+    setTimeout(() => alive.classList.remove('blinking'), +$('blinkfast').value);
   };
-  const swapRun = () => {
-    clearInterval(swapTimer);
-    swap.classList.toggle('still', reduced());
+  const grinOnce = () => {
+    alive.classList.add('grinning');
+    setTimeout(() => alive.classList.remove('grinning'), 1200);
+  };
+  const aliveStop = () => { clearTimeout(blinkTimer); clearTimeout(grinTimer); };
+  const aliveRun = () => {
+    aliveStop();
+    alive.classList.toggle('still', reduced());
     if (reduced()) return;
-    swapTimer = setInterval(swapStep, +$('swapevery').value);
+    const nextBlink = () => {
+      blinkOnce();
+      blinkTimer = setTimeout(nextBlink, jitter(+$('blinkevery').value));
+    };
+    const nextGrin = () => {
+      grinOnce();
+      grinTimer = setTimeout(nextGrin, jitter(+$('grinevery').value));
+    };
+    blinkTimer = setTimeout(nextBlink, jitter(+$('blinkevery').value));
+    grinTimer = setTimeout(nextGrin, jitter(+$('grinevery').value));
   };
-  ['swapevery', 'swapfade'].forEach((id) => $(id).addEventListener('input', swapApply));
-  $('swapevery').addEventListener('change', swapRun);
-  $('swap-run').addEventListener('click', swapRun);
-  $('swap-stop').addEventListener('click', () => clearInterval(swapTimer));
-  swapApply();
+  ['blinkevery', 'blinkfast', 'grinevery', 'grinsize'].forEach(
+    (id) => $(id).addEventListener('input', aliveApply)
+  );
+  $('alive-run').addEventListener('click', aliveRun);
+  $('alive-stop').addEventListener('click', aliveStop);
+  $('alive-blink').addEventListener('click', blinkOnce);
+  $('alive-grin').addEventListener('click', grinOnce);
+  aliveApply();
+  aliveRun();
 
   apply();
   setTimeout(() => { playBoth(); playVariants(); }, 320);
