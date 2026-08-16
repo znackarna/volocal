@@ -280,6 +280,11 @@
                 transform calc(var(--mill-turn) * .9) cubic-bezier(.34, 1.25, .64, 1);
     transition-delay: var(--mill-turn);
   }
+  /* Bez zmenseni, na rozdil od aplikace — a je to ten rozdil, kvuli kteremu se
+     kresba orezavala tam a ne tady. Tenhle ram je ctvercovy (34 x 34 kolem
+     stredu kresby), takze otocena znacka s dosahem 15,21 ma na obe strany 17 a
+     vejde se. Ram obliceje v archivu je 26,2 vysoky a nabizi jen 13,07 dolu,
+     takze tam se zmensit musi. Prototyp proto tuhle chybu ukazat nemohl. */
   .mill.busy .mill-rot { transform: rotate(90deg); }
   .mill.busy .mill-smile {
     transition-delay: 0ms;

@@ -664,14 +664,22 @@
    the two `o` are rollers and the stem is sheet metal passing between them.
    Nothing is drawn for it — the same four shapes from another side.
 
-   `scale(.861)` is 26.2 / 30.41: the drawing is 30.41 long and its frame 26.2
-   tall, so upright it would push the rollers out through the top and bottom.
-   The number is that ratio and not a taste. */
+   `scale(.84)` is what keeps the rollers inside the frame, and the first attempt
+   at it was wrong. 26.2 / 30.41 — the frame's height over the drawing's length —
+   assumes the drawing is centred in the frame, and it is not: the turn is about
+   (27.655, 12.13) while the frame runs −1 to 25.2, leaving 13.13 above and
+   **13.07 below**. Against a reach of 15.206 that allows 0.8595, and .861 ran
+   past it by 0.022 of a unit.
+
+   Twenty-two thousandths, and it showed. At the extreme of a circle the outline
+   is tangent to the frame, so a sliver of overrun takes a wide flat bite out of
+   the curve — measured at 0.05 px and reported as one or two. .84 leaves 0.3 of
+   a unit, which is 0.7 px at the size the drop zone draws it. */
 .olo-rot {
   transform-origin: 27.655px 12.13px;
   transition: transform var(--olo-turn) cubic-bezier(.65, 0, .35, 1);
 }
-.olo-face.working .olo-rot { transform: rotate(90deg) scale(.861); }
+.olo-face.working .olo-rot { transform: rotate(90deg) scale(.84); }
 
 /* The sheet travels along y in unturned coordinates, and it is the parent's
    rotation that makes the journey horizontal. Along x it would run lengthwise
