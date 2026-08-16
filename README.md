@@ -2,97 +2,113 @@
 
 # Volocal
 
-Turns spoken words into text. Recordings, transcripts and language models run
-on your own computer, and nothing is sent out.
+**Turns speech into text, on your own computer.**
 
-A Windows desktop application: whisper.cpp for transcription, CAM++ through
-ONNX Runtime for telling speakers apart, llama.cpp for enhancing the result.
-Tauri 2 — Rust core, React interface, SQLite archive.
+Drop in a recording and you get a transcript you can read, correct, search and
+play back word by word. It knows who said what. It can tidy the text up,
+summarise it or translate it.
 
-**Status: released, 1.2.7.** Everything below works and is in daily use by its
-author. The installer is not code signed, so Windows warns the first time it is
-run. Releases are on the [releases page](../../releases); the application also
-updates itself.
+Your recordings never leave the machine. There is no account, no cloud, no
+upload — the models run on your own hardware, offline, after the first setup.
 
-**Licence: source available, not open source.** You may read this code and
-build it for yourself. Redistribution, forks and reuse in other projects need
-written permission. See [LICENSE](LICENSE); the program itself is covered by
-[src-tauri/LICENSE.txt](src-tauri/LICENSE.txt).
+## Get it
 
----
+**Windows 10 or 11.** [Download the installer](../../releases/latest) — it
+installs for you alone and does not ask for administrator rights.
+
+**Status: released, 1.2.7.** In daily use by its author.
+
+One thing to expect on first run: the installer is not code signed, so Windows
+shows *Windows protected your PC*. Choose **More info** → **Run anyway**. That
+warning is about a missing certificate, not about anything found in the file.
+
+Then open Volocal, press **Download and set up** in the wizard, and drag a
+recording into the window. The wizard fetches what it needs — 700 MB to 1.7 GB
+depending on which models you choose — and after that the internet is optional.
 
 ## What it does
 
-- **Transcribes recordings and video** in Czech and other languages.
-- **Recognises speakers** and splits the text between them.
-- **Enhances a transcript with a language model**, summarises it and
-  translates it — all locally.
-- **Marks the places the transcript was unsure about** and keeps corrections
-  together.
-- **Plays back to the word** and pins a note to any moment.
-- **Records from a microphone**, pulls audio out of an online video, watches a
-  chosen folder.
-- **Exports** to TXT, Markdown, SRT, VTT or JSON, and audio to MP3, M4A or WAV.
+- **Transcribes recordings and video** in Czech and many other languages.
+- **Tells speakers apart** and splits the text between them.
+- **Improves the transcript, summarises it, translates it** — with a language
+  model running on your machine.
+- **Flags the places it was unsure about** so you know where to look.
+- **Plays back to the exact word**, and lets you pin a note to any moment.
+- **Records from a microphone**, takes audio from an online service, or watches
+  a folder you choose.
+- **Exports** to TXT, Markdown, SRT, VTT or JSON — and the audio to MP3, M4A or
+  WAV.
 
-## Where the network is used
+## Your recordings stay with you
 
-The claim is that your recordings never leave the machine, so it is worth being
-exact about when Volocal does reach the internet. Only here:
+That is the whole point of the application, so here is exactly when it touches
+the internet — and it is only these three:
 
-1. **First run.** The setup wizard downloads whisper.cpp, ffmpeg, speech
-   detection and the models you pick — 700 MB to 1.7 GB — from their authors'
-   own release pages. After that the application does not need the internet.
-2. **Adding an online video.** Only if you paste a link yourself. yt-dlp fetches
-   the audio; the link is the only thing that goes out.
-3. **Checking for a new version — only when you ask.** The button on Settings →
-   About fetches one small file from this project's releases page. There is
-   also a switch, **off by default**, that has the application ask the same
-   question once when it opens. It asks; it never downloads without a press.
-4. **Nothing else.** No telemetry, no crash reporting, no account. Recordings,
-   transcripts, settings and the dictionary stay in the archive on your disk.
+1. **The first run**, to fetch the transcription engine and the models you
+   picked, from their authors' own release pages.
+2. **When you paste a link** to an online service. Your link goes out, the audio
+   comes back. Nothing else.
+3. **When you ask whether there is a new version.** There is also a switch, off
+   by default, that asks that one question at startup. It only ever asks —
+   nothing downloads without you pressing something.
 
-Worth knowing about the first item. Every component is pinned to an exact
-version at an exact address, and fifteen of the sixteen are checked against a
-SHA-256 the publisher stated — the download is refused if it does not match.
-The exception is the voice model, whose host publishes no digest; it has HTTPS
-and the certificate chain and nothing more. A robot proposes version bumps once
-a week and copies digests from the publisher rather than computing them, so a
-swapped file cannot smuggle its own. [SECURITY.md](SECURITY.md) has the detail.
+**And nothing else.** No telemetry, no crash reports, no account. Your
+recordings, transcripts, notes and settings sit in a file on your disk.
 
-## Getting it
+About that first download: every piece is pinned to an exact version at an exact
+address, and all but one are checked against a fingerprint its publisher
+published. If the file does not match, it is refused. The exception is the voice
+model, whose host publishes no fingerprint — that one has HTTPS and nothing
+more. [SECURITY.md](SECURITY.md) spells this out.
 
-There is **no published release yet**. Build it from source:
+## What it does not do well
+
+Written down here rather than discovered later:
+
+- **Word timings are close, not exact.** Good for clicking and following along;
+  a long sentence with a pause in it can drift by about a second.
+- **Two people talking at once** get merged into whoever is louder. Fixing that
+  by hand is part of how it is meant to be used.
+- **Interviews yes, panels not really.** Two voices are near-perfect when you
+  say there are two. Five people in one room merged a pair.
+- **One recording at a time.** Drop ten and all ten are accepted, but they queue
+   — you can see them waiting. Running them together would only be slower.
+- **A broken download starts over.** There is no resuming a three-gigabyte model
+  halfway.
+- **The archive is not encrypted.** It is an ordinary file with whatever
+  protection your account has.
+
+## Questions and problems
+
+- **Something is wrong, or you have an idea:** open an issue.
+- **You found a security hole:** please do not open a public issue — write to
+  jsme@znackarna.cz. [SECURITY.md](SECURITY.md) says what is already known to be
+  weak.
+
+[README.cs.md](README.cs.md) is the fuller guide for people using the
+application — keyboard, models, portable copies on a flash drive — and is
+written in Czech, as the interface is.
+
+---
+
+## For developers
+
+A Windows desktop application built on Tauri 2: a Rust core, a React interface,
+a SQLite archive. Transcription is whisper.cpp; telling speakers apart is CAM++
+through ONNX Runtime; the language editing is llama.cpp.
+
+**Licence: source available, not open source.** You may read this code and build
+it for yourself. Redistribution, forks and reuse elsewhere need written
+permission — see [LICENSE](LICENSE), and
+[src-tauri/LICENSE.txt](src-tauri/LICENSE.txt) for the program itself.
 
 ```powershell
 npm install
-npm run tauri build
+npm run tauri dev     # first run compiles Rust: 5-15 minutes. Later runs: seconds.
+npm run tauri build   # installer lands in src-tauri\target\release\bundle\nsis\
 ```
 
-The installer lands in `src-tauri\target\release\bundle\nsis\`. It contains the
-program alone — a few megabytes, not gigabytes — and installs for the current
-user, so it does not ask for administrator rights.
-
-Because it is not signed, Windows shows SmartScreen on first run: *Windows
-protected your PC* → **More info** → **Run anyway**.
-
-Tools and models go to `%LOCALAPPDATA%\Whisp\`, the archive to
-`%APPDATA%\cz.znackarna.volocal\`. The first still says `Whisp`, a name the
-application had before Slobot and before Volocal; renaming it would make
-existing installations download everything again, so it stays. The second was
-moved when the name changed, by a migration that carries the whole folder over
-on first run.
-
-## Development
-
-```powershell
-npm install
-npm run tauri dev
-```
-
-The first `tauri dev` compiles the Rust dependencies — 5 to 15 minutes. Later
-runs take seconds.
-
-Checks that must pass before handing work over:
+Before handing work over:
 
 ```powershell
 npm run build     # i18n:check, then tsc --noEmit, then the Vite build
@@ -102,55 +118,27 @@ cargo test --manifest-path src-tauri/Cargo.toml
 cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
 ```
 
-`npm run i18n:check` is the unusual one: it refuses text written inside a
+`npm run i18n:check` is the unusual one. It refuses text written inside a
 component, an incomplete set of plural forms, a Czech sentence that addresses
 the reader informally, and a translation whose Czech source has been reworded
 since. Czech is the source language of the interface.
 
-A release is held to more. Tagging runs `node scripts/i18n.mjs check --strict`,
+A release is held to more: tagging runs `node scripts/i18n.mjs check --strict`,
 which also refuses a translation whose Czech source has never been
-fingerprinted — mid-change that is a note to self, but it is the only thing the
-drift check can compare against later, so nothing is handed over without it.
-Then the installer is built, installed on a clean machine and started, and it
-has to create its archive before the run is called green.
+fingerprinted. Then the installer is built, installed on a clean machine and
+started, and it has to create its archive before the run counts as green.
+
+Where things are installed: tools and models in `%LOCALAPPDATA%\Whisp\`, the
+archive in `%APPDATA%\cz.znackarna.volocal\`. The first still says `Whisp` — a
+name this had before Slobot and before Volocal — because renaming it would make
+every existing installation download everything again. The second was moved when
+the name changed, by a migration that carries the whole folder over on first
+run.
 
 [ARCHITECTURE.md](ARCHITECTURE.md) has the module layout and the naming rules.
 [CONTRIBUTING.md](CONTRIBUTING.md) has what a pull request needs.
-[README.cs.md](README.cs.md) is fuller on using the application — keyboard,
-models, portable copies, where computation runs — and is the document the
-Czech-speaking users get.
-
-## Known limitations
-
-**Word timings are an estimate.** Whisper returns marks per segment, not per
-word. Good enough for clicking and highlighting, but a long segment with a
-pause in the middle can drift by a second.
-
-**Speaker recognition does not handle overlap.** When two people talk over each
-other the block goes to whoever dominates. Correcting it by hand is part of the
-design, not a failure.
-
-**Speaker recognition is reliable for an interview, not a panel.** Two voices
-with the count given are near-perfect on the material it was measured against;
-five people in one room produced one merged pair. Naming voices and reassigning
-a block are how that is fixed.
-
-**Transcriptions run one at a time.** Drop ten files and all ten are added, but
-one transcribes while the rest queue — visibly, on their cards. Ten runs at once
-would fight over a single graphics card and finish later in total.
-
-**Downloads cannot be resumed.** If the connection drops in the middle of a
-three-gigabyte model, it starts again.
-
-**The archive is not encrypted.** It is a SQLite file on your disk with the
-permissions your account gives it.
-
-## Reporting
-
-- **A bug or an idea:** open an issue.
-- **A vulnerability:** please do **not** open a public issue. Write to
-  jsme@znackarna.cz. [SECURITY.md](SECURITY.md) describes the trust boundary
-  and what is already known to be weak.
+[docs/history/](docs/history/README.md) has why the code is the way it is, day
+by day.
 
 ## Third-party components
 
@@ -169,4 +157,4 @@ permissions your account gives it.
 
 Everything except the Gemma models is open source. Gemma follows Google's own
 licence and FFmpeg is GPL v3. The full list is in [NOTICE](NOTICE) and in the
-application under Settings → About.
+application under Settings → Informace.
