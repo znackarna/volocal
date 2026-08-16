@@ -1599,22 +1599,27 @@ button.mic-play:disabled { cursor: default; opacity: 0.6; }
 
 /* ---------------------------------------------------------------- drag and drop */
 
-/* **Below the header, and only blurred.**
-   It used to cover the window and tint it — `--ds-petrol / 0.12` over a 2 px
-   blur — and the tint was the fault: a colour laid over everything says *this
-   whole window is now a state*, when what is true is that the archive under the
-   pointer will take the file. Blur alone says the same thing and says it about
-   the content rather than about the application.
+/* **Only blurred, and over everything — the same as a dialog.**
 
-   `top: 57px` is `.bar`'s own height. The header stays sharp because it is not
-   part of the answer: it holds the mark, `Nový přepis` and `Nastavení`, and
-   none of those changes because a file is over the window. Blurring the one
-   fixed row that means the same thing at every moment is what made the whole
-   window look like it had gone away. */
+   It used to tint the window as well, `--ds-petrol / 0.12`, and the tint was
+   the fault: a colour laid over everything says *this whole window is now a
+   state*, when what is true is that the archive under the pointer will take the
+   file. Blur alone says it, and says it about the content rather than about the
+   application.
+
+   It covered everything, then briefly stopped below the header — on the
+   argument that a dialog is modal and a drag is not, so the header stays
+   available. **That is a distinction a designer knows and a reader cannot
+   see**: both are something lying over the window, and answering the same
+   situation two ways is not a nuance. So the header blurs here too.
+
+   3 px, which is `.dialog-overlay`'s. Two amounts for one idea is the thing
+   this file keeps warning about; what tells the two states apart is what stands
+   on the veil — a dialog, or the panel that says the file will land. */
 .drag-overlay {
-  position: fixed; top: 57px; right: 0; bottom: 0; left: 0; z-index: 50;
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
+  position: fixed; inset: 0; z-index: 50;
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
   display: flex; align-items: center; justify-content: center; pointer-events: none;
 }
 /* No dashed border on the panel. The drop zone below it is dashed because a
