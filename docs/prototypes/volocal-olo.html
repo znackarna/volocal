@@ -245,6 +245,24 @@
   .dz-note svg { flex: 0 0 auto; }
   .dz-btn { background: var(--ink); color: var(--panel); border-color: var(--ink); margin-top: 4px; }
 
+
+  /* ---------- dvě polohy nadpisu ----------
+     Prolnutí s malým svislým posunem, ne posun sám: text, který jede, oko
+     sleduje; text, který se prolne, si oko všimne až když je vyměněný. To je
+     ten rozdíl mezi „nenásilně" a „něco se tu hýbe".
+
+     Obě věty leží přes sebe v mřížce na stejné buňce, takže si rezervují výšku
+     té vyšší a nadpis pod sebou nikdy nepodskočí. */
+  .swap { display: grid; place-items: center; min-height: 46px; }
+  .swap > span {
+    grid-area: 1 / 1;
+    font-size: 22px; font-weight: 700; letter-spacing: -.01em;
+    text-align: center;
+    transition: opacity var(--swap-fade) ease, transform var(--swap-fade) ease;
+  }
+  .swap > span[data-off] { opacity: 0; transform: translateY(6px); }
+  .swap.still > span { transition: none; }
+
   /* ---------- válcovna ----------
      Otočením o 90° se z obličeje stane stroj: dvě `o` přestanou být oči a
      stanou se válci, dřík přestane být nos a stane se plechem. Nic se
@@ -554,6 +572,57 @@
         mezerou <b>3,15</b>, jakou má dnes za posledním <code>l</code>. Šířka nápisu jde
         z <b>82</b> na <b>39,64</b> jednotky. Žádná nová kresba, žádná knihovna.
       </p>
+    </div>
+  </section>
+
+
+  <!-- ============ dvě polohy nadpisu ============ -->
+  <section class="section">
+    <div>
+      <h2>Nadpis ve dvou polohách</h2>
+      <p>
+        Dvě věty, které se střídají. Prolnutí s malým posunem dolů — text, který
+        jede, oko sleduje; text, který se prolne, si oko všimne, až když je
+        vyměněný.
+      </p>
+    </div>
+
+    <div class="mill-stage">
+      <div class="swap" id="swap" style="--swap-fade:600ms">
+        <span>Sem přetáhněte svou nahrávku</span>
+        <span data-off>Co spolu dnes přepíšeme?</span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="controls">
+        <div class="ctl">
+          <label for="swapevery">Jak často <span class="val" id="swapevery-v">5000 ms</span></label>
+          <input type="range" id="swapevery" min="2000" max="15000" step="250" value="5000">
+        </div>
+        <div class="ctl">
+          <label for="swapfade">Prolnutí <span class="val" id="swapfade-v">600 ms</span></label>
+          <input type="range" id="swapfade" min="150" max="1600" step="50" value="600">
+        </div>
+      </div>
+      <div class="row">
+        <button class="primary" id="swap-run">Spustit střídání</button>
+        <button id="swap-stop">Zastavit</button>
+      </div>
+      <p style="margin:16px 0 0;color:var(--muted);font-size:13px">
+        <b style="color:var(--ink)">Nechte to běžet minutu, než to posoudíte.</b>
+        Tohle je jediná animace v aplikaci, která nikdy neskončí — všechny ostatní
+        mají konec. Dvanáctkrát za minutu, na obrazovce, u které se sedí.
+      </p>
+    </div>
+
+    <div class="panel">
+      <ol class="q">
+        <li><div><b>Obě věty leží přes sebe.</b><p>V mřížce na stejné buňce, takže si rezervují výšku té vyšší a nic pod nimi nikdy nepodskočí.</p></div></li>
+        <li><div><b><code>prefers-reduced-motion</code> vybere jednu a nechá ji.</b><p>Ne pomalejší střídání: žádné. Věta, která se mění sama od sebe, je pro toho, kdo si pohyb vypnul, přesně to, co si vypnul.</p></div></li>
+        <li><div><b>Otevřené: co s tím při přepisu.</b><p>Vedle je pak válcovna, tedy druhý pohyb bez konce. Buď se střídání na tu dobu zastaví, nebo se obojí dělí o jednu pozornost.</p></div></li>
+        <li><div><b>Otevřené: co uslyší odečítač obrazovky.</b><p>Nadpis, který se mění sám, se buď ohlásí pokaždé, nebo se musí označit tak, aby se neohlašoval vůbec. To druhé je skoro jistě správně — je to ozdoba, ne zpráva.</p></div></li>
+      </ol>
     </div>
   </section>
 
@@ -957,6 +1026,31 @@
     hero.dataset.variant = card.dataset.v;
     playHero();
   });
+
+
+  const swap = document.getElementById('swap');
+  const swapWords = [...swap.querySelectorAll('span')];
+  let swapAt = 0, swapTimer = null;
+  const swapApply = () => {
+    swap.style.setProperty('--swap-fade', $('swapfade').value + 'ms');
+    $('swapevery-v').textContent = $('swapevery').value + ' ms';
+    $('swapfade-v').textContent = $('swapfade').value + ' ms';
+  };
+  const swapStep = () => {
+    swapAt = (swapAt + 1) % swapWords.length;
+    swapWords.forEach((w, i) => w.toggleAttribute('data-off', i !== swapAt));
+  };
+  const swapRun = () => {
+    clearInterval(swapTimer);
+    swap.classList.toggle('still', reduced());
+    if (reduced()) return;
+    swapTimer = setInterval(swapStep, +$('swapevery').value);
+  };
+  ['swapevery', 'swapfade'].forEach((id) => $(id).addEventListener('input', swapApply));
+  $('swapevery').addEventListener('change', swapRun);
+  $('swap-run').addEventListener('click', swapRun);
+  $('swap-stop').addEventListener('click', () => clearInterval(swapTimer));
+  swapApply();
 
   apply();
   setTimeout(() => { playBoth(); playVariants(); }, 320);
