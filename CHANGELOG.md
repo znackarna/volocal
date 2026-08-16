@@ -6,6 +6,16 @@ The reasoning behind individual decisions lives in `docs/history/`, day by day,
 and every published version also has its notes on the
 [releases page](../../releases).
 
+**One line per change, and it says what the reader gains.** Not what was
+altered, not how, not which file. Entries before 1.2.6 are written the old way
+and are left as they are; they are not a model for the next one. The mechanism
+belongs in `docs/history/`, which is what that folder is for.
+
+## 1.2.6 — 17 August 2026
+
+- **The mark in the archive is alive.** It blinks, smiles to itself now and
+  then, and smiles while the pointer rests on it.
+
 ## 1.2.5 — 17 August 2026
 
 - **The bottom of an `o` was clipped while the mark was turned on its side.** The

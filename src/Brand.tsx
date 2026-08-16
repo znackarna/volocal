@@ -1,9 +1,11 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import {
   CLOSED_WIDTH,
   GLYPH,
   PEN,
   PEN_TIMING,
+  SMILE,
+  smileArc,
   TM_SHIFT,
   WORDMARK,
 } from "./brandArt";
@@ -77,6 +79,40 @@ const MILL = {
   /** How far the smile swings about the centre of its own arc on the way out. */
   smileTurn: 62,
 };
+
+/** What the mark does when it is a face and nothing is running.
+ *
+ *  **It blinks, and now and then it smiles.** Both are the four shapes already
+ *  there, stretched — nothing is drawn for either, which is the same rule the
+ *  mill state is built on.
+ *
+ *  Intervals carry ±40 % of jitter rather than firing on the number. A real eye
+ *  does not blink to a metronome, and a rhythm that can be predicted after
+ *  twenty seconds is more distracting than the movement itself.
+ */
+const ALIVE = {
+  blinkEvery: 6_000,
+  blinkFor: 120,
+  grinEvery: 14_000,
+  /** How wide the smile opens, in degrees each side of the bottom of its arc.
+   *  55, chosen at the screen; the drawing itself rests at 45. */
+  grinTo: 55,
+  grinFor: 420,
+  /** How long an unprompted smile holds before it goes back. One under the
+   *  pointer holds until the pointer leaves instead. */
+  grinHold: 1_200,
+};
+
+/** A small overshoot on the way out, none on the way back.
+ *
+ *  A smile that arrives and stops dead is mechanical; the bit past the target
+ *  is the difference between an expression and a grimace. Coming back it would
+ *  be wrong — the face has no reason to shoot the smile inward.
+ */
+const easeOutBack = (t: number) => 1 + 2.2 * (t - 1) ** 3 + 1.2 * (t - 1) ** 2;
+const easeOut = (t: number) => 1 - (1 - t) ** 3;
+
+const jitter = (ms: number) => ms * (0.6 + Math.random() * 0.8);
 
 /** Both animations belong to starting the application, not to arriving at a
  *  screen. The archive is left and re-entered all day — from a transcript, from
@@ -218,7 +254,111 @@ export function OloFace({ working = false }: { working?: boolean }) {
   const [still] = useState(stillWanted);
   /** Lags `working` on the way down, so the last sheet can come to rest. */
   const [milling, setMilling] = useState(false);
+  const [blinking, setBlinking] = useState(false);
   const face = useRef<HTMLSpanElement>(null);
+  const smile = useRef<SVGPathElement>(null);
+  /** The smile's own state, off React on purpose: it changes every frame while
+   *  it opens, and re-rendering the mark sixty times a second to move one
+   *  attribute would be paying a lot for nothing. */
+  const grin = useRef<{ at: number; frame: number; back: number; hovering: boolean }>({
+    at: SMILE.rest,
+    frame: 0,
+    back: 0,
+    hovering: false,
+  });
+
+  const setSmile = useCallback((degrees: number) => {
+    grin.current.at = degrees;
+    smile.current?.setAttribute("d", smileArc(degrees));
+  }, []);
+
+  /** The smile cannot be handed to a CSS transition — the path is recomputed
+   *  rather than transformed — so it runs its own loop. */
+  const glide = useCallback(
+    (to: number, ms: number, ease: (t: number) => number) => {
+      cancelAnimationFrame(grin.current.frame);
+      const from = grin.current.at;
+      const started = performance.now();
+      const step = (now: number) => {
+        const t = Math.min(1, (now - started) / ms);
+        setSmile(from + (to - from) * ease(t));
+        if (t < 1) grin.current.frame = requestAnimationFrame(step);
+      };
+      grin.current.frame = requestAnimationFrame(step);
+    },
+    [setSmile],
+  );
+
+  /** Only a written, idle face is alive. It does not blink while it is being
+   *  written, because the pen has not reached the eyes yet; and it does not
+   *  blink while the mill runs, because turned on its side it is not a face —
+   *  a blink there would be a roller squashing flat. */
+  const alive = written && !milling && !still;
+
+  useEffect(() => {
+    if (!alive) {
+      cancelAnimationFrame(grin.current.frame);
+      setSmile(SMILE.rest);
+      return undefined;
+    }
+    let blink = 0;
+    let unblink = 0;
+    let next = 0;
+    const blinkOnce = () => {
+      setBlinking(true);
+      unblink = window.setTimeout(() => setBlinking(false), ALIVE.blinkFor);
+      blink = window.setTimeout(blinkOnce, jitter(ALIVE.blinkEvery));
+    };
+    const grinOnce = () => {
+      /* Skipped under the pointer, but the clock keeps running. Stopping it and
+         starting again on the way out would mean the face smiles a second time
+         the moment the pointer leaves — which reads as an answer to having been
+         there, and the unprompted smile is meant to be a mood. */
+      if (!grin.current.hovering) {
+        glide(ALIVE.grinTo, ALIVE.grinFor, easeOutBack);
+        grin.current.back = window.setTimeout(
+          () => glide(SMILE.rest, ALIVE.grinFor * 1.6, easeOut),
+          ALIVE.grinFor + ALIVE.grinHold,
+        );
+      }
+      next = window.setTimeout(grinOnce, jitter(ALIVE.grinEvery));
+    };
+    /* A pointer already resting on the mark when it finishes being written gets
+       its smile straight away rather than waiting for the next hover. */
+    if (grin.current.hovering) glide(ALIVE.grinTo, ALIVE.grinFor, easeOutBack);
+    blink = window.setTimeout(blinkOnce, jitter(ALIVE.blinkEvery));
+    next = window.setTimeout(grinOnce, jitter(ALIVE.grinEvery));
+    return () => {
+      window.clearTimeout(blink);
+      window.clearTimeout(unblink);
+      window.clearTimeout(next);
+      window.clearTimeout(grin.current.back);
+      cancelAnimationFrame(grin.current.frame);
+      setBlinking(false);
+    };
+  }, [alive, glide, setSmile]);
+
+  /** The smile answers the pointer, and holds while it is there.
+   *
+   *  That is the difference from the unprompted one, which leaves by itself
+   *  after a moment: a mood ends on its own, an answer ends when the question
+   *  does. `mouseenter` rather than `pointerenter` — on a touch screen the
+   *  pointer events would open the smile on a tap and `pointerleave` may never
+   *  arrive, leaving it stuck open. Nobody loses anything by not having hover:
+   *  this is decoration, not information, which is also why it is not on the
+   *  keyboard. If the mark ever becomes a control here, that stops being true.
+   */
+  const onEnter = () => {
+    grin.current.hovering = true;
+    if (!alive) return;
+    window.clearTimeout(grin.current.back);
+    glide(ALIVE.grinTo, ALIVE.grinFor, easeOutBack);
+  };
+  const onLeave = () => {
+    grin.current.hovering = false;
+    if (!alive) return;
+    glide(SMILE.rest, ALIVE.grinFor * 1.6, easeOut);
+  };
 
   useEffect(() => {
     if (faceWritten) return undefined;
@@ -280,11 +420,12 @@ export function OloFace({ working = false }: { working?: boolean }) {
       ref={face}
       className={`olo-face${drawn ? " drawn" : ""}${still ? " still" : ""}${
         milling ? " working" : ""
-      }`}
+      }${blinking ? " blinking" : ""}`}
       style={
         {
           "--olo-writing": `${FACE.writing}ms`,
           "--olo-ease": FACE.ease,
+          "--olo-blink": `${ALIVE.blinkFor}ms`,
           "--olo-turn": `${MILL.turn}ms`,
           "--olo-pass": `${MILL.pass}ms`,
           "--olo-lead": MILL.lead,
@@ -292,7 +433,14 @@ export function OloFace({ working = false }: { working?: boolean }) {
         } as React.CSSProperties
       }
     >
-      <svg className="olo-face-svg" viewBox="11.5 -1 32.3 26.2" role="img" aria-label="olo">
+      <svg
+        className="olo-face-svg"
+        viewBox="11.5 -1 32.3 26.2"
+        role="img"
+        aria-label="olo"
+        onMouseEnter={onEnter}
+        onMouseLeave={onLeave}
+      >
         {/* The outline is the pen's own target and has no business being there
             once the pen has finished: while the mark is turning, an unmoved grey
             copy of the face would sit behind the machine. */}
@@ -330,14 +478,17 @@ export function OloFace({ working = false }: { working?: boolean }) {
         <g className="olo-face-ink" mask={written ? undefined : `url(#${maskId})`}>
           <g className="olo-rot">
             <g className="olo-eyes">
-              <path d={GLYPH.o1} />
-              <path d={GLYPH.o2} />
+              <path className="olo-eye" d={GLYPH.o1} />
+              <path className="olo-eye" d={GLYPH.o2} />
             </g>
             <g className="olo-sheet">
               <path d={GLYPH.l1} />
             </g>
+            {/* The one shape here that is generated rather than copied. It
+                starts as the drawing and opens from it; `brandArt.test.ts`
+                holds the two together. */}
             <g className="olo-smile">
-              <path d={GLYPH.smile} />
+              <path ref={smile} d={smileArc(SMILE.rest)} />
             </g>
           </g>
         </g>

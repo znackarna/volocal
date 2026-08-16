@@ -9,7 +9,7 @@ A Windows desktop application: whisper.cpp for transcription, CAM++ through
 ONNX Runtime for telling speakers apart, llama.cpp for enhancing the result.
 Tauri 2 — Rust core, React interface, SQLite archive.
 
-**Status: released, 1.2.5.** Everything below works and is in daily use by its
+**Status: released, 1.2.6.** Everything below works and is in daily use by its
 author. The installer is not code signed, so Windows warns the first time it is
 run. Releases are on the [releases page](../../releases); the application also
 updates itself.

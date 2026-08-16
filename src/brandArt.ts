@@ -61,6 +61,61 @@ export const CLOSED_WIDTH = WORDMARK.oloEnd - WORDMARK.oloStart + TM_GAP + WORDM
 export const TM_SHIFT =
   WORDMARK.oloEnd - WORDMARK.oloStart + TM_GAP - (WORDMARK.tmStart - WORDMARK.oloStart);
 
+/** The smile, as a shape that can open wider.
+ *
+ *  It is an annulus sector: two concentric arcs closed by radial cuts. These
+ *  numbers are not chosen, they are read off `GLYPH.smile` — every on-curve
+ *  point of that path lies on one of the two circles to within 0.0001 of a
+ *  unit, and the drawn shape rests at exactly 45 degrees each side of the
+ *  bottom. `brandArt.test.ts` asserts both, so a redrawn letterform fails there
+ *  rather than leaving the mark smiling beside its own outline — which is the
+ *  failure this file's header warns about and which nothing on screen reports.
+ *
+ *  **Only the angle changes.** The radii are fixed, so the smile lengthens
+ *  along the circle it is already made of. Growing it any other way — scaling
+ *  the drawn shape about the centre of its arc — changes the radius, and a
+ *  larger radius does not read as a wider smile but as a face that has moved
+ *  closer. That was the first attempt and it is why this is a generator rather
+ *  than a transform.
+ *
+ *  A second attempt kept the radius by turning the smile into a stroke along
+ *  the centreline and driving its length with `pathLength` and a dash pattern.
+ *  It left an artefact nobody could locate. Nothing here is stroked: this is
+ *  the same filled path as the drawing, at a different angle.
+ */
+export const SMILE = {
+  cx: 27.66,
+  cy: 13.833,
+  inner: 7.24,
+  outer: 10.3428,
+  /** Half-angle of the shape as drawn, in degrees. */
+  rest: 45,
+} as const;
+
+/** The smile opened to `degrees` each side of the bottom of its arc.
+ *
+ *  At `SMILE.rest` this reproduces `GLYPH.smile`: same four corners to a
+ *  ten-thousandth of a unit, same two radii, same radial cuts at the ends.
+ */
+export function smileArc(degrees: number): string {
+  const angle = (degrees * Math.PI) / 180;
+  const sin = Math.sin(angle);
+  const cos = Math.cos(angle);
+  const x = (radius: number, side: 1 | -1) => (SMILE.cx + side * radius * sin).toFixed(4);
+  const y = (radius: number) => (SMILE.cy + radius * cos).toFixed(4);
+  /* Past 90 degrees a side the sector is more than a half circle and the arc
+     flag has to turn over, or the curve takes the short way round instead. The
+     face never opens that far, but a path that is wrong when called directly is
+     a trap for whoever calls it next. */
+  const large = degrees > 90 ? 1 : 0;
+  return (
+    `M${x(SMILE.outer, 1)} ${y(SMILE.outer)}` +
+    `A${SMILE.outer} ${SMILE.outer} 0 ${large} 1 ${x(SMILE.outer, -1)} ${y(SMILE.outer)}` +
+    `L${x(SMILE.inner, -1)} ${y(SMILE.inner)}` +
+    `A${SMILE.inner} ${SMILE.inner} 0 ${large} 0 ${x(SMILE.inner, 1)} ${y(SMILE.inner)}Z`
+  );
+}
+
 /** The centreline of each stroke, for the pen that writes the mark.
  *
  *  These are not in `wordmark.svg` — that file has outlines, and an outline

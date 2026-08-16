@@ -53,9 +53,18 @@
   The same release in English, for the GitHub release page. Its readers arrive
   from anywhere and are developers, so nothing on that page is in Czech.
 
-  Here the detail is welcome: this audience wants to know what actually changed
-  and can read a file name. Two texts rather than one translated at either end,
-  because the two audiences have never wanted the same thing.
+  Short here too. This used to say the detail was welcome on that page, and it
+  was wrong: a developer reading a release page is deciding whether this version
+  matters to them, which is the same question the Czech reader is asking in
+  their own words. One line per change, the gain and not the mechanism, and no
+  paragraph under a bullet.
+
+  Two texts rather than one translated at either end, because the two audiences
+  read different languages - not because one of them wants more.
+
+  Where the detail goes instead: docs\history, which is written per day and
+  holds the reasoning behind every decision in the release. A release note that
+  has to explain itself is a history entry standing in the wrong place.
 
 .PARAMETER Material
   Prints what happened since the last tag - the commits, and the change log for
