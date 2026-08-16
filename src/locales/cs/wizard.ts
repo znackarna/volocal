@@ -91,7 +91,7 @@ export const csWizard = {
   // A row that has been asked for while another component is coming down. One
   // download runs at a time, and until 2026-08-17 a second ask was refused with
   // a red bar instead of waiting its turn; this is the word that replaced it.
-  "wizard.manual.queued": "čeká",
+  "wizard.manual.queued": "čeká ve frontě",
   "wizard.manual.install": "Stáhnout",
   "wizard.manual.reinstall": "Stáhnout znovu",
   "wizard.manual.remove": "Smazat",

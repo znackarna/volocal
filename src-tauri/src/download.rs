@@ -652,14 +652,55 @@ fn download_file(
         // download has to read back what an earlier attempt wrote before it can
         // carry on hashing. It is one pass over a local file and it is what
         // keeps the final check describing the whole thing rather than the tail.
+        //
+        // **And it is reported, because it is the wait that looked like a
+        // failure.** Between the press and the first byte off the network this
+        // pass reads and hashes everything a previous attempt left — a gigabyte
+        // or three — and it was doing it in silence, with `0 %` on the row and
+        // nothing moving. *Než dojde k obnovení přerušeného stažení je tam nula
+        // a vypadá to jako stuck*, and it was the resume that made the gap long
+        // enough to notice.
+        //
+        // What it reports is not a second kind of progress: these are bytes
+        // that are downloaded. The bar climbing through them to the point the
+        // last attempt reached is the truest picture of what is happening —
+        // *picking up where it left off*, drawn rather than asserted.
         let mut existing = std::fs::File::open(&partial)?;
         let mut seed = vec![0u8; 262_144];
+        let mut seeded: u64 = 0;
+        let mut last_update = std::time::Instant::now();
         loop {
+            // A three-gigabyte hash is long enough that `Přerušit` has to reach
+            // in here too. The loop below reads the same flag between chunks;
+            // this one had no check at all, so a stop pressed during the pass
+            // was answered only once the pass was over.
+            if cancellation.load(Ordering::Relaxed) {
+                return Err(UserMessage::new("download.cancelled"));
+            }
             let read = existing.read(&mut seed)?;
             if read == 0 {
                 break;
             }
             digest.update(&seed[..read]);
+            seeded += read as u64;
+            if last_update.elapsed().as_millis() > 200 {
+                last_update = std::time::Instant::now();
+                emit_progress(
+                    app,
+                    DownloadProgress {
+                        id: id.into(),
+                        phase: "downloading".into(),
+                        downloaded_mb: seeded as f64 / 1_048_576.0,
+                        total_mb,
+                        percent: if total > 0 {
+                            ((seeded as f64 / total as f64) * 100.0) as u32
+                        } else {
+                            0
+                        },
+                        message: None,
+                    },
+                );
+            }
         }
         std::fs::OpenOptions::new().append(true).open(&partial)?
     } else {
