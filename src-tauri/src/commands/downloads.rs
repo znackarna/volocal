@@ -64,17 +64,23 @@ pub fn download(
         let db = app.db.lock().unwrap();
         reported(db::load_settings(&db))?
     };
-    // Asked before the flag is cleared: a second call used to reset the
-    // cancellation the first run was watching, so pressing Stop and then
-    // starting again left the first thread downloading with its stop request
-    // wiped. The same shape as the transcription `cancel` defect.
-    if download::is_installing() {
-        return Err(UserMessage::new("download.already_running"));
-    }
-    app.download_cancellation.store(false, Ordering::Relaxed);
-    if !download::install_bundle(window, settings, ids, app.download_cancellation.clone()) {
-        return Err(UserMessage::new("download.already_running"));
-    }
+    /* **Nothing is refused any more; a second ask joins the queue.** This used
+    to be two guards and an error — *Stahování už probíhá, počkejte na jeho
+    dokončení* — which is a red bar for the ordinary act of pressing a second
+    row while the first one is coming down, and it was said on the models
+    page, in the wizard and in Settings alike.
+
+    Both guards were about the same danger and it has not gone away: two
+    runs fetching one component write one file and both report progress for
+    it. `install_bundle` answers it by dropping an id it is already fetching
+    or already holds, which is the refusal kept where it belongs — per
+    component, inside the thing that knows.
+
+    The cancellation flag is cleared there too, and only when a worker is
+    actually started. Clearing it here, on the way in to every call, is the
+    defect this comment used to describe from the other side: asking for a
+    second component wiped the stop request the running worker was watching. */
+    download::install_bundle(window, settings, ids, app.download_cancellation.clone());
     Ok(())
 }
 
@@ -105,7 +111,7 @@ pub fn remove_component(app: State<'_, AppState>, id: String) -> Reported<()> {
     // the one way to get a half-installed component that still records itself
     // as complete.
     if download::is_installing() {
-        return Err(UserMessage::new("download.already_running"));
+        return Err(UserMessage::new("download.busy_installing"));
     }
     if download::component_is_busy(&settings, &id, busy) {
         return Err(UserMessage::new("download.component_busy").with("component", &id));

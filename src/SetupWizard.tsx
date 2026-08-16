@@ -6,12 +6,14 @@ import type { ConfirmationRequest } from "./ConfirmationDialog";
 import InfoNote from "./InfoNote";
 import { LineIcon, ModelMark } from "./icons";
 import { useI18n, type TranslationKey } from "./i18n";
-import { messageCode, useProgressMessage, useUserMessage } from "./messages";
+import { useProgressMessage, useUserMessage } from "./messages";
 import { useFormats } from "./formats";
 import { useDialog } from "./useDialog";
 import {
   EDITOR_MODELS,
   UNOFFERED_COMPONENTS,
+  downloadIsLive,
+  downloadIsMoving,
   type QualityChoice,
 } from "./types";
 import type { DownloadComponent, ToolCheck, DownloadProgress } from "./types";
@@ -244,22 +246,14 @@ function recommendedQuality(usesGpu: boolean): Quality {
    `chooseByHand` with `manualFrom`, which existed only to remember which
    question the button had been pressed on. */
 
-/** Was the answer "one is already running" rather than a failure?
- *
- *  The backend allows one download at a time, and says so by refusing the
- *  second call. That refusal is not a failure and must not be dressed as one:
- *  it was arriving on this screen as a red **Stahování selhalo** over a
- *  download that was running perfectly well, and — worse than the fright — it
- *  took `running` down with it and hid the progress the reader was asking
- *  about.
- *
- *  So the screen stays where it is. The download that is already going emits
- *  the same events to the same listener, so watching is the whole of the right
- *  behaviour; there is nothing to say and nothing to start.
- */
-export function alreadyRunning(error: unknown): boolean {
-  return messageCode(error) === "download.already_running";
-}
+/* `alreadyRunning` stood here, with `downloadAlreadyRunning.test.ts` pinning
+   the code it read. Both are gone with the refusal itself: the backend takes a
+   second ask into a queue now instead of answering `download.already_running`,
+   so there is no refusal left to recognise. See `install_bundle`.
+
+   The two `catch` blocks that called it are still `catch` blocks — a download
+   can still fail, and a failure is still shown. What went is the branch that
+   swallowed one particular answer before it got there. */
 
 /* Three screens where there were six, and they are numbered rather than
    counted at each use: the old code carried `setStep(4)` in five places and a
@@ -654,7 +648,6 @@ export default function SetupWizard({
       );
       await api.download(sortedIds);
     } catch (e) {
-      if (alreadyRunning(e)) return;
       setError(userMessage(e));
       setRunning(false);
     }
@@ -698,7 +691,6 @@ export default function SetupWizard({
     try {
       await api.download(retryIds);
     } catch (e) {
-      if (alreadyRunning(e)) return;
       setError(userMessage(e));
       setRunning(false);
     }
@@ -1306,7 +1298,13 @@ function DownloadListing({
         const phase = progress[id]?.phase;
         const done = phase === "complete";
         const failed = phase === "error";
-        const live = !!phase && !done && !failed;
+        /* **Moving, not merely known about.** This was `!!phase && !done &&
+           !failed`, which made `cancelled` a row that ran for ever, and would
+           have made `waiting` one too. A queued row here keeps the arrow and
+           its size, which is what it had before it was queued and is still
+           true: the guided run is one press and this list is what that press
+           is about. */
+        const live = downloadIsMoving(phase);
         return (
           <li key={id} className="component">
             <div className="component-row">
@@ -1433,7 +1431,16 @@ function ComponentRow({
 }) {
   const { t, tDynamic } = useI18n();
   const { dataSize } = useFormats();
-  const running = !!progress && progress.phase !== "complete" && progress.phase !== "error";
+  /* **Waiting counts as running here, and cancelled does not.** This was
+     `!!progress && phase !== "complete" && phase !== "error"`, and the phase it
+     forgot was `cancelled`: pressing the stop square left the row wearing a
+     stop square and `0 %`, with nothing behind it — *A když jsem klikl na
+     stopku, tak to zůstalo stuck*.
+     The other half is the queue. A row pressed while something else is coming
+     down is in line now rather than refused, and it says so with the same
+     control the running row has, because the same press stops it. */
+  const running = downloadIsLive(progress?.phase);
+  const waiting = progress?.phase === "waiting";
   const acts = running || !item.complete || item.replaceable;
 
   const label = running
@@ -1453,7 +1460,10 @@ function ComponentRow({
             title={label}
             onClick={() => (running ? onCancel() : onInstall(item))}
           >
-            {running && <ProgressRing percent={progress?.percent ?? 0} />}
+            {/* No ring on a queued row: an arc frozen at nought reads as a
+                download that has stalled rather than as one that has not
+                started. The word in the size column is what says which. */}
+            {running && !waiting && <ProgressRing percent={progress?.percent ?? 0} />}
             <ComponentMarkGlyph running={running} complete={item.complete} />
           </button>
         ) : (
@@ -1484,9 +1494,11 @@ function ComponentRow({
         {/* While it runs the size gives way to how far it has got: once the
             bytes are moving, how big it was is not the question. */}
         <span className="component-size">
-          {running
-            ? t("wizard.download.percent", { percent: progress?.percent ?? 0 })
-            : dataSize(item.megabytes)}
+          {waiting
+            ? t("wizard.manual.queued")
+            : running
+              ? t("wizard.download.percent", { percent: progress?.percent ?? 0 })
+              : dataSize(item.megabytes)}
         </span>
 
         {item.removable ? (

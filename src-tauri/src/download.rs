@@ -559,9 +559,15 @@ fn emit_progress(app: &AppHandle, p: DownloadProgress) {
 /// which the read fails, the loop ends, and the cancellation is honoured.
 ///
 /// The limit it does not impose: a peer that is alive and answers probes while
-/// sending nothing still stalls. That needs a per-read deadline, and getting one
-/// means the asynchronous client and a rewrite of the download loop. Recorded
-/// rather than pretended away.
+/// sending nothing still stalls. That needs a per-read deadline, and it is not
+/// simply an unused builder method: `read_timeout` is on the asynchronous
+/// `ClientBuilder` and not on the blocking one — tried here on 0.12.28 and it
+/// does not compile. Getting it means the asynchronous client and a rewritten
+/// download loop. Recorded rather than pretended away, and now measured.
+///
+/// **With one worker taking a queue, that stall is no longer one download.**
+/// Everything behind it waits too. It has not happened; if it ever does, this
+/// paragraph is where the work starts.
 const CONNECT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(15);
 const KEEPALIVE_IDLE: std::time::Duration = std::time::Duration::from_secs(30);
 const KEEPALIVE_INTERVAL: std::time::Duration = std::time::Duration::from_secs(10);
@@ -1435,53 +1441,182 @@ pub fn install_component(
     Ok(())
 }
 
-/// Installs a list of components one after another, on a thread of its own.
-/// Whether a bundle is being installed right now.
+/// What is being fetched this moment, and what follows it.
 ///
-/// One flag for the whole application, because the thing being protected is
-/// the destination on disk, not a screen: two runs fetching the same component
-/// write to the same file and both report progress for the same id, which is
-/// what made the progress jump between two values. The second call is refused
-/// rather than queued — the first one is already fetching exactly this.
-static INSTALLING: AtomicBool = AtomicBool::new(false);
-
-pub fn is_installing() -> bool {
-    INSTALLING.load(Ordering::Relaxed)
+/// **One worker, a shared queue, and nothing is refused.** Until 2026-08-17
+/// this was a single `AtomicBool` and a second call was an error —
+/// *Stahování už probíhá, počkejte na jeho dokončení*, in red, for the ordinary
+/// act of pressing a second row while the first one is still coming down.
+///
+/// The flag was right about the danger it named: two threads fetching the same
+/// component write the same file and both report progress for the same id,
+/// which is what made the bar jump between two values. But that danger is about
+/// the destination, and a queue answers it as completely as a refusal does —
+/// while also answering what the reader was asking for. An id that is already
+/// `current` or already in `queue` is dropped rather than added, so the
+/// protection is kept exactly; anything else joins the end.
+///
+/// One worker rather than several on purpose: these are gigabytes over one
+/// connection, and two of them at once finish at the same moment rather than
+/// sooner, with neither progress bar meaning anything on the way.
+struct Work {
+    /// A worker thread is alive and taking from `queue`.
+    running: bool,
+    /// Which worker this state belongs to, counted up once per worker started.
+    ///
+    /// Only the panic guard reads it, and it is the difference between a guard
+    /// and a hazard: a worker finishes by lowering `running`, which lets the
+    /// next call start a worker immediately — and the finishing thread's
+    /// clean-up then runs *after* that, with the queue of a run it has nothing
+    /// to do with in front of it.
+    generation: u64,
+    /// What that thread has in hand, `None` between two components.
+    current: Option<String>,
+    /// What it will take next, in the order asked for.
+    queue: std::collections::VecDeque<String>,
 }
 
-/// Returns whether this call took the work. `false` means one was already
-/// running and nothing was started.
+static WORK: std::sync::Mutex<Work> = std::sync::Mutex::new(Work {
+    running: false,
+    generation: 0,
+    current: None,
+    queue: std::collections::VecDeque::new(),
+});
+
+/// Whether anything is being fetched right now.
+///
+/// `remove_component` asks it: the installer writes through temporary names and
+/// renames into place, and deleting underneath that is the one way to get a
+/// half-installed component that still records itself as complete.
+pub fn is_installing() -> bool {
+    WORK.lock().unwrap().running
+}
+
+/// What happened to the ids handed in.
+#[derive(Debug, PartialEq, Eq)]
+pub enum Queued {
+    /// Nothing was running; a worker was started for them.
+    Started,
+    /// A run was already going and they joined the end of it.
+    Appended,
+    /// Every one of them is already in hand or already waiting. Not a failure:
+    /// the errand being asked for is under way.
+    Nothing,
+}
+
+/// Puts a list of components in line to be installed, starting a worker if none
+/// is running.
+///
+/// **The cancellation flag is cleared here rather than by the caller**, and only
+/// on the branch that starts a worker. Clearing it on the way in to every call
+/// is the older defect from the other side: pressing Stop and then asking for
+/// something else wiped the stop request the running worker was watching.
+///
+/// The worker keeps the `settings` of the call that started it, so components
+/// appended later land in the folders named when the run began. Those are the
+/// program and model directories, which a person changes by moving their whole
+/// installation — not something done between two clicks of a download.
 pub fn install_bundle(
     app: AppHandle,
     settings: crate::db::Settings,
     ids: Vec<String>,
     cancellation: Arc<AtomicBool>,
-) -> bool {
-    if INSTALLING.swap(true, Ordering::SeqCst) {
-        return false;
-    }
-    std::thread::spawn(move || {
-        // Whatever happens below, the flag comes down — including on a panic,
-        // which is why it is a guard and not a line at the end.
-        struct Done;
-        impl Drop for Done {
-            fn drop(&mut self) {
-                INSTALLING.store(false, Ordering::SeqCst);
+) -> Queued {
+    let (outcome, accepted, generation) = {
+        let mut work = WORK.lock().unwrap();
+        let mut accepted: Vec<String> = Vec::new();
+        for id in ids {
+            let known = work.current.as_deref() == Some(id.as_str()) || work.queue.contains(&id);
+            if !known {
+                work.queue.push_back(id.clone());
+                accepted.push(id);
             }
         }
-        let _done = Done;
+        if accepted.is_empty() {
+            return Queued::Nothing;
+        }
+        if work.running {
+            (Queued::Appended, accepted, work.generation)
+        } else {
+            work.running = true;
+            work.generation += 1;
+            cancellation.store(false, Ordering::SeqCst);
+            (Queued::Started, accepted, work.generation)
+        }
+    };
+
+    // Said for every one of them, including the one about to start: a row that
+    // reports nothing after being pressed reads as a press that missed, and
+    // that is what the refusal used to be covering up with a red bar.
+    for id in accepted {
+        emit_progress(
+            &app,
+            DownloadProgress {
+                id,
+                phase: "waiting".into(),
+                downloaded_mb: 0.0,
+                total_mb: 0.0,
+                percent: 0,
+                message: None,
+            },
+        );
+    }
+
+    if outcome == Queued::Appended {
+        return outcome;
+    }
+
+    std::thread::spawn(move || {
+        // Whatever happens below, the run ends — including on a panic, which is
+        // why it is a guard and not a line at the end. It empties the queue as
+        // well as lowering the flag: a worker that died holding work would
+        // otherwise leave that work behind for a later run to inherit silently.
+        struct Done(u64);
+        impl Drop for Done {
+            fn drop(&mut self) {
+                let mut work = WORK.lock().unwrap();
+                if work.generation != self.0 {
+                    return;
+                }
+                work.running = false;
+                work.current = None;
+                work.queue.clear();
+            }
+        }
+        let _done = Done(generation);
 
         // What did not land. `download:complete` carries it, because the
         // window cannot work it out for itself: the batch stops on a
         // cancellation, and a component that was never attempted has no
         // phase at all — indistinguishable from one that is still going.
         let mut unfinished: Vec<String> = Vec::new();
-        let mut queue = ids.into_iter();
-        while let Some(id) = queue.next() {
+        loop {
+            // Taking the next one and finding there is no next one are the same
+            // decision and are made under one lock. Split in two they are a
+            // race: a call arriving between them would see `running` still true,
+            // add to a queue nobody is reading any more, and be fetched by
+            // nothing.
+            let next = {
+                let mut work = WORK.lock().unwrap();
+                let taken = work.queue.pop_front();
+                if taken.is_none() {
+                    work.running = false;
+                }
+                work.current = taken.clone();
+                taken
+            };
+            let Some(id) = next else { break };
+
             if cancellation.load(Ordering::Relaxed) {
-                // Cancelling stops the whole batch, so everything still in it
-                // is unfinished — not only the component that was interrupted.
-                for pending in std::iter::once(id).chain(queue.by_ref()) {
+                // Cancelling stops the whole run, so everything still waiting is
+                // unfinished — not only the component that was interrupted.
+                let rest: Vec<String> = {
+                    let mut work = WORK.lock().unwrap();
+                    work.running = false;
+                    work.current = None;
+                    work.queue.drain(..).collect()
+                };
+                for pending in std::iter::once(id).chain(rest) {
                     emit_progress(
                         &app,
                         DownloadProgress {
@@ -1519,7 +1654,7 @@ pub fn install_bundle(
         }
         let _ = app.emit("download:complete", unfinished);
     });
-    true
+    outcome
 }
 
 // ---------------------------------------------------------------- portable copy
@@ -1590,36 +1725,131 @@ fn copy_tree(app: &AppHandle, source: &Path, destination: &Path) -> Result<u64> 
 mod tests {
     use super::*;
 
-    /// The reported defect: starting a download, leaving Settings and coming
-    /// back started a second one. Two runs then fetched the same component
-    /// into the same file and both reported progress for it, so the bar jumped
-    /// between two values.
+    /// The decision `install_bundle` makes before it touches a thread: what is
+    /// new, what is already in hand, and whether a worker has to be started.
     ///
-    /// The flag is what the command asks before it clears the cancellation —
-    /// which is the other half of the defect: the second call used to wipe the
-    /// stop request the first run was watching.
+    /// Written against `WORK` directly because the rest of that function needs
+    /// an `AppHandle` and a network. What is being pinned is the part that
+    /// answers the reported defect — *nejde to prostě jen přidat do fronty?* —
+    /// and the part that must survive it: one component is never taken twice.
+    /// `WORK` is one static for the whole process and these two tests write it,
+    /// so they take turns. Always this lock first and `WORK` second.
+    static ORDER: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    /// Back to nothing running, so neither test inherits the other's state.
+    fn idle() {
+        let mut work = WORK.lock().unwrap();
+        work.running = false;
+        work.current = None;
+        work.queue.clear();
+    }
+
+    fn admit(ids: &[&str]) -> (Queued, Vec<String>) {
+        let mut work = WORK.lock().unwrap();
+        let mut accepted = Vec::new();
+        for id in ids {
+            let id = (*id).to_string();
+            if work.current.as_deref() == Some(id.as_str()) || work.queue.contains(&id) {
+                continue;
+            }
+            work.queue.push_back(id.clone());
+            accepted.push(id);
+        }
+        if accepted.is_empty() {
+            return (Queued::Nothing, accepted);
+        }
+        if work.running {
+            (Queued::Appended, accepted)
+        } else {
+            work.running = true;
+            work.generation += 1;
+            (Queued::Started, accepted)
+        }
+    }
+
+    /// The reported defect: pressing a second row while the first was coming
+    /// down produced *Stahování už probíhá, počkejte na jeho dokončení* in red.
+    /// It is a queue now, and only genuine duplicates are dropped.
     #[test]
-    fn a_second_install_is_refused_while_one_is_running() {
+    fn a_second_ask_joins_the_queue_and_only_duplicates_are_dropped() {
+        let _order = ORDER.lock().unwrap_or_else(|e| e.into_inner());
+        idle();
         assert!(!is_installing(), "nothing running to begin with");
 
-        // What `install_bundle` does on the way in, without needing a window.
-        assert!(
-            !INSTALLING.swap(true, Ordering::SeqCst),
-            "this call takes it"
+        let (first, accepted) = admit(&["model-turbo"]);
+        assert_eq!(
+            first,
+            Queued::Started,
+            "nothing was running, so this starts"
         );
+        assert_eq!(accepted, vec!["model-turbo".to_string()]);
         assert!(is_installing());
-        assert!(
-            INSTALLING.swap(true, Ordering::SeqCst),
-            "a second call finds it taken and must not start"
-        );
 
-        INSTALLING.store(false, Ordering::SeqCst);
-        assert!(!is_installing(), "the flag comes down when the run ends");
-        assert!(
-            !INSTALLING.swap(true, Ordering::SeqCst),
-            "and the next download is allowed again"
+        let (second, accepted) = admit(&["editor-model-small"]);
+        assert_eq!(
+            second,
+            Queued::Appended,
+            "a different component waits its turn"
         );
-        INSTALLING.store(false, Ordering::SeqCst);
+        assert_eq!(accepted, vec!["editor-model-small".to_string()]);
+
+        // The whole reason the refusal existed: one component, one fetch.
+        assert_eq!(admit(&["editor-model-small"]).0, Queued::Nothing);
+
+        // And that holds for the one in hand as well as the ones still waiting.
+        {
+            let mut work = WORK.lock().unwrap();
+            let taken = work.queue.pop_front();
+            work.current = taken;
+        }
+        assert_eq!(
+            admit(&["model-turbo"]).0,
+            Queued::Nothing,
+            "in hand, not new"
+        );
+        let (mixed, accepted) = admit(&["model-turbo", "vad"]);
+        assert_eq!(mixed, Queued::Appended, "one known, one new");
+        assert_eq!(accepted, vec!["vad".to_string()], "and only the new one");
+
+        idle();
+        assert!(!is_installing(), "the flag comes down when the run ends");
+        assert_eq!(admit(&["model-turbo"]).0, Queued::Started);
+        idle();
+    }
+
+    /// A worker lowers `running` before its own clean-up runs, so the next call
+    /// may start a worker in between. The clean-up must then leave that run
+    /// alone — without the generation it emptied a queue it had never seen.
+    #[test]
+    fn a_finished_workers_cleanup_leaves_the_run_that_replaced_it_alone() {
+        let _order = ORDER.lock().unwrap_or_else(|e| e.into_inner());
+        idle();
+        let mine = {
+            let (_, _) = admit(&["vad"]);
+            WORK.lock().unwrap().generation
+        };
+        // The first worker reaches the end of its queue.
+        idle();
+        // A second call gets in before the first worker's guard has run.
+        assert_eq!(admit(&["model-large"]).0, Queued::Started);
+
+        // Now the guard: same code, one generation behind.
+        {
+            let mut work = WORK.lock().unwrap();
+            if work.generation == mine {
+                work.running = false;
+                work.queue.clear();
+            }
+        }
+        let work = WORK.lock().unwrap();
+        assert!(work.running, "the newer run is still running");
+        assert_eq!(
+            work.queue.len(),
+            1,
+            "and still holds what it was asked to fetch"
+        );
+        drop(work);
+        idle();
     }
 
     /// A scratch directory of this test's own, removed on the way in so a

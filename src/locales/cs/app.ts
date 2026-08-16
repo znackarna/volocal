@@ -13,7 +13,7 @@ export const csApp = {
   // running — a folder emptied in Explorer, a component deleted in Nastavení.
   // The archive's notice says the same thing, but quietly and only where
   // somebody happens to be looking.
-  "app.setupBroke": "Z počítače zmizelo něco, co přepis potřebuje.",
+  "app.setupBroke": "V počítači chybí klíčové nástroje pro přepis.",
   "app.setupFirst": "Přepis zatím nemůže běžet, chybí k němu součásti.",
   "app.download.cancel": "Zrušit stahování",
   "app.shell.statusBar": "Stav aplikace",

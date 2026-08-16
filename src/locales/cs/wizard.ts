@@ -62,7 +62,7 @@ export const csWizard = {
   "wizard.download.reviewText":
     "Jednorázové stažení ze stránek autorů. Pak už internet není potřeba.",
   "wizard.download.runningText":
-    "Můžete nechat běžet na pozadí. Až to doběhne, Volocal je připravený.",
+    "Stahování může běžet na pozadí. Až doběhne, Volocal bude připravený.",
   "wizard.download.summary.one": "Stáhne se {count} položka, dohromady {size}.",
   "wizard.download.summary.few": "Stáhnou se {count} položky, dohromady {size}.",
   "wizard.download.summary.many": "Stáhne se {count} položky, dohromady {size}.",
@@ -87,7 +87,11 @@ export const csWizard = {
   // not here. The count above the list says how many; this says which — and
   // that is the only question somebody reading the list in order to fix
   // something is asking.
-  "wizard.manual.requiredBadge": "nutné",
+  "wizard.manual.requiredBadge": "nezbytné",
+  // A row that has been asked for while another component is coming down. One
+  // download runs at a time, and until 2026-08-17 a second ask was refused with
+  // a red bar instead of waiting its turn; this is the word that replaced it.
+  "wizard.manual.queued": "čeká",
   "wizard.manual.install": "Stáhnout",
   "wizard.manual.reinstall": "Stáhnout znovu",
   "wizard.manual.remove": "Smazat",

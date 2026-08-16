@@ -794,10 +794,18 @@ export default function App() {
     add(
       listen<DownloadProgress>("download:progress", (u) => {
         const next = u.payload;
-        // `complete` here is one component of the bundle finishing, not the
-        // bundle — only `download:complete` says that. Keeping the last
-        // component up until then is what stops the bubble flickering off and
-        // on between files.
+        /* `complete` here is one component of the bundle finishing, not the
+           bundle — only `download:complete` says that. Keeping the last
+           component up until then is what stops the bubble flickering off and
+           on between files.
+
+           `waiting` is the one that must not take the bubble: it arrives for
+           every component put in the queue, including the ones behind the one
+           being fetched, and the bubble would have named the last of them at
+           0 % while another was at 40. It is the row in the listing that says
+           a queued component is queued; here the bubble goes on reporting what
+           is actually moving. */
+        if (next.phase === "waiting") return;
         setDownloading(["error", "cancelled"].includes(next.phase) ? null : next);
       })
     );
