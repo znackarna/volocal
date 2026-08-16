@@ -33,6 +33,7 @@ export const enWizard: Partial<Record<keyof typeof csWizard, string>> = {
   "wizard.download.viewCompact": "Brief list",
   "wizard.download.viewFull": "Detailed list",
   "wizard.manual.title": "Models and tools",
+  "wizard.manual.requiredBadge": "needed",
   "wizard.manual.install": "Download",
   "wizard.manual.reinstall": "Download again",
   "wizard.manual.remove": "Delete",

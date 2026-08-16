@@ -883,14 +883,35 @@ export default function SettingsScreen({
    *  what was asked for, `resolve_editor_model` in `tools.rs` falls back to any
    *  model that is actually there, and a listener that had to survive the
    *  reader walking to another screen would not. */
+  const [editorConfirm, setEditorConfirm] = useState<ConfirmationRequest | null>(null);
+
   const chooseEditor = async (id: string, needs: string[]) => {
-    try {
-      if (needs.length > 0) await api.download(needs);
-      await save({ ...n, editor_model: EDITOR_MODELS[id] });
-      setModules(await api.catalog());
-    } catch (e) {
-      onError(userMessage(e));
+    const apply = async () => {
+      try {
+        if (needs.length > 0) await api.download(needs);
+        await save({ ...n, editor_model: EDITOR_MODELS[id] });
+        setModules(await api.catalog());
+      } catch (e) {
+        onError(userMessage(e));
+      }
+    };
+    /* **Asked first when it costs gigabytes.** Pressing a card that is already
+       on the disk only changes a setting and needs no ceremony; pressing one
+       that is not started seven gigabytes on a single click, with no way back
+       except finding the running download and stopping it.
+       Not destructive: nothing is lost, so the confirming button is the plain
+       one and carries the size, which is the fact the answer turns on. */
+    if (needs.length === 0) {
+      await apply();
+      return;
     }
+    const size = formats.dataSize(needs.reduce((total, need) => total + megabytes(need), 0));
+    setEditorConfirm({
+      title: t("settings.editor.downloadTitle"),
+      text: t("settings.editor.downloadText", { size }),
+      confirm: t("settings.editor.downloadConfirm", { size }),
+      action: apply,
+    });
   };
 
   /* --------------------------------------------------------- where it runs
@@ -2295,6 +2316,17 @@ export default function SettingsScreen({
       {activeTab === "about" && <About onError={onError} />}
 
       </div>
+
+      {/* One dialog for this screen, and at the moment one question: whether to
+          fetch a language-editing model. It is rendered here rather than beside
+          the card that raises it because a card is inside the scrolling column
+          and a dialog is not — the veil has to cover the window, not the
+          column. `Soubory` has its own for the same reason at its own level. */}
+      <ConfirmationDialog
+        query={editorConfirm}
+        onClose={() => setEditorConfirm(null)}
+        onError={onError}
+      />
     </main>
   );
 }

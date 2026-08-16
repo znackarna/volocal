@@ -1463,7 +1463,19 @@ function ComponentRow({
         )}
 
         <span className="component-text">
-          <span className="component-name">{tDynamic(item.name_code, item.id)}</span>
+          <span className="component-name">
+            {tDynamic(item.name_code, item.id)}
+            {/* Which of fifteen rows `Doplnit` was talking about. The card above
+                says how many are missing and the marks say which are not here,
+                but neither says which of those the application cannot work
+                without — and that is the only question somebody reading this
+                list in order to fix something is asking.
+                `.badge.required` has been in the stylesheet since this listing
+                was written, in the destructive palette, waiting for a user. */}
+            {item.required && !item.complete && (
+              <em className="badge required">{t("wizard.manual.requiredBadge")}</em>
+            )}
+          </span>
           {view === "full" && (
             <span className="small-text">{tDynamic(item.description_code, "")}</span>
           )}

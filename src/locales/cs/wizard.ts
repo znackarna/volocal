@@ -83,6 +83,11 @@ export const csWizard = {
 
   // ------------------------------------------------------------- choosing by hand
   "wizard.manual.title": "Modely a nástroje",
+  // Marks the rows the application cannot work without, on the ones that are
+  // not here. The count above the list says how many; this says which — and
+  // that is the only question somebody reading the list in order to fix
+  // something is asking.
+  "wizard.manual.requiredBadge": "nutné",
   "wizard.manual.install": "Stáhnout",
   "wizard.manual.reinstall": "Stáhnout znovu",
   "wizard.manual.remove": "Smazat",
