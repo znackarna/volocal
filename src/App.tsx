@@ -511,6 +511,43 @@ export default function App() {
   const beginTranscription = useCallback(
     async (ids: string[], language?: string): Promise<boolean> => {
       if (ids.length === 0) return false;
+      /* Nothing stopped a run that could not work.
+       *
+       * The archive has said *Volocal je skoro připravený* over a missing
+       * component since the notice was written, and pressing Transcribe under
+       * it started anyway: the interface stated the thing was impossible and
+       * then attempted it, so the refusal arrived from the core, minutes later,
+       * as a failed transcription. Deleting a component in Nastavení and going
+       * straight back is the way in.
+       *
+       * `check.issues` is read here rather than `blockingIssues`, which is the
+       * same list one memo later and is declared five hundred lines below this.
+       * The notice is drawn from it too, so the two cannot disagree, and the
+       * answer carries the way out rather than only the news. */
+      /* **Asked of the disk, not of memory.** `check` is a snapshot taken at
+         startup and after a handful of actions, and files can leave underneath
+         it: emptying the models folder in Explorer left the application
+         believing it was ready, because nothing had told it otherwise.
+
+         It is a few filesystem probes and this is the one moment they matter.
+         If the call itself fails the cached answer stands — being unable to ask
+         is not evidence that something is missing, and refusing a run on that
+         would be worse than attempting one. */
+      let missing = check?.issues ?? [];
+      try {
+        const fresh = await api.checkTools();
+        setCheck(fresh);
+        missing = fresh.issues;
+      } catch {
+        // Keep what we had.
+      }
+      if (missing.length > 0) {
+        reportInfo(t("app.setupFirst"), {
+          label: t("library.issues.finish"),
+          run: () => setSetupOpen(true),
+        });
+        return false;
+      }
       /* Transcribing again replaces the text, and with it every manual
          correction and every uncertain spot already signed off. Deleting the
          transcript from the same menu asks first; doing it as a side effect of
@@ -537,7 +574,7 @@ export default function App() {
       }
       return await askAboutSpeakers(ids, language);
     },
-    [askAboutSpeakers, recordings, t, tPlural]
+    [askAboutSpeakers, check, recordings, reportInfo, t, tPlural]
   );
 
   /** Separating speakers on its own. It is entirely about how many people
@@ -546,15 +583,73 @@ export default function App() {
     setPendingTranscription({ ids: [id], diarizeOnly: true });
   }, []);
 
+  /** How many things were missing the last time anybody asked.
+   *
+   *  `null` until the first answer arrives, which is what keeps a first run
+   *  quiet: on a machine that has never been set up everything is missing, and
+   *  the wizard opens by itself to say so. What this remembers is the other
+   *  case — it was all here a minute ago and now it is not. */
+  const knownMissing = useRef<number | null>(null);
+
   const loadToolCheck = useCallback(async () => {
     try {
       const k = await api.checkTools();
       setCheck(k);
+      /* **Say it, rather than only redrawing.** The check has always updated
+         the archive's notice silently, so a component deleted while the window
+         was open changed a banner nobody was looking at, and the next thing
+         that happened was a transcription refusing for reasons that seemed to
+         come from nowhere.
+         Only on the way from *nothing missing* to *something missing*: repeating
+         it on every poll would be a bar that never goes away. */
+      const before = knownMissing.current;
+      knownMissing.current = k.issues.length;
+      if (before === 0 && k.issues.length > 0) {
+        reportInfo(t("app.setupBroke"), {
+          label: t("settings.modules.add"),
+          run: () => setSetupOpen(true),
+        });
+      }
       return k;
     } catch {
       return null;
     }
-  }, []);
+  }, [reportInfo, t]);
+
+  /* The archive's notice is drawn from the same check and was equally capable
+     of standing there out of date — a folder emptied in Explorer while the
+     window sat behind it, and the application still offering to transcribe.
+
+     Coming back to the window is when somebody has most likely just been
+     elsewhere doing exactly that, so it is where the question is worth asking
+     again. A few probes, once per return, not on a timer. */
+  useEffect(() => {
+    const again = () => {
+      if (document.visibilityState === "visible") void loadToolCheck();
+    };
+    window.addEventListener("focus", again);
+    document.addEventListener("visibilitychange", again);
+    return () => {
+      window.removeEventListener("focus", again);
+      document.removeEventListener("visibilitychange", again);
+    };
+  }, [loadToolCheck]);
+
+  /* A modest poll for the same reason the watched folder uses one: a permanent
+     operating-system watcher on the tools and models folders would fire through
+     every download and every unpack — hundreds of events for the one that
+     matters — and would have to be told which of them to ignore.
+
+     A minute is slow enough to cost nothing and quick enough that somebody who
+     deletes a folder and comes back to the window is told before they try to
+     transcribe. Focus covers the common case; this covers the window that was
+     never left. */
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      if (document.visibilityState === "visible") void loadToolCheck();
+    }, 60_000);
+    return () => window.clearInterval(id);
+  }, [loadToolCheck]);
 
   // The watch folder deliberately uses a modest poll instead of a permanent
   // operating-system watcher. It keeps the feature portable and, together
@@ -699,10 +794,18 @@ export default function App() {
     add(
       listen<DownloadProgress>("download:progress", (u) => {
         const next = u.payload;
-        // `complete` here is one component of the bundle finishing, not the
-        // bundle — only `download:complete` says that. Keeping the last
-        // component up until then is what stops the bubble flickering off and
-        // on between files.
+        /* `complete` here is one component of the bundle finishing, not the
+           bundle — only `download:complete` says that. Keeping the last
+           component up until then is what stops the bubble flickering off and
+           on between files.
+
+           `waiting` is the one that must not take the bubble: it arrives for
+           every component put in the queue, including the ones behind the one
+           being fetched, and the bubble would have named the last of them at
+           0 % while another was at 40. It is the row in the listing that says
+           a queued component is queued; here the bubble goes on reporting what
+           is actually moving. */
+        if (next.phase === "waiting") return;
         setDownloading(["error", "cancelled"].includes(next.phase) ? null : next);
       })
     );
@@ -784,20 +887,31 @@ export default function App() {
       // One call for the whole drop, after the loop. Per file it would open
       // the speaker question once per recording and each would replace the
       // one before it, so only the last file would ever be transcribed.
-      if (automaticRef.current && fresh.length > 0) {
-        await beginTranscriptionRef.current(fresh);
-        await loadRecordings();
-      }
       /* Say it out loud (Jakub's ask): from a detail, an added file lands in
          an archive that is not on screen, so without this notice nothing
          visible happens at all. The watched-folder import already says
-         exactly this sentence; one meaning, one key. */
+         exactly this sentence; one meaning, one key.
+
+         **The plain one first, and the transcription one only if a run really
+         began.** It used to choose between them on `automatic` — the switch —
+         which says what the application would *like* to do rather than what it
+         did, so a recording added while the model was still downloading was
+         announced with *Volocal zahájil přepis* over a card offering to
+         transcribe it.
+
+         Order matters here. If the run is refused, `beginTranscription` puts
+         its own message in the bar, and it arrives after this one and stays:
+         *why nothing is happening* is more use than *something was added*,
+         which the list already shows. */
       if (added > 0) {
-        reportInfo(
-          automaticRef.current
-            ? tPlural("app.watchFolder.transcribing", added)
-            : tPlural("app.watchFolder.added", added)
-        );
+        reportInfo(tPlural("app.watchFolder.added", added));
+      }
+      if (automaticRef.current && fresh.length > 0) {
+        const started = await beginTranscriptionRef.current(fresh);
+        if (started && added > 0) {
+          reportInfo(tPlural("app.watchFolder.transcribing", added));
+        }
+        await loadRecordings();
       }
     },
     [fileIntoOpenFolder, loadRecordings, reportError, reportInfo, t, tPlural, userMessage]
@@ -1356,6 +1470,7 @@ export default function App() {
           aiProgress={aiProgress}
           liveSegments={liveSegments}
           issues={blockingIssues}
+          fetching={!!downloading}
           watchCandidates={watchCandidates}
           watchDecisionRunning={watchDecisionRunning}
           onTranscribeWatchCandidates={transcribeWatchCandidates}
@@ -1495,6 +1610,7 @@ export default function App() {
             onBack={leaveWizard}
             onComplete={finishWizard}
             onError={reportError}
+            alreadyFetching={!!downloading}
           />
         </Suspense>
       )}
@@ -1507,6 +1623,7 @@ export default function App() {
                where Settings opens for good. */
             initialTab={settingsTab ?? undefined}
             foundUpdate={foundUpdate}
+            fetching={!!downloading}
             onComplete={() => {
               loadToolCheck();
               loadAppearance();
@@ -1613,6 +1730,8 @@ export default function App() {
             missingModule={null}
             onBack={closeSetup}
             onComplete={closeSetup}
+            onError={reportError}
+            alreadyFetching={!!downloading}
           />
         </Suspense>
       )}
@@ -1697,8 +1816,12 @@ export default function App() {
                 : downloading.id,
           })}
           percent={downloading.percent}
+          /* The one it names, not the queue behind it. The bubble says
+             *Stahuji {name}*, so its cross has to mean that one — stopping
+             four more the reader cannot see from here would be a control
+             doing more than it says. */
           onCancel={() => {
-            void api.cancelDownload();
+            void api.cancelComponent(downloading.id);
             setDownloading(null);
           }}
           cancelLabel={t("app.download.cancel")}

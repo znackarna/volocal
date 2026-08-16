@@ -584,18 +584,23 @@
    lines a description takes — and that alignment is what turns two cards into a
    comparison rather than two cards. */
 .setup-choices .choice-top {
-  padding: 15px 15px 14px; display: flex; flex-direction: column; flex: 1 1 auto;
+  padding: 17px 16px 16px; display: flex; flex-direction: column; flex: 1 1 auto;
 }
-.setup-choices .choice-head { display: flex; align-items: center; gap: 10px; }
+/* `justify-content` musí být uvedeno, ne zděděno: sdílené `.choice-head` má
+   `space-between`, protože jinde na kartě stojí vlevo jméno a vpravo velikost.
+   Tady vpravo nestojí nic, takže to nadpis odstrčilo k pravému okraji. */
+.setup-choices .choice-head {
+  display: flex; justify-content: flex-start; align-items: center; gap: 10px;
+}
 .setup-choices .choice-icon { width: 32px; height: 32px; }
 .setup-choices .choice-title { font-size: 16px; flex-wrap: wrap; row-gap: 4px; }
-.setup-choices .choice-top .small-text { margin-top: 9px; line-height: 1.45; }
+.setup-choices .choice-top .small-text { margin-top: 12px; line-height: 1.5; }
 /* The foot is set into `--subtle`, the token that exists for exactly this: a
    quiet inset inside a surface. No rule across the top — a band that has its own
    ground separates itself, and a line there would be a line a gap already made. */
 .setup-choices .choice-foot {
-  background: var(--subtle); padding: 11px 15px;
-  display: flex; flex-direction: column; gap: 6px;
+  background: var(--subtle); padding: 13px 16px;
+  display: flex; flex-direction: column; gap: 8px;
 }
 .setup-choices .choice.chosen .choice-foot { background: hsl(var(--ds-petrol) / 0.06); }
 /* The number first and the words after it, and the line may not wrap. Written
@@ -803,6 +808,14 @@
 /* No `position: relative` any more: it was here for the punched-out middle of
    the old conic ring, and the ring the mini player lends is an SVG in the same
    grid cell as the glyph. */
+/* The wizard's copy of this listing has no bin, so it has three columns rather
+   than four. On the Settings page the fourth is reserved on every row whether or
+   not that row can be removed — that is what keeps the bins on one axis down a
+   long table. In a first-run dialog nothing can be removed at all, and the
+   reserved column plus its gap were 38 px of nothing between the size and the
+   right edge. */
+.setup-list .component-row { grid-template-columns: 26px minmax(0, 1fr) auto; }
+
 .component-mark {
   display: grid; place-items: center; width: 26px; height: 26px; padding: 0;
   border: 0; border-radius: 50%; cursor: pointer;
@@ -893,6 +906,18 @@
 
 .dialog-overlay {
   position: fixed; inset: 0; z-index: 60;
+  /* A slight blur under the veil. The scrim alone darkens the window and leaves
+     every edge behind the dialog as sharp as the dialog's own, so two planes
+     compete for the same focus; taking the detail out of the far one is what
+     makes it read as far.
+
+     3 px, which is the amount the archive's own dissolve uses against its
+     sticky header — the same effect at the same strength rather than a second
+     number for the same idea. This is a `position: fixed` element covering the
+     whole window, so it has none of the compositing trouble that rule carries
+     a warning about: nothing here moves under it. */
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
   /* A veil is dark in both palettes. It used to be `--ds-foreground / 0.35`,
      which is the *text* colour — dark on the light palette, and near-white on
      the dark one, where it lightened the page by 35 % behind a dialog that is
@@ -1009,7 +1034,7 @@
    it, and no content block in a dialog carries a `margin-top`. 18, not the 20
    `.warning` gives itself in the archive, because in here the number belongs to
    the dialog's rhythm and not to the banner. */
-.setup-dialog > .warning { margin-bottom: 18px; }
+.setup-dialog > .setup-notice { margin-bottom: 18px; }
 .ai-edit-note {
   display: flex; align-items: flex-start; gap: 8px;
   margin-top: 14px !important;
@@ -1574,15 +1599,38 @@ button.mic-play:disabled { cursor: default; opacity: 0.6; }
 
 /* ---------------------------------------------------------------- drag and drop */
 
+/* **Only blurred, and over everything — the same as a dialog.**
+
+   It used to tint the window as well, `--ds-petrol / 0.12`, and the tint was
+   the fault: a colour laid over everything says *this whole window is now a
+   state*, when what is true is that the archive under the pointer will take the
+   file. Blur alone says it, and says it about the content rather than about the
+   application.
+
+   It covered everything, then briefly stopped below the header — on the
+   argument that a dialog is modal and a drag is not, so the header stays
+   available. **That is a distinction a designer knows and a reader cannot
+   see**: both are something lying over the window, and answering the same
+   situation two ways is not a nuance. So the header blurs here too.
+
+   3 px, which is `.dialog-overlay`'s. Two amounts for one idea is the thing
+   this file keeps warning about; what tells the two states apart is what stands
+   on the veil — a dialog, or the panel that says the file will land. */
 .drag-overlay {
   position: fixed; inset: 0; z-index: 50;
-  background: hsl(var(--ds-petrol) / 0.12);
-  backdrop-filter: blur(2px);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
   display: flex; align-items: center; justify-content: center; pointer-events: none;
 }
+/* No dashed border on the panel. The drop zone below it is dashed because a
+   dashed frame is what says *put something here* about an empty area waiting;
+   this panel is not waiting, it is the answer to something already happening,
+   and it is the only sharp thing on a blurred window — which is more than
+   enough to be seen. */
 .overlay-content {
-  background: var(--panel); border: 2px dashed var(--accent);
-  /* 22 px: the drop zone's amount, because this is the same dashed panel. */
+  background: var(--panel); border: 1px solid var(--line);
+  /* 22 px: the drop zone's amount, because it is the same panel at the same
+     moment, only answering rather than inviting. */
   border-radius: 22px; padding: 40px 60px; text-align: center;
   box-shadow: var(--shadow-high);
 }

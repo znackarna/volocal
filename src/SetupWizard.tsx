@@ -6,12 +6,14 @@ import type { ConfirmationRequest } from "./ConfirmationDialog";
 import InfoNote from "./InfoNote";
 import { LineIcon, ModelMark } from "./icons";
 import { useI18n, type TranslationKey } from "./i18n";
-import { messageCode, useProgressMessage, useUserMessage } from "./messages";
+import { useProgressMessage, useUserMessage } from "./messages";
 import { useFormats } from "./formats";
 import { useDialog } from "./useDialog";
 import {
   EDITOR_MODELS,
   UNOFFERED_COMPONENTS,
+  downloadIsLive,
+  downloadIsMoving,
   type QualityChoice,
 } from "./types";
 import type { DownloadComponent, ToolCheck, DownloadProgress } from "./types";
@@ -30,6 +32,16 @@ interface Props {
   required: boolean;
   /** id of the module to preselect for installation */
   missingModule?: string | null;
+  /** A download was already running when this was opened.
+   *
+   *  The wizard's state is its own, so reopening it after *Stahovat na pozadí*
+   *  built a fresh one: it began at the question, and its button offered to
+   *  fetch what was already being fetched. The run itself lives in the backend
+   *  and never stopped — only the screen had forgotten about it.
+   *
+   *  With this it opens where the reader left it, on the download, and the
+   *  progress events arriving every 200 ms fill the rest in. */
+  alreadyFetching?: boolean;
   /** Where a failure goes when this is a screen rather than a dialog.
    *
    *  The application has one place for saying something went wrong — the bar
@@ -234,22 +246,14 @@ function recommendedQuality(usesGpu: boolean): Quality {
    `chooseByHand` with `manualFrom`, which existed only to remember which
    question the button had been pressed on. */
 
-/** Was the answer "one is already running" rather than a failure?
- *
- *  The backend allows one download at a time, and says so by refusing the
- *  second call. That refusal is not a failure and must not be dressed as one:
- *  it was arriving on this screen as a red **Stahování selhalo** over a
- *  download that was running perfectly well, and — worse than the fright — it
- *  took `running` down with it and hid the progress the reader was asking
- *  about.
- *
- *  So the screen stays where it is. The download that is already going emits
- *  the same events to the same listener, so watching is the whole of the right
- *  behaviour; there is nothing to say and nothing to start.
- */
-export function alreadyRunning(error: unknown): boolean {
-  return messageCode(error) === "download.already_running";
-}
+/* `alreadyRunning` stood here, with `downloadAlreadyRunning.test.ts` pinning
+   the code it read. Both are gone with the refusal itself: the backend takes a
+   second ask into a queue now instead of answering `download.already_running`,
+   so there is no refusal left to recognise. See `install_bundle`.
+
+   The two `catch` blocks that called it are still `catch` blocks — a download
+   can still fail, and a failure is still shown. What went is the branch that
+   swallowed one particular answer before it got there. */
 
 /* Three screens where there were six, and they are numbered rather than
    counted at each use: the old code carried `setStep(4)` in five places and a
@@ -269,9 +273,10 @@ export default function SetupWizard({
   required,
   missingModule,
   onError,
+  alreadyFetching = false,
 }: Props) {
   const { t, tDynamic, tPlural } = useI18n();
-  const { approximateMinutes, dataSize } = useFormats();
+  const { minutes, dataSize } = useFormats();
   const userMessage = useUserMessage();
   const progressMessage = useProgressMessage();
 
@@ -292,7 +297,9 @@ export default function SetupWizard({
    *  is a layout the reader watches move. */
   const listing = !required || !!missingModule;
 
-  const [step, setStep] = useState(listing ? STEP_DOWNLOAD : STEP_CHOICE);
+  const [step, setStep] = useState(
+    listing || alreadyFetching ? STEP_DOWNLOAD : STEP_CHOICE
+  );
   const [items, setItems] = useState<DownloadComponent[]>([]);
   const [check, setCheck] = useState<ToolCheck | null>(null);
 
@@ -315,7 +322,10 @@ export default function SetupWizard({
   const [startedHere, setStartedHere] = useState<Set<string>>(new Set());
 
   const [progress, setProgress] = useState<Record<string, DownloadProgress>>({});
-  const [running, setRunning] = useState(false);
+  /* Read once, at the first render. A download reported as running when this
+     opened is running now; the `download:complete` listener below turns it off,
+     and nothing else should. */
+  const [running, setRunning] = useState(alreadyFetching);
   const [error, setError] = useState<string | null>(null);
 
   const [confirmation, setConfirmation] = useState<ConfirmationRequest | null>(null);
@@ -638,7 +648,6 @@ export default function SetupWizard({
       );
       await api.download(sortedIds);
     } catch (e) {
-      if (alreadyRunning(e)) return;
       setError(userMessage(e));
       setRunning(false);
     }
@@ -682,7 +691,6 @@ export default function SetupWizard({
     try {
       await api.download(retryIds);
     } catch (e) {
-      if (alreadyRunning(e)) return;
       setError(userMessage(e));
       setRunning(false);
     }
@@ -740,28 +748,18 @@ export default function SetupWizard({
    *  the 18 px below itself rather than above — a dialog's content blocks never
    *  carry a `margin-top`, and `.dialog h2 + p` has already placed the gap
    *  above it. See `.setup-dialog > .warning`. */
-  /* Only the dialog draws it. On the listing the same text goes to the
-     application's own notice bar — see `onError` on `Props` for why the split
-     is not laziness: that bar is behind the scrim while a dialog is open. */
-  const errorBanner = !listing && error && step !== STEP_DONE && (
-    <div className="warning">
-      <div>
-        <strong>{t("wizard.download.failedTitle")}</strong>
-        <p className="small-text">{error}</p>
-      </div>
-      <button className="button" onClick={() => setError(null)}>
-        {t("wizard.download.dismissError")}
-      </button>
-    </div>
-  );
+  /* No panel of its own any more, in either mode. The application has one
+     place for saying something went wrong — the bar under the header — and the
+     only reason this screen ever drew a second one was that the bar could not
+     be seen over a dialog. It can now; see `.notice` in `01-base.css`. */
 
   /* The listing has no panel of its own, so what `setError` collected is handed
      to the bar and cleared. Rendering neither would swallow it. */
   useEffect(() => {
-    if (!listing || !error) return;
+    if (!error) return;
     onError?.(error);
     setError(null);
-  }, [listing, error, onError]);
+  }, [error, onError]);
 
   /* -------------------------------------------------- the by-hand listing
 
@@ -780,7 +778,6 @@ export default function SetupWizard({
   if (manual) {
     return (
       <main className="wizard wizard-listing">
-        {errorBanner}
         <div className="step">
           <h1>{t("wizard.manual.title")}</h1>
           <ManualSelection
@@ -789,7 +786,10 @@ export default function SetupWizard({
             onView={setView}
             progress={progress}
             onInstall={installOne}
-            onCancel={() => void api.cancelDownload()}
+            /* Per row, not per run. Each mark on this page is its own
+               control; the guided dialog's `Přerušit` is the one that
+               stops everything, because there the run is the errand. */
+            onCancel={(component) => void api.cancelComponent(component.id)}
             onRemove={askToRemove}
           />
           <div className="step-footer">
@@ -864,8 +864,7 @@ export default function SetupWizard({
           <>
             <h2 id="setup-dialog-title">{t("wizard.quality.title")}</h2>
             <p>{t("wizard.quality.intro")}</p>
-            {errorBanner}
-
+    
             {/* **Two cards side by side, each standing on end.** Below one
                 another two things are read; beside one another they are
                 compared — and this screen is a comparison. The frame, the
@@ -890,7 +889,7 @@ export default function SetupWizard({
             <div className="choices setup-choices">
               {(["best", "fastest"] as Quality[]).map((k) => {
                 const p = items.find((x) => x.id === MODELS[k].component);
-                const duration = approximateMinutes(estimatedMinutes(k, usesGpu));
+                const duration = minutes(estimatedMinutes(k, usesGpu));
                 return (
                   <button
                     key={k}
@@ -994,8 +993,7 @@ export default function SetupWizard({
                 ? t("wizard.download.nothingNeeded")
                 : t(running ? "wizard.download.runningText" : "wizard.download.reviewText")}
             </p>
-            {errorBanner}
-
+    
             {running ? (
               <>
                 <div className="progress-large">
@@ -1037,9 +1035,22 @@ export default function SetupWizard({
 
                 <DownloadListing ids={selected} items={items} progress={progress} view={view} />
 
+                {/* Two ways out of a running download, and until now there was
+                    one. The sentence above says *můžete nechat běžet na pozadí*
+                    and there was no button that did it — the only control was
+                    the one that stops the download, so leaving meant losing it.
+
+                    `onBack` is what the dialog's other exits already use, and it
+                    does not touch the run: the download lives in the backend and
+                    keeps going, reporting into the bar in the corner. That bar
+                    duplicates this dialog while both are on screen, and that is
+                    the point of the button — after it, only one of them is. */}
                 <div className="dialog-footer">
                   <button className="button" onClick={() => api.cancelDownload()}>
                     {t("common.stop")}
+                  </button>
+                  <button className="button primary" onClick={onBack}>
+                    {t("wizard.download.background")}
                   </button>
                 </div>
               </>
@@ -1278,13 +1289,25 @@ function DownloadListing({
    *  listing page sees the long one here too. What went is the control, not the
    *  choice. */
   return (
-    <ul className="components">
+    /* `setup-list`, because this listing has no bin. `.component-row` reserves a
+       fourth 26 px column for one on every row whether or not that row has one —
+       right on the Settings page, where the column has to line up down fifteen
+       rows. Here nothing can be removed during a first run, so the reserved
+       column and its gap were 38 px of nothing holding the percentage away from
+       the right edge. */
+    <ul className="components setup-list">
       {ids.map((id) => {
         const item = items.find((x) => x.id === id);
         const phase = progress[id]?.phase;
         const done = phase === "complete";
         const failed = phase === "error";
-        const live = !!phase && !done && !failed;
+        /* **Moving, not merely known about.** This was `!!phase && !done &&
+           !failed`, which made `cancelled` a row that ran for ever, and would
+           have made `waiting` one too. A queued row here keeps the arrow and
+           its size, which is what it had before it was queued and is still
+           true: the guided run is one press and this list is what that press
+           is about. */
+        const live = downloadIsMoving(phase);
         return (
           <li key={id} className="component">
             <div className="component-row">
@@ -1313,7 +1336,15 @@ function DownloadListing({
                 )}
               >
                 {live && <ProgressRing percent={progress[id]?.percent ?? 0} />}
-                <ComponentMarkGlyph running={live} complete={done} />
+                {/* `running` is passed as false on purpose, so the glyph stays
+                    the arrow rather than becoming the square.
+                    **The square means *press to stop*** — in the module listing
+                    this mark is a button and that is what it does. Here it is a
+                    `span`, so drawing the square offered a control that does
+                    nothing: an icon promising an action it cannot perform.
+                    The ring around it already says the row is working, and
+                    stopping the run is the footer's button. */}
+                <ComponentMarkGlyph running={false} complete={done} />
               </span>
 
               <span className="component-text">
@@ -1398,12 +1429,21 @@ function ComponentRow({
   view: ListingView;
   progress?: DownloadProgress;
   onInstall: (component: DownloadComponent) => void;
-  onCancel: () => void;
+  onCancel: (component: DownloadComponent) => void;
   onRemove: (component: DownloadComponent) => void;
 }) {
   const { t, tDynamic } = useI18n();
   const { dataSize } = useFormats();
-  const running = !!progress && progress.phase !== "complete" && progress.phase !== "error";
+  /* **Waiting counts as running here, and cancelled does not.** This was
+     `!!progress && phase !== "complete" && phase !== "error"`, and the phase it
+     forgot was `cancelled`: pressing the stop square left the row wearing a
+     stop square and `0 %`, with nothing behind it — *A když jsem klikl na
+     stopku, tak to zůstalo stuck*.
+     The other half is the queue. A row pressed while something else is coming
+     down is in line now rather than refused, and it says so with the same
+     control the running row has, because the same press stops it. */
+  const running = downloadIsLive(progress?.phase);
+  const waiting = progress?.phase === "waiting";
   const acts = running || !item.complete || item.replaceable;
 
   const label = running
@@ -1421,9 +1461,12 @@ function ComponentRow({
             className={`component-mark ${running ? "running" : item.complete ? "have" : "get"}`}
             aria-label={label}
             title={label}
-            onClick={() => (running ? onCancel() : onInstall(item))}
+            onClick={() => (running ? onCancel(item) : onInstall(item))}
           >
-            {running && <ProgressRing percent={progress?.percent ?? 0} />}
+            {/* No ring on a queued row: an arc frozen at nought reads as a
+                download that has stalled rather than as one that has not
+                started. The word in the size column is what says which. */}
+            {running && !waiting && <ProgressRing percent={progress?.percent ?? 0} />}
             <ComponentMarkGlyph running={running} complete={item.complete} />
           </button>
         ) : (
@@ -1433,7 +1476,19 @@ function ComponentRow({
         )}
 
         <span className="component-text">
-          <span className="component-name">{tDynamic(item.name_code, item.id)}</span>
+          <span className="component-name">
+            {tDynamic(item.name_code, item.id)}
+            {/* Which of fifteen rows `Doplnit` was talking about. The card above
+                says how many are missing and the marks say which are not here,
+                but neither says which of those the application cannot work
+                without — and that is the only question somebody reading this
+                list in order to fix something is asking.
+                `.badge.required` has been in the stylesheet since this listing
+                was written, in the destructive palette, waiting for a user. */}
+            {item.required && !item.complete && (
+              <em className="badge required">{t("wizard.manual.requiredBadge")}</em>
+            )}
+          </span>
           {view === "full" && (
             <span className="small-text">{tDynamic(item.description_code, "")}</span>
           )}
@@ -1442,9 +1497,11 @@ function ComponentRow({
         {/* While it runs the size gives way to how far it has got: once the
             bytes are moving, how big it was is not the question. */}
         <span className="component-size">
-          {running
-            ? t("wizard.download.percent", { percent: progress?.percent ?? 0 })
-            : dataSize(item.megabytes)}
+          {waiting
+            ? t("wizard.manual.queued")
+            : running
+              ? t("wizard.download.percent", { percent: progress?.percent ?? 0 })
+              : dataSize(item.megabytes)}
         </span>
 
         {item.removable ? (
@@ -1580,7 +1637,7 @@ function ManualSelection({
   onView: (view: ListingView) => void;
   progress: Record<string, DownloadProgress>;
   onInstall: (component: DownloadComponent) => void;
-  onCancel: () => void;
+  onCancel: (component: DownloadComponent) => void;
   onRemove: (component: DownloadComponent) => void;
 }) {
   const { t } = useI18n();

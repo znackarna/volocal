@@ -64,23 +64,53 @@ pub fn download(
         let db = app.db.lock().unwrap();
         reported(db::load_settings(&db))?
     };
-    // Asked before the flag is cleared: a second call used to reset the
-    // cancellation the first run was watching, so pressing Stop and then
-    // starting again left the first thread downloading with its stop request
-    // wiped. The same shape as the transcription `cancel` defect.
-    if download::is_installing() {
-        return Err(UserMessage::new("download.already_running"));
-    }
-    app.download_cancellation.store(false, Ordering::Relaxed);
-    if !download::install_bundle(window, settings, ids, app.download_cancellation.clone()) {
-        return Err(UserMessage::new("download.already_running"));
-    }
+    /* **Nothing is refused any more; a second ask joins the queue.** This used
+    to be two guards and an error — *Stahování už probíhá, počkejte na jeho
+    dokončení* — which is a red bar for the ordinary act of pressing a second
+    row while the first one is coming down, and it was said on the models
+    page, in the wizard and in Settings alike.
+
+    Both guards were about the same danger and it has not gone away: two
+    runs fetching one component write one file and both report progress for
+    it. `install_bundle` answers it by dropping an id it is already fetching
+    or already holds, which is the refusal kept where it belongs — per
+    component, inside the thing that knows.
+
+    The cancellation flag is cleared there too, and only when a worker is
+    actually started. Clearing it here, on the way in to every call, is the
+    defect this comment used to describe from the other side: asking for a
+    second component wiped the stop request the running worker was watching. */
+    download::install_bundle(window, settings, ids, app.download_cancellation.clone());
     Ok(())
 }
 
+/// Stops everything: the component in hand and the whole queue behind it.
+///
+/// The guided first run's `Přerušit` and nothing else. There the download *is*
+/// the errand, and one press meaning one component would leave four more coming
+/// down behind a screen that says it stopped.
 #[tauri::command]
 pub fn cancel_download(app: State<'_, AppState>) {
     app.download_cancellation.store(true, Ordering::Relaxed);
+}
+
+/// Stops one component and leaves the queue alone.
+///
+/// What the stop square on a row means, and it had meant the other thing —
+/// *když jsem měl něco ve frontě a zrušil jsem to, automaticky se smazala celá
+/// fronta, ne jen to, co jsem stopnul*. A control drawn per row answers for its
+/// row.
+///
+/// A component still waiting is taken out here and reported here, because no
+/// worker will ever reach it to report it itself. One being fetched is left to
+/// the worker: it has a part-written file to flush first, and a component
+/// reported as stopped while its bytes were still landing would be the same
+/// kind of lie in the other direction.
+#[tauri::command]
+pub fn cancel_component(window: tauri::AppHandle, id: String) {
+    if download::cancel_component(&id) {
+        download::emit_cancelled(&window, &id);
+    }
 }
 
 /// Deletes one installed component from the disk.
@@ -105,7 +135,7 @@ pub fn remove_component(app: State<'_, AppState>, id: String) -> Reported<()> {
     // the one way to get a half-installed component that still records itself
     // as complete.
     if download::is_installing() {
-        return Err(UserMessage::new("download.already_running"));
+        return Err(UserMessage::new("download.busy_installing"));
     }
     if download::component_is_busy(&settings, &id, busy) {
         return Err(UserMessage::new("download.component_busy").with("component", &id));

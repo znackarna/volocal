@@ -16,7 +16,7 @@ upload — the models run on your own hardware, offline, after the first setup.
 **Windows 10 or 11.** [Download the installer](../../releases/latest) — it
 installs for you alone and does not ask for administrator rights.
 
-**Status: released, 1.2.9.** In daily use by its author.
+**Status: released, 1.2.10.** In daily use by its author.
 
 One thing to expect on first run: the installer is not code signed, so Windows
 shows *Windows protected your PC*. Choose **More info** → **Run anyway**. That
@@ -73,8 +73,9 @@ Written down here rather than discovered later:
   say there are two. Five people in one room merged a pair.
 - **One recording at a time.** Drop ten and all ten are accepted, but they queue
    — you can see them waiting. Running them together would only be slower.
-- **A broken download starts over.** There is no resuming a three-gigabyte model
-  halfway.
+- **A download that is interrupted picks up where it stopped** — except for the
+  voice model, whose publisher states no fingerprint, so a partial file there
+  cannot be checked and is fetched again from the start.
 - **The archive is not encrypted.** It is an ordinary file with whatever
   protection your account has.
 

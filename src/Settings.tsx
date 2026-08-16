@@ -75,6 +75,13 @@ interface Props {
    *  panel. Carried rather than looked up: the archive is what runs that check
    *  and this screen has no other way to know its answer. */
   foundUpdate?: { version: string; notes: string } | null;
+  /** Something is being fetched right now.
+   *
+   *  Without it the modules card says a component is missing and offers
+   *  *Doplnit* while that very component is coming down, with the bar in the
+   *  corner counting it at the same moment. The count is not wrong; the offer
+   *  is, because the errand it proposes is already under way. */
+  fetching: boolean;
 }
 
 /* `EDITOR_CHOICES` stood here: three cards, `Úsporná`, `Doporučená`,
@@ -449,6 +456,7 @@ export default function SettingsScreen({
   onToModule,
   initialTab,
   foundUpdate,
+  fetching,
 }: Props) {
   const labels = useLabels();
   const formats = useFormats();
@@ -756,6 +764,14 @@ export default function SettingsScreen({
     [n, save]
   );
 
+  /* **Above the early return below, and that is the whole of why it is here.**
+     It was declared beside `chooseEditor`, which is a hundred lines past
+     `if (!n) return` — so on the render before the settings arrive React counted
+     one hook fewer than on the render after, and the screen stopped opening at
+     all. TypeScript cannot see it; the rule is that every hook runs on every
+     render, without exception. */
+  const [editorConfirm, setEditorConfirm] = useState<ConfirmationRequest | null>(null);
+
   if (!n) return <main className="settings"><p>{t("common.loading")}</p></main>;
 
   const missingRequired = check?.issues ?? [];
@@ -876,13 +892,32 @@ export default function SettingsScreen({
    *  model that is actually there, and a listener that had to survive the
    *  reader walking to another screen would not. */
   const chooseEditor = async (id: string, needs: string[]) => {
-    try {
-      if (needs.length > 0) await api.download(needs);
-      await save({ ...n, editor_model: EDITOR_MODELS[id] });
-      setModules(await api.catalog());
-    } catch (e) {
-      onError(userMessage(e));
+    const apply = async () => {
+      try {
+        if (needs.length > 0) await api.download(needs);
+        await save({ ...n, editor_model: EDITOR_MODELS[id] });
+        setModules(await api.catalog());
+      } catch (e) {
+        onError(userMessage(e));
+      }
+    };
+    /* **Asked first when it costs gigabytes.** Pressing a card that is already
+       on the disk only changes a setting and needs no ceremony; pressing one
+       that is not started seven gigabytes on a single click, with no way back
+       except finding the running download and stopping it.
+       Not destructive: nothing is lost, so the confirming button is the plain
+       one and carries the size, which is the fact the answer turns on. */
+    if (needs.length === 0) {
+      await apply();
+      return;
     }
+    const size = formats.dataSize(needs.reduce((total, need) => total + megabytes(need), 0));
+    setEditorConfirm({
+      title: t("settings.editor.downloadTitle"),
+      text: t("settings.editor.downloadText", { size }),
+      confirm: t("settings.editor.downloadConfirm", { size }),
+      action: apply,
+    });
   };
 
   /* --------------------------------------------------------- where it runs
@@ -952,6 +987,7 @@ export default function SettingsScreen({
     : dictionary;
 
   return (
+    <>
     <main className="settings">
       <div className="settings-head">
         <h1>{t("settings.title")}</h1>
@@ -1090,8 +1126,17 @@ export default function SettingsScreen({
           </dl>
         )}
 
+        {/* Three states, not two. What is missing, what is arriving, and what is
+            complete — and until 2026-08-17 the middle one wore the clothes of
+            the first: *Chybí 1 položka nutná pro přepis* beside *Doplnit*,
+            while the bar in the corner counted that same item to 25 %. The
+            count was true and the button was not, and a button offering an
+            errand already under way is the fault this day has spent itself
+            on. */}
         <div className="settings-action-row spaced">
-          {missingRequired.length > 0 ? (
+          {fetching ? (
+            <InfoNote compact>{t("settings.modules.fetching")}</InfoNote>
+          ) : missingRequired.length > 0 ? (
             <span className="warning-row">
               {tPlural("settings.modules.missingRequired", missingRequired.length)}
             </span>
@@ -1099,12 +1144,14 @@ export default function SettingsScreen({
             <InfoNote compact>{t("settings.modules.complete")}</InfoNote>
           )}
           <button
-            className={`button ${missingRequired.length > 0 ? "primary" : ""}`}
+            className={`button ${!fetching && missingRequired.length > 0 ? "primary" : ""}`}
             onClick={() => onToModule()}
           >
-            {missingRequired.length > 0
-              ? t("settings.modules.add")
-              : t("settings.modules.manage")}
+            {fetching
+              ? t("settings.modules.watch")
+              : missingRequired.length > 0
+                ? t("settings.modules.add")
+                : t("settings.modules.manage")}
           </button>
         </div>
 
@@ -2276,7 +2323,26 @@ export default function SettingsScreen({
       {activeTab === "about" && <About onError={onError} />}
 
       </div>
-    </main>
+
+      </main>
+
+      {/* **Outside `<main>`, and that is the whole point.**
+          `.settings.settings > *` clamps every direct child to the 720 px
+          column, and a `.dialog-overlay` is `position: fixed; inset: 0` — put
+          inside, its veil shrinks to the column and leaves the rest of the
+          window undimmed. The stylesheet carries a warning about exactly this
+          beside that rule, naming it as the defect the wizard once shipped;
+          this is the same mistake made again a screen later.
+
+          A fragment costs nothing and leaves the shared selector alone. The
+          alternative — excluding overlays from it — raises its specificity and
+          turns the two overrides underneath into a question of file order. */}
+      <ConfirmationDialog
+        query={editorConfirm}
+        onClose={() => setEditorConfirm(null)}
+        onError={onError}
+      />
+    </>
   );
 }
 

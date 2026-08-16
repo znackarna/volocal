@@ -17,8 +17,11 @@ export function useFormats() {
       transcriptCount: (count: number) => tPlural("common.count.transcript", count),
       itemCount: (count: number) => tPlural("common.count.item", count),
       fileCount: (count: number) => tPlural("common.count.file", count),
-      /** Rough estimate shown in the setup wizard. */
-      approximateMinutes: (count: number) => tPlural("common.count.minute", count),
+      /** Minutes with their number, for the wizard's cards. It said *asi
+       *  minutu* until 2026-08-17 — no numeral at all in the singular, which
+       *  beside *4 minuty* on the next card read as a fault, and a second
+       *  *asi* over the note that already calls the times approximate. */
+      minutes: (count: number) => tPlural("common.count.minute", count),
 
       /** Total length of everything in the archive, rounded to whole minutes. */
       archiveDuration: (seconds: number) => {
@@ -35,7 +38,14 @@ export function useFormats() {
       },
 
       /** Download sizes. The decimal separator follows the active language, so
-       *  this must never be produced by a manual string replacement. */
+       *  this must never be produced by a manual string replacement.
+       *
+       *  **Megabytes are whole.** `formatNumber` without a limit takes
+       *  `Intl.NumberFormat`'s default of three fraction digits, which never
+       *  showed while everything passed through here was a catalogue size — a
+       *  round number written by hand. What is on the disk is measured, and the
+       *  used-space row read `535,249 MB`: three decimals of a megabyte, which
+       *  is half a kilobyte of precision about several hundred megabytes. */
       dataSize: (megabytes: number) =>
         megabytes >= 1024
           ? t("common.unit.gigabytes", {
@@ -44,7 +54,9 @@ export function useFormats() {
                 maximumFractionDigits: 1,
               }),
             })
-          : t("common.unit.megabytes", { value: formatNumber(megabytes) }),
+          : t("common.unit.megabytes", {
+              value: formatNumber(megabytes, { maximumFractionDigits: 0 }),
+            }),
     }),
     [t, tPlural, formatNumber]
   );

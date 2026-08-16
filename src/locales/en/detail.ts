@@ -106,7 +106,7 @@ export const enDetail: Partial<Record<keyof typeof csDetail, string>> = {
     "Recognition was uncertain here. Click to play, use a button to assign.",
   "detail.unassigned.hearTitle": "Play from here",
   "detail.ai.offerTitle": "Do you want a finished document out of the transcript?",
-  "detail.ai.offerText": "A model on this computer edits the text, so nothing goes out. It downloads once, {size}, and the download runs in the background — you can carry on working.",
+  "detail.ai.offerText": "A model edits your transcript on this computer. It downloads about {size} once. The download runs in the background, so you can carry on working.",
   "detail.ai.downloadingTitle": "The model is downloading",
   "detail.ai.downloadingText": "Once it has downloaded, language editing starts straight from here. You can carry on working in the meantime.",
   "detail.ai.configureTitle": "AI tools",

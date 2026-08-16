@@ -40,6 +40,8 @@ export const csSettings = {
   "settings.modules.missingRequired.few": "Chybí {count} položky nutné pro přepis.",
   "settings.modules.missingRequired.many": "Chybí {count} položky nutné pro přepis.",
   "settings.modules.missingRequired.other": "Chybí {count} položek nutných pro přepis.",
+  "settings.modules.fetching": "Stahuji, co je potřeba.",
+  "settings.modules.watch": "Zobrazit průběh",
   "settings.modules.complete": "Vše potřebné je stažené.",
   "settings.modules.installedCount": "Stažené součásti",
   "settings.modules.installedOf": "{count} z {total}",
@@ -52,6 +54,13 @@ export const csSettings = {
   // jen tehdy, když si u přepisu vyžádáte dokument.
   "settings.editor.title": "Jazyková úprava",
   "settings.editor.description": "Opravuje základní chyby a zvyšuje čitelnost výsledného textu.",
+  // Asked before a language-editing model is fetched. The two on offer are
+  // 3,3 and 7 GB, which on a single click and with no question is the largest
+  // thing this application can start by accident.
+  "settings.editor.downloadTitle": "Stáhnout model jazykové úpravy?",
+  "settings.editor.downloadText":
+    "Model upraví váš přepis přímo v počítači. Jednorázově stáhne asi {size} dat. Stahování běží na pozadí, můžete pracovat dál.",
+  "settings.editor.downloadConfirm": "Stáhnout {size}",
   "settings.editor.modelSmall": "Menší",
   "settings.editor.modelMiddle": "Střední",
   "settings.editor.modelLarge": "Větší",

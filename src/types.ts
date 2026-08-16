@@ -447,11 +447,33 @@ export interface DownloadComponent {
 
 export interface DownloadProgress {
   id: string;
-  phase: "downloading" | "extracting" | "complete" | "error" | "cancelled";
+  /** `waiting` is in line behind something else and has no bytes yet. It exists
+   *  because the alternative was silence: pressing a second row used to be
+   *  refused outright, and once it became a queue instead, a row that reported
+   *  nothing after being pressed would have read as a press that missed. */
+  phase: "waiting" | "downloading" | "extracting" | "complete" | "error" | "cancelled";
   downloaded_mb: number;
   total_mb: number;
   percent: number;
   message: UserMessage | null;
+}
+
+/** Is this component part of the run — waiting, fetching or unpacking?
+ *
+ *  **Asked as a list of what it is, never as a list of what it is not.** Three
+ *  places wrote the negation — *not complete and not error* — and every one of
+ *  them counted `cancelled` as still going: pressing Stop left the row with a
+ *  stop square on it and `0 %` beside it, for good. Adding `waiting` to the
+ *  phases would have broken the same three a second time. */
+export function downloadIsLive(phase: DownloadProgress["phase"] | undefined): boolean {
+  return phase === "waiting" || phase === "downloading" || phase === "extracting";
+}
+
+/** Narrower: the bytes are moving for this one *now*. What a percentage, a
+ *  progress bar and the bubble's name may be drawn from — a queued component
+ *  has none of those and would report a truthful, meaningless nought. */
+export function downloadIsMoving(phase: DownloadProgress["phase"] | undefined): boolean {
+  return phase === "downloading" || phase === "extracting";
 }
 
 /* `BenchmarkResult` stood here and is gone with `Změřit rychlost`. The button

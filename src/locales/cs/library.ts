@@ -52,8 +52,19 @@ export const csLibrary = {
   // side of the button.
   "library.issues.title": "Volocal je skoro připravený",
   "library.issues.text":
-    "Před prvním přepisem si ještě stáhne, co k němu potřebuje. Stačí nastavení dokončit.",
+    "Před prvním přepisem si ještě stáhne, co k němu potřebuje.",
   "library.issues.finish": "Dokončit nastavení",
+  // The same notice while a download is running. Both of the sentences above
+  // stop being true then — it is not *still going to* fetch, it is fetching —
+  // and a button offering to start an errand already under way is worse than
+  // no button. It offers the way back to the dialog instead. The percentage is
+  // deliberately not here: the bar in the corner carries it, and two places
+  // counting the same download is what the wizard's background button exists
+  // to avoid.
+  "library.issues.fetchingTitle": "Stahuji, co je potřeba",
+  "library.issues.fetchingText":
+    "Můžete zatím pracovat. Až to doběhne, Volocal je připravený.",
+  "library.issues.watch": "Zobrazit průběh",
   "library.dropZone.blocked":
     "Nahrávku můžete přidat rovnou. Přepis se spustí, jakmile dokončíte nastavení.",
 

@@ -11,6 +11,19 @@ altered, not how, not which file. Entries before 1.2.6 are written the old way
 and are left as they are; they are not a model for the next one. The mechanism
 belongs in `docs/history/`, which is what that folder is for.
 
+## 1.2.10 — 17 August 2026
+
+- **Ask for a second download and it waits its turn** instead of being refused.
+- **An interrupted download carries on where it stopped**, and shows it catching
+  up rather than sitting at nought.
+- **Stop stops.** The row goes back to offering the download again.
+- **Downloads can run in the background** while you carry on working.
+- **Volocal tells you when something it needs has gone**, and offers to fetch it.
+- **Nothing several gigabytes large starts without asking you first.**
+- **The list says which items are essential**, so you know what to fix first.
+- **Fixes to the new first run:** the model names sit where they belong, the
+  shorter estimate says its number, and no button is offered that does nothing.
+
 ## 1.2.9 — 17 August 2026
 
 - **The first run asks one question and answers it clearly** — two models side

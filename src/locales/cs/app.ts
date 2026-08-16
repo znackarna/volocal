@@ -5,6 +5,16 @@ export const csApp = {
 
   // ---------------------------------------------------------------- shell
   "app.download.running": "Stahuji {name}",
+  // Said when Transcribe is pressed while something needed is missing. The
+  // archive's notice has been saying so above the list; this is what happens
+  // when somebody presses anyway, and it carries the way out rather than only
+  // the news.
+  // Said the moment something needed goes missing while the application is
+  // running — a folder emptied in Explorer, a component deleted in Nastavení.
+  // The archive's notice says the same thing, but quietly and only where
+  // somebody happens to be looking.
+  "app.setupBroke": "V počítači chybí klíčové nástroje pro přepis.",
+  "app.setupFirst": "Přepis zatím nemůže běžet, chybí k němu součásti.",
   "app.download.cancel": "Zrušit stahování",
   "app.shell.statusBar": "Stav aplikace",
   "app.shell.statusItem": "{label}: {value}",

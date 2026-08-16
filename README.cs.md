@@ -73,8 +73,9 @@ Radši napsané tady než objevené později:
   když řeknete, že jsou dva. Pět lidí v jedné místnosti sloučilo jednu dvojici.
 - **Jedna nahrávka po druhé.** Přetáhnete deset a všech deset se přijme, ale
   stojí ve frontě — je to vidět. Pouštět je najednou by bylo jen pomalejší.
-- **Přerušené stahování začíná znovu.** Třígigabajtový model se v půlce navázat
-  nedá.
+- **Přerušené stahování naváže tam, kde skončilo** — kromě modelu hlasů, u
+  kterého autor nezveřejňuje otisk, takže rozdělaný soubor nejde ověřit a stahuje
+  se znovu od začátku.
 - **Archiv není šifrovaný.** Je to obyčejný soubor s takovou ochranou, jakou má
   váš uživatelský účet.
 
@@ -104,7 +105,7 @@ npm run tauri dev     # první běh překládá Rust: 5-15 minut. Další: vteř
 npm run tauri build   # instalátor přistane v src-tauri\target\release\bundle\nsis\
 ```
 
-Výsledkem je `Volocal_1.2.9_x64-setup.exe`.
+Výsledkem je `Volocal_1.2.10_x64-setup.exe`.
 
 Před odevzdáním práce:
 

@@ -525,6 +525,7 @@ fn main() {
             commands::downloads::installed_megabytes,
             commands::downloads::download,
             commands::downloads::cancel_download,
+            commands::downloads::cancel_component,
             commands::downloads::remove_component,
             commands::downloads::create_portable_copy,
             commands::backups::backup_status,

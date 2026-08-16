@@ -5,6 +5,8 @@ export const enApp: Partial<Record<keyof typeof csApp, string>> = {
   "app.name": "Speech to text",
   "app.newTranscript": "New transcript",
   "app.download.running": "Downloading {name}",
+  "app.setupBroke": "Tools transcription needs are missing from this computer.",
+  "app.setupFirst": "Transcription cannot run yet — some components are missing.",
   "app.download.cancel": "Cancel the download",
   "app.shell.statusBar": "Application status",
   "app.shell.statusItem": "{label}: {value}",

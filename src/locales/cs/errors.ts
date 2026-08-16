@@ -115,7 +115,11 @@ export const csErrors = {
 
   // Downloading modules.
   "errors.download.unknown_component": "Neznámý modul: {component}",
-  "errors.download.already_running": "Stahování už probíhá, počkejte na jeho dokončení.",
+  // Said by one command only: deleting a component while the installer is
+  // writing into the same folders. It was `already_running` and it was the
+  // refusal of a second download as well — that refusal is a queue now, so
+  // the key says what the one remaining caller means by it.
+  "errors.download.busy_installing": "Během stahování nejde nic mazat. Zkuste to prosím, až doběhne.",
   "errors.download.component_busy": "Právě se používá. Až práce skončí, půjde smazat.",
   "errors.download.cannot_remove":
     "Aplikace neví, které soubory k této součásti patří. Po opětovném stažení " +

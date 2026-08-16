@@ -1635,12 +1635,10 @@ export default function Detail({
         setAiDialog("configure");
       }
     } catch (error) {
-      /* `download.already_running` is said rather than swallowed. The wizard
-         hides it because there the refused call and the running download are
-         the same batch, watched on the same screen; here they need not be —
-         it may be the reader's own editor download from a minute ago, or a
-         graphics build started in Settings — and a press that produced nothing
-         and said nothing would be the worst of the three. */
+      /* This used to be about `download.already_running` — whether a refusal
+         should be shown here as well as in the wizard. There is no refusal any
+         more: a download asked for while another is running joins the queue.
+         What is left is an ordinary failure, and an ordinary failure is said. */
       onError(userMessage(error));
     }
   }, [editorOffer, load, onError, userMessage]);

@@ -40,8 +40,9 @@ export const csWizard = {
   // wanted. Neither is a question for a first run.
 
   // ------------------------------------------------------ 4. choosing and downloading
-  "wizard.download.failedTitle": "Stahování selhalo",
-  "wizard.download.dismissError": "Rozumím",
+  // `failedTitle` and `dismissError` went with the panel they belonged to: a
+  // download that does not finish says so in the notice bar now, like every
+  // other failure in the application.
   // `wizard.download.recommendedBadge` — the bare word in a pill — was retired
   // once and is back as `wizard.quality.recommended`. The argument against it
   // held: a recommendation naming no reason only asserts. What overturned it is
@@ -50,14 +51,18 @@ export const csWizard = {
   // attention spent on the one thing the reader cannot act on differently.
   "wizard.download.downloadedBadge": "staženo",
   "wizard.download.runningTitle": "Stahuji, co je potřeba",
+  // The button the sentence above has been promising. It closes the dialog and
+  // leaves the run alone — the download is in the backend and reports into the
+  // bar in the corner, which is where it belongs once this is out of the way.
+  "wizard.download.background": "Stahovat na pozadí",
   "wizard.download.reviewTitle": "Co se stáhne",
   // What the summing sentence used to be — *Stáhne se 5 položek, dohromady
   // 3,4 GB* — was the list below it and the button beside it, said a third
   // time. These two say what neither of them does.
   "wizard.download.reviewText":
-    "Jednorázově, ze stránek autorů. Pak už aplikace internet nepotřebuje.",
+    "Jednorázové stažení ze stránek autorů. Pak už internet není potřeba.",
   "wizard.download.runningText":
-    "Můžete nechat běžet na pozadí. Až to doběhne, Volocal je připravený.",
+    "Stahování může běžet na pozadí. Až doběhne, Volocal bude připravený.",
   "wizard.download.summary.one": "Stáhne se {count} položka, dohromady {size}.",
   "wizard.download.summary.few": "Stáhnou se {count} položky, dohromady {size}.",
   "wizard.download.summary.many": "Stáhne se {count} položky, dohromady {size}.",
@@ -78,6 +83,15 @@ export const csWizard = {
 
   // ------------------------------------------------------------- choosing by hand
   "wizard.manual.title": "Modely a nástroje",
+  // Marks the rows the application cannot work without, on the ones that are
+  // not here. The count above the list says how many; this says which — and
+  // that is the only question somebody reading the list in order to fix
+  // something is asking.
+  "wizard.manual.requiredBadge": "nezbytné",
+  // A row that has been asked for while another component is coming down. One
+  // download runs at a time, and until 2026-08-17 a second ask was refused with
+  // a red bar instead of waiting its turn; this is the word that replaced it.
+  "wizard.manual.queued": "čeká ve frontě",
   "wizard.manual.install": "Stáhnout",
   "wizard.manual.reinstall": "Stáhnout znovu",
   "wizard.manual.remove": "Smazat",
@@ -150,8 +164,7 @@ export const csWizardContext: Partial<Record<keyof typeof csWizard, string>> = {
     "Táž věta, když stahování běží. „Na pozadí“ znamená, že se okno nemusí " +
     "hlídat, ne že se dá zavřít.",
 
-  "wizard.download.dismissError": "Tlačítko, kterým uživatel zavře hlášku o selhaném stahování.",
-  "wizard.download.downloadedBadge":
+    "wizard.download.downloadedBadge":
     "Odznak u volby, jejíž součásti už jsou na disku. Malé písmeno je záměr.",
   "wizard.download.reviewTitle":
     "Nadpis výpisu v průvodci před spuštěním stahování. Nic se v něm nedá " +
