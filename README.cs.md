@@ -73,8 +73,9 @@ Radši napsané tady než objevené později:
   když řeknete, že jsou dva. Pět lidí v jedné místnosti sloučilo jednu dvojici.
 - **Jedna nahrávka po druhé.** Přetáhnete deset a všech deset se přijme, ale
   stojí ve frontě — je to vidět. Pouštět je najednou by bylo jen pomalejší.
-- **Přerušené stahování začíná znovu.** Třígigabajtový model se v půlce navázat
-  nedá.
+- **Přerušené stahování naváže tam, kde skončilo** — kromě modelu hlasů, u
+  kterého autor nezveřejňuje otisk, takže rozdělaný soubor nejde ověřit a stahuje
+  se znovu od začátku.
 - **Archiv není šifrovaný.** Je to obyčejný soubor s takovou ochranou, jakou má
   váš uživatelský účet.
 

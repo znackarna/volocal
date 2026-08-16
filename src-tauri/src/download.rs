@@ -592,8 +592,31 @@ fn download_file(
     expected: Option<&str>,
     cancellation: &Arc<AtomicBool>,
 ) -> Reported<String> {
-    let mut response = client()?
-        .get(url)
+    // What is already on disk from an interrupted attempt. Downloads used to
+    // begin again from zero every time, which on a three-gigabyte model is the
+    // difference between a nuisance and an evening.
+    //
+    // **Only resumed where a digest is known.** Fifteen of the sixteen
+    // components are checked against a SHA-256 the publisher stated, and that
+    // check is what catches a partial file joined to the wrong bytes — a stale
+    // `.cast` from a URL that has since moved, a truncated write, a half-flushed
+    // sector. The sixteenth has no digest, so nothing would notice a bad join:
+    // for that one the leftover is discarded and the download starts clean.
+    let partial = target.with_extension("cast");
+    let resume_from = if expected.is_some() {
+        std::fs::metadata(&partial)
+            .map(|meta| meta.len())
+            .unwrap_or(0)
+    } else {
+        let _ = std::fs::remove_file(&partial);
+        0
+    };
+
+    let mut request = client()?.get(url);
+    if resume_from > 0 {
+        request = request.header(reqwest::header::RANGE, format!("bytes={resume_from}-"));
+    }
+    let mut response = request
         .send()
         .map_err(|error| {
             UserMessage::new("download.connection_failed")
@@ -603,25 +626,52 @@ fn download_file(
         .error_for_status()
         .map_err(|error| UserMessage::new("download.rejected").detail(error))?;
 
-    let total = response.content_length().unwrap_or(0);
+    // A server that honours the range answers 206 and sends the rest. One that
+    // does not answers 200 and sends the whole file — so the answer decides,
+    // not the request: taking 200 for a continuation would append a second copy
+    // of the file to the first.
+    let resumed = response.status() == reqwest::StatusCode::PARTIAL_CONTENT;
+    let already = if resumed { resume_from } else { 0 };
+    let total = response.content_length().unwrap_or(0) + already;
     let total_mb = total as f64 / 1_048_576.0;
 
     if let Some(parent) = target.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    // Downloaded into .cast, so an unfinished file never sits at the target.
-    let partial = target.with_extension("cast");
-    let mut file = std::fs::File::create(&partial)?;
-    let mut digest = Sha256::new();
 
-    let mut downloaded: u64 = 0;
+    let mut digest = Sha256::new();
+    // Downloaded into .cast, so an unfinished file never sits at the target.
+    let mut file = if resumed {
+        // The digest is taken from the bytes as they are written, so a resumed
+        // download has to read back what an earlier attempt wrote before it can
+        // carry on hashing. It is one pass over a local file and it is what
+        // keeps the final check describing the whole thing rather than the tail.
+        let mut existing = std::fs::File::open(&partial)?;
+        let mut seed = vec![0u8; 262_144];
+        loop {
+            let read = existing.read(&mut seed)?;
+            if read == 0 {
+                break;
+            }
+            digest.update(&seed[..read]);
+        }
+        std::fs::OpenOptions::new().append(true).open(&partial)?
+    } else {
+        std::fs::File::create(&partial)?
+    };
+
+    let mut downloaded: u64 = already;
     let mut last_update = std::time::Instant::now();
     let mut buffer = vec![0u8; 262_144];
 
     loop {
         if cancellation.load(Ordering::Relaxed) {
+            // Flushed and left where it is. Removing it here is what made every
+            // interrupted download start again from the beginning; what is on
+            // disk is bytes that arrived and were verified as they arrived, and
+            // the next attempt asks the server to continue past them.
+            let _ = file.flush();
             drop(file);
-            let _ = std::fs::remove_file(&partial);
             return Err(UserMessage::new("download.cancelled"));
         }
         let bytes_read = response.read(&mut buffer)?;

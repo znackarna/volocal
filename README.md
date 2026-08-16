@@ -73,8 +73,9 @@ Written down here rather than discovered later:
   say there are two. Five people in one room merged a pair.
 - **One recording at a time.** Drop ten and all ten are accepted, but they queue
    — you can see them waiting. Running them together would only be slower.
-- **A broken download starts over.** There is no resuming a three-gigabyte model
-  halfway.
+- **A download that is interrupted picks up where it stopped** — except for the
+  voice model, whose publisher states no fingerprint, so a partial file there
+  cannot be checked and is fetched again from the start.
 - **The archive is not encrypted.** It is an ordinary file with whatever
   protection your account has.
 
