@@ -987,6 +987,7 @@ export default function SettingsScreen({
     : dictionary;
 
   return (
+    <>
     <main className="settings">
       <div className="settings-head">
         <h1>{t("settings.title")}</h1>
@@ -2323,17 +2324,25 @@ export default function SettingsScreen({
 
       </div>
 
-      {/* One dialog for this screen, and at the moment one question: whether to
-          fetch a language-editing model. It is rendered here rather than beside
-          the card that raises it because a card is inside the scrolling column
-          and a dialog is not — the veil has to cover the window, not the
-          column. `Soubory` has its own for the same reason at its own level. */}
+      </main>
+
+      {/* **Outside `<main>`, and that is the whole point.**
+          `.settings.settings > *` clamps every direct child to the 720 px
+          column, and a `.dialog-overlay` is `position: fixed; inset: 0` — put
+          inside, its veil shrinks to the column and leaves the rest of the
+          window undimmed. The stylesheet carries a warning about exactly this
+          beside that rule, naming it as the defect the wizard once shipped;
+          this is the same mistake made again a screen later.
+
+          A fragment costs nothing and leaves the shared selector alone. The
+          alternative — excluding overlays from it — raises its specificity and
+          turns the two overrides underneath into a question of file order. */}
       <ConfirmationDialog
         query={editorConfirm}
         onClose={() => setEditorConfirm(null)}
         onError={onError}
       />
-    </main>
+    </>
   );
 }
 
