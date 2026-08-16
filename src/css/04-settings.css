@@ -584,7 +584,7 @@
    lines a description takes — and that alignment is what turns two cards into a
    comparison rather than two cards. */
 .setup-choices .choice-top {
-  padding: 15px 15px 14px; display: flex; flex-direction: column; flex: 1 1 auto;
+  padding: 17px 16px 16px; display: flex; flex-direction: column; flex: 1 1 auto;
 }
 /* `justify-content` musí být uvedeno, ne zděděno: sdílené `.choice-head` má
    `space-between`, protože jinde na kartě stojí vlevo jméno a vpravo velikost.
@@ -594,13 +594,13 @@
 }
 .setup-choices .choice-icon { width: 32px; height: 32px; }
 .setup-choices .choice-title { font-size: 16px; flex-wrap: wrap; row-gap: 4px; }
-.setup-choices .choice-top .small-text { margin-top: 9px; line-height: 1.45; }
+.setup-choices .choice-top .small-text { margin-top: 12px; line-height: 1.5; }
 /* The foot is set into `--subtle`, the token that exists for exactly this: a
    quiet inset inside a surface. No rule across the top — a band that has its own
    ground separates itself, and a line there would be a line a gap already made. */
 .setup-choices .choice-foot {
-  background: var(--subtle); padding: 11px 15px;
-  display: flex; flex-direction: column; gap: 6px;
+  background: var(--subtle); padding: 13px 16px;
+  display: flex; flex-direction: column; gap: 8px;
 }
 .setup-choices .choice.chosen .choice-foot { background: hsl(var(--ds-petrol) / 0.06); }
 /* The number first and the words after it, and the line may not wrap. Written
