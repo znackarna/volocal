@@ -511,6 +511,26 @@ export default function App() {
   const beginTranscription = useCallback(
     async (ids: string[], language?: string): Promise<boolean> => {
       if (ids.length === 0) return false;
+      /* Nothing stopped a run that could not work.
+       *
+       * The archive has said *Volocal je skoro připravený* over a missing
+       * component since the notice was written, and pressing Transcribe under
+       * it started anyway: the interface stated the thing was impossible and
+       * then attempted it, so the refusal arrived from the core, minutes later,
+       * as a failed transcription. Deleting a component in Nastavení and going
+       * straight back is the way in.
+       *
+       * `check.issues` is read here rather than `blockingIssues`, which is the
+       * same list one memo later and is declared five hundred lines below this.
+       * The notice is drawn from it too, so the two cannot disagree, and the
+       * answer carries the way out rather than only the news. */
+      if ((check?.issues.length ?? 0) > 0) {
+        reportInfo(t("app.setupFirst"), {
+          label: t("library.issues.finish"),
+          run: () => setSetupOpen(true),
+        });
+        return false;
+      }
       /* Transcribing again replaces the text, and with it every manual
          correction and every uncertain spot already signed off. Deleting the
          transcript from the same menu asks first; doing it as a side effect of
@@ -537,7 +557,7 @@ export default function App() {
       }
       return await askAboutSpeakers(ids, language);
     },
-    [askAboutSpeakers, recordings, t, tPlural]
+    [askAboutSpeakers, check, recordings, reportInfo, t, tPlural]
   );
 
   /** Separating speakers on its own. It is entirely about how many people
