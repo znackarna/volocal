@@ -40,21 +40,21 @@ export const csDialogs = {
   "dialogs.addRecording.prompt": "Vyberte, odkud chcete zvuk přidat.",
   "dialogs.addRecording.localFile": "Místní soubor",
   "dialogs.addRecording.localFileNote": "Zvuk nebo video uložené v počítači.",
-  "dialogs.addRecording.onlineVideo": "Online video",
-  "dialogs.addRecording.onlineVideoNote": "YouTube nebo jiný podporovaný web.",
+  "dialogs.addRecording.onlineVideo": "Online zdroj",
+  "dialogs.addRecording.onlineVideoNote": "YouTube video nebo jiná podporovaná služba.",
 
   // Add recording dialog — online video step.
-  "dialogs.addRecording.onlineTitle": "Online video",
+  "dialogs.addRecording.onlineTitle": "Online zdroj",
   "dialogs.addRecording.onlinePrompt":
     "Vložte odkaz. Aplikace stáhne jen zvuk a přidá ho do archivu.",
-  "dialogs.addRecording.urlLabel": "Odkaz na video",
+  "dialogs.addRecording.urlLabel": "Odkaz na záznam",
   "dialogs.addRecording.urlPlaceholder": "https://www.youtube.com/watch?v=…",
   "dialogs.addRecording.downloadNote":
-    "Při prvním použití se stáhne podpora online videí (asi 60 MB).",
+    "Při prvním použití se stáhne podpora online zvuku a videa (asi 60 MB).",
   "dialogs.addRecording.invalidUrl": "Vložte platný odkaz začínající http:// nebo https://.",
-  "dialogs.addRecording.preparingSupport": "Připravuji podporu online videí · {percent} %",
-  "dialogs.addRecording.finishingSupport": "Dokončuji podporu online videí",
-  "dialogs.addRecording.preparingVideo": "Připravuji online video",
+  "dialogs.addRecording.preparingSupport": "Připravuji podporu online zvuku a videa · {percent} %",
+  "dialogs.addRecording.finishingSupport": "Dokončuji podporu online zvuku a videa",
+  "dialogs.addRecording.preparingVideo": "Připravuji online zdroj",
   "dialogs.addRecording.percent": "{value} %",
   "dialogs.addRecording.submitting": "Přidávám…",
   "dialogs.addRecording.submit": "Stáhnout a přidat",
@@ -146,7 +146,7 @@ export const csDialogsContext: Partial<Record<keyof typeof csDialogs, string>> =
   "dialogs.addRecording.localFile":
     "Volba v dialogu Přidat nahrávku — soubor z disku, ne z internetu.",
   "dialogs.addRecording.onlineVideo":
-    "Volba v dialogu Přidat nahrávku — stažení zvuku z videa na webu.",
+    "Volba v dialogu Přidat nahrávku — stažení zvuku z internetu. Ne jen z videa: yt-dlp bere i podcasty a hudební služby, proto zdroj, ne video.",
   "dialogs.addRecording.onlineTitle":
     "Nadpis druhého kroku téhož dialogu, kde se vkládá odkaz. Text je shodný s volbou, překlad se ale lišit může.",
   "dialogs.addRecording.urlPlaceholder":
