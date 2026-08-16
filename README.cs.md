@@ -2,66 +2,68 @@
 
 # Volocal
 
-Převádí mluvené slovo na text. Nahrávky, přepisy i jazykové modely běží pouze
-na vašem počítači a nic se neodesílá ven.
+**Převádí mluvené slovo na text — u vás v počítači.**
 
-Program je vlastnictvím značkárny s.r.o. Zdrojový kód je veřejně čitelný, ale
-není open source — podrobnosti v [LICENSE](LICENSE).
+Přetáhnete nahrávku a dostanete přepis, který se dá číst, opravovat, prohledávat
+a přehrát přesně na slovo. Pozná, kdo mluví. Text umí učesat, shrnout i přeložit.
 
-Postavené na whisper.cpp, Silero VAD, modelu hlasů CAM++ a llama.cpp. Aplikace
-je Tauri 2: jádro v Rustu, rozhraní v Reactu, archiv v SQLite.
+Vaše nahrávky nikam neodcházejí. Žádný účet, žádný cloud, žádné nahrávání na
+server — modely běží na vašem hardwaru, po prvním nastavení i bez internetu.
 
-Technický přehled a pravidla pojmenování jsou v
-[ARCHITECTURE.md](ARCHITECTURE.md), pracovní pravidla v [CLAUDE.md](CLAUDE.md)
-a důvody jednotlivých rozhodnutí v [docs/history/](docs/history/README.md).
+## Jak to získat
 
----
+**Windows 10 nebo 11.** [Stáhněte si instalátor](../../releases/latest).
+Instaluje se jen pro vás a nechce práva správce.
 
-## Pro uživatele
+Jedna věc, na kterou se připravte: instalátor není podepsaný, takže Windows při
+prvním spuštění ukážou **„Windows ochránil váš počítač"**. Zvolte *Další
+informace* → *Přesto spustit*. To okno mluví o chybějícím certifikátu, ne o tom,
+že by se v souboru něco našlo.
 
-1. Spusťte instalátor `Volocal_1.2.7_x64-setup.exe`.
-2. Otevřete Volocal.
-3. Při prvním spuštění se ukáže průvodce. Zmáčkněte **Stáhnout a nastavit**.
-4. Přetáhněte nahrávku do okna.
+Pak už jen:
 
-Nic víc. Průvodce si sám stáhne whisper.cpp, ffmpeg, detekci řeči i modely a
-předvybere variantu, která se hodí pro grafickou kartu v tomto počítači. Podle
-výběru to je 700 MB až 1,7 GB. Po dokončení už aplikace internet nepotřebuje.
+1. Otevřete Volocal.
+2. V průvodci zmáčkněte **Stáhnout a nastavit**.
+3. Přetáhněte nahrávku do okna.
 
-Nástroje a modely jdou do `%LOCALAPPDATA%\Whisp\`, přepisy do
-`%APPDATA%\cz.znackarna.volocal\`. Instalace nepotřebuje práva správce. Ta
-druhá cesta se změnila, když se ze Slobotu stal Volocal — starou složku si
-aplikace při prvním spuštění sama přestěhuje, i se zálohami a poznámkami.
-
-### Nová verze
-
-V Nastavení → O aplikaci je **Zkontrolovat aktualizace**. Aplikace se ptá jen
-tehdy, když o to požádáte. Vedle je přepínač **Automatické aktualizace**, ve
-výchozím stavu vypnutý: po zapnutí se po spuštění jednou zeptá a nález ohlásí
-v liště. Stáhne a nainstaluje se až na váš stisk.
-
-### Kopie na flash disk
-
-V Nastavení → Soubory je **Kopie na přenosný disk**. Zkopíruje program,
-nástroje i modely na zvolený disk a označí složku jako přenosnou. Na jiném
-počítači pak stačí spustit soubor `Volocal.exe` — bez instalace, bez zápisu do
-systému, bez internetu. V přenosném režimu se archiv ukládá do `data\` vedle
-programu, ne do profilu uživatele.
-
----
+Průvodce si sám stáhne whisper.cpp, ffmpeg, detekci řeči i modely a předvybere
+variantu, která se hodí pro grafickou kartu v tomto počítači. Podle výběru to je
+700 MB až 1,7 GB. Po dokončení už aplikace internet nepotřebuje.
 
 ## Co aplikace umí
 
 - **Přepíše nahrávky i videa** v češtině i dalších jazycích.
 - **Rozpozná mluvčí** a rozdělí text mezi ně.
-- **Vylepší přepis jazykovým modelem**, shrne ho a přeloží — vše lokálně.
+- **Vylepší přepis jazykovým modelem**, shrne ho a přeloží — vše u vás.
 - **Označí místa, kde si přepis nebyl jistý**, a drží opravy pohromadě.
 - **Přehraje přesně na slovo** a připne poznámku k libovolnému místu.
-- **Nahraje z mikrofonu**, stáhne zvuk z online videa, hlídá vybranou složku.
+- **Nahraje z mikrofonu**, stáhne zvuk z online služby, hlídá vybranou složku.
 - **Uloží přepis** do TXT, Markdownu, SRT, VTT nebo JSON a zvuk do MP3, M4A
   nebo WAV.
 
-### Jak se to ovládá
+## Vaše nahrávky zůstávají u vás
+
+Je to celý smysl téhle aplikace, takže tady je přesně, kdy sahá na internet —
+a jsou to jen tyhle tři případy:
+
+1. **Při prvním spuštění**, aby stáhla přepisovací nástroje a modely, které jste
+   si vybrali, přímo ze stránek jejich autorů.
+2. **Když sami vložíte odkaz** na online službu. Ven jde ten odkaz, zpátky
+   přijde zvuk. Nic víc.
+3. **Když se zeptáte na novou verzi.** Vedle toho je přepínač, ve výchozím stavu
+   vypnutý, který se na totéž zeptá jednou po spuštění. Vždycky se jen ptá —
+   nic se nestáhne bez vašeho stisku.
+
+**A nic dalšího.** Žádná telemetrie, žádná hlášení o pádech, žádný účet.
+Nahrávky, přepisy, poznámky i nastavení leží v souboru na vašem disku.
+
+K tomu prvnímu stahování: každá součást je připnutá na konkrétní verzi na
+konkrétní adrese a všechny až na jednu se ověřují proti otisku, který zveřejnil
+jejich autor. Když soubor nesedí, aplikace ho odmítne. Ta výjimka je model
+hlasů, jehož autor otisk nezveřejňuje — u něj je jen HTTPS a nic víc.
+Podrobnosti jsou v [SECURITY.md](SECURITY.md).
+
+## Jak se to ovládá
 
 | Akce | Co udělá |
 |---|---|
@@ -85,26 +87,73 @@ se to ve všech nahrávkách.
 **Mluvčí** se objeví se zapnutým rozpoznáním. Přejmenujte jednou, změní se
 všude; napsat dvěma řádkům stejné jméno je sloučí.
 
-### Kde to počítá
-
-Přepis běží na kartě NVIDIA (CUDA), na jakékoli kartě přes Vulkan, nebo na
-procesoru. Aplikace se rozhoduje podle ovladačů, které v systému najde —
-`nvcuda.dll` → CUDA, `vulkan-1.dll` → Vulkan, jinak procesor — a stažený
-build, který tento počítač nemůže spustit, nenabídne jako volbu.
-
-V Nastavení → Výkon je **Změřit rychlost**. Vezme kousek nahrávky, prožene ho
-každým dostupným režimem a nejrychlejší rovnou nastaví.
-
 ### Volba modelu
 
 | Volba | Model | Velikost |
 |---|---|---|
-| Precizní | `large-v3` | 3,1 GB |
+| Přesný | `large-v3` | 3,1 GB |
 | Vyvážený | `large-v3-q5_0` | 1,1 GB |
 | Rychlý | `large-v3-turbo-q5_0` | 575 MB |
 
 Naměřeno na Radeonu RX 9070: `large-v3` zvládl 38 minut zvuku za 2:18, tedy
 16,6× rychleji než v reálném čase.
+
+Přepis běží na kartě NVIDIA (CUDA), na jakékoli kartě přes Vulkan, nebo na
+procesoru. Aplikace se rozhoduje sama podle ovladačů, které v systému najde —
+`nvcuda.dll` → CUDA, `vulkan-1.dll` → Vulkan, jinak procesor. Co doopravdy
+běželo, si přečtete v Nastavení → Modely.
+
+### Nová verze
+
+V Nastavení → **Aktualizace** je **Zkontrolovat aktualizace**. Aplikace se ptá
+jen tehdy, když o to požádáte. Vedle je přepínač **Automatické aktualizace**, ve
+výchozím stavu vypnutý: po zapnutí se po spuštění jednou zeptá a nález ohlásí
+v liště. Stáhne a nainstaluje se až na váš stisk.
+
+### Kopie na flash disk
+
+V Nastavení → Soubory je **Kopie na přenosný disk**. Zkopíruje program, nástroje
+i modely na zvolený disk a označí složku jako přenosnou. Na jiném počítači pak
+stačí spustit soubor `Volocal.exe` — bez instalace, bez zápisu do systému, bez
+internetu. V přenosném režimu se archiv ukládá do `data\` vedle programu, ne do
+profilu uživatele.
+
+### Kam se co ukládá
+
+Nástroje a modely jdou do `%LOCALAPPDATA%\Whisp\`, přepisy do
+`%APPDATA%\cz.znackarna.volocal\`. Ta první cesta pořád říká `Whisp` — tak se
+aplikace jmenovala před Slobotem a před Volocalem — a přejmenovat ji by
+znamenalo, že si každá existující instalace stáhne všechno znovu. Ta druhá se
+přestěhovala, když se ze Slobotu stal Volocal; starou složku si aplikace při
+prvním spuštění sama přenese, i se zálohami a poznámkami.
+
+Odinstalace odebere jen program. Modely i archiv zůstanou, takže přeinstalace je
+okamžitá a nikdo nepřijde o přepisy. Kdo je chce uklidit, smaže obě složky ručně.
+
+## Co neumí dobře
+
+Radši napsané tady než objevené později:
+
+- **Časy jednotlivých slov jsou odhad.** Na klikání a sledování textu to sedí,
+  ale u dlouhého úseku s pauzou uprostřed se to rozejde asi o vteřinu.
+- **Dva lidé mluvící přes sebe** se přiřadí tomu, kdo převažuje. Ruční oprava je
+  součástí návrhu, ne selhání.
+- **Rozhovor ano, panelová diskuse spíš ne.** Dva hlasy jsou při zadaném počtu
+  téměř bezchybné. Pět lidí v jedné místnosti sloučilo jednu dvojici.
+- **Přepisy jdou po jednom.** Přetáhnete deset souborů, přidají se všechny, ale
+  čekají ve frontě — je to vidět na kartách. Deset běhů naráz by se pralo
+  o jednu grafickou kartu a dohromady by to trvalo déle.
+- **Přerušené stahování začíná znovu.** Třígigabajtový model se nedá navázat
+  v půlce.
+- **Archiv není šifrovaný.** Je to obyčejný soubor s takovou ochranou, jakou má
+  váš uživatelský účet.
+
+## Když je něco špatně
+
+- **Chyba nebo nápad:** založte issue.
+- **Bezpečnostní díra:** prosím **nezakládejte** veřejné issue, napište na
+  jsme@znackarna.cz. [SECURITY.md](SECURITY.md) popisuje, co je už teď známo
+  jako slabé místo.
 
 ---
 
@@ -115,20 +164,30 @@ npm install
 npm run tauri dev
 ```
 
-Ikony jsou v repozitáři (`src-tauri/icons/`); `npm run tauri icon
-icon-source.png` je potřeba jen po změně zdrojového obrázku.
+První `tauri dev` překládá Rust závislosti — 5 až 15 minut. Další spuštění jsou
+v řádu vteřin. Instalátor sestavíte přes `npm run tauri build`; výsledek je
+`src-tauri\target\release\bundle\nsis\Volocal_1.2.8_x64-setup.exe`. Obsahuje
+**jen program** — nástroje a modely si Volocal stahuje sám, takže má řádově
+megabajty, ne gigabajty.
 
-První `tauri dev` překládá Rust závislosti — 5 až 15 minut. Další spuštění
-jsou v řádu vteřin. Instalátor sestavíte přes `npm run tauri build`; výsledek
-je v `src-tauri\target\release\bundle\nsis\`.
+Ikony jsou v repozitáři (`src-tauri/icons/`). Nepřegenerovávejte je samotným
+`tauri icon`: ten neumí rozhodnout, co je uvnitř ICO, a tiše by zahodil velikost
+36 px, kterou si Windows na obrazovce se 150% zvětšením žádají. Slouží k tomu
+`scripts\make-ico.ps1`.
 
-Před odevzdáním práce projdou tyto kontroly:
+Před odevzdáním práce projdou tyhle kontroly:
 
 ```powershell
-npx tsc --noEmit
-npm run i18n:check      # texty ve slovníku, množné tvary, vykání, stáří překladu
-cargo fmt --all ; cargo check ; cargo test
+npm run build     # i18n:check, docs:check, tsc --noEmit, pak build
+npm run test
+cargo fmt --all --manifest-path src-tauri/Cargo.toml -- --check
+cargo test --manifest-path src-tauri/Cargo.toml
+cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
 ```
+
+`npm run i18n:check` je ta neobvyklá: odmítne text napsaný přímo v komponentě,
+neúplnou sadu množných tvarů, českou větu, která čtenáři tyká, a překlad, jehož
+česká předloha se mezitím přepsala. Čeština je zdrojový jazyk rozhraní.
 
 ### Kdyby okno zůstalo bílé
 
@@ -139,65 +198,46 @@ uvidíte, co bylo odmítnuto a kterým pravidlem.
 
 Rychlá zkouška, jestli za to může právě CSP: nastavte `"csp": null` a spusťte
 znovu. Když se okno vrátí, chybí v pravidlech jedna položka — přidejte ji
-a `null` zase odeberte. Nenechávejte `null` natrvalo; je to jediné místo,
-které vynucuje, že aplikace nesmí nic načíst zvenčí.
+a `null` zase odeberte. Nenechávejte `null` natrvalo; je to jediné místo, které
+vynucuje, že aplikace nesmí nic načíst zvenčí.
 
 ### Vydání
 
-```powershell
-npm run tauri build
-```
-
-Výsledek je `src-tauri\target\release\bundle\nsis\Volocal_1.2.7_x64-setup.exe`.
-Instalátor obsahuje **jen program** — nástroje a modely si Volocal stahuje sám
-při prvním spuštění, takže má řádově megabajty, ne gigabajty. Instaluje se pro
-přihlášeného uživatele (`installMode: currentUser`), takže nechce práva správce.
-
-Odinstalace odebere jen program. Modely v `%LOCALAPPDATA%\Whisp\` i archiv
-v `%APPDATA%\cz.znackarna.volocal\` zůstanou — přeinstalace je pak okamžitá a
-nikdo nepřijde o přepisy. Kdo je chce uklidit, smaže obě složky ručně.
-
-#### Před vydáním
+Vydává `scripts\release.ps1` ve dvou průchodech; nápověda v hlavičce skriptu
+říká proč. Poznámky k vydání jsou **přínosy, ne seznam změn** — pravidlo je
+v [CLAUDE.md](CLAUDE.md).
 
 Tři kontroly, které za nikoho neudělá stroj:
 
 * **Verze souhlasí na třech místech:** `package.json`, `src-tauri/Cargo.toml`
-  a `src-tauri/tauri.conf.json`.
-* **`SECURITY.md` odpovídá konfiguraci.** Projděte každé konkrétní tvrzení
-  proti kódu — `csp` a `assetProtocol.scope` v `src-tauri/tauri.conf.json`,
-  `EXPECTED_HASHES` a položky hledané vzorem v `src-tauri/src/download.rs`,
-  a jestli je instalátor podepsaný. Dokument u sebe nese datum posledního
-  ověření; když se tvrzení a kód rozejdou, platí kód. Česká i anglická
-  polovina se opravují zároveň, jinak si za měsíc odporují.
-* **Kontroly projdou:** `npm run build`, `npm run test`,
-  `cargo fmt --all --check`, `cargo test`,
-  `cargo clippy --all-targets -- -D warnings`.
+  a `src-tauri/tauri.conf.json`. Přesouvá je `scripts\version.ps1`, který sáhne
+  i na čtyři soubory, jež verzi jen říkají čtenáři.
+* **`SECURITY.md` odpovídá konfiguraci.** Projděte každé konkrétní tvrzení proti
+  kódu — `csp` a `assetProtocol.scope` v `src-tauri/tauri.conf.json`,
+  `EXPECTED_HASHES` a položky hledané vzorem v `src-tauri/src/download.rs`.
+  Dokument u sebe nese datum posledního ověření; když se tvrzení a kód rozejdou,
+  platí kód. Česká i anglická polovina se opravují zároveň, jinak si za měsíc
+  odporují.
 * **Na vydání jsou přísnější pravidla, a hlídá je CI u značky (tagu).**
   `node scripts/i18n.mjs check --strict` navíc odmítne překlad, jehož česká
-  předloha nikdy nedostala otisk — při rozdělané práci je to jen upozornění,
-  ale je to jediné, s čím se dá později porovnat, jestli se čeština nezměnila.
-  Potom se sestaví instalátor, nainstaluje se na čistý stroj, spustí se a musí
-  si stihnout založit archiv. Teprve pak je běh zelený.
+  předloha nikdy nedostala otisk. Potom se sestaví instalátor, nainstaluje se na
+  čistý stroj, spustí se a musí si stihnout založit archiv. Teprve pak je běh
+  zelený.
 
 #### Podpis
 
-Bez podpisu ukáže Windows při prvním spuštění SmartScreen
-(„Windows ochránil váš počítač" → *Další informace* → *Přesto spustit*).
-
-**První vydání jde ven nepodepsané**, vědomě. Certifikát to okno sám o sobě
+**Vydání jdou ven nepodepsaná**, vědomě. Certifikát to modré okno sám o sobě
 nezavře: OV certifikáty i levné cloudové podepisovací služby začínají bez
-reputace a získávají ji tím, že si soubor lidé stahují — což je přesně to, co
-se ještě nestalo. Okamžitou důvěru má jen EV, a ten stojí stovky dolarů ročně
-a chce hardwarový token. Až bude co chránit, dá se to koupit; do té doby
-`scripts\release.ps1 -Publish -Unsigned` vydá bez podpisu a řekne u toho, co
-uživatel uvidí. Napište to i tam, odkud se stahuje — varování, na které nikdo
-nepřipravil, zavírá stránky.
+reputace a získávají ji tím, že si soubor lidé stahují — což je přesně to, co se
+zatím nestalo. Okamžitou důvěru má jen EV, a ten stojí stovky dolarů ročně a
+chce hardwarový token. `scripts\release.ps1 -Publish -Unsigned` vydá bez podpisu
+a řekne u toho, co uživatel uvidí. Napište to i tam, odkud se stahuje —
+varování, na které nikdo nepřipravil, zavírá stránky.
 
-Od června 2023 nelze certifikát stáhnout jako soubor — soukromý klíč musí být
-na hardwarovém tokenu nebo v cloudovém HSM, a to u OV i EV. Rozdíl mezi nimi
-není v síle podpisu, ale v pověsti u SmartScreenu: **EV má důvěru okamžitě, OV
-si ji musí teprve odchodit** stahováním. Kdo kupuje certifikát právě proto, aby
-zmizelo modré okno, chce EV; OV ho na začátku stejně uvidí.
+Od června 2023 nelze certifikát stáhnout jako soubor — soukromý klíč musí být na
+hardwarovém tokenu nebo v cloudovém HSM, a to u OV i EV. Rozdíl mezi nimi není
+v síle podpisu, ale v pověsti u SmartScreenu: **EV má důvěru okamžitě, OV si ji
+musí teprve odchodit** stahováním.
 
 Až certifikát bude, přidá se do `src-tauri/tauri.conf.json` pod `bundle.windows`:
 
@@ -208,15 +248,9 @@ Až certifikát bude, přidá se do `src-tauri/tauri.conf.json` pod `bundle.wind
 ```
 
 Otisk vypíše `Get-ChildItem Cert:\CurrentUser\My | Format-List Subject,Thumbprint`
-poté, co je certifikát vidět ve Windows (token nebo klient cloudové služby).
-Časové razítko je důležité: bez něj přestanou podepsané soubory platit v den,
-kdy certifikátu vyprší platnost, s ním platí dál.
-
-Nástroj, který certifikát ve Windows nezpřístupní, se místo otisku zapojí přes
-`"signCommand"` — `%1` je zástupný symbol za cestu k podepisovanému souboru.
-
-Otisk je vázaný na konkrétní stroj, takže do repozitáře nepatří; drž ho
-v lokální kopii konfigurace, nebo si ho na počítači, kde se vydává, doplň.
+poté, co je certifikát vidět ve Windows. Časové razítko je důležité: bez něj
+přestanou podepsané soubory platit v den, kdy certifikátu vyprší platnost.
+Otisk je vázaný na konkrétní stroj, takže do repozitáře nepatří.
 
 ### Architektura
 
@@ -242,21 +276,29 @@ tuhle práci dělaly dřív, se proto od té doby nestahují.
 
 | Soubor | |
 |---|---|
-| `src-tauri/src/main.rs` | příkazy volané z rozhraní, start |
+| `src-tauri/src/main.rs` | start okna a jeho ikona |
+| `src-tauri/src/commands/` | příkazy volané z rozhraní |
 | `src-tauri/src/download.rs` | katalog součástí, stahování, přenosná kopie |
 | `src-tauri/src/tools.rs` | hledání programů, volba výpočtu, přenosný režim |
-| `src-tauri/src/transcription.rs` | běh přepisu včetně VAD a rozpoznání mluvčích |
+| `src-tauri/src/transcription/` | běh přepisu včetně VAD, mluvčích a sazby textu |
 | `src-tauri/src/voiceprint.rs` | příznaky hlasu, model CAM++, shlukování mluvčích |
 | `src-tauri/src/ai_edit.rs` | jazyková úprava, shrnutí, překlad |
+| `src-tauri/src/online_import.rs` | stažení zvuku z online služby |
 | `src-tauri/src/db.rs` | schéma SQLite, dotazy, fulltext, zálohy |
 | `src-tauri/src/export.rs` | TXT, Markdown, SRT, VTT, JSON |
 | `src/App.tsx` | navigace, notifikace, přidávání nahrávek |
 | `src/Library.tsx` | archiv, hledání, složky, průběh přepisu |
 | `src/Detail.tsx` | přehrávač, editor napojený na zvuk, postranní panel |
-| `src/Settings.tsx` | modely, výkon, vzhled, slovník, soubory, o aplikaci |
+| `src/Settings.tsx` | Přepis, Rozhraní, Výkon, Modely, Soubory, Informace, Aktualizace |
+| `src/Brand.tsx` | značka v hlavičce a psaný obličej v archivu |
 
 Veškerý text rozhraní je ve slovníku v `src/locales/`; `npm run i18n:check`
 odmítne text napsaný přímo v komponentě. Čeština je zdrojový jazyk a vyká.
+
+Proč je kód takový, jaký je, stojí den po dni v [docs/history/](docs/history/README.md).
+Pracovní pravidla jsou v [CLAUDE.md](CLAUDE.md), rozvržení modulů
+v [ARCHITECTURE.md](ARCHITECTURE.md), a co má mít pull request,
+v [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
 
@@ -277,26 +319,10 @@ odmítne text napsaný přímo v komponentě. Čeština je zdrojový jazyk a vyk
 | Geist, Inter, Schibsted Grotesk, Literata, Source Serif 4 | SIL OFL 1.1 |
 
 Vše kromě modelů Gemma je open source. Gemma se řídí licencí Google a FFmpeg
-licencí GPL v3.
+licencí GPL v3. Úplný seznam je v [NOTICE](NOTICE) a v aplikaci pod
+Nastavení → Informace.
 
----
-
-## Známá omezení
-
-**Časy jednotlivých slov jsou odhad.** Whisper vrací značky po úsecích, ne po
-slovech. Na klikání i zvýrazňování to sedí, ale u dlouhého úseku s pauzou
-uprostřed se to rozejde o vteřinu.
-
-**Rozpoznání mluvčích neřeší překryv.** Když dva lidé mluví přes sebe, úsek se
-přiřadí tomu, kdo převažuje. Ruční oprava je součástí návrhu, ne selhání.
-
-**Přepisy jdou po jednom.** Přetáhnete-li deset souborů, přidají se všechny,
-ale přepisovat se bude vždy jeden — ostatní čekají ve frontě a je to vidět na
-kartě. Deset běhů naráz by se pralo o jednu grafickou kartu a trvalo by to
-dohromady déle.
-
-**Program není podepsaný.** Při prvním spuštění ukáže Windows SmartScreen modré
-okno „Windows ochránil váš počítač" — *Další informace* → *Přesto spustit*.
-
-**Stahování se nedá navázat.** Když spojení spadne uprostřed třígigabajtového
-modelu, začíná se znovu.
+Program je vlastnictvím značkárny s.r.o. Zdrojový kód je veřejně čitelný, ale
+není open source — smíte si ho přečíst a sestavit pro sebe. Další šíření, forky
+a použití v jiných projektech potřebují písemné svolení; podrobnosti
+v [LICENSE](LICENSE).

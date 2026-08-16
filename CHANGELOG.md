@@ -11,6 +11,13 @@ altered, not how, not which file. Entries before 1.2.6 are written the old way
 and are left as they are; they are not a model for the next one. The mechanism
 belongs in `docs/history/`, which is what that folder is for.
 
+## 1.2.8 — 17 August 2026
+
+- **Clearer wording when adding audio from the web.** It is `Online služba` now,
+  and the card names services that actually work.
+- **The project page tells you where to download the application**, instead of
+  telling you to build it.
+
 ## 1.2.7 — 17 August 2026
 
 - **Adding audio from the web is no longer called video.** Podcasts and music
