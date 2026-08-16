@@ -786,7 +786,10 @@ export default function SetupWizard({
             onView={setView}
             progress={progress}
             onInstall={installOne}
-            onCancel={() => void api.cancelDownload()}
+            /* Per row, not per run. Each mark on this page is its own
+               control; the guided dialog's `Přerušit` is the one that
+               stops everything, because there the run is the errand. */
+            onCancel={(component) => void api.cancelComponent(component.id)}
             onRemove={askToRemove}
           />
           <div className="step-footer">
@@ -1426,7 +1429,7 @@ function ComponentRow({
   view: ListingView;
   progress?: DownloadProgress;
   onInstall: (component: DownloadComponent) => void;
-  onCancel: () => void;
+  onCancel: (component: DownloadComponent) => void;
   onRemove: (component: DownloadComponent) => void;
 }) {
   const { t, tDynamic } = useI18n();
@@ -1458,7 +1461,7 @@ function ComponentRow({
             className={`component-mark ${running ? "running" : item.complete ? "have" : "get"}`}
             aria-label={label}
             title={label}
-            onClick={() => (running ? onCancel() : onInstall(item))}
+            onClick={() => (running ? onCancel(item) : onInstall(item))}
           >
             {/* No ring on a queued row: an arc frozen at nought reads as a
                 download that has stalled rather than as one that has not
@@ -1634,7 +1637,7 @@ function ManualSelection({
   onView: (view: ListingView) => void;
   progress: Record<string, DownloadProgress>;
   onInstall: (component: DownloadComponent) => void;
-  onCancel: () => void;
+  onCancel: (component: DownloadComponent) => void;
   onRemove: (component: DownloadComponent) => void;
 }) {
   const { t } = useI18n();

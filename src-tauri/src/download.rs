@@ -531,6 +531,22 @@ fn emit_progress(app: &AppHandle, p: DownloadProgress) {
     let _ = app.emit("download:progress", p);
 }
 
+/// Says a component has stopped, for the one case nothing else can say it: a
+/// component taken out of the queue before any worker reached it.
+pub fn emit_cancelled(app: &AppHandle, id: &str) {
+    emit_progress(
+        app,
+        DownloadProgress {
+            id: id.into(),
+            phase: "cancelled".into(),
+            downloaded_mb: 0.0,
+            total_mb: 0.0,
+            percent: 0,
+            message: Some(UserMessage::new("download.cancelled")),
+        },
+    );
+}
+
 // ---------------------------------------------------------------- downloads
 
 /// What is bounded here, and what deliberately is not.
@@ -674,7 +690,7 @@ fn download_file(
             // in here too. The loop below reads the same flag between chunks;
             // this one had no check at all, so a stop pressed during the pass
             // was answered only once the pass was over.
-            if cancellation.load(Ordering::Relaxed) {
+            if cancellation.load(Ordering::Relaxed) || component_stopping(id) {
                 return Err(UserMessage::new("download.cancelled"));
             }
             let read = existing.read(&mut seed)?;
@@ -712,7 +728,10 @@ fn download_file(
     let mut buffer = vec![0u8; 262_144];
 
     loop {
-        if cancellation.load(Ordering::Relaxed) {
+        // Two ways to be told to stop, and both leave the same thing behind.
+        // The flag stops everything; `component_stopping` is this row's own stop
+        // control, and the queue behind it carries on.
+        if cancellation.load(Ordering::Relaxed) || component_stopping(id) {
             // Flushed and left where it is. Removing it here is what made every
             // interrupted download start again from the beginning; what is on
             // disk is bytes that arrived and were verified as they arrived, and
@@ -1515,6 +1534,16 @@ struct Work {
     current: Option<String>,
     /// What it will take next, in the order asked for.
     queue: std::collections::VecDeque<String>,
+    /// Components asked to stop, by id, emptied as each is honoured.
+    ///
+    /// **Stopping one is not stopping the rest**, which is what the shared
+    /// cancellation flag could only ever mean — *když jsem měl něco ve frontě a
+    /// zrušil jsem to, automaticky se smazala celá fronta, ne jen to, co jsem
+    /// stopnul*. A row with its own stop control has to answer for its own row.
+    ///
+    /// A `Vec` and not a `HashSet` for one reason: `HashSet::new` is not `const`
+    /// and this static is. It holds one or two ids.
+    stop: Vec<String>,
 }
 
 static WORK: std::sync::Mutex<Work> = std::sync::Mutex::new(Work {
@@ -1522,7 +1551,43 @@ static WORK: std::sync::Mutex<Work> = std::sync::Mutex::new(Work {
     generation: 0,
     current: None,
     queue: std::collections::VecDeque::new(),
+    stop: Vec::new(),
 });
+
+/// Stops one component without touching the rest of the queue.
+///
+/// Returns true if it was still waiting and has been taken out — the caller then
+/// says so, because no worker will ever reach it to say so itself. False means
+/// either that it is the one in hand, and the worker will report it when the
+/// read loop next looks, or that it is not here at all.
+pub fn cancel_component(id: &str) -> bool {
+    let mut work = WORK.lock().unwrap();
+    if work.current.as_deref() == Some(id) {
+        if !work.stop.iter().any(|x| x == id) {
+            work.stop.push(id.to_string());
+        }
+        return false;
+    }
+    if let Some(at) = work.queue.iter().position(|x| x == id) {
+        work.queue.remove(at);
+        return true;
+    }
+    false
+}
+
+/// Has this component been asked to stop? Read between chunks, beside the
+/// application-wide flag that stops everything.
+fn component_stopping(id: &str) -> bool {
+    WORK.lock().unwrap().stop.iter().any(|x| x == id)
+}
+
+/// Takes the request off the list and says whether it was there.
+fn take_stop_request(id: &str) -> bool {
+    let mut work = WORK.lock().unwrap();
+    let was = work.stop.iter().any(|x| x == id);
+    work.stop.retain(|x| x != id);
+    was
+}
 
 /// Whether anything is being fetched right now.
 ///
@@ -1622,6 +1687,7 @@ pub fn install_bundle(
                 work.running = false;
                 work.current = None;
                 work.queue.clear();
+                work.stop.clear();
             }
         }
         let _done = Done(generation);
@@ -1655,6 +1721,7 @@ pub fn install_bundle(
                     let mut work = WORK.lock().unwrap();
                     work.running = false;
                     work.current = None;
+                    work.stop.clear();
                     work.queue.drain(..).collect()
                 };
                 for pending in std::iter::once(id).chain(rest) {
@@ -1674,11 +1741,16 @@ pub fn install_bundle(
                 break;
             }
             if let Err(e) = install_component(&app, &settings, &id, cancellation.clone()) {
+                /* Three ways to fail and two of them are a stop. This one asked
+                to stop — the loop goes on to the next component, because the
+                reader stopped a row and not the run. The application-wide
+                flag is handled at the top of the loop and does break. */
+                let stopped = take_stop_request(&id);
                 emit_progress(
                     &app,
                     DownloadProgress {
                         id: id.clone(),
-                        phase: if cancellation.load(Ordering::Relaxed) {
+                        phase: if stopped || cancellation.load(Ordering::Relaxed) {
                             "cancelled"
                         } else {
                             "error"
@@ -1855,6 +1927,52 @@ mod tests {
         idle();
         assert!(!is_installing(), "the flag comes down when the run ends");
         assert_eq!(admit(&["model-turbo"]).0, Queued::Started);
+        idle();
+    }
+
+    /// The reported defect: stopping one row emptied the whole queue. A row's
+    /// stop control answers for its row.
+    #[test]
+    fn stopping_one_component_leaves_the_rest_of_the_queue_alone() {
+        let _order = ORDER.lock().unwrap_or_else(|e| e.into_inner());
+        idle();
+        admit(&["model-large", "vad", "editor-model-small"]);
+        {
+            // The worker takes the first one.
+            let mut work = WORK.lock().unwrap();
+            work.current = work.queue.pop_front();
+        }
+
+        // One still waiting: out of the queue here, and the caller says so,
+        // because no worker will ever reach it to say so itself.
+        assert!(cancel_component("vad"), "taken out of the queue");
+        {
+            let work = WORK.lock().unwrap();
+            assert_eq!(work.queue.len(), 1, "the other one is still waiting");
+            assert_eq!(
+                work.current.as_deref(),
+                Some("model-large"),
+                "still in hand"
+            );
+        }
+
+        // The one in hand: the worker reports it, so nothing is claimed here.
+        assert!(
+            !cancel_component("model-large"),
+            "the worker answers for it"
+        );
+        assert!(component_stopping("model-large"));
+        assert!(
+            !component_stopping("editor-model-small"),
+            "not asked to stop"
+        );
+        {
+            let work = WORK.lock().unwrap();
+            assert_eq!(work.queue.len(), 1, "and the queue is still not touched");
+        }
+
+        assert!(take_stop_request("model-large"), "honoured once");
+        assert!(!take_stop_request("model-large"), "and not twice");
         idle();
     }
 

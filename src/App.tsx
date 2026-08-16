@@ -1816,8 +1816,12 @@ export default function App() {
                 : downloading.id,
           })}
           percent={downloading.percent}
+          /* The one it names, not the queue behind it. The bubble says
+             *Stahuji {name}*, so its cross has to mean that one — stopping
+             four more the reader cannot see from here would be a control
+             doing more than it says. */
           onCancel={() => {
-            void api.cancelDownload();
+            void api.cancelComponent(downloading.id);
             setDownloading(null);
           }}
           cancelLabel={t("app.download.cancel")}

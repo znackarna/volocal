@@ -115,7 +115,12 @@ export const api = {
    *  is counted from `catalog()`, which the screen already has. */
   installedMegabytes: () => invoke<number>("installed_megabytes"),
   download: (ids: string[]) => invoke<void>("download", { ids }),
+  /** Stops everything, the queue included. The guided first run's `Přerušit`,
+   *  where the whole download is the errand being abandoned. */
   cancelDownload: () => invoke<void>("cancel_download"),
+  /** Stops one component and leaves the rest of the queue running. What a stop
+   *  control drawn on a row means. */
+  cancelComponent: (id: string) => invoke<void>("cancel_component", { id }),
   /** Deletes one installed component. Refuses on the Rust side while something
    *  is using it and where no file list was ever recorded — the screen draws a
    *  lock on those rows, and the command does not rely on it having done so. */

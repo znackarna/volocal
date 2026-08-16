@@ -84,9 +84,33 @@ pub fn download(
     Ok(())
 }
 
+/// Stops everything: the component in hand and the whole queue behind it.
+///
+/// The guided first run's `Přerušit` and nothing else. There the download *is*
+/// the errand, and one press meaning one component would leave four more coming
+/// down behind a screen that says it stopped.
 #[tauri::command]
 pub fn cancel_download(app: State<'_, AppState>) {
     app.download_cancellation.store(true, Ordering::Relaxed);
+}
+
+/// Stops one component and leaves the queue alone.
+///
+/// What the stop square on a row means, and it had meant the other thing —
+/// *když jsem měl něco ve frontě a zrušil jsem to, automaticky se smazala celá
+/// fronta, ne jen to, co jsem stopnul*. A control drawn per row answers for its
+/// row.
+///
+/// A component still waiting is taken out here and reported here, because no
+/// worker will ever reach it to report it itself. One being fetched is left to
+/// the worker: it has a part-written file to flush first, and a component
+/// reported as stopped while its bytes were still landing would be the same
+/// kind of lie in the other direction.
+#[tauri::command]
+pub fn cancel_component(window: tauri::AppHandle, id: String) {
+    if download::cancel_component(&id) {
+        download::emit_cancelled(&window, &id);
+    }
 }
 
 /// Deletes one installed component from the disk.
