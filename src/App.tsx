@@ -524,7 +524,24 @@ export default function App() {
        * same list one memo later and is declared five hundred lines below this.
        * The notice is drawn from it too, so the two cannot disagree, and the
        * answer carries the way out rather than only the news. */
-      if ((check?.issues.length ?? 0) > 0) {
+      /* **Asked of the disk, not of memory.** `check` is a snapshot taken at
+         startup and after a handful of actions, and files can leave underneath
+         it: emptying the models folder in Explorer left the application
+         believing it was ready, because nothing had told it otherwise.
+
+         It is a few filesystem probes and this is the one moment they matter.
+         If the call itself fails the cached answer stands — being unable to ask
+         is not evidence that something is missing, and refusing a run on that
+         would be worse than attempting one. */
+      let missing = check?.issues ?? [];
+      try {
+        const fresh = await api.checkTools();
+        setCheck(fresh);
+        missing = fresh.issues;
+      } catch {
+        // Keep what we had.
+      }
+      if (missing.length > 0) {
         reportInfo(t("app.setupFirst"), {
           label: t("library.issues.finish"),
           run: () => setSetupOpen(true),
@@ -575,6 +592,25 @@ export default function App() {
       return null;
     }
   }, []);
+
+  /* The archive's notice is drawn from the same check and was equally capable
+     of standing there out of date — a folder emptied in Explorer while the
+     window sat behind it, and the application still offering to transcribe.
+
+     Coming back to the window is when somebody has most likely just been
+     elsewhere doing exactly that, so it is where the question is worth asking
+     again. A few probes, once per return, not on a timer. */
+  useEffect(() => {
+    const again = () => {
+      if (document.visibilityState === "visible") void loadToolCheck();
+    };
+    window.addEventListener("focus", again);
+    document.addEventListener("visibilitychange", again);
+    return () => {
+      window.removeEventListener("focus", again);
+      document.removeEventListener("visibilitychange", again);
+    };
+  }, [loadToolCheck]);
 
   // The watch folder deliberately uses a modest poll instead of a permanent
   // operating-system watcher. It keeps the feature portable and, together
