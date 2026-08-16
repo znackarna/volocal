@@ -84,7 +84,7 @@ export const enSettings: Partial<Record<keyof typeof csSettings, string>> = {
   "settings.modules.add": "Add missing",
   "settings.modules.manage": "Manage models and tools",
   "settings.editor.title": "Language editing",
-  "settings.editor.description": "The model that turns a transcript into readable text.",
+  "settings.editor.description": "Fixes basic mistakes and makes the result easier to read.",
   "settings.editor.modelSmall": "Smaller",
   "settings.editor.modelMiddle": "Middle",
   "settings.editor.modelLarge": "Larger",

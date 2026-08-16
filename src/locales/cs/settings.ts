@@ -51,7 +51,7 @@ export const csSettings = {
   // karty, jedna z nich je vždycky vybraná. Vypínat není co: úprava se spustí
   // jen tehdy, když si u přepisu vyžádáte dokument.
   "settings.editor.title": "Jazyková úprava",
-  "settings.editor.description": "Model, který z přepisu udělá čitelný text.",
+  "settings.editor.description": "Opravuje základní chyby a zvyšuje čitelnost výsledného textu.",
   "settings.editor.modelSmall": "Menší",
   "settings.editor.modelMiddle": "Střední",
   "settings.editor.modelLarge": "Větší",
