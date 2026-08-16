@@ -30,6 +30,16 @@ interface Props {
   required: boolean;
   /** id of the module to preselect for installation */
   missingModule?: string | null;
+  /** A download was already running when this was opened.
+   *
+   *  The wizard's state is its own, so reopening it after *Stahovat na pozadí*
+   *  built a fresh one: it began at the question, and its button offered to
+   *  fetch what was already being fetched. The run itself lives in the backend
+   *  and never stopped — only the screen had forgotten about it.
+   *
+   *  With this it opens where the reader left it, on the download, and the
+   *  progress events arriving every 200 ms fill the rest in. */
+  alreadyFetching?: boolean;
   /** Where a failure goes when this is a screen rather than a dialog.
    *
    *  The application has one place for saying something went wrong — the bar
@@ -269,6 +279,7 @@ export default function SetupWizard({
   required,
   missingModule,
   onError,
+  alreadyFetching = false,
 }: Props) {
   const { t, tDynamic, tPlural } = useI18n();
   const { minutes, dataSize } = useFormats();
@@ -292,7 +303,9 @@ export default function SetupWizard({
    *  is a layout the reader watches move. */
   const listing = !required || !!missingModule;
 
-  const [step, setStep] = useState(listing ? STEP_DOWNLOAD : STEP_CHOICE);
+  const [step, setStep] = useState(
+    listing || alreadyFetching ? STEP_DOWNLOAD : STEP_CHOICE
+  );
   const [items, setItems] = useState<DownloadComponent[]>([]);
   const [check, setCheck] = useState<ToolCheck | null>(null);
 
@@ -315,7 +328,10 @@ export default function SetupWizard({
   const [startedHere, setStartedHere] = useState<Set<string>>(new Set());
 
   const [progress, setProgress] = useState<Record<string, DownloadProgress>>({});
-  const [running, setRunning] = useState(false);
+  /* Read once, at the first render. A download reported as running when this
+     opened is running now; the `download:complete` listener below turns it off,
+     and nothing else should. */
+  const [running, setRunning] = useState(alreadyFetching);
   const [error, setError] = useState<string | null>(null);
 
   const [confirmation, setConfirmation] = useState<ConfirmationRequest | null>(null);

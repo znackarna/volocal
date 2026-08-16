@@ -1496,6 +1496,7 @@ export default function App() {
             onBack={leaveWizard}
             onComplete={finishWizard}
             onError={reportError}
+            alreadyFetching={!!downloading}
           />
         </Suspense>
       )}
@@ -1615,6 +1616,7 @@ export default function App() {
             onBack={closeSetup}
             onComplete={closeSetup}
             onError={reportError}
+            alreadyFetching={!!downloading}
           />
         </Suspense>
       )}
