@@ -668,15 +668,23 @@ export default function Library({
       {/* Above the hero, not under it. This says the application cannot do its
           job; a 388 px hero standing in front of it is how somebody leaves the
           setup and never finds the way back. It is also the way back. */}
+      {/* Not `.warning`, and that is the point. Red says *you broke something*
+          about a state where nothing is broken: the application has not
+          finished downloading what it needs, which is what the first five
+          minutes look like for everybody.
+
+          **The list of what is missing is gone.** It was `issues` rendered as
+          it arrives from `tools.rs` — diagnostics, written for whoever is
+          debugging a machine, and it put `ggml-large-v3.bin` in front of a
+          reader who has not yet transcribed anything. What is missing, what it
+          weighs and where it comes from is on the other side of this button,
+          told properly. A banner that both diagnoses and offers the cure needs
+          only offer the cure. */}
       {issues.length > 0 && (
-        <div className="warning">
+        <div className="setup-notice">
           <div>
             <strong>{t("library.issues.title")}</strong>
-            <ul>
-              {issues.map((p, i) => (
-                <li key={i}>{userMessage(p)}</li>
-              ))}
-            </ul>
+            <p>{t("library.issues.text")}</p>
           </div>
           <button className="button primary" onClick={onFinishSetup}>
             {t("library.issues.finish")}

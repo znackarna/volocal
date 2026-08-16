@@ -30,6 +30,18 @@ interface Props {
   required: boolean;
   /** id of the module to preselect for installation */
   missingModule?: string | null;
+  /** Where a failure goes when this is a screen rather than a dialog.
+   *
+   *  The application has one place for saying something went wrong — the bar
+   *  under the header — and a listing that drew its own red panel instead was a
+   *  second one. On a screen the bar is right there and is the answer.
+   *
+   *  **It is not the answer in the dialog**, and that is why the panel below
+   *  survives for that case: the bar sits in normal flow under the header while
+   *  `.dialog-overlay` is fixed at `z-index: 60`, so a message sent to it during
+   *  a first run would be painted behind the scrim. An error nobody can see is
+   *  worse than one in a panel. */
+  onError?: (text: string) => void;
 }
 
 type Quality = "fastest" | "best";
@@ -251,8 +263,14 @@ const STEP_CHOICE = 0;
 const STEP_DOWNLOAD = 1;
 const STEP_DONE = 2;
 
-export default function SetupWizard({ onComplete, onBack, required, missingModule }: Props) {
-  const { t, tDynamic, tPlural, formatNumber } = useI18n();
+export default function SetupWizard({
+  onComplete,
+  onBack,
+  required,
+  missingModule,
+  onError,
+}: Props) {
+  const { t, tDynamic, tPlural } = useI18n();
   const { approximateMinutes, dataSize } = useFormats();
   const userMessage = useUserMessage();
   const progressMessage = useProgressMessage();
@@ -450,28 +468,18 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
      card drawn as selected and the model actually downloaded cannot differ. */
   const quality = chosen ?? recommendedQuality(usesGpu);
 
-  /** What was found in this computer, in one sentence over the two cards.
-   *
-   *  **This is not the status panel coming back.** That block was two framed
-   *  cells restating the line above them and it stays deleted; what stands here
-   *  is the line itself, saying more than it did. The application has read this
-   *  machine's drivers since the wizard was written and asked its question as
-   *  though it knew nothing — *Máte slabší počítač, grafickou kartu, pouze
-   *  16 GB RAM…* is the owner's way of saying so — and the numbers under it are
-   *  only credible because this sentence shows where they come from.
-   *
-   *  Four sentences and not a phrase assembled from parts: the graphics card
-   *  and the memory can each be absent, and a machine that will not say how much
-   *  memory it has gets the shorter sentence rather than a guess. The fifth is
-   *  the fraction of a second before `check` arrives, and it exists so that the
-   *  screen never claims for an instant to have found no graphics card. */
-  const machineSentence = !check
-    ? t("wizard.quality.machineChecking")
-    : check.memory_gb
-      ? t(usesGpu ? "wizard.quality.machineGpuMemory" : "wizard.quality.machineCpuMemory", {
-          memory: t("common.unit.gigabytes", { value: formatNumber(check.memory_gb) }),
-        })
-      : t(usesGpu ? "wizard.quality.machineGpu" : "wizard.quality.machineCpu");
+  /* `machineSentence` stood here and is gone with the five strings that built
+     it. It recited what was found in this computer — a graphics card, and how
+     much memory — and the owner struck it out on 2026-08-16 for a reason that
+     is not about tone: **from the amount of memory it does not follow where the
+     transcription runs.** Two unrelated facts joined by a *takže* that carried
+     no argument.
+
+     The sentence there now is `wizard.quality.intro`, and it answers what a
+     reader has before choosing rather than what the machine has: nothing leaves
+     this computer, and the two cards differ in one thing only. The machine is
+     still read — `usesGpu` decides the times and which card is recommended —
+     it is simply no longer recited. */
 
   // The user does not pick the programs; the machine picks them from its drivers.
   const root = useMemo(
@@ -732,7 +740,10 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
    *  the 18 px below itself rather than above — a dialog's content blocks never
    *  carry a `margin-top`, and `.dialog h2 + p` has already placed the gap
    *  above it. See `.setup-dialog > .warning`. */
-  const errorBanner = error && step !== STEP_DONE && (
+  /* Only the dialog draws it. On the listing the same text goes to the
+     application's own notice bar — see `onError` on `Props` for why the split
+     is not laziness: that bar is behind the scrim while a dialog is open. */
+  const errorBanner = !listing && error && step !== STEP_DONE && (
     <div className="warning">
       <div>
         <strong>{t("wizard.download.failedTitle")}</strong>
@@ -743,6 +754,14 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
       </button>
     </div>
   );
+
+  /* The listing has no panel of its own, so what `setError` collected is handed
+     to the bar and cleared. Rendering neither would swallow it. */
+  useEffect(() => {
+    if (!listing || !error) return;
+    onError?.(error);
+    setError(null);
+  }, [listing, error, onError]);
 
   /* -------------------------------------------------- the by-hand listing
 
@@ -833,89 +852,99 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
         {/* --------------------------------------------- 0. the one question
 
             Four screens became one. Two of them asked nothing the machine did
-            not already know — the welcome recited detected drivers, and the
-            speaker step governed 28 MB — and the language editor's 5150 MB left
-            the first run altogether. What is left is the only decision that is
-            both consequential and awkward to reverse: changing the
-            transcription model later means transcribing everything again.
+            not already know, and the language editor's 5150 MB left the first
+            run altogether. What is left is the only decision that is both
+            consequential and awkward to reverse: changing the transcription
+            model later means transcribing everything again.
 
-            **The sentence under the heading says what is in this computer, and
-            the two-panel grid stays deleted.** They are not the same thing and
-            the difference is the whole of why this screen was rebuilt: the
-            panels were `KONFIGURACE / Grafická karta (Vulkan)` beside `PŘEPIS /
-            na grafické kartě`, two frames restating the line above them. The
-            line is what a reader needs and it now carries the memory as well,
-            because the application has always known this machine and was asking
-            its question as though it knew nothing. Do not put a panel back. */}
+            **The sentence under the heading no longer recites the hardware**,
+            and the two-panel grid it replaced stays deleted. See the note where
+            `machineSentence` used to be built. */}
         {step === STEP_CHOICE && (
           <>
             <h2 id="setup-dialog-title">{t("wizard.quality.title")}</h2>
-            <p>{machineSentence}</p>
+            <p>{t("wizard.quality.intro")}</p>
             {errorBanner}
 
-            {/* *Dvě karty, spíš vertikálně než horizontálně.* The column was
-                already a column — `.choices` has stacked them since it was
-                written — and what was horizontal is the inside of each card: an
-                icon, one line of text, and a size pinned at the far edge. So
-                what this changes is what a card holds, and it holds four things
-                in this order: the name of the choice, the model and what the
-                reader gets (one sentence, the catalogue's own, so this screen
-                and Settings cannot describe one model two ways), what it costs
-                on this machine — the time for an hour of audio and the
-                megabytes — and, on one of them, why it is the one for here.
+            {/* **Two cards side by side, each standing on end.** Below one
+                another two things are read; beside one another they are
+                compared — and this screen is a comparison. The frame, the
+                radius, the accent and the dialog's rhythm are all still the
+                system's; what changes is the axis and what a card holds.
 
-                The marks are the ones their models carry in Settings:
-                `ModelMark` keyed on the model identifier, so the lightning that
-                means `large-v3-turbo` on the model list means it here too. */}
-            <div className="choices">
+                This is the one place in the application where `.choice` is not
+                the whole story, and it is deliberate rather than an oversight.
+                A choice card in Settings is one row of eight; this is the only
+                question the screen asks and the only one that is awkward to
+                take back. `.setup-choices` says so in the stylesheet.
+
+                The card holds three things in this order: its name with the
+                badge, the catalogue's own sentence about the model — so this
+                screen and Settings cannot describe one model two ways — and a
+                recessed foot with the two figures the choice is made on.
+
+                **The foot is pinned to the bottom, not trailing the text.** It
+                therefore sits on the same axis in both cards however many lines
+                the description takes, and that alignment is what turns two
+                cards into a comparison. */}
+            <div className="choices setup-choices">
               {(["best", "fastest"] as Quality[]).map((k) => {
                 const p = items.find((x) => x.id === MODELS[k].component);
                 const duration = approximateMinutes(estimatedMinutes(k, usesGpu));
                 return (
                   <button
                     key={k}
-                    className={`choice with-icon ${quality === k ? "chosen" : ""}`}
+                    className={`choice ${quality === k ? "chosen" : ""}`}
                     aria-pressed={quality === k}
                     onClick={() => setChosen(k)}
                   >
-                    <span className="choice-icon" aria-hidden>
-                      <ModelMark id={MODELS[k].settings} />
-                    </span>
-                    <span className="choice-body">
-                      <span className="choice-title">
-                        {t(MODELS[k].name)}
-                        {/* `.complete`, the grass variant — the badge that
-                            means *you already have this*, and the only badge
-                            left on these cards. */}
-                        {p?.complete && (
-                          <em className="badge complete">
-                            {t("wizard.download.downloadedBadge")}
-                          </em>
-                        )}
+                    <span className="choice-top">
+                      <span className="choice-head">
+                        <span className="choice-icon" aria-hidden>
+                          <ModelMark id={MODELS[k].settings} />
+                        </span>
+                        <span className="choice-title">
+                          {t(MODELS[k].name)}
+                          {/* One word, in the accent pill. It replaced three
+                              lines of reasoning on 2026-08-16: the argument for
+                              a sentence held, but it was the loudest thing on
+                              the screen and stood on the card already chosen. */}
+                          {k === recommendedQuality(usesGpu) && (
+                            <em className="badge">{t("wizard.quality.recommended")}</em>
+                          )}
+                          {/* `.complete`, the grass variant — *you already have
+                              this*. */}
+                          {p?.complete && (
+                            <em className="badge complete">
+                              {t("wizard.download.downloadedBadge")}
+                            </em>
+                          )}
+                        </span>
                       </span>
                       <span className="small-text">{t(MODELS[k].description)}</span>
-                      {/* The cost, in the card rather than in a column at the
-                          right edge. A size alone answered *how many
-                          megabytes*; what somebody choosing here is weighing is
-                          minutes against megabytes, and those two belong in one
-                          sentence. A model already on the disk costs no
-                          download, so the sentence stops after the time — the
-                          badge above has already said why. */}
-                      <span className="choice-cost">
-                        {p?.complete
-                          ? t("wizard.quality.costHave", { duration })
-                          : t("wizard.quality.cost", {
-                              duration,
-                              size: dataSize(p?.megabytes ?? 0),
-                            })}
+                    </span>
+
+                    {/* The figures, one per line with the icon that names the
+                        subject: a clock for the time, a downward arrow for the
+                        megabytes. Both are already in `icons.tsx`.
+
+                        The number comes first and the words after it, and the
+                        line cannot wrap. Written the other way round — *Hodinová
+                        nahrávka za 4 minuty* — it filled 175 px of a 198 px
+                        column, so a longer figure broke one card's foot and not
+                        the other's, and the alignment the whole layout rests on
+                        went with it. */}
+                    <span className="choice-foot">
+                      <span className="choice-stat">
+                        <LineIcon name="clock" size={14} />
+                        <b>{duration}</b> {t("wizard.quality.perHour")}
                       </span>
-                      {/* The recommendation, as a reason rather than a badge.
-                          `doporučeno` in a pill asserted; this argues, from the
-                          one fact the sentence above the cards has just shown
-                          the reader was actually read off their machine. */}
-                      {k === recommendedQuality(usesGpu) && (
-                        <span className="choice-reason">
-                          {t(usesGpu ? "wizard.quality.reasonGpu" : "wizard.quality.reasonCpu")}
+                      {/* A model already on the disk costs no download; the
+                          badge above has said why the line is missing. */}
+                      {!p?.complete && (
+                        <span className="choice-stat">
+                          <LineIcon name="download" size={14} />
+                          <b>{dataSize(p?.megabytes ?? 0)}</b> {t("wizard.quality.toDownload")}
                         </span>
                       )}
                     </span>
@@ -948,19 +977,22 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
             <h2 id="setup-dialog-title">
               {t(running ? "wizard.download.runningTitle" : "wizard.download.reviewTitle")}
             </h2>
-            {/* The dialog's one sentence, and on this step it is the total:
-                how many items and how many megabytes, which is what the reader
-                is about to agree to. It is a reduce over the same array the
-                download is built from, so the number agreed to and the number
-                fetched are one expression apart. Where there is nothing to
-                fetch it says so instead — a `Stáhne se 0 položek` over an empty
-                list would be arithmetic about nothing. */}
+            {/* **The summing sentence is gone.** It read *Stáhne se 5 položek,
+                dohromady 3,4 GB* — but the count is the list directly under it
+                and the size is on the button beside it, so the dialog's one
+                line was spending itself saying a third time what the screen
+                already said twice.
+
+                What stands here says what neither of them does: this happens
+                once, and afterwards the application does not need the internet.
+                While it runs it says the other thing nobody could tell from the
+                bar — that the window does not have to be watched.
+
+                Where there is nothing to fetch it still says so instead. */}
             <p>
               {selected.length === 0
                 ? t("wizard.download.nothingNeeded")
-                : tPlural("wizard.download.summary", selected.length, {
-                    size: dataSize(totalMb),
-                  })}
+                : t(running ? "wizard.download.runningText" : "wizard.download.reviewText")}
             </p>
             {errorBanner}
 
@@ -1003,13 +1035,7 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
                   )}
                 </div>
 
-                <DownloadListing
-                  ids={selected}
-                  items={items}
-                  progress={progress}
-                  view={view}
-                  onView={setView}
-                />
+                <DownloadListing ids={selected} items={items} progress={progress} view={view} />
 
                 <div className="dialog-footer">
                   <button className="button" onClick={() => api.cancelDownload()}>
@@ -1020,13 +1046,7 @@ export default function SetupWizard({ onComplete, onBack, required, missingModul
             ) : (
               <>
                 {selected.length > 0 && (
-                  <DownloadListing
-                    ids={selected}
-                    items={items}
-                    progress={progress}
-                    view={view}
-                    onView={setView}
-                  />
+                  <DownloadListing ids={selected} items={items} progress={progress} view={view} />
                 )}
 
                 <div className="dialog-footer">
@@ -1236,52 +1256,88 @@ function DownloadListing({
   items,
   progress,
   view,
-  onView,
 }: {
   ids: string[];
   items: DownloadComponent[];
   progress: Record<string, DownloadProgress>;
   view: ListingView;
-  onView: (view: ListingView) => void;
 }) {
   const { t, tDynamic } = useI18n();
   const { dataSize } = useFormats();
-  const running = ids.some((id) => progress[id]);
 
+  /* No `ListingSwitch` here, and it is not an oversight.
+   *
+   *  Choosing between a short and a long listing is a *setting*, and this is a
+   *  first run: one decision has already been asked for, and a second one about
+   *  how the answer is displayed competes with it. The by-hand listing in
+   *  Settings keeps the control, because that is a table somebody opens again
+   *  and again — this is five rows seen once.
+   *
+   *  The stored preference is untouched: `localStorage["download-view"]` still
+   *  decides what this listing shows, so anybody who chose the long one on the
+   *  listing page sees the long one here too. What went is the control, not the
+   *  choice. */
   return (
-    <>
-      <ListingSwitch view={view} onView={onView} />
+    <ul className="components">
+      {ids.map((id) => {
+        const item = items.find((x) => x.id === id);
+        const phase = progress[id]?.phase;
+        const done = phase === "complete";
+        const failed = phase === "error";
+        const live = !!phase && !done && !failed;
+        return (
+          <li key={id} className="component">
+            <div className="component-row">
+              {/* The same mark the module listing draws, in the same three
+                  states and the same two colours — a tick on grass when it is
+                  here, the accent arrow when it is not, the accent ring while
+                  bytes move. It was `hotovo` and `…` as words until
+                  2026-08-16, and three dots are not a state.
 
-      <ul className="download-list">
-        {ids.map((id) => {
-          const item = items.find((x) => x.id === id);
-          const phase = progress[id]?.phase;
-          return (
-            <li key={id} className={phase === "complete" ? "done" : phase === "error" ? "failed" : ""}>
-              <span className="download-row-text">
-                <span className="download-row-name">
+                  A `span`, not the listing's `button`: there, pressing the mark
+                  installs or cancels that one component. Here the whole run is
+                  one press and the footer owns it, so a mark that looked
+                  pressable would offer something it cannot do. */}
+              <span
+                className={`component-mark static ${
+                  failed ? "get" : live ? "running" : done ? "have" : "get"
+                }`}
+                aria-label={t(
+                  done
+                    ? "wizard.download.statusDone"
+                    : failed
+                      ? "wizard.download.statusError"
+                      : live
+                        ? "wizard.download.runningTitle"
+                        : "wizard.download.statusWaiting"
+                )}
+              >
+                {live && <ProgressRing percent={progress[id]?.percent ?? 0} />}
+                <ComponentMarkGlyph running={live} complete={done} />
+              </span>
+
+              <span className="component-text">
+                <span className="component-name">
                   {item ? tDynamic(item.name_code, item.id) : id}
                 </span>
                 {view === "full" && (
                   <span className="small-text">{tDynamic(item?.description_code ?? "", "")}</span>
                 )}
               </span>
-              <span className="download-row-side">
-                {running
-                  ? phase === "complete"
-                    ? t("wizard.download.statusDone")
-                    : phase === "error"
-                      ? t("wizard.download.statusError")
-                      : phase
-                        ? "…"
-                        : t("wizard.download.statusWaiting")
-                  : dataSize(item?.megabytes ?? 0)}
+
+              {/* Once the bytes are moving, how big it was is not the question. */}
+              <span className="component-size">
+                {live
+                  ? t("wizard.download.percent", { percent: progress[id]?.percent ?? 0 })
+                  : failed
+                    ? t("wizard.download.statusError")
+                    : dataSize(item?.megabytes ?? 0)}
               </span>
-            </li>
-          );
-        })}
-      </ul>
-    </>
+            </div>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 

@@ -1494,6 +1494,7 @@ export default function App() {
             missingModule={missingModule}
             onBack={leaveWizard}
             onComplete={finishWizard}
+            onError={reportError}
           />
         </Suspense>
       )}

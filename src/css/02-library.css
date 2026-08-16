@@ -94,16 +94,36 @@
   width: 100%; max-width: 900px; margin-inline: auto;
 }
 
-.warning {
+/* Two banners, one frame, two meanings — so the geometry is shared and only the
+   colour differs. `.warning` is for something that went wrong and still carries
+   the destructive palette; the wizard's failed download is one. `.setup-notice`
+   is for setup that has not finished, where nothing is wrong at all, so it
+   takes the accent: it points somewhere rather than sounding an alarm.
+
+   They were one rule until 2026-08-16. The archive's banner wore the red one
+   and read as a fault report about an application that had simply not
+   downloaded its models yet. */
+.warning, .setup-notice {
   display: flex; gap: 16px; align-items: flex-start; justify-content: space-between;
-  border: 1px solid hsl(var(--ds-destructive) / 0.25);
-  background: var(--danger-light);
   border-radius: var(--r-large); padding: 15px 18px; margin-bottom: 20px;
 }
+.warning {
+  border: 1px solid hsl(var(--ds-destructive) / 0.25);
+  background: var(--danger-light);
+}
+.setup-notice {
+  border: 1px solid var(--accent-line);
+  background: var(--accent-light);
+}
+.setup-notice strong { font-weight: 700; }
+/* The sentence sits under the heading the way it does in a dialog: 4 px, so the
+   two read as one statement rather than as a heading with a paragraph. */
+.setup-notice p { margin: 4px 0 0; color: var(--text-quiet); line-height: 1.5; }
 /* Standing above the hero rather than inside the list, the notice is the first
    thing under the application bar and needs the hero's own inset — 40 px. It
    keeps its 20 px below, which is what separates it from the hero's 40. */
-.library > .warning { margin-top: 40px; }
+.library > .warning,
+.library > .setup-notice { margin-top: 40px; }
 .warning strong { font-weight: 700; }
 .warning ul { margin: 6px 0 0; padding-left: 18px; color: var(--text-quiet); }
 

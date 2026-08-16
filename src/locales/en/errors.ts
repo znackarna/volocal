@@ -80,7 +80,7 @@ export const enErrors: Partial<Record<keyof typeof csErrors, string>> = {
   "errors.online_import.download_failed_details": "The online video could not be downloaded:\n{details}",
   "errors.online_import.no_media_file": "The download finished, but no audio file was found",
   "errors.download.unknown_component": "Unknown module: {component}",
-  "errors.download.already_running": "A download is already running.",
+  "errors.download.already_running": "A download is already running — wait for it to finish.",
   "errors.download.component_busy": "In use right now. It can be deleted when the work finishes.",
   "errors.download.cannot_remove":
     "The application does not know which files belong to this component. Download it again and it can be deleted.",

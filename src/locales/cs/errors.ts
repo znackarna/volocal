@@ -115,7 +115,7 @@ export const csErrors = {
 
   // Downloading modules.
   "errors.download.unknown_component": "Neznámý modul: {component}",
-  "errors.download.already_running": "Stahování už běží.",
+  "errors.download.already_running": "Stahování už probíhá, počkejte na jeho dokončení.",
   "errors.download.component_busy": "Právě se používá. Až práce skončí, půjde smazat.",
   "errors.download.cannot_remove":
     "Aplikace neví, které soubory k této součásti patří. Po opětovném stažení " +

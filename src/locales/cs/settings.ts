@@ -36,10 +36,10 @@ export const csSettings = {
   "settings.modules.title": "Modely",
   "settings.modules.description":
     "Modely a nástroje pro lokální přepis. Po stažení zůstávají v počítači.",
-  "settings.modules.missingRequired.one": "Chybí {count} položka nutné pro přepis.",
+  "settings.modules.missingRequired.one": "Chybí {count} položka nutná pro přepis.",
   "settings.modules.missingRequired.few": "Chybí {count} položky nutné pro přepis.",
   "settings.modules.missingRequired.many": "Chybí {count} položky nutné pro přepis.",
-  "settings.modules.missingRequired.other": "Chybí {count} položek nutné pro přepis.",
+  "settings.modules.missingRequired.other": "Chybí {count} položek nutných pro přepis.",
   "settings.modules.complete": "Vše potřebné je stažené.",
   "settings.modules.installedCount": "Stažené součásti",
   "settings.modules.installedOf": "{count} z {total}",
