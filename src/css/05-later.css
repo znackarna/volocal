@@ -449,6 +449,9 @@ button.current > .row-play { color: var(--accent); }
 .about-author {
   display: flex; align-items: center; justify-content: flex-end; gap: 9px;
 }
+/* Nothing draws this at the moment — the publisher's mark is out of the `Autor`
+   row for now, not for good. The rule is kept with its measurements so putting
+   the mark back is one line in `Settings.tsx` rather than a re-derivation. */
 .znackarna-mark { display: block; height: 14px; width: auto; flex: 0 0 auto; }
 
 /* -------------------------------------------------------------- about */

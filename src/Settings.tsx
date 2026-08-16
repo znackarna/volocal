@@ -15,7 +15,6 @@ import ConfirmationDialog from "./ConfirmationDialog";
 import type { ConfirmationRequest } from "./ConfirmationDialog";
 import CountdownRing from "./CountdownRing";
 import InfoNote from "./InfoNote";
-import { ZnackarnaMark } from "./Brand";
 import { LineIcon, ModelMark, type LineIconName } from "./icons";
 import Select from "./Select";
 import { useI18n, type AppLanguage } from "./i18n";
@@ -2410,19 +2409,19 @@ function About({ onError }: { onError: (message: string) => void }) {
               <span className="about-mark"><LineIcon name="author" size={17} /></span>
               {t("settings.about.author")}
             </dt>
-            {/* The drawn mark rather than the name set in the interface font.
-                This is the row that answers *who made this*, and until now it
-                answered in type while the publisher has a drawing of its own —
-                the same three colours the product's cube was built from before
-                it left the interface.
+            {/* The publisher's drawn mark stood here beside the name and is out
+                again, on the owner's word and for now rather than for good.
+                `ZnackarnaMark` stays in `Brand.tsx` unimported, the way
+                `mark.svg` is kept: it is still the publisher's mark and putting
+                it back is one line.
 
-                The name stays beside it rather than being replaced by it: a
-                mark alone says who to somebody who already knows, and this row
-                exists for everybody else. The accessible name is on the drawing,
-                so a screen reader hears it once and not twice. */}
+                **The `aria-hidden` on the name went with it, and had to.** The
+                accessible name used to live on the drawing so a screen reader
+                heard the publisher once rather than twice; with the drawing gone
+                that argument takes the name away entirely and the row answering
+                *who made this* answers nobody. */}
             <dd className="about-author">
-              <ZnackarnaMark label={PUBLISHER} />
-              <span aria-hidden>{PUBLISHER}</span>
+              <span>{PUBLISHER}</span>
             </dd>
           </div>
           <div className="about-row">

@@ -11,6 +11,13 @@ altered, not how, not which file. Entries before 1.2.6 are written the old way
 and are left as they are; they are not a model for the next one. The mechanism
 belongs in `docs/history/`, which is what that folder is for.
 
+## 1.2.7 — 17 August 2026
+
+- **Adding audio from the web is no longer called video.** Podcasts and music
+  services belong there as much as YouTube, and the dialog now says so.
+- **The language editor says what it does for you**, not what it is.
+- Small visual tidy-up in `Informace`.
+
 ## 1.2.6 — 17 August 2026
 
 - **The mark in the archive is alive.** It blinks, smiles to itself now and
