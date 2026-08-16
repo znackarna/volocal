@@ -11,6 +11,11 @@ altered, not how, not which file. Entries before 1.2.6 are written the old way
 and are left as they are; they are not a model for the next one. The mechanism
 belongs in `docs/history/`, which is what that folder is for.
 
+## 1.2.10 — 17 August 2026
+
+- **Fixes to the new first run:** the model names sit where they belong, the
+  shorter estimate says its number, and no button is offered that does nothing.
+
 ## 1.2.9 — 17 August 2026
 
 - **The first run asks one question and answers it clearly** — two models side

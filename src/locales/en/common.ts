@@ -33,6 +33,6 @@ export const enCommon: Partial<Record<keyof typeof csCommon, string>> = {
   "common.count.item.other": "{count} items",
   "common.count.file.one": "{count} file",
   "common.count.file.other": "{count} files",
-  "common.count.minute.one": "about a minute",
-  "common.count.minute.other": "about {count} minutes",
+  "common.count.minute.one": "{count} minute",
+  "common.count.minute.other": "{count} minutes",
 };

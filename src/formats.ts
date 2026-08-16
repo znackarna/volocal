@@ -17,8 +17,11 @@ export function useFormats() {
       transcriptCount: (count: number) => tPlural("common.count.transcript", count),
       itemCount: (count: number) => tPlural("common.count.item", count),
       fileCount: (count: number) => tPlural("common.count.file", count),
-      /** Rough estimate shown in the setup wizard. */
-      approximateMinutes: (count: number) => tPlural("common.count.minute", count),
+      /** Minutes with their number, for the wizard's cards. It said *asi
+       *  minutu* until 2026-08-17 — no numeral at all in the singular, which
+       *  beside *4 minuty* on the next card read as a fault, and a second
+       *  *asi* over the note that already calls the times approximate. */
+      minutes: (count: number) => tPlural("common.count.minute", count),
 
       /** Total length of everything in the archive, rounded to whole minutes. */
       archiveDuration: (seconds: number) => {

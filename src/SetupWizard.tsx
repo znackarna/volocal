@@ -271,7 +271,7 @@ export default function SetupWizard({
   onError,
 }: Props) {
   const { t, tDynamic, tPlural } = useI18n();
-  const { approximateMinutes, dataSize } = useFormats();
+  const { minutes, dataSize } = useFormats();
   const userMessage = useUserMessage();
   const progressMessage = useProgressMessage();
 
@@ -890,7 +890,7 @@ export default function SetupWizard({
             <div className="choices setup-choices">
               {(["best", "fastest"] as Quality[]).map((k) => {
                 const p = items.find((x) => x.id === MODELS[k].component);
-                const duration = approximateMinutes(estimatedMinutes(k, usesGpu));
+                const duration = minutes(estimatedMinutes(k, usesGpu));
                 return (
                   <button
                     key={k}
@@ -1313,7 +1313,15 @@ function DownloadListing({
                 )}
               >
                 {live && <ProgressRing percent={progress[id]?.percent ?? 0} />}
-                <ComponentMarkGlyph running={live} complete={done} />
+                {/* `running` is passed as false on purpose, so the glyph stays
+                    the arrow rather than becoming the square.
+                    **The square means *press to stop*** — in the module listing
+                    this mark is a button and that is what it does. Here it is a
+                    `span`, so drawing the square offered a control that does
+                    nothing: an icon promising an action it cannot perform.
+                    The ring around it already says the row is working, and
+                    stopping the run is the footer's button. */}
+                <ComponentMarkGlyph running={false} complete={done} />
               </span>
 
               <span className="component-text">

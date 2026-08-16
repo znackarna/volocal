@@ -586,7 +586,12 @@
 .setup-choices .choice-top {
   padding: 15px 15px 14px; display: flex; flex-direction: column; flex: 1 1 auto;
 }
-.setup-choices .choice-head { display: flex; align-items: center; gap: 10px; }
+/* `justify-content` musí být uvedeno, ne zděděno: sdílené `.choice-head` má
+   `space-between`, protože jinde na kartě stojí vlevo jméno a vpravo velikost.
+   Tady vpravo nestojí nic, takže to nadpis odstrčilo k pravému okraji. */
+.setup-choices .choice-head {
+  display: flex; justify-content: flex-start; align-items: center; gap: 10px;
+}
 .setup-choices .choice-icon { width: 32px; height: 32px; }
 .setup-choices .choice-title { font-size: 16px; flex-wrap: wrap; row-gap: 4px; }
 .setup-choices .choice-top .small-text { margin-top: 9px; line-height: 1.45; }

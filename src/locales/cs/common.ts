@@ -48,10 +48,10 @@ export const csCommon = {
   "common.count.file.many": "{count} souboru",
   "common.count.file.other": "{count} souborů",
 
-  "common.count.minute.one": "asi minutu",
-  "common.count.minute.few": "asi {count} minuty",
-  "common.count.minute.many": "asi {count} minuty",
-  "common.count.minute.other": "asi {count} minut",
+  "common.count.minute.one": "{count} minuta",
+  "common.count.minute.few": "{count} minuty",
+  "common.count.minute.many": "{count} minuty",
+  "common.count.minute.other": "{count} minut",
 } as const;
 
 export const csCommonContext: Partial<Record<keyof typeof csCommon, string>> = {
@@ -60,6 +60,9 @@ export const csCommonContext: Partial<Record<keyof typeof csCommon, string>> = {
   "common.count.segment.one":
     "Úsek přepisu — jeden časovaný blok textu mezi dvěma značkami. Anglicky se používá „segment“.",
   "common.count.minute.one":
-    "Odhad doby přepisu v průvodci. Věta pokračuje jako „Přepis hodinové nahrávky potrvá asi minutu.“",
+    "Odhad doby přepisu na kartě v průvodci; za ním následuje „na hodinu " +
+    "záznamu“. Tvar pro jednu stál „asi minutu“ a byl dvakrát špatně: zahodil " +
+    "číslovku, takže vedle „4 minuty“ na sousední kartě vypadal jako chyba, " +
+    "a řekl „asi“ podruhé — poznámka pod kartami už říká, že jsou časy přibližné.",
   "common.unit.hoursMinutes": "Celková délka nahrávek v archivu, například „2 h 05 min“.",
 };
