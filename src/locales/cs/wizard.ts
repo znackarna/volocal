@@ -51,6 +51,10 @@ export const csWizard = {
   // attention spent on the one thing the reader cannot act on differently.
   "wizard.download.downloadedBadge": "staženo",
   "wizard.download.runningTitle": "Stahuji, co je potřeba",
+  // The button the sentence above has been promising. It closes the dialog and
+  // leaves the run alone — the download is in the backend and reports into the
+  // bar in the corner, which is where it belongs once this is out of the way.
+  "wizard.download.background": "Stahovat na pozadí",
   "wizard.download.reviewTitle": "Co se stáhne",
   // What the summing sentence used to be — *Stáhne se 5 položek, dohromady
   // 3,4 GB* — was the list below it and the button beside it, said a third

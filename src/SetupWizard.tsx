@@ -1024,9 +1024,22 @@ export default function SetupWizard({
 
                 <DownloadListing ids={selected} items={items} progress={progress} view={view} />
 
+                {/* Two ways out of a running download, and until now there was
+                    one. The sentence above says *můžete nechat běžet na pozadí*
+                    and there was no button that did it — the only control was
+                    the one that stops the download, so leaving meant losing it.
+
+                    `onBack` is what the dialog's other exits already use, and it
+                    does not touch the run: the download lives in the backend and
+                    keeps going, reporting into the bar in the corner. That bar
+                    duplicates this dialog while both are on screen, and that is
+                    the point of the button — after it, only one of them is. */}
                 <div className="dialog-footer">
                   <button className="button" onClick={() => api.cancelDownload()}>
                     {t("common.stop")}
+                  </button>
+                  <button className="button primary" onClick={onBack}>
+                    {t("wizard.download.background")}
                   </button>
                 </div>
               </>
