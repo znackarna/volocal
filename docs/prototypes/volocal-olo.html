@@ -254,9 +254,22 @@
      `transform-box: fill-box` je tu to podstatné: bez něj se `transform-origin`
      počítá z viewBoxu, takže by se obě oči zmáčkly k jednomu bodu mezi sebou.
      S ním má každé oko svůj vlastní střed a mrkne na místě. */
-  .alive-eye { transform-box: fill-box; transform-origin: center; }
-  .alive-eye { transition: transform var(--blink) cubic-bezier(.4,0,.6,1); }
-  .alive.blinking .alive-eye { transform: scaleY(.08); }
+  /* Mrka jen dira, ne cele pismeno — *myslel jsem, ze mrknou jen ty prazdne
+     plochy v pismenu o, ne i obrys; takhle je to docela okate*.
+
+     Obrys tedy stoji a zaviraji se protilehle plochy uvnitr. Jde to proto, ze
+     `o` je jedna cesta ze dvou podcest: vnejsi obrys a vnitrni dira. Rozdelena
+     na dve, obrys se vykresli a dira se z nej vyreze maskou — a hybe se ta
+     maska. Diry tim zustanou pruhledne, ne prebarvene na pozadi, takze pod nimi
+     prosvita totez co predtim.
+
+     `.08` a ne nula: zavrena dira necha misto sebe uzkou skulinu, ktera cte jako
+     zavrene oko. Uplna nula by z oka udelala plnou tecku. */
+  .alive-pupil {
+    transform-box: fill-box; transform-origin: center;
+    transition: transform var(--blink) cubic-bezier(.4,0,.6,1);
+  }
+  .alive.blinking .alive-pupil { transform: scaleY(.08); }
   /* Úsměv se prodlužuje po své vlastní kružnici, ne že by se nafukoval.
      Poloměr zůstává 8,812 a mění se jen to, kolik oblouku je vidět — což je
      rozdíl mezi „usměje se víc" a „obličej se přiblížil".
@@ -276,7 +289,7 @@
     stroke-dasharray: 100 200;
     transition: stroke-dashoffset var(--grin) cubic-bezier(.34,1.15,.64,1);
   }
-  .alive.still .alive-eye { transition: none; transform: none; }
+  .alive.still .alive-pupil { transition: none; transform: none; }
   .alive.still .alive-smile { transition: none; }
   .alive-svg { display: block; height: calc(26.2px * var(--au, 2.4)); width: auto; }
   .alive-svg path { fill: var(--ink); }
@@ -640,7 +653,9 @@
 
     <div class="panel">
       <ol class="q">
-        <li><div><b><code>transform-box: fill-box</code> je tu to podstatné.</b><p>Bez něj se střed počítá z celého viewBoxu, takže by se obě oči zmáčkly k jednomu bodu mezi sebou. S ním má každé oko svůj vlastní střed a mrkne na místě.</p></div></li>
+        <li><div><b>Mrká jen díra, obrys stojí.</b><p>Písmeno <code>o</code> je jedna cesta ze dvou podcest — vnější obrys a díra. Rozdělená na dvě se obrys vykreslí a díra se z něj vyřízne maskou; hýbe se ta maska. Díry tak zůstanou průhledné, ne přebarvené na pozadí, takže pod nimi prosvítá totéž co předtím.</p></div></li>
+        <li><div><b>Zavřená díra nechá skulinu, ne tečku.</b><p><code>scaleY(.08)</code> místo nuly: úzká štěrbina čte jako zavřené oko, kdežto úplná nula by z <code>o</code> udělala plný puntík.</p></div></li>
+        <li><div><b><code>transform-box: fill-box</code> je tu to podstatné.</b><p>Bez něj se střed počítá z celého viewBoxu, takže by se obě díry zmáčkly k jednomu bodu mezi sebou. S ním má každá svůj vlastní střed a zavře se na místě.</p></div></li>
         <li><div><b>Úsměv se prodlužuje, nenafukuje.</b><p>První pokus ho zvětšoval kolem středu jeho oblouku, což mění poloměr — a to čte jako přiblížení obličeje, ne jako širší úsměv. Teď zůstává na téže kružnici a roste jen délka oblouku, každá půlka od spodku ven. Rovné čelo tahu je s původní výplní totožné, protože její konce jsou seříznuté radiálně.</p></div></li>
         <li><div><b>Rozptyl, ne pevný interval.</b><p>Skutečné oko nemrká na metronom. Interval kolísá o &plusmn;40 %, jinak se ten rytmus dá po chvíli předvídat a začne rušit víc než samotný pohyb.</p></div></li>
         <li><div><b>Otevřené: mrká i během přepisu?</b><p>Tam je značka otočená na bok a mrknutí by bylo vodorovné stlačení válce. Nejspíš se má na tu dobu zastavit — stroj nemrká.</p></div></li>
@@ -1052,13 +1067,27 @@
 
 
   const alive = document.getElementById('alive');
+  /* Kazde `o` je jedna cesta ze dvou podcest oddelenych `ZM`: vnejsi obrys a
+     dira. Rozdelene na dve muze obrys stat a dira se hybat. */
+  const eyeParts = (d) => {
+    const [outer, inner] = d.split('ZM');
+    return [outer + 'Z', 'M' + inner];
+  };
+  const eye = (d, id) => {
+    const [outer, inner] = eyeParts(d);
+    return '<mask id="' + id + '" maskUnits="userSpaceOnUse" x="6" y="-6" width="44" height="38">' +
+      '<rect x="6" y="-6" width="44" height="38" fill="#fff"/>' +
+      '<path class="alive-pupil" d="' + inner + '" fill="#000"/>' +
+      '</mask>' +
+      '<path d="' + outer + '" mask="url(#' + id + ')"/>';
+  };
   alive.innerHTML =
     '<svg class="alive-svg" viewBox="11.5 -1 32.3 26.2" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="olo">' +
-    '<path class="alive-eye" d="' + P.o1 + '"/>' +
+    eye(P.o1, 'eye-left') +
     '<path d="' + P.l1 + '"/>' +
-    '<path class="alive-eye" d="' + P.o2 + '"/>' +
-    '<path class="alive-smile" pathLength="100" d="M27.66 22.622A8.812 8.812 0 0 1 19.148 16.091"/>' +
-    '<path class="alive-smile" pathLength="100" d="M27.66 22.622A8.812 8.812 0 0 0 36.172 16.091"/>' +
+    eye(P.o2, 'eye-right') +
+    '<path class="alive-smile" pathLength="100" d="M28.121 22.610A8.812 8.812 0 0 1 19.148 16.091"/>' +
+    '<path class="alive-smile" pathLength="100" d="M27.199 22.610A8.812 8.812 0 0 0 36.172 16.091"/>' +
     '</svg>';
 
   let blinkTimer = null, grinTimer = null;
@@ -1066,11 +1095,16 @@
      zacne po chvili rusit vic nez samotny pohyb. */
   const jitter = (ms) => ms * (0.6 + Math.random() * 0.8);
 
-  /* Kazda pulka je nakreslena na 75 stupnu a videt je jen jejich cast, takze
-     uhel prevedeny na dashoffset je 100 minus jeho podil ze 75. V klidu 44,9,
-     coz je presne to, co ma puvodni kresba. */
-  const SMILE_ARC = 75, SMILE_REST = 44.9;
-  const smileOffset = (deg) => (100 - (deg / SMILE_ARC) * 100).toFixed(2);
+  /* Kazda pulka zacina o 3 stupne za spodkem, tedy uz na druhe strane stredu, a
+     je nakreslena na 78. Ten prekryv je kvuli spare: dve rovna cela na tomtez
+     bode se rasteruji kazde zvlast a jejich okraje se antialiasingem neslozi do
+     plne cerni, takze uprostred usmevu zustavala vlaskova cara. Prekryv je
+     stejny inkoust, takze videt neni.
+
+     Videt je tedy (3 + uhel) ze 78. V klidu 44,9 stupne, presne to, co ma
+     puvodni kresba. */
+  const SMILE_ARC = 78, SMILE_LAP = 3, SMILE_REST = 44.9;
+  const smileOffset = (deg) => (100 - ((deg + SMILE_LAP) / SMILE_ARC) * 100).toFixed(2);
   const setSmile = (deg) => {
     alive.querySelectorAll('.alive-smile').forEach(
       (n) => n.style.strokeDashoffset = smileOffset(deg)
