@@ -764,6 +764,14 @@ export default function SettingsScreen({
     [n, save]
   );
 
+  /* **Above the early return below, and that is the whole of why it is here.**
+     It was declared beside `chooseEditor`, which is a hundred lines past
+     `if (!n) return` — so on the render before the settings arrive React counted
+     one hook fewer than on the render after, and the screen stopped opening at
+     all. TypeScript cannot see it; the rule is that every hook runs on every
+     render, without exception. */
+  const [editorConfirm, setEditorConfirm] = useState<ConfirmationRequest | null>(null);
+
   if (!n) return <main className="settings"><p>{t("common.loading")}</p></main>;
 
   const missingRequired = check?.issues ?? [];
@@ -883,8 +891,6 @@ export default function SettingsScreen({
    *  what was asked for, `resolve_editor_model` in `tools.rs` falls back to any
    *  model that is actually there, and a listener that had to survive the
    *  reader walking to another screen would not. */
-  const [editorConfirm, setEditorConfirm] = useState<ConfirmationRequest | null>(null);
-
   const chooseEditor = async (id: string, needs: string[]) => {
     const apply = async () => {
       try {
