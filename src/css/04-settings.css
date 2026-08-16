@@ -1014,7 +1014,7 @@
    it, and no content block in a dialog carries a `margin-top`. 18, not the 20
    `.warning` gives itself in the archive, because in here the number belongs to
    the dialog's rhythm and not to the banner. */
-.setup-dialog > .warning { margin-bottom: 18px; }
+.setup-dialog > .setup-notice { margin-bottom: 18px; }
 .ai-edit-note {
   display: flex; align-items: flex-start; gap: 8px;
   margin-top: 14px !important;

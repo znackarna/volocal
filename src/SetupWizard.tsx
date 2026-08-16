@@ -744,7 +744,7 @@ export default function SetupWizard({
      application's own notice bar — see `onError` on `Props` for why the split
      is not laziness: that bar is behind the scrim while a dialog is open. */
   const errorBanner = !listing && error && step !== STEP_DONE && (
-    <div className="warning">
+    <div className="setup-notice trouble">
       <div>
         <strong>{t("wizard.download.failedTitle")}</strong>
         <p className="small-text">{error}</p>

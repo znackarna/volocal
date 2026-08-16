@@ -40,7 +40,7 @@ export const csWizard = {
   // wanted. Neither is a question for a first run.
 
   // ------------------------------------------------------ 4. choosing and downloading
-  "wizard.download.failedTitle": "Stahování selhalo",
+  "wizard.download.failedTitle": "Stahování se nedokončilo",
   "wizard.download.dismissError": "Rozumím",
   // `wizard.download.recommendedBadge` — the bare word in a pill — was retired
   // once and is back as `wizard.quality.recommended`. The argument against it
@@ -150,7 +150,11 @@ export const csWizardContext: Partial<Record<keyof typeof csWizard, string>> = {
     "Táž věta, když stahování běží. „Na pozadí“ znamená, že se okno nemusí " +
     "hlídat, ne že se dá zavřít.",
 
-  "wizard.download.dismissError": "Tlačítko, kterým uživatel zavře hlášku o selhaném stahování.",
+    "wizard.download.failedTitle":
+    "Nadpis cedule, když se stahování nedokončilo. Ne „selhalo“: nespadl " +
+    "program, nedojel soubor, a tlačítko, kterým se to zkusí znovu, stojí na " +
+    "téže obrazovce. Pod nadpisem je hláška, která říká co a proč.",
+  "wizard.download.dismissError": "Tlačítko, kterým uživatel tu cedulku zavře.",
   "wizard.download.downloadedBadge":
     "Odznak u volby, jejíž součásti už jsou na disku. Malé písmeno je záměr.",
   "wizard.download.reviewTitle":

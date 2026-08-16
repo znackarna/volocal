@@ -11,7 +11,7 @@ export const enWizard: Partial<Record<keyof typeof csWizard, string>> = {
   "wizard.quality.toDownload": "to download",
   "wizard.quality.recommended": "Recommended",
   "wizard.quality.changeableNote": "The times are approximate. The model can be changed later; transcripts already made stay as they are.",
-  "wizard.download.failedTitle": "Download failed",
+  "wizard.download.failedTitle": "The download did not finish",
   "wizard.download.dismissError": "Got it",
   "wizard.download.downloadedBadge": "downloaded",
   "wizard.download.runningTitle": "Fetching what is needed",
