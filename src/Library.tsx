@@ -56,6 +56,15 @@ interface Props {
   /** Opens the setup wizard, which is what finishes an unfinished install.
    *  Not Settings: getting there is the detour that loses people. */
   onFinishSetup: () => void;
+  /** Something is being fetched right now.
+   *
+   *  The notice below says setup is unfinished and offers to finish it, and
+   *  both halves stop being true the moment a download is running: it is
+   *  finishing, and pressing the button would invite an errand already under
+   *  way. It stays on screen — the archive still cannot transcribe, and this is
+   *  the way back into the dialog once it has been left — but it says the state
+   *  it is in and its button offers to look rather than to start. */
+  fetching: boolean;
   automatic: boolean;
   onAutomatic: (enabled: boolean) => void;
   onTranscriptionLanguage: (id: string, language: string) => void;
@@ -468,6 +477,7 @@ export default function Library({
   onRename,
   onAdd,
   onFinishSetup,
+  fetching,
   automatic,
   onAutomatic,
   onTranscriptionLanguage,
@@ -683,11 +693,11 @@ export default function Library({
       {issues.length > 0 && (
         <div className="setup-notice">
           <div>
-            <strong>{t("library.issues.title")}</strong>
-            <p>{t("library.issues.text")}</p>
+            <strong>{t(fetching ? "library.issues.fetchingTitle" : "library.issues.title")}</strong>
+            <p>{t(fetching ? "library.issues.fetchingText" : "library.issues.text")}</p>
           </div>
           <button className="button primary" onClick={onFinishSetup}>
-            {t("library.issues.finish")}
+            {t(fetching ? "library.issues.watch" : "library.issues.finish")}
           </button>
         </div>
       )}

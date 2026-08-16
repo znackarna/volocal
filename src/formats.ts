@@ -38,7 +38,14 @@ export function useFormats() {
       },
 
       /** Download sizes. The decimal separator follows the active language, so
-       *  this must never be produced by a manual string replacement. */
+       *  this must never be produced by a manual string replacement.
+       *
+       *  **Megabytes are whole.** `formatNumber` without a limit takes
+       *  `Intl.NumberFormat`'s default of three fraction digits, which never
+       *  showed while everything passed through here was a catalogue size — a
+       *  round number written by hand. What is on the disk is measured, and the
+       *  used-space row read `535,249 MB`: three decimals of a megabyte, which
+       *  is half a kilobyte of precision about several hundred megabytes. */
       dataSize: (megabytes: number) =>
         megabytes >= 1024
           ? t("common.unit.gigabytes", {
@@ -47,7 +54,9 @@ export function useFormats() {
                 maximumFractionDigits: 1,
               }),
             })
-          : t("common.unit.megabytes", { value: formatNumber(megabytes) }),
+          : t("common.unit.megabytes", {
+              value: formatNumber(megabytes, { maximumFractionDigits: 0 }),
+            }),
     }),
     [t, tPlural, formatNumber]
   );

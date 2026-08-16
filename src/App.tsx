@@ -1356,6 +1356,7 @@ export default function App() {
           aiProgress={aiProgress}
           liveSegments={liveSegments}
           issues={blockingIssues}
+          fetching={!!downloading}
           watchCandidates={watchCandidates}
           watchDecisionRunning={watchDecisionRunning}
           onTranscribeWatchCandidates={transcribeWatchCandidates}
