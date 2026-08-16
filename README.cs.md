@@ -276,8 +276,8 @@ odmítne text napsaný přímo v komponentě. Čeština je zdrojový jazyk a vyk
 | Deno | MIT |
 | Geist, Inter, Schibsted Grotesk, Literata, Source Serif 4 | SIL OFL 1.1 |
 
-Všechno kromě modelů Gemma je open source. Gemma se řídí podmínkami Googlu a
-FFmpeg licencí GPL v3 — s tím počítejte, když přenosnou kopii předáváte dál.
+Vše kromě modelů Gemma je open source. Gemma se řídí licencí Google a FFmpeg
+licencí GPL v3.
 
 ---
 
