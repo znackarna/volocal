@@ -906,6 +906,18 @@
 
 .dialog-overlay {
   position: fixed; inset: 0; z-index: 60;
+  /* A slight blur under the veil. The scrim alone darkens the window and leaves
+     every edge behind the dialog as sharp as the dialog's own, so two planes
+     compete for the same focus; taking the detail out of the far one is what
+     makes it read as far.
+
+     3 px, which is the amount the archive's own dissolve uses against its
+     sticky header — the same effect at the same strength rather than a second
+     number for the same idea. This is a `position: fixed` element covering the
+     whole window, so it has none of the compositing trouble that rule carries
+     a warning about: nothing here moves under it. */
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
   /* A veil is dark in both palettes. It used to be `--ds-foreground / 0.35`,
      which is the *text* colour — dark on the light palette, and near-white on
      the dark one, where it lightened the page by 35 % behind a dialog that is

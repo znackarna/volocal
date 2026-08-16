@@ -1565,6 +1565,7 @@ export default function App() {
                where Settings opens for good. */
             initialTab={settingsTab ?? undefined}
             foundUpdate={foundUpdate}
+            fetching={!!downloading}
             onComplete={() => {
               loadToolCheck();
               loadAppearance();

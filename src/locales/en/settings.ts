@@ -77,6 +77,8 @@ export const enSettings: Partial<Record<keyof typeof csSettings, string>> = {
   "settings.modules.description": "Models and tools for local transcription. Once downloaded they stay on your computer.",
   "settings.modules.missingRequired.one": "{count} item needed for transcription is missing.",
   "settings.modules.missingRequired.other": "{count} items needed for transcription are missing.",
+  "settings.modules.fetching": "Fetching what is needed.",
+  "settings.modules.watch": "Show progress",
   "settings.modules.complete": "Everything needed is downloaded.",
   "settings.modules.installedCount": "Downloaded components",
   "settings.modules.installedOf": "{count} of {total}",

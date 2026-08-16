@@ -40,6 +40,8 @@ export const csSettings = {
   "settings.modules.missingRequired.few": "Chybí {count} položky nutné pro přepis.",
   "settings.modules.missingRequired.many": "Chybí {count} položky nutné pro přepis.",
   "settings.modules.missingRequired.other": "Chybí {count} položek nutných pro přepis.",
+  "settings.modules.fetching": "Stahuji, co je potřeba.",
+  "settings.modules.watch": "Zobrazit průběh",
   "settings.modules.complete": "Vše potřebné je stažené.",
   "settings.modules.installedCount": "Stažené součásti",
   "settings.modules.installedOf": "{count} z {total}",

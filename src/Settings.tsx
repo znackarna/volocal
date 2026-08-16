@@ -75,6 +75,13 @@ interface Props {
    *  panel. Carried rather than looked up: the archive is what runs that check
    *  and this screen has no other way to know its answer. */
   foundUpdate?: { version: string; notes: string } | null;
+  /** Something is being fetched right now.
+   *
+   *  Without it the modules card says a component is missing and offers
+   *  *Doplnit* while that very component is coming down, with the bar in the
+   *  corner counting it at the same moment. The count is not wrong; the offer
+   *  is, because the errand it proposes is already under way. */
+  fetching: boolean;
 }
 
 /* `EDITOR_CHOICES` stood here: three cards, `Úsporná`, `Doporučená`,
@@ -449,6 +456,7 @@ export default function SettingsScreen({
   onToModule,
   initialTab,
   foundUpdate,
+  fetching,
 }: Props) {
   const labels = useLabels();
   const formats = useFormats();
@@ -1090,8 +1098,17 @@ export default function SettingsScreen({
           </dl>
         )}
 
+        {/* Three states, not two. What is missing, what is arriving, and what is
+            complete — and until 2026-08-17 the middle one wore the clothes of
+            the first: *Chybí 1 položka nutná pro přepis* beside *Doplnit*,
+            while the bar in the corner counted that same item to 25 %. The
+            count was true and the button was not, and a button offering an
+            errand already under way is the fault this day has spent itself
+            on. */}
         <div className="settings-action-row spaced">
-          {missingRequired.length > 0 ? (
+          {fetching ? (
+            <InfoNote compact>{t("settings.modules.fetching")}</InfoNote>
+          ) : missingRequired.length > 0 ? (
             <span className="warning-row">
               {tPlural("settings.modules.missingRequired", missingRequired.length)}
             </span>
@@ -1099,12 +1116,14 @@ export default function SettingsScreen({
             <InfoNote compact>{t("settings.modules.complete")}</InfoNote>
           )}
           <button
-            className={`button ${missingRequired.length > 0 ? "primary" : ""}`}
+            className={`button ${!fetching && missingRequired.length > 0 ? "primary" : ""}`}
             onClick={() => onToModule()}
           >
-            {missingRequired.length > 0
-              ? t("settings.modules.add")
-              : t("settings.modules.manage")}
+            {fetching
+              ? t("settings.modules.watch")
+              : missingRequired.length > 0
+                ? t("settings.modules.add")
+                : t("settings.modules.manage")}
           </button>
         </div>
 
