@@ -219,7 +219,6 @@ export default function Detail({
    *  the last one written was kept, and goes back there as it is typed. */
   const [customPrompt, setCustomPrompt] = useState("");
   /** What Settings last said, so typing is told apart from loading. */
-  const storedPrompt = useRef("");
   const [aiRunning, setAiRunning] = useState(false);
   const [aiProgress, setAiProgress] = useState<AiEditProgress | null>(null);
   const [aiConfigured, setAiConfigured] = useState(false);
@@ -557,8 +556,6 @@ export default function Detail({
       setAiCustomDocuments(aiStatus.custom);
       setAiRunning(aiStatus.running);
       setAiConfigured(!!settings.editor_model);
-      setCustomPrompt(settings.custom_prompt);
-      storedPrompt.current = settings.custom_prompt;
       setAiReady(!!settings.editor_model && tools.issues_editor.length === 0);
       setSpeakersReady(tools.issues_diarization.length === 0);
       if (aiStatus.running) {
@@ -578,29 +575,19 @@ export default function Detail({
     load();
   }, [load]);
 
-  /* The instruction goes back to Settings as it is typed, not when a run
-     starts. Somebody who writes four sentences, thinks better of it and closes
-     the dialog has still written four sentences, and losing them because they
-     did not press the button is the outcome worth an extra write to avoid.
-     A second of quiet first, so the row is not rewritten per keystroke, and
-     never the value that just came out of Settings. The whole record is read
-     back before it is written, because Settings writes the whole record too
-     and this must not overwrite what is being changed on that screen. */
-  useEffect(() => {
-    if (customPrompt === storedPrompt.current) return;
-    const timer = setTimeout(() => {
-      storedPrompt.current = customPrompt;
-      void (async () => {
-        try {
-          const settings = await api.loadSettings();
-          await api.saveSettings({ ...settings, custom_prompt: customPrompt });
-        } catch (error) {
-          onError(userMessage(error));
-        }
-      })();
-    }, 1000);
-    return () => clearTimeout(timer);
-  }, [customPrompt, onError, userMessage]);
+  /* The instruction is not remembered between recordings — *v okně vlastního
+     promptu mi zůstalo tohle, měl by se pokaždé vyresetovat*.
+     
+     It used to be written back to Settings as it was typed and read again on
+     every transcript, so that four sentences somebody thought better of were not
+     lost by closing the dialog. That protection was real and it is kept where it
+     belongs: `customPrompt` is state on this screen, so the draft still survives
+     opening and closing the window. What it stops surviving is the recording it
+     was written for — and an instruction about one interview standing over
+     another is worse than retyping it, because it can be run by accident.
+
+     `settings.custom_prompt` is no longer read or written from here. The column
+     stays in the record: removing it is a migration, and it buys nothing today. */
 
   useEffect(() => {
     let active = true;
