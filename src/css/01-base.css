@@ -357,7 +357,17 @@ button, input, select, textarea { font: inherit; color: inherit; }
 /* The lifetime arrives from App as `--notice-life`, because the ring has to
    empty over exactly the time the timer there waits. The value below is only a
    fallback for a bar rendered without it. */
+/* **Positioned, so it can be seen over a dialog.** In normal flow the bar is
+   painted under `.dialog-overlay` — `position: fixed; z-index: 60` — and every
+   message raised while a dialog was open went behind the scrim. That is why the
+   wizard drew a panel of its own; with this it does not need one, and the
+   application has one place for saying something went wrong instead of two.
+
+   `relative`, not `fixed`: the bar still takes its row under the header and
+   still pushes the page down, which is the whole of its layout behaviour. Only
+   the painting order changes. */
 .notice {
+  position: relative; z-index: 70;
   --notice-life: 5s;
   display: flex; justify-content: space-between; gap: 16px; align-items: center;
   padding: 10px 18px; color: #fff; font-weight: 500;

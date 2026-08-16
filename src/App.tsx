@@ -1613,6 +1613,7 @@ export default function App() {
             missingModule={null}
             onBack={closeSetup}
             onComplete={closeSetup}
+            onError={reportError}
           />
         </Suspense>
       )}

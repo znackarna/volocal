@@ -40,8 +40,9 @@ export const csWizard = {
   // wanted. Neither is a question for a first run.
 
   // ------------------------------------------------------ 4. choosing and downloading
-  "wizard.download.failedTitle": "Stahování se nedokončilo",
-  "wizard.download.dismissError": "Rozumím",
+  // `failedTitle` and `dismissError` went with the panel they belonged to: a
+  // download that does not finish says so in the notice bar now, like every
+  // other failure in the application.
   // `wizard.download.recommendedBadge` — the bare word in a pill — was retired
   // once and is back as `wizard.quality.recommended`. The argument against it
   // held: a recommendation naming no reason only asserts. What overturned it is
@@ -150,12 +151,7 @@ export const csWizardContext: Partial<Record<keyof typeof csWizard, string>> = {
     "Táž věta, když stahování běží. „Na pozadí“ znamená, že se okno nemusí " +
     "hlídat, ne že se dá zavřít.",
 
-    "wizard.download.failedTitle":
-    "Nadpis cedule, když se stahování nedokončilo. Ne „selhalo“: nespadl " +
-    "program, nedojel soubor, a tlačítko, kterým se to zkusí znovu, stojí na " +
-    "téže obrazovce. Pod nadpisem je hláška, která říká co a proč.",
-  "wizard.download.dismissError": "Tlačítko, kterým uživatel tu cedulku zavře.",
-  "wizard.download.downloadedBadge":
+    "wizard.download.downloadedBadge":
     "Odznak u volby, jejíž součásti už jsou na disku. Malé písmeno je záměr.",
   "wizard.download.reviewTitle":
     "Nadpis výpisu v průvodci před spuštěním stahování. Nic se v něm nedá " +

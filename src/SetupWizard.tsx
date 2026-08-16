@@ -740,28 +740,18 @@ export default function SetupWizard({
    *  the 18 px below itself rather than above — a dialog's content blocks never
    *  carry a `margin-top`, and `.dialog h2 + p` has already placed the gap
    *  above it. See `.setup-dialog > .warning`. */
-  /* Only the dialog draws it. On the listing the same text goes to the
-     application's own notice bar — see `onError` on `Props` for why the split
-     is not laziness: that bar is behind the scrim while a dialog is open. */
-  const errorBanner = !listing && error && step !== STEP_DONE && (
-    <div className="setup-notice trouble">
-      <div>
-        <strong>{t("wizard.download.failedTitle")}</strong>
-        <p className="small-text">{error}</p>
-      </div>
-      <button className="button" onClick={() => setError(null)}>
-        {t("wizard.download.dismissError")}
-      </button>
-    </div>
-  );
+  /* No panel of its own any more, in either mode. The application has one
+     place for saying something went wrong — the bar under the header — and the
+     only reason this screen ever drew a second one was that the bar could not
+     be seen over a dialog. It can now; see `.notice` in `01-base.css`. */
 
   /* The listing has no panel of its own, so what `setError` collected is handed
      to the bar and cleared. Rendering neither would swallow it. */
   useEffect(() => {
-    if (!listing || !error) return;
+    if (!error) return;
     onError?.(error);
     setError(null);
-  }, [listing, error, onError]);
+  }, [error, onError]);
 
   /* -------------------------------------------------- the by-hand listing
 
@@ -780,7 +770,6 @@ export default function SetupWizard({
   if (manual) {
     return (
       <main className="wizard wizard-listing">
-        {errorBanner}
         <div className="step">
           <h1>{t("wizard.manual.title")}</h1>
           <ManualSelection
@@ -864,8 +853,7 @@ export default function SetupWizard({
           <>
             <h2 id="setup-dialog-title">{t("wizard.quality.title")}</h2>
             <p>{t("wizard.quality.intro")}</p>
-            {errorBanner}
-
+    
             {/* **Two cards side by side, each standing on end.** Below one
                 another two things are read; beside one another they are
                 compared — and this screen is a comparison. The frame, the
@@ -994,8 +982,7 @@ export default function SetupWizard({
                 ? t("wizard.download.nothingNeeded")
                 : t(running ? "wizard.download.runningText" : "wizard.download.reviewText")}
             </p>
-            {errorBanner}
-
+    
             {running ? (
               <>
                 <div className="progress-large">

@@ -94,20 +94,19 @@
   width: 100%; max-width: 900px; margin-inline: auto;
 }
 
-/* Three banners, one frame, three meanings — the geometry is shared and only
-   the colour differs.
+/* Two banners, one frame, two meanings — the geometry is shared and only the
+   colour differs.
 
    `.setup-notice` is setup that has not finished, where nothing is wrong at
    all: it takes the accent and points somewhere rather than sounding an alarm.
-   `.setup-notice.trouble` is a download that did not finish, which is not a
-   program falling over either — the file can be fetched again and the button is
-   on the same screen — so it takes the neutral ground: visible, not alarming.
    `.warning` keeps the destructive palette and **nothing draws it at the
    moment**; it is left for whatever genuinely earns red.
 
-   They were one rule until 2026-08-16, and the archive's banner wore the red
-   one while the application had simply not downloaded its models yet. The
-   wizard's failed download followed it out a day later, on the same argument. */
+   Both were one rule until 2026-08-16, when the archive's banner was found
+   wearing the red one while the application had simply not downloaded its
+   models yet. A third variant lived here for an hour on 17 August — the
+   wizard's failed download, in neutral rather than red — and went with the
+   panel itself when that message moved to the notice bar. */
 .warning, .setup-notice {
   display: flex; gap: 16px; align-items: flex-start; justify-content: space-between;
   border-radius: var(--r-large); padding: 15px 18px; margin-bottom: 20px;
@@ -127,10 +126,6 @@
   background: var(--accent-light);
 }
 .setup-notice strong { font-weight: 700; }
-.setup-notice.trouble { border-color: var(--line-field); background: var(--muted); }
-/* Its text is a heading over a message that can run to several lines, so the
-   button lines up with the first of them rather than floating beside the last. */
-.setup-notice.trouble { align-items: flex-start; }
 /* The sentence sits under the heading the way it does in a dialog: 4 px, so the
    two read as one statement rather than as a heading with a paragraph. */
 .setup-notice p { margin: 4px 0 0; color: var(--text-quiet); line-height: 1.5; }
