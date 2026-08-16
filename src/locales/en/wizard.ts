@@ -15,7 +15,7 @@ export const enWizard: Partial<Record<keyof typeof csWizard, string>> = {
   "wizard.download.runningTitle": "Fetching what is needed",
   "wizard.download.background": "Download in the background",
   "wizard.download.reviewTitle": "What will be downloaded",
-  "wizard.download.reviewText": "Once only, from the authors' own pages. After that the application does not need the internet.",
+  "wizard.download.reviewText": "A one-off download from the authors' own pages. After that the internet is not needed.",
   "wizard.download.runningText": "You can leave it running. When it finishes, Volocal is ready.",
   "wizard.download.summary.one": "{count} item will be downloaded, {size} in total.",
   "wizard.download.summary.other": "{count} items will be downloaded, {size} in total.",

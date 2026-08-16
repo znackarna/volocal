@@ -60,7 +60,7 @@ export const csWizard = {
   // 3,4 GB* — was the list below it and the button beside it, said a third
   // time. These two say what neither of them does.
   "wizard.download.reviewText":
-    "Jednorázově, ze stránek autorů. Pak už aplikace internet nepotřebuje.",
+    "Jednorázové stažení ze stránek autorů. Pak už internet není potřeba.",
   "wizard.download.runningText":
     "Můžete nechat běžet na pozadí. Až to doběhne, Volocal je připravený.",
   "wizard.download.summary.one": "Stáhne se {count} položka, dohromady {size}.",
