@@ -9,34 +9,29 @@ export const csWizard = {
   // the estimates were for the graphics card in this computer.
 
   // ------------------------------------------------------------------ 1. quality
-  "wizard.quality.title": "Rychle, nebo přesně?",
-  // What was found in this computer, in one sentence over the two cards. Four
-  // of them, because the graphics card and the memory are two facts that can
-  // each be missing — and a machine that will not say how much memory it has
-  // gets the shorter sentence rather than a number nobody read.
-  //
-  // `wizard.quality.introGpu` and `introCpu` stood here and are retired with
-  // this block. They said the estimates were for the graphics card in this
-  // computer; these say what the computer is.
-  "wizard.quality.machineChecking": "Zjišťuji, co je v tomto počítači.",
-  "wizard.quality.machineGpu":
-    "V tomto počítači je grafická karta, takže přepis poběží na ní.",
-  "wizard.quality.machineGpuMemory":
-    "V tomto počítači je grafická karta a {memory} paměti, takže přepis poběží na kartě.",
-  "wizard.quality.machineCpu":
-    "V tomto počítači není podporovaná grafická karta, takže přepis poběží na procesoru.",
-  "wizard.quality.machineCpuMemory":
-    "V tomto počítači není podporovaná grafická karta a je v něm {memory} paměti, takže přepis poběží na procesoru.",
+  "wizard.quality.title": "Přesněji, nebo rychleji?",
+  // The sentence under the heading. It used to recite what was found in this
+  // computer — a graphics card and how much memory — and it went on 2026-08-16:
+  // from the amount of memory it does not follow where the transcription runs,
+  // so two unrelated facts were joined by a *takže* that carried no argument.
+  // This says what a reader needs before choosing — nothing leaves the machine,
+  // and the two cards differ in one thing only.
+  "wizard.quality.intro":
+    "Vše poběží ve vašem počítači. Žádná data nezamíří ven. Modely se liší pouze tím, jak rychle nebo přesně získáte přepis.",
   "wizard.quality.fastestName": "Rychlý",
   "wizard.quality.bestName": "Přesný",
-  "wizard.quality.cost": "Hodinová nahrávka {duration}, ke stažení {size}.",
-  "wizard.quality.costHave": "Hodinová nahrávka {duration}.",
-  "wizard.quality.reasonGpu":
-    "Doporučeno pro tento počítač — na grafické kartě zvládne i větší model hodinu nahrávky bez dlouhého čekání.",
-  "wizard.quality.reasonCpu":
-    "Doporučeno pro tento počítač — bez grafické karty by větší model běžel podstatně déle.",
+  // The two figures the choice is actually made on, each on its own line with
+  // an icon. Only the tail is translated: the number in front of it is
+  // formatted and set in bold by the component, so a language wanting another
+  // word order changes this string rather than the markup.
+  "wizard.quality.perHour": "na hodinu záznamu",
+  "wizard.quality.toDownload": "ke stažení",
+  // One word in a pill. It was a sentence of reasoning until 2026-08-16 — over
+  // a hundred characters in the accent colour, on the card that is already
+  // chosen, which made the loudest thing on the screen the least surprising.
+  "wizard.quality.recommended": "Doporučeno",
   "wizard.quality.changeableNote":
-    "Časy jsou hrubý odhad, ne měření. Model lze změnit i později v nastavení, už hotové přepisy se tím ale nepřepočítají.",
+    "Časy jsou přibližné. Model jde změnit i později, hotové přepisy se nemění.",
 
   // The speaker step and the language-editing step are gone, and so are their
   // words. Speaker recognition comes down with everything else and is switched
@@ -47,14 +42,22 @@ export const csWizard = {
   // ------------------------------------------------------ 4. choosing and downloading
   "wizard.download.failedTitle": "Stahování selhalo",
   "wizard.download.dismissError": "Rozumím",
-  // `wizard.download.recommendedBadge` — the bare word `doporučeno` in a pill —
-  // is retired. A recommendation that names no reason is an assertion, and this
-  // screen now knows enough about the machine to make it an argument:
-  // `wizard.quality.reasonGpu` and `reasonCpu` say which fact about this
-  // computer the recommendation rests on.
+  // `wizard.download.recommendedBadge` — the bare word in a pill — was retired
+  // once and is back as `wizard.quality.recommended`. The argument against it
+  // held: a recommendation naming no reason only asserts. What overturned it is
+  // weight, not logic — the sentence that replaced it ran to three lines of
+  // accent on the card that is already chosen, which is a lot of the screen's
+  // attention spent on the one thing the reader cannot act on differently.
   "wizard.download.downloadedBadge": "staženo",
-  "wizard.download.runningTitle": "Probíhá stahování",
+  "wizard.download.runningTitle": "Stahuji, co je potřeba",
   "wizard.download.reviewTitle": "Co se stáhne",
+  // What the summing sentence used to be — *Stáhne se 5 položek, dohromady
+  // 3,4 GB* — was the list below it and the button beside it, said a third
+  // time. These two say what neither of them does.
+  "wizard.download.reviewText":
+    "Jednorázově, ze stránek autorů. Pak už aplikace internet nepotřebuje.",
+  "wizard.download.runningText":
+    "Můžete nechat běžet na pozadí. Až to doběhne, Volocal je připravený.",
   "wizard.download.summary.one": "Stáhne se {count} položka, dohromady {size}.",
   "wizard.download.summary.few": "Stáhnou se {count} položky, dohromady {size}.",
   "wizard.download.summary.many": "Stáhne se {count} položky, dohromady {size}.",
@@ -67,7 +70,7 @@ export const csWizard = {
   "wizard.download.statusError": "chyba",
   "wizard.download.statusWaiting": "čeká",
   "wizard.download.nothingNeeded": "Všechno potřebné už máte.",
-  "wizard.download.downloadWithSize": "Stáhnout ({size})",
+  "wizard.download.downloadWithSize": "Stáhnout {size}",
   "wizard.download.percent": "{percent} %",
   "wizard.download.viewLabel": "Podrobnost výpisu",
   "wizard.download.viewCompact": "Stručný výpis",
@@ -121,51 +124,31 @@ export const csWizardContext: Partial<Record<keyof typeof csWizard, string>> = {
   "wizard.quality.fastestName":
     "Název volby kvality přepisu, ne název modelu. Nejmenší a nejrychlejší model Whisper.",
   "wizard.quality.bestName": "Název volby kvality přepisu: nejpřesnější a zároveň nejpomalejší.",
+  "wizard.quality.intro":
+    "Věta pod nadpisem. Dvě věci: ujištění, že nic neodchází z počítače, a v čem " +
+    "se ty dvě karty liší. Nevypisuje hardware — z velikosti paměti neplyne, kde " +
+    "se počítá, a předchozí verze ta dvě fakta spojovala slovem „takže“.",
+  "wizard.quality.perHour":
+    "Konec řádku s časem na kartě. Před ním stojí tučný odhad, například " +
+    "„4 minuty“. Překládá se jen tenhle konec, takže jazyk s jiným slovosledem " +
+    "mění text, ne kód.",
+  "wizard.quality.toDownload":
+    "Konec řádku s velikostí: „3,1 GB ke stažení“.",
+  "wizard.quality.recommended":
+    "Odznak u názvu doporučené volby. Jedno slovo; větu s odůvodněním nahradil " +
+    "16. srpna 2026, protože tři řádky accentu na už vybrané kartě braly víc " +
+    "pozornosti, než kolik to rozhodnutí unese.",
   "wizard.quality.changeableNote":
     "Poznámka pod kartami, dvě věty a obě jsou tam schválně. První: časy na " +
-    "kartách nikdo neměřil, jsou to odhady z roku 2026 a na každém počítači " +
-    "vyjdou jinak — nesmí se z ní stát tvrzení, že jsou změřené. Druhá: volba " +
-    "není nevratná, ale zpětně se neprojeví na už hotových přepisech.",
-  "wizard.quality.machineChecking":
-    "Věta nad kartami, než dorazí odpověď z počítače. Trvá zlomek vteřiny; je " +
-    "tam proto, aby obrazovka po tu chvíli netvrdila, že grafickou kartu " +
-    "nenašla. První osoba jednotného čísla jako u „Připravuji“ a „Načítám“.",
-  "wizard.quality.machineGpu":
-    "Věta nad kartami: co aplikace v tomto počítači našla. Tahle varianta je " +
-    "pro počítač s grafickou kartou, který ale neřekl, kolik má paměti — " +
-    "číslo se v takovém případě nedoplňuje ani neodhaduje, věta se prostě " +
-    "zkrátí. Karta se nejmenuje (NVIDIA, Vulkan): aplikace nikde neříká " +
-    "čtenáři jméno sestavení, protože s ním stejně nic nedělá.",
-  "wizard.quality.machineGpuMemory":
-    "Táž věta, když počítač řekl i kolik má paměti. {memory} je celé číslo " +
-    "s jednotkou, například „16 GB“ — zaokrouhlené na to, co je napsané na " +
-    "krabici. Druhá půlka věty je ta podstatná: říká, proč jsou časy na " +
-    "kartách pod ní takové, jaké jsou.",
-  "wizard.quality.machineCpu":
-    "Táž věta pro počítač bez podporované grafické karty, který neřekl, kolik " +
-    "má paměti. „Podporovaná“ je přesné slovo — karta v počítači být může, ale " +
-    "bez ovladače, se kterým aplikace umí počítat.",
-  "wizard.quality.machineCpuMemory":
-    "Táž věta pro počítač bez podporované grafické karty, který řekl, kolik má " +
-    "paměti. {memory} je celé číslo s jednotkou, například „16 GB“.",
-  "wizard.quality.cost":
-    "Poslední řádek karty: co ta volba stojí na tomhle počítači. {duration} je " +
-    "odhad doby přepisu hodinové nahrávky, například „asi minutu“ nebo „asi 35 " +
-    "minut“ — ta čísla nikdo neměřil, viz poznámku pod kartami. {size} je " +
-    "velikost modelu ke stažení, například „3,0 GB“.",
-  "wizard.quality.costHave":
-    "Týž řádek u modelu, který v počítači už je: velikost se nevypisuje, " +
-    "protože stažení nic nestojí. Že je stažený, říká odznak u názvu.",
-  "wizard.quality.reasonGpu":
-    "Řádek na doporučené kartě, na počítači s grafickou kartou. Nahradil odznak " +
-    "„doporučeno“ — ten jen tvrdil, tohle říká proč, a to proč je fakt o tomhle " +
-    "počítači. „Větší model“ je ten přesný; jmenovat ho tu znovu by opakovalo " +
-    "název karty o tři řádky výš.",
-  "wizard.quality.reasonCpu":
-    "Týž řádek, když v počítači není podporovaná grafická karta, takže se " +
-    "doporučuje rychlý model. „Podstatně déle“ je schválně bez čísla: poměr " +
-    "mezi těmi dvěma časy je odhad jako ony samy, a číslo by z něj udělalo " +
-    "měření.",
+    "kartách nikdo neměřil, jsou to odhady a na každém počítači vyjdou jinak. " +
+    "Druhá: volba není nevratná, ale na už hotové přepisy nesáhne.",
+  "wizard.download.reviewText":
+    "Věta pod nadpisem prvního stavu stahovacího kroku. Neopakuje počet ani " +
+    "velikost — obojí je vidět v seznamu pod ní a na tlačítku — a říká to, co " +
+    "nikde jinde není: je to jednou a pak už aplikace síť nepotřebuje.",
+  "wizard.download.runningText":
+    "Táž věta, když stahování běží. „Na pozadí“ znamená, že se okno nemusí " +
+    "hlídat, ne že se dá zavřít.",
 
   "wizard.download.dismissError": "Tlačítko, kterým uživatel zavře hlášku o selhaném stahování.",
   "wizard.download.downloadedBadge":

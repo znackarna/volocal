@@ -11,6 +11,13 @@ altered, not how, not which file. Entries before 1.2.6 are written the old way
 and are left as they are; they are not a model for the next one. The mechanism
 belongs in `docs/history/`, which is what that folder is for.
 
+## 1.2.9 — 17 August 2026
+
+- **The first run asks one question and answers it clearly** — two models side
+  by side, with what each costs you in time and megabytes.
+- **The download screen shows what is done and what is running**, at a glance.
+- **Nothing that is merely unfinished looks like an error any more.**
+
 ## 1.2.8 — 17 August 2026
 
 - **Clearer wording when adding audio from the web.** It is `Online služba` now,

@@ -257,7 +257,12 @@
 .settings-toggle.section + .choices {
   margin-top: 24px; padding-top: 22px; border-top: 1px solid var(--line);
 }
+/* 14 px everywhere else, 24 under the wizard's two cards. Above it there stands
+   a block of framed cards rather than a paragraph, and at fourteen the note sat
+   close enough to their bottom edge to read as a caption of the card on the
+   left — *ta info věta nalepená na kartu*. */
 .choices + .settings-info-note.compact { margin-top: 14px; }
+.setup-choices + .settings-info-note.compact { margin-top: 24px; }
 .settings-action-row {
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
   font-size: 13.5px;
@@ -536,7 +541,7 @@
    stood here — the three-segment bar, the `KROK 1 ZE 3` above the heading, the
    quiet sentence under it, and the centred conclusion. All six are deleted with
    the screen they were the furniture of: the guided run is a dialog over the
-   archive now, and a dialog has its own rhythm — 19 px heading, 4 px to its
+   archive now, and a dialog has its own rhythm — 19 px heading, 8 px to its
    sentence, 18 px to the content, which `.dialog h2`, `.dialog p` and
    `.dialog h2 + p` already own. A bar counting three screens inside the one
    thing being counted was ceremony, and centred prose in a dialog reads as a
@@ -560,6 +565,51 @@
    from the type scale either. */
 
 .choices { display: flex; flex-direction: column; gap: 8px; }
+/* ---------------------------------------------- the wizard's two cards
+
+   **The one place a choice card is not the shared row**, and the exception is
+   argued rather than assumed. `.choice` is one rule for every card of its kind
+   in the application — the three sources in `Nový přepis`, the transcription
+   models, the language-editing tiers — and those all sit in a column of eight
+   things somebody scrolls. This is the whole of the first run: one question,
+   two answers, and the answer is awkward to take back, because changing the
+   model later means transcribing everything again.
+
+   Beside one another two things are compared; below one another they are read.
+   So the axis turns, and with it what a card holds. */
+.setup-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.setup-choices .choice { flex-direction: column; gap: 0; padding: 0; overflow: hidden; }
+/* `flex: 1` on the body is what pins the foot to the bottom of the card rather
+   than to the end of the text. Both feet then sit on one axis however many
+   lines a description takes — and that alignment is what turns two cards into a
+   comparison rather than two cards. */
+.setup-choices .choice-top {
+  padding: 15px 15px 14px; display: flex; flex-direction: column; flex: 1 1 auto;
+}
+.setup-choices .choice-head { display: flex; align-items: center; gap: 10px; }
+.setup-choices .choice-icon { width: 32px; height: 32px; }
+.setup-choices .choice-title { font-size: 16px; flex-wrap: wrap; row-gap: 4px; }
+.setup-choices .choice-top .small-text { margin-top: 9px; line-height: 1.45; }
+/* The foot is set into `--subtle`, the token that exists for exactly this: a
+   quiet inset inside a surface. No rule across the top — a band that has its own
+   ground separates itself, and a line there would be a line a gap already made. */
+.setup-choices .choice-foot {
+  background: var(--subtle); padding: 11px 15px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.setup-choices .choice.chosen .choice-foot { background: hsl(var(--ds-petrol) / 0.06); }
+/* The number first and the words after it, and the line may not wrap. Written
+   the other way round — *Hodinová nahrávka za 4 minuty* — it filled 175 px of a
+   198 px column: two pixels of slack, so a longer figure broke one card's foot
+   and not the other's, and the alignment everything above rests on went with
+   it. */
+.setup-choices .choice-stat {
+  display: flex; align-items: baseline; gap: 7px; white-space: nowrap;
+  font-size: 12.5px; color: var(--text-quiet); font-variant-numeric: tabular-nums;
+}
+.setup-choices .choice-stat svg { flex: 0 0 auto; opacity: 0.7; align-self: center; }
+.setup-choices .choice-stat b { font-weight: 600; color: var(--text); font-size: 13px; }
+
 /* One frame for every row of this kind. They carry different content but must
    read as one family, so the padding, the radius and the vertical rhythm live
    here and nowhere else. */
@@ -667,25 +717,11 @@
    `align-items: center` and no margins anywhere: the size sits against the whole
    row in both views, which is the only way it stays right when the row grows a
    second line. */
-.download-list {
-  list-style: none; margin: 0; padding: 0; overflow: hidden;
-  border: 1px solid var(--line); border-radius: var(--r-large);
-}
-.download-list li {
-  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px;
-  align-items: center;
-  padding: 10px 16px; background: var(--panel); font-size: 14px; font-weight: 500;
-  border-bottom: 1px solid var(--line);
-}
-.download-list li:last-child { border-bottom: 0; }
-.download-list li.done { color: var(--text-quiet); }
-.download-list li.done .download-row-side { color: var(--success); }
-.download-list li.failed .download-row-side { color: var(--danger); }
-.download-row-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.download-row-side {
-  color: var(--text-quiet); font-size: 13px; font-weight: 500;
-  font-variant-numeric: tabular-nums; white-space: nowrap;
-}
+/* `.download-list` stood here and went with the markup that used it: the
+   wizard's own list is `.components` now, the one the module listing draws.
+   Two lists for the same five rows meant a component was `hotovo` in a dialog
+   and a tick on a page, and only one of those says the state at a glance. */
+
 /* The switch above it, at the right-hand end where the archive's own sits.
    10 px is the gap `.detected` took to what followed it on this screen, and it
    is now the only rule placing it: `.manual > div { margin-bottom: 16px }` used
@@ -885,16 +921,25 @@
   to   { opacity: 1; transform: none; }
 }
 /* One rhythm for every dialog, owned by the dialog rather than by whatever
-   happens to sit inside it. The heading and the sentence under it are one
-   unit — 19 px, 4 px apart, so the sentence reads as the heading's own — and
-   then 18 px to the content, whatever the content is. Content blocks
-   therefore carry no margin-top of their own: they used to, each with its own
-   number (18/18/18/20/16), and the two dialogs that had none left their first
-   label 2 px under the sentence.
+   happens to sit inside it: 19 px heading, 8 px to its sentence, 18 px from
+   there to the content, whatever the content is. Content blocks therefore carry
+   no margin-top of their own: they used to, each with its own number
+   (18/18/18/20/16), and the two dialogs that had none left their first label
+   2 px under the sentence.
+
+   **It was 4 px until 2026-08-16**, and the reason given for it was that the
+   sentence should read as the heading's own. That is exactly what was wrong
+   with it: at four the sentence reads as the heading's *second line*, one
+   block in two sizes. Eight makes them two things — a name and an explanation
+   — which is what they are. Judged at the screen on two dialogs at once, a
+   long sentence over a confirmation and a one-liner over a field, because the
+   number is one rule for every dialog in the application and cannot be settled
+   on a single sample.
+
    Descendant, not child: in the online view of Přidat nahrávku the heading and
    the sentence sit inside a <form>, so `.dialog > h2 + p` would miss them. */
 .dialog h2 {
-  font-size: 19px; font-weight: 700; margin: 0 0 4px;
+  font-size: 19px; font-weight: 700; margin: 0 0 8px;
   letter-spacing: -0.015em; text-transform: none; color: var(--text);
   line-height: 1.25;
 }
@@ -952,7 +997,12 @@
    a 620 px screen, and the 100 px it gives up is width those cards never used:
    they were a column already, but each was one line of text with a size pinned
    at the far edge, so the extra width went to the gap between them. */
-.ai-edit-dialog, .add-recording-dialog, .setup-dialog { max-width: 520px; }
+.ai-edit-dialog, .add-recording-dialog { max-width: 520px; }
+/* 560, not the 520 the other two take. That number is for a *column* of choice
+   cards; two of them side by side is a different shape of content, and at 520 a
+   card comes out 230 px wide — the width at which the text just fits, which is
+   no width at all: the first longer figure wraps one card and not the other. */
+.setup-dialog { max-width: 560px; }
 /* The failure banner, when the first-run dialog is drawing one. It stands
    between the dialog's sentence and its content, and it owns the 18 px below
    itself rather than above: `.dialog h2 + p` has already placed the gap above

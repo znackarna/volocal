@@ -55,11 +55,13 @@ These are the values a new screen inherits rather than re-invents. An exception
 needs a one-line comment naming the reason and the amount; without one, the next
 tidy-up will unify it away.
 
-- **Dialog rhythm.** Heading 19 px, 4 px to its sentence, 18 px from there to
-  the content — and the dialog owns that third gap (`.dialog h2 + p`), so no
+- **Dialog rhythm.** Heading 19 px, **8 px** to its sentence, 18 px from there
+  to the content — and the dialog owns that third gap (`.dialog h2 + p`), so no
   content block inside a dialog carries a `margin-top` of its own. The footer
   owns 22 px above itself. Descendant selector, not child: one dialog nests its
-  heading in a `<form>`.
+  heading in a `<form>`. The first gap was 4 px until 2026-08-16, on the
+  argument that the sentence should read as the heading's own — which is what
+  was wrong with it: at four it read as the heading's second line.
 - **Dialog width.** 420 px for a question with fields, 520 px for a column of
   choice cards, 840 px only for the reading window. Everything inside a dialog
   starts on the same 26 px left edge.

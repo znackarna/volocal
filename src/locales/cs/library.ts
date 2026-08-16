@@ -45,10 +45,17 @@ export const csLibrary = {
   "library.view.classic": "Klasický výpis",
   "library.view.compact": "Kompaktní výpis",
 
-  // Banner shown when transcription cannot start.
-  "library.issues.title": "Volocal zatím neumí přepisovat",
+  // Banner shown when transcription cannot start yet. Nothing has gone wrong:
+  // the application simply has not finished fetching what it needs, which is
+  // the normal state of the first five minutes. The banner is a door, not a
+  // diagnosis — what exactly comes down, and how large it is, is on the other
+  // side of the button.
+  "library.issues.title": "Volocal je skoro připravený",
+  "library.issues.text":
+    "Před prvním přepisem si ještě stáhne, co k němu potřebuje. Stačí nastavení dokončit.",
   "library.issues.finish": "Dokončit nastavení",
-  "library.dropZone.blocked": "Nahrávku můžete přidat, přepsat ji ale Volocal zatím neumí.",
+  "library.dropZone.blocked":
+    "Nahrávku můžete přidat rovnou. Přepis se spustí, jakmile dokončíte nastavení.",
 
   // Watch folder banner.
   "library.watchFolder.title.one": "Ve sledované složce přibyl nový soubor",
