@@ -256,6 +256,15 @@ struct Caption {
     start: f64,
     end: f64,
     text: String,
+    /// Whose segment it came from, carried only so that two captions belonging
+    /// to different people are never joined into one.
+    ///
+    /// A subtitle file has no field for this and none is written; what it is
+    /// for is `merge_short_captions`, which used to fuse a quick exchange —
+    /// *Ano.* answered by *Určitě.* — into a single caption attributing both to
+    /// nobody. Two short remarks close together is exactly what a conversation
+    /// looks like, so the merge was firing on the shape it should refuse.
+    speaker: Option<String>,
 }
 
 /// Word timings stored with the segment, when available.
@@ -356,8 +365,10 @@ fn merge_short_captions(captions: Vec<Caption>) -> Vec<Caption> {
             );
             let fits = joined.chars().count() <= ceiling
                 && caption.end - previous.start <= MAX_CAPTION_SECONDS;
+            // Two people are two captions, however brief and however close.
+            let same_voice = previous.speaker == caption.speaker;
 
-            if either_is_brief && close_enough && fits {
+            if either_is_brief && close_enough && fits && same_voice {
                 let last = output.last_mut().unwrap();
                 last.end = caption.end;
                 last.text = wrap_caption(&joined);
@@ -425,6 +436,34 @@ fn plan_captions(words: &[(f64, String)], limit: usize) -> Vec<(usize, usize)> {
     output
 }
 
+/// Cuts text into pieces of at most `limit` characters, on word boundaries.
+///
+/// For segments that carry no word timings, where `plan_captions` has nothing
+/// to plan from. A word longer than the limit is left whole rather than broken
+/// mid-word: an over-long caption reads, a severed word does not.
+fn split_by_length(text: &str, limit: usize) -> Vec<String> {
+    let mut output: Vec<String> = Vec::new();
+    let mut current = String::new();
+    for word in text.split_whitespace() {
+        let would_be = if current.is_empty() {
+            word.chars().count()
+        } else {
+            current.chars().count() + 1 + word.chars().count()
+        };
+        if !current.is_empty() && would_be > limit {
+            output.push(std::mem::take(&mut current));
+        }
+        if !current.is_empty() {
+            current.push(' ');
+        }
+        current.push_str(word);
+    }
+    if !current.is_empty() {
+        output.push(current);
+    }
+    output
+}
+
 fn captions(segments: &[Segment]) -> Vec<Caption> {
     let ceiling = CHARS_PER_LINE * CAPTION_LINES;
     let mut output: Vec<Caption> = Vec::new();
@@ -436,13 +475,50 @@ fn captions(segments: &[Segment]) -> Vec<Caption> {
         }
         let fits_as_one = text.chars().count() <= ceiling && s.end - s.start <= MAX_CAPTION_SECONDS;
         let Some(words) = segment_words(s) else {
-            // Without word timings there is nowhere to cut and keep the
-            // timing honest.
-            output.push(Caption {
-                start: s.start,
-                end: s.end,
-                text: wrap_caption(text),
-            });
+            /* **No word timings, so the span is divided by length instead.**
+            This used to emit the whole segment as one caption, and
+            `tidy_timings` then clamped it to six seconds — so a long
+            sentence flashed past unreadably and the rest of its span showed
+            nothing at all.
+
+            It is not a rare case. `update_segment` sets `words = NULL`, so
+            **every hand-corrected segment lands here**: editing a sentence
+            silently ruined its subtitle, which is the opposite of what
+            correcting a transcript is for.
+
+            Interpolating by character count is a guess, and it is the honest
+            one available: the segment's own start and end are measured, and
+            within them text runs at roughly even speed. It is wrong by
+            fractions of a second where a real word timing would be right,
+            against a caption that was wrong by everything after the sixth. */
+            if fits_as_one {
+                output.push(Caption {
+                    start: s.start,
+                    end: s.end,
+                    text: wrap_caption(text),
+                    speaker: s.speakers.clone(),
+                });
+                continue;
+            }
+            let pieces = split_by_length(text, ceiling);
+            let characters: usize = pieces.iter().map(|p| p.chars().count()).sum();
+            let span = (s.end - s.start).max(0.0);
+            let mut at = s.start;
+            for piece in pieces {
+                let share = if characters > 0 {
+                    span * (piece.chars().count() as f64 / characters as f64)
+                } else {
+                    span
+                };
+                let end = (at + share).min(s.end);
+                output.push(Caption {
+                    start: at,
+                    end,
+                    text: wrap_caption(&piece),
+                    speaker: s.speakers.clone(),
+                });
+                at = end;
+            }
             continue;
         };
         if fits_as_one {
@@ -450,6 +526,7 @@ fn captions(segments: &[Segment]) -> Vec<Caption> {
                 start: s.start,
                 end: s.end,
                 text: wrap_caption(text),
+                speaker: s.speakers.clone(),
             });
             continue;
         }
@@ -490,6 +567,7 @@ fn captions(segments: &[Segment]) -> Vec<Caption> {
                     .unwrap_or(s.end)
                     .max(words[first].0),
                 text: wrap_caption(&text.join(" ")),
+                speaker: s.speakers.clone(),
             });
         }
     }
@@ -591,6 +669,60 @@ mod tests {
             speakers: speaker.map(str::to_string),
             ..Default::default()
         }
+    }
+
+    /// The reported defect, from both ends.
+    ///
+    /// `update_segment` sets `words = NULL`, so every hand-corrected segment
+    /// arrives here without timings — and a long one used to become a single
+    /// caption that `tidy_timings` then clamped to six seconds. Correcting a
+    /// sentence silently ruined its subtitle.
+    #[test]
+    fn a_long_segment_without_word_timings_is_cut_rather_than_clamped() {
+        let long = "Tohle je hodně dlouhá věta, kterou někdo opravil ručně, takže                     u ní nejsou žádné časy jednotlivých slov, a přesto musí jít                     přečíst jako titulky od začátku až do konce.";
+        let out = captions(&[prose_segment(1, 0.0, 18.0, long, None)]);
+
+        assert!(out.len() > 1, "cut into several, not left as one block");
+        let ceiling = CHARS_PER_LINE * CAPTION_LINES;
+        for caption in &out {
+            let characters = caption.text.replace('\n', " ").chars().count();
+            assert!(characters <= ceiling, "{characters} fits two lines");
+        }
+        let last = out.last().unwrap();
+        assert!(
+            last.end > 6.0,
+            "the segment's whole span is used, not the first six seconds"
+        );
+        assert!(last.end <= 18.0 + f64::EPSILON, "and never past its end");
+        // Every word survives the cutting.
+        let rejoined: String = out
+            .iter()
+            .map(|c| c.text.replace('\n', " "))
+            .collect::<Vec<_>>()
+            .join(" ");
+        assert_eq!(
+            rejoined.split_whitespace().collect::<Vec<_>>(),
+            long.split_whitespace().collect::<Vec<_>>()
+        );
+    }
+
+    /// Two brief remarks close together is what a conversation looks like, so
+    /// the merge was firing on exactly the shape it should refuse — fusing an
+    /// exchange into one caption attributed to nobody.
+    #[test]
+    fn two_speakers_are_never_merged_into_one_caption() {
+        let out = captions(&[
+            prose_segment(1, 0.0, 0.5, "Ano.", Some("A")),
+            prose_segment(2, 0.7, 1.2, "Určitě.", Some("B")),
+        ]);
+        assert_eq!(out.len(), 2, "one caption each");
+
+        // The same two lines from one voice still join, so the merge is intact.
+        let same = captions(&[
+            prose_segment(1, 0.0, 0.5, "Ano.", Some("A")),
+            prose_segment(2, 0.7, 1.2, "Určitě.", Some("A")),
+        ]);
+        assert_eq!(same.len(), 1, "one voice, one caption");
     }
 
     fn speaker(key: &str, name: &str) -> Speaker {
