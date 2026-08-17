@@ -110,10 +110,16 @@ export interface Settings {
   quality_choice: string;
   /** Optional local model used to turn a transcript into a readable document. */
   editor_model: string;
-  /** The instruction last written for a custom-prompt document. One per
-   *  installation: what somebody wants made of a recording is usually what
-   *  they want made of the next one, and a prompt lost is worse than a prompt
-   *  retyped knowingly. Empty means nobody has written one. */
+  /** **Nothing reads or writes this any more.** It held the instruction last
+   *  written for a custom-prompt document, one per installation — until an
+   *  instruction written for one interview turned up standing over another,
+   *  where it can be run by accident and answered against a recording it was
+   *  never about. The draft now lives on the transcript screen, so it survives
+   *  the window being closed and not the recording being left.
+   *
+   *  The column stays until a migration goes past it, and this field stays with
+   *  it so nothing lies about the shape of that row — an archive from before
+   *  this change still carries whatever was written into it last. */
   custom_prompt: string;
   language: string;
   vad: boolean;
