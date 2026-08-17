@@ -230,7 +230,7 @@ if (-not $Publish) {
   # see the note there for why an mtime and a version in the file name are not
   # enough to tell.
   $head = (git rev-parse HEAD).Trim()
-  Set-Content -Path "$bundleuilt-from.txt" -Value "$head`n$version" -NoNewline
+  Set-Content -Path (Join-Path $bundle "built-from.txt") -Value "$head`n$version" -NoNewline
   Write-Host @"
 
 Built: $($exe.FullName)
