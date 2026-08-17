@@ -67,6 +67,11 @@ export const csErrors = {
   "errors.watch_folder.import_interrupted": "Přidání souborů se přerušilo: {detail}",
   "errors.folder.empty_name": "Složka potřebuje název.",
   "errors.folder.duplicate_name": "Složka s tímto názvem už existuje.",
+  // The picker opens in the recordings folder, so choosing the source itself is
+  // one wrong click rather than a strange thing to do — and both export paths
+  // would truncate it.
+  "errors.audio_export.same_file":
+    "Zvuk nejde uložit přes sám sebe. Vyberte prosím jiný soubor nebo složku.",
   "errors.audio_export.source_missing":
     "Zvukový soubor už na svém místě není, takže není co uložit.",
   "errors.audio_export.failed": "Zvuk se nepodařilo uložit: {detail}",
@@ -79,7 +84,11 @@ export const csErrors = {
   "errors.microphone.ffmpeg_missing":
     "Pro uložení záznamu chybí ffmpeg. Doplňte ho v sekci Modely.",
   "errors.microphone.save_failed": "Záznam se nepodařilo uložit: {detail}",
-  "errors.microphone.convert_failed": "Záznam se nepodařilo převést do zvukového souboru.",
+  // Names the file, because the take is kept now. Until 17 August 2026 it was
+  // deleted before this failure was even noticed, and the sentence spoke about
+  // audio that no longer existed.
+  "errors.microphone.convert_failed":
+    "Záznam se nepodařilo převést do zvukového souboru. Zůstal uložený jako {file}.",
 
   // Playback.
   "errors.update.install_failed":
@@ -199,6 +208,11 @@ export const csErrors = {
   "errors.benchmark.backend_failed": "{detail}",
   "errors.benchmark.launch_failed": "{detail}",
   // Replacing the archive, and copying it somewhere it survives this computer.
+  // `archive.busy` is the guard the most destructive command in the application
+  // did not have: a transcription, a jazyková úprava, an import and a waveform
+  // each hold their own connection to the archive file.
+  "errors.archive.busy":
+    "Teď se s archivem pracuje. Zkuste to prosím, až doběhne přepis nebo jiná rozdělaná práce.",
   "errors.backup.unknown":
     "Tahle záloha ve složce se zálohami není. Zkuste seznam otevřít znovu.",
   "errors.archive.export.onto_itself":

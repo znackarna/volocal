@@ -21,6 +21,12 @@ export const enApp: Partial<Record<keyof typeof csApp, string>> = {
   "app.shell.language": "Language",
   "app.shell.segmentCount": "Segments",
   "app.notice.unsupportedFormat": "We can’t read this format. Try mp3, wav, m4a or a common video.",
+  "app.recorder.closeTitle": "Close Volocal?",
+  "app.recorder.closeWhileRecording":
+    "A take is running and has not been saved. Closing loses it.",
+  "app.recorder.closeWhileUnsaved":
+    "The finished take has not been saved yet. Closing loses it.",
+  "app.recorder.closeAnyway": "Close anyway",
   "app.recorder.label": "Recording",
   "app.recorder.open": "Open the recorder",
   "app.recorder.stop": "Stop recording",

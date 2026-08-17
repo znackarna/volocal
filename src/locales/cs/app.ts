@@ -36,6 +36,16 @@ export const csApp = {
   // --------------------------------------------------------------- notice
   "app.notice.unsupportedFormat":
     "Tento formát neumíme. Zkuste mp3, wav, m4a nebo běžné video.",
+  // The one place in the application that argues with the close button. A take
+  // lives only in this window until it is saved, and the job object closes the
+  // process tree with the window, so this question is the whole of what stands
+  // between a recording and nothing.
+  "app.recorder.closeTitle": "Zavřít Volocal?",
+  "app.recorder.closeWhileRecording":
+    "Nahrávání běží a zatím není uložené. Zavřením o něj přijdete.",
+  "app.recorder.closeWhileUnsaved":
+    "Hotový záznam ještě není uložený. Zavřením o něj přijdete.",
+  "app.recorder.closeAnyway": "Zavřít i tak",
   "app.recorder.label": "Záznam",
   "app.recorder.open": "Otevřít nahrávání",
   "app.recorder.stop": "Zastavit záznam",

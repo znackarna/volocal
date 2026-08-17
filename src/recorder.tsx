@@ -9,6 +9,10 @@ import {
   type ReactNode,
 } from "react";
 
+import { getCurrentWindow } from "@tauri-apps/api/window";
+
+import ConfirmationDialog from "./ConfirmationDialog";
+import type { ConfirmationRequest } from "./ConfirmationDialog";
 import { useI18n } from "./i18n";
 import { Waveform, usePlayer } from "./player";
 import type { Waveform as StoredWaveform } from "./player";
@@ -70,6 +74,7 @@ interface RecorderValue {
 const RecorderContext = createContext<RecorderValue | null>(null);
 
 export function RecorderProvider({ children }: { children: ReactNode }) {
+  const { t } = useI18n();
   const [phase, setPhase] = useState<RecorderPhase>("idle");
   const [seconds, setSeconds] = useState(0);
 
@@ -316,7 +321,70 @@ export function RecorderProvider({ children }: { children: ReactNode }) {
     ]
   );
 
-  return <RecorderContext.Provider value={value}>{children}</RecorderContext.Provider>;
+
+  /** **The window may not close over an unsaved take.**
+   *
+   *  A take exists only as a `Blob` in this webview until somebody presses
+   *  save: `MediaRecorder` is started with no timeslice, so nothing is on disk
+   *  while it runs. And the job object in `main.rs` is deliberate and thorough
+   *  — closing the window kills the whole process tree — so the one gesture
+   *  that ends a recording session ended it without a word.
+   *
+   *  Every other artefact here can be made again. A take cannot: it is a
+   *  moment that happened once. That is why this is a question and not a
+   *  courtesy, and why it is the only place in the application that argues
+   *  with the close button.
+   *
+   *  `recording` and `preview` only. `saving` is already on its way to disk and
+   *  `ready` is an open microphone with nothing in it — stopping either would
+   *  be a dialog about nothing. */
+  const [closeAsked, setCloseAsked] = useState<ConfirmationRequest | null>(null);
+  useEffect(() => {
+    let alive = true;
+    let stop: (() => void) | undefined;
+    void getCurrentWindow()
+      .onCloseRequested((event) => {
+        if (phaseRef.current !== "recording" && phaseRef.current !== "preview") return;
+        event.preventDefault();
+        setCloseAsked({
+          title: t("app.recorder.closeTitle"),
+          text: t(
+            phaseRef.current === "recording"
+              ? "app.recorder.closeWhileRecording"
+              : "app.recorder.closeWhileUnsaved"
+          ),
+          confirm: t("app.recorder.closeAnyway"),
+          destructive: true,
+          /* Destroyed on purpose, so it says so and it is the reader who says
+             it. The take is dropped first: without that the guard would fire a
+             second time on the close below and the dialog would ask again. */
+          action: async () => {
+            takeRef.current = null;
+            chunks.current = [];
+            setPhase("idle");
+            await getCurrentWindow().destroy();
+          },
+        });
+      })
+      .then((unlisten) => {
+        if (alive) stop = unlisten;
+        else unlisten();
+      });
+    return () => {
+      alive = false;
+      stop?.();
+    };
+  }, [t]);
+
+  return (
+    <RecorderContext.Provider value={value}>
+      {children}
+      {/* At the provider, which wraps the whole application, so the veil covers
+          the window rather than a column — the fault `.settings.settings > *`
+          carries a warning about. */}
+      <ConfirmationDialog query={closeAsked} onClose={() => setCloseAsked(null)} />
+    </RecorderContext.Provider>
+  );
 }
 
 export function useRecorder(): RecorderValue {

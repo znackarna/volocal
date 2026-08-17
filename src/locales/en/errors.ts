@@ -42,6 +42,8 @@ export const enErrors: Partial<Record<keyof typeof csErrors, string>> = {
   "errors.watch_folder.ignore_interrupted": "Ignoring files was interrupted: {detail}",
   "errors.folder.empty_name": "A folder needs a name.",
   "errors.folder.duplicate_name": "There is already a folder with that name.",
+  "errors.audio_export.same_file":
+    "The audio can't be saved over itself. Please choose a different file or folder.",
   "errors.audio_export.source_missing":
     "The audio file is no longer in its place, so there is nothing to save.",
   "errors.audio_export.failed": "The audio couldn’t be saved: {detail}",
@@ -53,7 +55,8 @@ export const enErrors: Partial<Record<keyof typeof csErrors, string>> = {
   "errors.microphone.empty": "The take is too short to transcribe.",
   "errors.microphone.ffmpeg_missing": "Saving the take needs ffmpeg. Add it under Models.",
   "errors.microphone.save_failed": "The take couldn’t be saved: {detail}",
-  "errors.microphone.convert_failed": "The take couldn’t be converted into an audio file.",
+  "errors.microphone.convert_failed":
+    "The take couldn’t be converted into an audio file. It has been kept as {file}.",
   "errors.watch_folder.import_interrupted": "Adding files was interrupted: {detail}",
   "errors.update.install_failed":
     "The update could not be made ready to install. Please try again.",
@@ -131,6 +134,8 @@ export const enErrors: Partial<Record<keyof typeof csErrors, string>> = {
   "errors.benchmark.unknown_failure": "unknown error",
   "errors.benchmark.backend_failed": "{detail}",
   "errors.benchmark.launch_failed": "{detail}",
+  "errors.archive.busy":
+    "The archive is in use right now. Please try again once the transcription or other work in progress has finished.",
   "errors.backup.unknown": "That backup is not in the backup folder. Try opening the list again.",
   "errors.archive.export.onto_itself": "That is the archive the application is working with. Choose another place or another name.",
   "errors.archive.import.not_an_archive": "The file you chose is not a Volocal archive. An archive is a single .db file — either volocal.db, or a copy you saved yourself.",

@@ -846,6 +846,19 @@ fn refill_search_index(db: &Connection) -> Result<()> {
 pub fn open(path: &std::path::Path) -> Result<Connection> {
     let db = Connection::open(path)?;
 
+    /* **Wait for a busy archive rather than failing at it.** SQLite's default
+    is to give up the instant another connection holds the write lock, and
+    this application opens six or more of them — the window's, a
+    transcription's, an AI edit's, a waveform's, the startup backup's. Under
+    WAL a reader never blocks a writer, so the collisions are brief and rare;
+    what they are not is impossible, and without this the loser is an
+    ordinary command answering `database is locked` to somebody who did
+    nothing wrong.
+
+    Five seconds is far longer than any write here takes and far shorter than
+    a person's patience for a button that has visibly been pressed. */
+    db.busy_timeout(std::time::Duration::from_secs(5))?;
+
     // Before anything is renamed or created. An archive from a newer build is
     // not ours to touch, and the one thing this must not do is what an older
     // build does today: fail to find the tables it knows and make empty ones.

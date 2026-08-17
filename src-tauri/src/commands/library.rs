@@ -400,11 +400,40 @@ pub fn save_microphone_recording(
         .args(["-vn", "-c:a", "aac", "-b:a", "160k"])
         .arg(&output)
         .status();
-    let _ = std::fs::remove_file(&raw);
+    /* **The take is deleted only once there is something to replace it with.**
+    This line stood above the match, so a conversion that failed — a full
+    disk, an ffmpeg deleted between the check and the run — removed the only
+    copy of the recording and then reported that the take could not be
+    converted. About audio that no longer existed.
+
+    Every other artefact in this application can be made again: a transcript
+    from its recording, a document from its transcript, a component from its
+    download. A take cannot. It is the one place where a failure was able to
+    destroy something irreproducible, and it is the one thing the audit of
+    4 August 2026 — *nothing may quietly destroy work* — never covered,
+    because the microphone was built the day after it.
+
+    On the way out it is given the name the recording would have had. A
+    `take-<uuid>.webm` left in the folder is a file nobody would recognise as
+    theirs, and this is the moment somebody is going to go looking. */
     match converted {
-        Ok(status) if status.success() => {}
-        Ok(_) => return Err(UserMessage::new("microphone.convert_failed")),
-        Err(error) => return Err(UserMessage::new("microphone.convert_failed").detail(error)),
+        Ok(status) if status.success() => {
+            let _ = std::fs::remove_file(&raw);
+        }
+        outcome => {
+            let kept = free_path(&root, &format!("Záznam {stamp}"), "webm");
+            let kept = match std::fs::rename(&raw, &kept) {
+                Ok(()) => kept,
+                // Even the rename failing leaves the bytes where they are.
+                Err(_) => raw.clone(),
+            };
+            let message =
+                UserMessage::new("microphone.convert_failed").with("file", kept.display());
+            return Err(match outcome {
+                Err(error) => message.detail(error),
+                _ => message,
+            });
+        }
     }
 
     // Probe before the lock, for the reason `probe_duration` carries.

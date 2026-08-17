@@ -121,6 +121,26 @@ pub fn backups(app: State<'_, AppState>) -> Vec<Backup> {
         .collect()
 }
 
+/// Refuses to replace the archive while anything is working with it.
+///
+/// **The most destructive command in the application guarded against nothing**,
+/// while `remove_component` — which deletes a file that can simply be
+/// downloaded again — asks all five registries first. The asymmetry was the
+/// tell. A transcription, an AI edit, an online import and a waveform each hold
+/// their own connection to the archive file; swapping that file out from under
+/// them writes their results into a database that is no longer the one anybody
+/// is looking at, or fails in the middle and leaves neither.
+///
+/// Waiting is the whole remedy. Unlike a component, an archive is not something
+/// the reader can be offered a way around.
+fn nothing_may_be_working(app: &AppState) -> Reported<()> {
+    let busy = crate::commands::downloads::busy_now(app);
+    if busy.transcribing || busy.editing || busy.importing || busy.converting {
+        return Err(UserMessage::new("archive.busy"));
+    }
+    Ok(())
+}
+
 /// Puts a backup back, in place of the archive that is open right now.
 ///
 /// Until now the only way back was the one the startup dialog prints when the
@@ -153,6 +173,7 @@ pub fn restore_backup(app: State<'_, AppState>, file: String) -> Reported<()> {
     if !known {
         return Err(UserMessage::new("backup.unknown"));
     }
+    nothing_may_be_working(&app)?;
 
     let mut held = app.db.lock().unwrap();
 
@@ -210,14 +231,33 @@ pub fn export_archive(app: State<'_, AppState>, path: String) -> Reported<()> {
     }
 
     let db = app.db.lock().unwrap();
-    // `VACUUM INTO` refuses a target that exists, and the save dialog has
-    // already asked about overwriting. Removed here rather than reported, or
-    // saying yes to that question would produce an error.
-    let _ = std::fs::remove_file(&destination);
+    /* **Written beside the destination and renamed onto it.** `VACUUM INTO`
+    refuses a target that exists, so this used to delete whatever the reader
+    had chosen and then vacuum — which is a copy of an archive destroyed to
+    make room for one that had not been written yet. A disk that fills, a
+    vacuum that fails, the application closed mid-write: any of them left the
+    reader with neither file. Overwriting an older export of the same archive
+    is the ordinary case, so this is not a rare shape.
+
+    The temporary name sits in the same folder on purpose. A rename within
+    one filesystem is atomic; through the system temp directory it would be a
+    copy, which is the very step being protected against. */
+    let working = destination.with_extension("volocal-export");
+    let _ = std::fs::remove_file(&working);
+    let vacuumed = db
+        .execute("VACUUM INTO ?1", [working.to_string_lossy()])
+        .map(|_| ())
+        .map_err(anyhow::Error::from);
+    if vacuumed.is_err() {
+        let _ = std::fs::remove_file(&working);
+    }
+    reported(vacuumed)?;
     reported(
-        db.execute("VACUUM INTO ?1", [destination.to_string_lossy()])
-            .map(|_| ())
-            .map_err(anyhow::Error::from),
+        std::fs::rename(&working, &destination)
+            .map_err(anyhow::Error::from)
+            .inspect_err(|_| {
+                let _ = std::fs::remove_file(&working);
+            }),
     )?;
     crate::note!("archive: a copy was written to {}", destination.display());
     Ok(())
@@ -230,7 +270,7 @@ pub fn export_archive(app: State<'_, AppState>, path: String) -> Reported<()> {
 /// catch the case this guards: somebody picking the live archive in the save
 /// dialog, which would otherwise be deleted and then vacuumed into by a
 /// connection still holding it open.
-fn points_at_the_same_file(a: &std::path::Path, b: &std::path::Path) -> bool {
+pub(crate) fn points_at_the_same_file(a: &std::path::Path, b: &std::path::Path) -> bool {
     fn parts(p: &std::path::Path) -> (std::path::PathBuf, std::ffi::OsString) {
         let folder = p
             .parent()
@@ -276,6 +316,7 @@ pub fn import_archive(app: State<'_, AppState>, path: String) -> Reported<()> {
     if points_at_the_same_file(&source, &app.db_path) {
         return Err(UserMessage::new("archive.import.itself"));
     }
+    nothing_may_be_working(&app)?;
 
     let mut held = app.db.lock().unwrap();
 

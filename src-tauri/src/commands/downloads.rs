@@ -17,7 +17,7 @@ use tauri::State;
 /// This is the one place all five are in scope, which is why the gathering is
 /// here and the meaning — *which components does that make busy* — is in
 /// `download.rs` beside the catalogue it decides about.
-fn busy_now(app: &AppState) -> download::Busy {
+pub(crate) fn busy_now(app: &AppState) -> download::Busy {
     download::Busy {
         transcribing: app.bezici.anything_running(),
         editing: app.ai_edit.anything_running(),
