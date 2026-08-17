@@ -11,6 +11,13 @@ altered, not how, not which file. Entries before 1.2.6 are written the old way
 and are left as they are; they are not a model for the next one. The mechanism
 belongs in `docs/history/`, which is what that folder is for.
 
+## 1.2.15 — 17 August 2026
+
+- **Volocal closes when you close it.** In 1.2.14 neither the close button nor
+  Alt+F4 could shut the window.
+- **A dragged file offers a transcript only in the archive**, which is where it
+  lands.
+
 ## 1.2.14 — 17 August 2026
 
 - **A recording you have made cannot be lost.** Volocal asks before the window
