@@ -917,7 +917,6 @@
      whole window, so it has none of the compositing trouble that rule carries
      a warning about: nothing here moves under it. */
   backdrop-filter: blur(3px);
-  -webkit-backdrop-filter: blur(3px);
   /* A veil is dark in both palettes. It used to be `--ds-foreground / 0.35`,
      which is the *text* colour — dark on the light palette, and near-white on
      the dark one, where it lightened the page by 35 % behind a dialog that is
@@ -1538,7 +1537,6 @@ button.mic-play:disabled { cursor: default; opacity: 0.6; }
 .ai-output-toolbar::before {
   height: 42px;
   backdrop-filter: blur(3px);
-  -webkit-backdrop-filter: blur(3px);
   background: linear-gradient(to bottom, var(--ground) 0%, transparent 100%);
   mask-image: linear-gradient(to bottom, #000 0%, #000 15%, transparent 100%);
   -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 15%, transparent 100%);
@@ -1546,7 +1544,6 @@ button.mic-play:disabled { cursor: default; opacity: 0.6; }
 .ai-output-toolbar::after {
   height: 18px;
   backdrop-filter: blur(9px);
-  -webkit-backdrop-filter: blur(9px);
   mask-image: linear-gradient(to bottom, #000, transparent);
   -webkit-mask-image: linear-gradient(to bottom, #000, transparent);
 }
@@ -1619,23 +1616,15 @@ button.mic-play:disabled { cursor: default; opacity: 0.6; }
 .drag-overlay {
   position: fixed; inset: 0; z-index: 50;
   backdrop-filter: blur(3px);
-  -webkit-backdrop-filter: blur(3px);
-  /* **A floor under the blur, for the machines where the blur does nothing.**
-     `backdrop-filter` is a property WebView2 accepts and then quietly declines
-     to render when it is drawing without hardware compositing: on 17 August an
-     installed copy showed no blur anywhere, the archive's own dissolve
-     included, while a locally built copy of the same commit blurred everything.
-
-     Every other veil in the application already had something under it — the
-     dissolve says so beside its own colour fade, and `.dialog-overlay` has
-     `--scrim`. This rule had nothing at all, so on such a machine dragging a
-     file over the window drew literally no answer.
-
-     `--scrim` and not a tint. The tint was the fault this rule was written to
-     remove and the reasoning above still holds: a colour says *the window is a
-     state*, where the veil says it about the content. What is asked of the
-     scrim here is only that the reader can see something happened. */
-  background: var(--scrim);
+  /* **No background, and that stands.** A `--scrim` was put here for an hour on
+     17 August, as a floor for machines that cannot blur — written while the
+     packaged application appeared unable to blur anything, which turned out to
+     be a stylesheet shipping a property Blink does not implement. There was no
+     such machine. The premise went and the veil went with it, because blur
+     alone is what was chosen, on the argument that a colour laid over
+     everything says *the window is a state* where the blur says it about the
+     content.
+     If a reader ever turns up on software rendering, this is one line back. */
   display: flex; align-items: center; justify-content: center; pointer-events: none;
 }
 /* No dashed border on the panel. The drop zone below it is dashed because a

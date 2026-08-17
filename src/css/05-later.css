@@ -341,8 +341,17 @@ button.current > .row-play { color: var(--accent); }
 .mini-player { position: relative; overflow: hidden; }
 .mini-player > *:not(.mini-waves) { position: relative; z-index: 1; }
 .mini-waves {
-  /* Room on the left for the play button. */
-  position: absolute; inset: 0 8px 0 38px; z-index: 0;
+  /* **The whole pill, under everything.** It used to start at 38 px, on the
+     argument that the play button needs room — and the button does not need
+     room, it stands on its own layer: `.mini-player > *:not(.mini-waves)` is at
+     `z-index: 1` and this is at 0, which is the arrangement that makes the bars
+     a backdrop rather than a neighbour. The inset made them a neighbour that
+     began somewhere, and the eye reads the start of a pattern as an edge.
+
+     `.mini-recorder` had it right all along — *tak, jak to má i recorder mini*
+     — and the comment on `.dense` has been calling this the full-bleed backdrop
+     since it was written, describing a state it did not have. */
+  position: absolute; inset: 0; z-index: 0;
   pointer-events: none;
   /* The visualisation is decoration, not data — it must not outshout the title. */
   color: hsl(var(--ds-foreground) / 0.085);

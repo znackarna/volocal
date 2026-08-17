@@ -11,6 +11,12 @@ altered, not how, not which file. Entries before 1.2.6 are written the old way
 and are left as they are; they are not a model for the next one. The mechanism
 belongs in `docs/history/`, which is what that folder is for.
 
+## 1.2.12 — 17 August 2026
+
+- **The soft focus behind dialogs and under a dragged file is back**, on every
+  installed copy.
+- **The waveform runs the whole width of the mini player.**
+
 ## 1.2.11 — 17 August 2026
 
 - **Dragging a file over the window is visible on every machine**, not only the
