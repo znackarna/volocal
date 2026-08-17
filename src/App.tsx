@@ -28,6 +28,7 @@ import { check as checkForUpdate } from "@tauri-apps/plugin-updater";
 import type { ConfirmationRequest } from "./ConfirmationDialog";
 import { formatTime, applyFonts, applyTheme, fileName, noteUpdateCheck } from "./types";
 import { rememberSpeakerNames } from "./speakerNames";
+import { computeFellBack } from "./compute";
 import { useI18n } from "./i18n";
 import type { TranslationKey } from "./i18n";
 import { useProgressMessage, useUserMessage } from "./messages";
@@ -705,11 +706,44 @@ export default function App() {
     // Names for the download bubble. One call at start-up; the catalogue is a
     // constant list compiled into the backend, not something that changes.
     api.catalog().then(setCatalogItems).catch(() => {});
-    loadToolCheck().then((k) => {
+    loadToolCheck().then(async (k) => {
       // Over the archive rather than instead of it. The reader sees the
       // application they have just installed, with the one question they have
       // to answer standing in front of it.
-      if (k && k.issues.length > 0) setSetupOpen(true);
+      if (k && k.issues.length > 0) {
+        setSetupOpen(true);
+        return;
+      }
+      /* **The graphics card sitting out a run is said here, once.**
+         `choose_compute` substitutes the processor in silence by design, because
+         a transcription must run — and a transcription several times slower with
+         nothing said reads as how the application is rather than as a stand-in.
+         `Výkon` has explained it since 14 August, on a card nobody has a reason
+         to open, which is the same thing the setup notice was doing before it
+         moved here: *tak to patří do notifikační lišty*.
+
+         Once per launch, at start-up, not on every check. The state it reports
+         is not a passing one — a build that was never fetched, a driver that
+         stopped loading — so repeating it on the sixty-second poll would be a
+         bar that never goes away about something the reader has already read.
+
+         Not while the wizard is open: a first run has not chosen anything yet
+         and is about to download the graphics build itself. */
+      if (!k) return;
+      try {
+        const settings = await api.loadSettings();
+        if (computeFellBack(settings.compute, k)) {
+          reportInfo(t("app.computeFellBack"), {
+            label: t("app.computeFellBack.where"),
+            run: () => {
+              setSettingsTab("performance");
+              setScreen("settings");
+            },
+          });
+        }
+      } catch {
+        // Being unable to ask is not evidence of anything to report.
+      }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadRecordings, loadToolCheck]);

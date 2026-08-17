@@ -925,6 +925,38 @@
   background: var(--scrim);
   display: flex; align-items: center; justify-content: center;
   padding: 24px;
+  animation: veil-settles var(--hover-duration) var(--hover-ease);
+}
+/* **The veil arrives, it does not appear.** Blur at full strength on the first
+   frame is a cut, and a cut behind a dialog that eases in reads as two events
+   — *ať to není jen skok, ať ten blur zesílí*.
+
+   `from` only, with no `to`: the end of the animation is whatever the rule
+   itself sets, so the radius and the scrim are written once. Two rules holding
+   one value is the thing this file keeps warning about, and here it would be a
+   blur that ramps to a number the veil no longer uses.
+
+   `--hover-duration`, 0.22s, which is already this application's length for
+   *something changes while you are looking at it*. Longer than the dialog's own
+   0.14 s on purpose: an opacity fade is read from its endpoints, a blur is read
+   from the radii in between, so the same duration would leave the veil looking
+   instant beside a dialog that visibly moves.
+
+   `background-color` rather than the `background` shorthand — a shorthand is
+   not interpolated. The drag overlay has no background at all, so for it this
+   half of the keyframe is transparent to transparent and only the blur ramps,
+   which is why one keyframe serves both. */
+@keyframes veil-settles {
+  /* 0.02px, not 0. `blur(0)` is minified to `blur()` — legal by the letter of
+     the filter-effects grammar, where the length is optional, and exactly the
+     kind of bet this evening was spent losing: a stylesheet shipping something
+     an engine may or may not accept, with nothing between the source and the
+     screen to notice. A hundredth of a pixel is invisible, means the same
+     thing, and no minifier touches it. */
+  from { backdrop-filter: blur(0.02px); background-color: transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dialog-overlay, .drag-overlay { animation: none; }
 }
 /* The dialog owns its size, and the last of those numbers is the one that says
    so: `calc(100vh - 48px)` is the window less the overlay's own 24 px on each
@@ -1626,6 +1658,10 @@ button.mic-play:disabled { cursor: default; opacity: 0.6; }
      content.
      If a reader ever turns up on software rendering, this is one line back. */
   display: flex; align-items: center; justify-content: center; pointer-events: none;
+  /* The dialog's arrival, shared. See `veil-settles`. Here it is the blur
+     alone, and it is the whole of what the window does when a file comes over
+     it — so a cut is even more of a jolt than it is behind a dialog. */
+  animation: veil-settles var(--hover-duration) var(--hover-ease);
 }
 /* No dashed border on the panel. The drop zone below it is dashed because a
    dashed frame is what says *put something here* about an empty area waiting;

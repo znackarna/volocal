@@ -11,6 +11,13 @@ altered, not how, not which file. Entries before 1.2.6 are written the old way
 and are left as they are; they are not a model for the next one. The mechanism
 belongs in `docs/history/`, which is what that folder is for.
 
+## 1.2.13 — 17 August 2026
+
+- **Volocal says when the graphics card is sitting a transcription out**, so a
+  slower run is not mistaken for the normal one.
+- **Dialogs and the drag overlay ease their soft focus in** instead of snapping
+  to it.
+
 ## 1.2.12 — 17 August 2026
 
 - **The soft focus behind dialogs and under a dragged file is back**, on every
