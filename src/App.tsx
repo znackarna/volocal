@@ -29,6 +29,7 @@ import type { ConfirmationRequest } from "./ConfirmationDialog";
 import { formatTime, applyFonts, applyTheme, fileName, noteUpdateCheck } from "./types";
 import { rememberSpeakerNames } from "./speakerNames";
 import { computeFellBack } from "./compute";
+import { forgetPendingModel, pendingModel } from "./pendingModel";
 import { useI18n } from "./i18n";
 import type { TranslationKey } from "./i18n";
 import { useProgressMessage, useUserMessage } from "./messages";
@@ -538,6 +539,11 @@ export default function App() {
       try {
         const fresh = await api.checkTools();
         setCheck(fresh);
+        /* And told to the same memory the poll reads. Without it the next
+           sixty-second check saw `before === 0`, decided something had just
+           gone missing, and raised a second bar about the file this refusal had
+           already named. */
+        knownMissing.current = fresh.issues.length;
         missing = fresh.issues;
       } catch {
         // Keep what we had.
@@ -591,6 +597,15 @@ export default function App() {
    *  the wizard opens by itself to say so. What this remembers is the other
    *  case — it was all here a minute ago and now it is not. */
   const knownMissing = useRef<number | null>(null);
+
+  /** Whether the graphics card sitting out a run has already been said.
+   *
+   *  The start-up effect re-runs whenever `t` changes identity — which is every
+   *  time the interface language is switched — and *once per launch* has to
+   *  mean once, not once per language. The state being reported does not pass:
+   *  a build never fetched, a driver that stopped loading. Saying it twice
+   *  would be a bar about something the reader has already read. */
+  const computeSaid = useRef(false);
 
   const loadToolCheck = useCallback(async () => {
     try {
@@ -732,7 +747,8 @@ export default function App() {
       if (!k) return;
       try {
         const settings = await api.loadSettings();
-        if (computeFellBack(settings.compute, k)) {
+        if (!computeSaid.current && computeFellBack(settings.compute, k)) {
+          computeSaid.current = true;
           reportInfo(t("app.computeFellBack"), {
             label: t("app.computeFellBack.where"),
             run: () => {
@@ -840,13 +856,55 @@ export default function App() {
            a queued component is queued; here the bubble goes on reporting what
            is actually moving. */
         if (next.phase === "waiting") return;
-        setDownloading(["error", "cancelled"].includes(next.phase) ? null : next);
+        /* **Cleared only by the component it is naming.** Stopping a queued row
+           while another one downloads used to take the bubble down with it, and
+           during an `extracting` phase there are no further ticks to bring it
+           back — so the one thing still working reported nothing until it
+           finished. */
+        if (["error", "cancelled"].includes(next.phase)) {
+          setDownloading((current) => (current && current.id !== next.id ? current : null));
+          return;
+        }
+        setDownloading(next);
       })
     );
 
     add(
-      listen("download:complete", () => {
+      listen<string[]>("download:complete", async (u) => {
         setDownloading(null);
+        /* **The chosen model is written here, and only here.**
+           `settings.model` names a file that `tools.rs` resolves with no
+           fallback, so it must not be written before that file exists — and by
+           the time it does, the screen that made the choice is often gone:
+           `Stahovat na pozadí` closes the wizard and leaves the download
+           running.
+
+           The wizard used to do this itself, from its own `quality`, and so
+           wrote nothing at all in that ordinary case — or, when it was reopened
+           onto the running download, wrote the *recommended* model rather than
+           the chosen one, because `chosen` starts as null on every mount. The
+           choice is written down when the download starts; this honours it when
+           the download ends.
+
+           Forgotten either way. A component that did not land leaves a
+           record naming a file that is not there, and a record that outlived
+           its download is worse than none. */
+        const wanted = pendingModel();
+        if (wanted) {
+          const unfinished = u.payload ?? [];
+          if (!unfinished.includes(wanted.component)) {
+            try {
+              const settings = await api.loadSettings();
+              if (settings.model !== wanted.settings) {
+                await api.saveSettings({ ...settings, model: wanted.settings });
+              }
+            } catch {
+              /* The setting can still be changed by hand, and the wizard
+                 reopens as required if the model it names is missing. */
+            }
+          }
+          forgetPendingModel();
+        }
         loadToolCheck();
       })
     );

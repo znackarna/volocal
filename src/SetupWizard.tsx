@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { api } from "./api";
 import ConfirmationDialog from "./ConfirmationDialog";
@@ -9,6 +9,7 @@ import { useI18n, type TranslationKey } from "./i18n";
 import { useProgressMessage, useUserMessage } from "./messages";
 import { useFormats } from "./formats";
 import { useDialog } from "./useDialog";
+import { rememberPendingModel } from "./pendingModel";
 import {
   EDITOR_MODELS,
   UNOFFERED_COMPONENTS,
@@ -320,6 +321,30 @@ export default function SetupWizard({
    *  have — so the same question is asked of a different source: **what did you
    *  fetch**, rather than what did you tick. */
   const [startedHere, setStartedHere] = useState<Set<string>>(new Set());
+  /** The same set, readable from a closure that was captured before it filled.
+   *
+   *  The `download:complete` listener below is registered once per `manual` and
+   *  `quality`, with the exhaustive-deps rule switched off, so the `dokonci` it
+   *  holds is the one built at that moment — with `startedHere` still empty. In
+   *  the by-hand list that meant **fetching a model never wrote
+   *  `settings.model`**, which is the exact defect the branch below says it
+   *  fixes. Re-registering the listener on every set change would be the other
+   *  way, and would drop events in the gap between removing one and adding the
+   *  next. */
+  const startedHereRef = useRef<Set<string>>(startedHere);
+  startedHereRef.current = startedHere;
+
+  /** Did this instance of the wizard actually start a download?
+   *
+   *  `download:complete` is one event for the whole application, and this
+   *  screen was treating every one of them as the end of its own run — so a
+   *  language-editing model finishing behind the transcript screen concluded a
+   *  first run with *Vše je připraveno*, and, worse, wrote a `settings.model`
+   *  from a `quality` this instance had never been told.
+   *
+   *  A ref rather than state: it is read inside the listener, which is exactly
+   *  where state captured at registration is stale. */
+  const startedRun = useRef(false);
 
   const [progress, setProgress] = useState<Record<string, DownloadProgress>>({});
   /* Read once, at the first render. A download reported as running when this
@@ -407,6 +432,7 @@ export default function SetupWizard({
   const installOne = useCallback(
     async (component: DownloadComponent) => {
       try {
+        startedRun.current = true;
         await api.download([component.id]);
         setStartedHere((current) => new Set(current).add(component.id));
       } catch (error) {
@@ -444,6 +470,7 @@ export default function SetupWizard({
         const wanted = requested.filter((id) => !k.find((x) => x.id === id)?.complete);
         if (wanted.length > 0) {
           try {
+            startedRun.current = true;
             await api.download(wanted);
             setStartedHere(new Set(wanted));
           } catch (error) {
@@ -537,7 +564,18 @@ export default function SetupWizard({
 
     add(
       listen<DownloadProgress>("download:progress", (u) => {
-        setProgress((p) => ({ ...p, [u.payload.id]: u.payload }));
+        setProgress((p) => {
+          /* `waiting` is emitted after the queue lock is released, so a worker
+             that popped the id immediately can report `downloading` first and
+             leave the row saying *čeká ve frontě* for the whole connect window.
+             A phase that has already moved is not un-moved by the announcement
+             that it was once in line. */
+          const standing = p[u.payload.id];
+          if (u.payload.phase === "waiting" && standing && standing.phase !== "waiting") {
+            return p;
+          }
+          return { ...p, [u.payload.id]: u.payload };
+        });
         if (u.payload.phase === "error" && u.payload.message) {
           setError(progressMessage(u.payload.message));
         }
@@ -546,6 +584,12 @@ export default function SetupWizard({
 
     add(
       listen<string[]>("download:complete", async (u) => {
+        /* Somebody else's run. One event serves the whole application — the
+           models page, the editor model a transcript asked for, the queue
+           draining behind a dialog nobody opened — and concluding on it was how
+           this screen came to announce a first run it had not performed. */
+        if (!startedRun.current) return;
+        startedRun.current = false;
         setRunning(false);
         await dokonci(u.payload ?? []);
         load();
@@ -583,16 +627,24 @@ export default function SetupWizard({
         const n = await api.loadSettings();
         const changesApplied = { ...n };
         if (!manual) {
-          if (landed(MODELS[quality].component)) {
-            changesApplied.model = MODELS[quality].settings;
-          }
-          /* Written whether or not the model landed, and that is the
-             difference between the two: `model` names a file and must not name
-             one that is missing, while this is the answer to a question the
-             reader has just answered. Everything that follows from it — how
-             large a language-editing model is fetched the first time a
-             document is wanted — follows from the answer, not from the
-             download. */
+          /* **The guided model is not written here any more.** It was, from
+             `MODELS[quality]` — and `quality` is `chosen ?? recommended`, with
+             `chosen` reset to null every time this component mounts. A wizard
+             reopened onto a running download therefore concluded with the
+             *recommended* quality rather than the chosen one: pick `Rychlý`,
+             press `Stahovat na pozadí`, come back through `Zobrazit průběh`,
+             and `settings.model` was written as `large-v3` for a file that had
+             never been fetched.
+
+             It also could not work at all in the ordinary case, because
+             `Stahovat na pozadí` unmounts this screen — so the thing waiting to
+             record the answer was gone before the download it was waiting for
+             finished.
+
+             Both are the same mistake: a decision that outlives this screen was
+             being kept inside it. `rememberPendingModel` writes it down when the
+             download starts and `App.tsx` honours it when the run ends, whether
+             or not anybody is still looking at this dialog. */
           changesApplied.quality_choice = MODELS[quality].choice;
         } else {
           /* The by-hand path used to write `editor_model` and nothing else, and
@@ -608,7 +660,7 @@ export default function SetupWizard({
              setting, so opening the list to add something unrelated cannot
              change which model transcribes. */
           const pickedModel = Object.values(MODELS).find(
-            (choice) => startedHere.has(choice.component) && landed(choice.component)
+            (choice) => startedHereRef.current.has(choice.component) && landed(choice.component)
           );
           if (pickedModel) {
             changesApplied.model = pickedModel.settings;
@@ -621,7 +673,7 @@ export default function SetupWizard({
              `resolve_editor_model` in `tools.rs` falls back through. Whichever
              it picks, both files are on the disk and the other stays usable. */
           const selectedEditor = Object.keys(EDITOR_MODELS).find(
-            (component) => startedHere.has(component) && landed(component)
+            (component) => startedHereRef.current.has(component) && landed(component)
           );
           if (selectedEditor) changesApplied.editor_model = EDITOR_MODELS[selectedEditor];
         }
@@ -630,7 +682,7 @@ export default function SetupWizard({
         /* settings can still be adjusted by hand */
       }
     },
-    [quality, manual, startedHere]
+    [quality, manual]
   );
 
   const start = useCallback(async () => {
@@ -646,12 +698,17 @@ export default function SetupWizard({
           (items.find((p) => p.id === a)?.megabytes ?? 0) -
           (items.find((p) => p.id === b)?.megabytes ?? 0)
       );
+      /* Written down before the call, and outside this component. The screen
+         that made the choice does not survive `Stahovat na pozadí`, and the
+         answer has to. */
+      rememberPendingModel(MODELS[quality].component, MODELS[quality].settings);
+      startedRun.current = true;
       await api.download(sortedIds);
     } catch (e) {
       setError(userMessage(e));
       setRunning(false);
     }
-  }, [items, selected, userMessage]);
+  }, [items, selected, userMessage, quality]);
 
   /* `cancelled` counts as unfinished, not as done. The backend emits it for
      the component that was interrupted and for every one after it, and then
@@ -689,6 +746,7 @@ export default function SetupWizard({
       return n;
     });
     try {
+      startedRun.current = true;
       await api.download(retryIds);
     } catch (e) {
       setError(userMessage(e));
