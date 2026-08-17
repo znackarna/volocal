@@ -461,7 +461,7 @@
     "errors.download.unsafe_archive_path": "881302811b02",
     "errors.file.not_found": "076d4c253374",
     "errors.file.write_failed": "d45662616e21",
-    "errors.folder.duplicate_name": "9c4c6afdfb2c",
+    "errors.folder.duplicate_name": "21d8f2617448",
     "errors.folder.empty_name": "2ed6cb0fde2d",
     "errors.import.copy_failed": "7604a82e592f",
     "errors.microphone.convert_failed": "c740a4857a86",

@@ -1103,12 +1103,22 @@ export default function SetupWizard({
                 {/* `.step-outro` centred all of this on the screen it replaced.
                     A dialog is already the middle of the window, and centred
                     prose inside one reads as a certificate. */}
-                <p className="small-text">
+                {/* The mark this application draws on anything said beside the
+                    main point. The sentence above is the conclusion; this is a
+                    tip about working with the result, which is exactly what
+                    `InfoNote` is for — and it was the one such line in the
+                    wizard still standing as bare small text. */}
+                {/* `compact`, and no `<p>` around it. The 18 px above already
+                    comes from `.dialog h2 + p` on the sentence, which is how
+                    every block in a dialog gets its gap; the note's own 8 px
+                    would be a second one stacked on top. Geometry unchanged
+                    from the plain `.small-text` line this replaces. */}
+                <InfoNote compact>
                   {tabHint[0]}
                   {/* i18n-ignore: the key is labelled F3 on every keyboard */}
                   <strong>F3</strong>
                   {tabHint[1] ?? ""}
-                </p>
+                </InfoNote>
                 <div className="dialog-footer">
                   <button className="button primary" onClick={onComplete}>
                     {t("common.close")}
