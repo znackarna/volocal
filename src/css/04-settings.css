@@ -1620,6 +1620,22 @@ button.mic-play:disabled { cursor: default; opacity: 0.6; }
   position: fixed; inset: 0; z-index: 50;
   backdrop-filter: blur(3px);
   -webkit-backdrop-filter: blur(3px);
+  /* **A floor under the blur, for the machines where the blur does nothing.**
+     `backdrop-filter` is a property WebView2 accepts and then quietly declines
+     to render when it is drawing without hardware compositing: on 17 August an
+     installed copy showed no blur anywhere, the archive's own dissolve
+     included, while a locally built copy of the same commit blurred everything.
+
+     Every other veil in the application already had something under it — the
+     dissolve says so beside its own colour fade, and `.dialog-overlay` has
+     `--scrim`. This rule had nothing at all, so on such a machine dragging a
+     file over the window drew literally no answer.
+
+     `--scrim` and not a tint. The tint was the fault this rule was written to
+     remove and the reasoning above still holds: a colour says *the window is a
+     state*, where the veil says it about the content. What is asked of the
+     scrim here is only that the reader can see something happened. */
+  background: var(--scrim);
   display: flex; align-items: center; justify-content: center; pointer-events: none;
 }
 /* No dashed border on the panel. The drop zone below it is dashed because a

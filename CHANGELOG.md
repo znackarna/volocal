@@ -13,6 +13,8 @@ belongs in `docs/history/`, which is what that folder is for.
 
 ## 1.2.11 — 17 August 2026
 
+- **Dragging a file over the window is visible on every machine**, not only the
+  ones whose graphics can blur.
 - **The tip at the end of setup is marked as a tip**, so the conclusion above it
   reads as the conclusion.
 

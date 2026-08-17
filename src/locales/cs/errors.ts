@@ -66,7 +66,7 @@ export const csErrors = {
   "errors.watch_folder.ignore_interrupted": "Ignorování souborů se přerušilo: {detail}",
   "errors.watch_folder.import_interrupted": "Přidání souborů se přerušilo: {detail}",
   "errors.folder.empty_name": "Složka potřebuje název.",
-  "errors.folder.duplicate_name": "Složka s tímto názvem už je.",
+  "errors.folder.duplicate_name": "Složka s tímto názvem už existuje.",
   "errors.audio_export.source_missing":
     "Zvukový soubor už na svém místě není, takže není co uložit.",
   "errors.audio_export.failed": "Zvuk se nepodařilo uložit: {detail}",
