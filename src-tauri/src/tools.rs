@@ -1038,6 +1038,56 @@ pub fn clear_leftover_temporary() -> u64 {
     reclaimed
 }
 
+/// Throws away the working folders an interrupted online import left behind.
+///
+/// **These do not live in the temp directory**, and that is why they needed a
+/// sweep of their own. `online_import` works inside `.download-<uuid>` beside
+/// the recordings, because the finished file is moved into that same folder and
+/// a move within one filesystem is a rename rather than a copy of a gigabyte.
+/// Its own comment says it is removed when the work ends — and it is, on the
+/// paths the code walks out through. A crash, a forced quit, or the job object
+/// closing the window takes none of those paths, and what stays behind is a
+/// hidden folder holding a full-size video in the one folder somebody browses.
+///
+/// Same rule as `clear_leftover_temporary`: startup only, before anything has
+/// been started, when nothing can be inside one of them.
+pub fn clear_leftover_imports(recordings: &Path) -> u64 {
+    fn size_of(path: &Path) -> u64 {
+        let Ok(entries) = std::fs::read_dir(path) else {
+            return 0;
+        };
+        entries
+            .filter_map(|e| e.ok())
+            .map(|e| match e.file_type() {
+                Ok(t) if t.is_dir() => size_of(&e.path()),
+                _ => e.metadata().map(|m| m.len()).unwrap_or(0),
+            })
+            .sum()
+    }
+
+    let Ok(entries) = std::fs::read_dir(recordings) else {
+        return 0;
+    };
+    let mut reclaimed = 0;
+    for entry in entries.filter_map(|e| e.ok()) {
+        let path = entry.path();
+        // The prefix is the whole test, and it is ours: nothing else in this
+        // application or out of it writes a folder called `.download-…` here.
+        let ours = path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .is_some_and(|name| name.starts_with(".download-"));
+        if !ours || !path.is_dir() {
+            continue;
+        }
+        let size = size_of(&path);
+        if std::fs::remove_dir_all(&path).is_ok() {
+            reclaimed += size;
+        }
+    }
+    reclaimed
+}
+
 /// Loudness envelope of a recording — `count` values in the range 0–1.
 ///
 /// Web Audio in the window cannot be used for this: Tauri serves files from a

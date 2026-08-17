@@ -224,6 +224,13 @@ if (-not $Publish) {
   if ($LASTEXITCODE) { Fail "The build failed." }
 
   $exe = Get-ChildItem "$bundle\*.exe" | Sort-Object LastWriteTime | Select-Object -Last 1
+
+  # What this installer was built from, written beside it. The second pass reads
+  # it back and refuses to publish an installer built from a different tree -
+  # see the note there for why an mtime and a version in the file name are not
+  # enough to tell.
+  $head = (git rev-parse HEAD).Trim()
+  Set-Content -Path "$bundleuilt-from.txt" -Value "$head`n$version" -NoNewline
   Write-Host @"
 
 Built: $($exe.FullName)
@@ -244,6 +251,41 @@ second pass, over the file as it will be downloaded.
 }
 
 # ---------------------------------------------------------------- second pass
+
+<#
+  **This pass used to check nothing at all.** It picked the newest .exe in the
+  bundle folder by write time, confirmed the version was in its name, and
+  published it. That is not a guard: a rebuild between the two passes has the
+  same name and a newer time, and so does a build of a tree with uncommitted
+  work in it. Volocal shipped 1.0.0's installer as 1.0.1 once already, and on a
+  day with several releases the exposure compounds.
+
+  Three questions, all cheap, all asked before anything is signed or uploaded:
+
+  * is the tree the one the installer was built from, and is it clean;
+  * is the dictionary still ready, which is the check most likely to have been
+    broken by a "just one more string" between the passes;
+  * does the installer name the version being released.
+
+  A refused release is annoying and visible. A release that does not contain
+  what it says is neither.
+#>
+if (-not $SkipChecks) {
+  Step "What is being published"
+
+  $dirty = (git status --porcelain)
+  if ($dirty) {
+    Fail @"
+The working tree has changes that are not committed.
+
+The installer was built from what was on disk at that moment, and this pass
+cannot tell which of these edits it contains. Commit or stash, and build again.
+"@
+  }
+
+  node scripts/i18n.mjs check --strict
+  if ($LASTEXITCODE) { Fail "The dictionary is not ready for a release." }
+}
 
 # Asked for before anything is signed or uploaded. A release without notes is
 # what 1.0.4 was: the application offers a restart for a version it can say
@@ -282,6 +324,33 @@ $($exe.Name) is not version $version.
 That is the previous build, still in the folder because this one did not get
 as far as replacing it. Run the first pass again and watch it finish.
 "@
+}
+
+# And the commit it was built from, which the version in the name cannot tell:
+# a rebuild of a different tree at the same version has the same name and a
+# newer time. The first pass writes this down; a missing note means the
+# installer came from somewhere else, which is exactly when to say so.
+$note = Join-Path (Split-Path $exe.FullName -Parent) "built-from.txt"
+if (-not $SkipChecks) {
+  if (-not (Test-Path $note)) {
+    Fail @"
+No record of what $($exe.Name) was built from.
+
+The first pass writes built-from.txt beside the installer. Either this file
+came from elsewhere - CI, another machine - or the build predates that record.
+Build again, or pass -SkipChecks if you know what this installer is.
+"@
+  }
+  $built = (Get-Content $note -Raw).Trim() -split "`n"
+  $here = (git rev-parse HEAD).Trim()
+  if ($built[0] -ne $here) {
+    Fail @"
+$($exe.Name) was built from $($built[0].Substring(0, 8)); this tree is at $($here.Substring(0, 8)).
+
+Something landed between the two passes. Whatever it was is not in the file
+about to be published under this version number - build again.
+"@
+  }
 }
 
 Step "Authenticode"

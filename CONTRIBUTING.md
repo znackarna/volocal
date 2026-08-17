@@ -75,18 +75,22 @@ that deliberately stays untranslated needs an `i18n-ignore: reason` comment.
 would still pass with the defect restored is not a test. Where it is practical,
 say in the pull request that you watched the new test fail before it passed.
 
-**Do not change the application identifier, the historical `Whisp` paths or
-stored database values.** `%LOCALAPPDATA%\Whisp\`, the file name `whisp.db` and
-the Czech column names in SQLite look like leftovers and are load-bearing:
-changing one without a migration makes existing archives unreadable. If a
-change needs one of them, that migration is its own piece of work.
+**Do not change the application identifier or stored database values without
+a migration.** They look like leftovers and are load-bearing: changing one
+without a migration makes existing archives unreadable. If a change needs one of
+them, that migration is its own piece of work.
 
 The identifier was changed once, on 2026-08-10, when Slobot became Volocal —
 `cz.znackarna.whisp` to `cz.znackarna.volocal`. It cost a migration that moves
 the whole profile folder on first run (`profile_folder` in `main.rs`, with its
-tests), and that is what one of these costs. `whisp.db` inside it was left
-alone on purpose: renaming the file as well would have bought nothing and put
-the backups and the WAL in the way.
+tests), and that is what one of these costs.
+
+The archive file was renamed later, and this paragraph said for days that it
+never would be: `whisp.db` became `volocal.db`, and `main.rs` renames it on
+sight, carrying the write-ahead log across with it — `ARCHIVE_BEFORE_THE_RENAME`
+and its tests. That is the shape one of these has to take. A document that goes
+on describing the decision rather than the code is the tax this file is meant to
+collect, not pay.
 
 ## Changes that touch the interface
 

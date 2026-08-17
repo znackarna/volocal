@@ -23,10 +23,8 @@ export const enErrors: Partial<Record<keyof typeof csErrors, string>> = {
   "errors.transcription.interrupted": "The transcription was interrupted — the application closed before it finished.",
   "errors.unknown": "{detail}",
   "errors.diarization.not_transcribed": "The recording has not been transcribed yet.",
-  "errors.diarization.launch_failed":
-    "Speaker identification could not be started: {detail}",
-  "errors.diarization.audio_unreadable":
-    "The prepared audio could not be read. Try identifying the speakers again.",
+  "errors.diarization.launch_failed": "Speaker identification could not be started: {detail}",
+  "errors.diarization.audio_unreadable": "The prepared audio could not be read. Try identifying the speakers again.",
   "errors.file.not_found": "The file does not exist: {path}",
   "errors.file.write_failed": "Write failed: {detail}",
   "errors.recording.path_not_found": "No such file exists.",
@@ -40,26 +38,20 @@ export const enErrors: Partial<Record<keyof typeof csErrors, string>> = {
   "errors.watch_folder.file_changed": "The file changed in the meantime: {name}",
   "errors.watch_folder.scan_interrupted": "The watched folder check was interrupted: {detail}",
   "errors.watch_folder.ignore_interrupted": "Ignoring files was interrupted: {detail}",
+  "errors.watch_folder.import_interrupted": "Adding files was interrupted: {detail}",
   "errors.folder.empty_name": "A folder needs a name.",
   "errors.folder.duplicate_name": "There is already a folder with that name.",
-  "errors.audio_export.same_file":
-    "The audio can't be saved over itself. Please choose a different file or folder.",
-  "errors.audio_export.source_missing":
-    "The audio file is no longer in its place, so there is nothing to save.",
+  "errors.audio_export.same_file": "The audio can't be saved over itself. Please choose a different file or folder.",
+  "errors.audio_export.source_missing": "The audio file is no longer in its place, so there is nothing to save.",
   "errors.audio_export.failed": "The audio couldn’t be saved: {detail}",
-  "errors.audio_export.unsupported_format":
-    "We can’t write audio with that extension. Choose MP3, M4A or WAV.",
-  "errors.audio_export.ffmpeg_missing":
-    "Converting audio needs ffmpeg. Add it under Models.",
+  "errors.audio_export.unsupported_format": "We can’t write audio with that extension. Choose MP3, M4A or WAV.",
+  "errors.audio_export.ffmpeg_missing": "Converting audio needs ffmpeg. Add it under Models.",
   "errors.microphone.no_audio": "The take didn’t arrive. Try again.",
   "errors.microphone.empty": "The take is too short to transcribe.",
   "errors.microphone.ffmpeg_missing": "Saving the take needs ffmpeg. Add it under Models.",
   "errors.microphone.save_failed": "The take couldn’t be saved: {detail}",
-  "errors.microphone.convert_failed":
-    "The take couldn’t be converted into an audio file. It has been kept as {file}.",
-  "errors.watch_folder.import_interrupted": "Adding files was interrupted: {detail}",
-  "errors.update.install_failed":
-    "The update could not be made ready to install. Please try again.",
+  "errors.microphone.convert_failed": "The take couldn’t be converted into an audio file. It has been kept as {file}.",
+  "errors.update.install_failed": "The update could not be made ready to install. Please try again.",
   "errors.playback.ffmpeg_missing": "ffmpeg is missing, so precise MP3 playback cannot be prepared.",
   "errors.playback.source_missing": "The audio file is no longer where it was.",
   "errors.playback.conversion_failed": "Could not prepare precise playback: {reason}",
@@ -85,18 +77,15 @@ export const enErrors: Partial<Record<keyof typeof csErrors, string>> = {
   "errors.download.unknown_component": "Unknown module: {component}",
   "errors.download.busy_installing": "Nothing can be deleted while a download is running. Please try again once it finishes.",
   "errors.download.component_busy": "In use right now. It can be deleted when the work finishes.",
-  "errors.download.cannot_remove":
-    "The application does not know which files belong to this component. Download it again and it can be deleted.",
+  "errors.download.cannot_remove": "The application does not know which files belong to this component. Download it again and it can be deleted.",
   "errors.download.remove_failed": "It could not be deleted: {detail}",
   "errors.download.cancelled": "Cancelled",
   "errors.download.connection_failed": "Could not connect to the server ({url})",
   "errors.download.rejected": "The server refused to hand over the file",
   "errors.download.tar_launch_failed": "Could not start tar (it is part of Windows 10 and later)",
   "errors.download.extract_failed": "Extracting the archive failed",
-  "errors.download.hash_mismatch":
-    "The downloaded file {file} is not what was expected. Nothing was installed and the version you had is unchanged.",
-  "errors.download.unsafe_archive_path":
-    "The archive {archive} tried to write outside the folder it was given. It was not unpacked.",
+  "errors.download.hash_mismatch": "The downloaded file {file} is not what was expected. Nothing was installed and the version you had is unchanged.",
+  "errors.download.unsafe_archive_path": "The archive {archive} tried to write outside the folder it was given. It was not unpacked.",
   "errors.download.archive_without_programs": "The archive {archive} contains no program. What it contained: {contents}",
   "errors.download.archive_without_programs_empty": "The archive {archive} contains no program. What it contained: nothing",
   "errors.download.file_not_in_archive": "Downloaded, but {file} is not in the archive. The programs it contained: {programs}",
@@ -118,13 +107,13 @@ export const enErrors: Partial<Record<keyof typeof csErrors, string>> = {
   "errors.ai.unknown_summary_length": "Language editing failed: unknown summary length",
   "errors.ai.unknown_translation_language": "Language editing failed: unknown target translation language",
   "errors.ai.unknown_output_kind": "Language editing failed: unknown kind of language output",
+  "errors.ai.empty_prompt": "Please write the instruction the model should make the document from.",
+  "errors.ai.prompt_too_long": "The instruction is too long. It can hold {limit} characters at most.",
   "errors.ai.server_launch_failed": "Language editing failed: the local language server cannot be started",
   "errors.ai.server_exited_while_loading": "Language editing failed: the language server exited while loading ({status})",
   "errors.ai.model_load_timeout": "Language editing failed: loading the language model took longer than five minutes",
   "errors.ai.empty_response": "Language editing failed: the model returned empty text",
-  "errors.ai.answer_truncated":
-    "Language editing failed: the model ran out of room before it finished the " +
-    "document. An unfinished document is not kept, so that it cannot look complete.",
+  "errors.ai.answer_truncated": "Language editing failed: the model ran out of room before it finished the document. An unfinished document is not kept, so that it cannot look complete.",
   "errors.ai.server_failed": "Language editing failed: the language server failed: {reason}",
   "errors.ai.server_disconnected": "Language editing failed: the connection to the language server was interrupted",
   "errors.ai.server_exited": "Language editing failed: the language server exited during editing ({status})",
@@ -134,8 +123,7 @@ export const enErrors: Partial<Record<keyof typeof csErrors, string>> = {
   "errors.benchmark.unknown_failure": "unknown error",
   "errors.benchmark.backend_failed": "{detail}",
   "errors.benchmark.launch_failed": "{detail}",
-  "errors.archive.busy":
-    "The archive is in use right now. Please try again once the transcription or other work in progress has finished.",
+  "errors.archive.busy": "The archive is in use right now. Please try again once the transcription or other work in progress has finished.",
   "errors.backup.unknown": "That backup is not in the backup folder. Try opening the list again.",
   "errors.archive.export.onto_itself": "That is the archive the application is working with. Choose another place or another name.",
   "errors.archive.import.not_an_archive": "The file you chose is not a Volocal archive. An archive is a single .db file — either volocal.db, or a copy you saved yourself.",

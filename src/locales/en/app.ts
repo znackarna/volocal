@@ -22,10 +22,8 @@ export const enApp: Partial<Record<keyof typeof csApp, string>> = {
   "app.shell.segmentCount": "Segments",
   "app.notice.unsupportedFormat": "We can’t read this format. Try mp3, wav, m4a or a common video.",
   "app.recorder.closeTitle": "Close Volocal?",
-  "app.recorder.closeWhileRecording":
-    "A take is running and has not been saved. Closing loses it.",
-  "app.recorder.closeWhileUnsaved":
-    "The finished take has not been saved yet. Closing loses it.",
+  "app.recorder.closeWhileRecording": "A take is running and has not been saved. Closing loses it.",
+  "app.recorder.closeWhileUnsaved": "The finished take has not been saved yet. Closing loses it.",
   "app.recorder.closeAnyway": "Close anyway",
   "app.recorder.label": "Recording",
   "app.recorder.open": "Open the recorder",
@@ -40,15 +38,12 @@ export const enApp: Partial<Record<keyof typeof csApp, string>> = {
   "app.notice.onlineAddedTranscribing": "The online recording was added and transcription started.",
   "app.notice.onlineAdded": "The online recording was added to the archive.",
   "app.crash.title": "The application ran into an error",
-  "app.crash.text":
-    "The window could not be drawn. Your recordings and transcripts in the archive are unaffected.",
+  "app.crash.text": "The window could not be drawn. Your recordings and transcripts in the archive are unaffected.",
   "app.crash.detailLabel": "The error, worth sending on:",
   "app.crash.reload": "Reload the window",
   "app.filePicker.audioAndVideo": "Audio and video",
-  "app.watchFolder.transcribing.one":
-    "The recording was added to the Archive and Volocal started transcribing.",
-  "app.watchFolder.transcribing.other":
-    "New recordings ({count}) were added to the Archive and Volocal started transcribing.",
+  "app.watchFolder.transcribing.one": "The recording was added to the Archive and Volocal started transcribing.",
+  "app.watchFolder.transcribing.other": "New recordings ({count}) were added to the Archive and Volocal started transcribing.",
   "app.watchFolder.added.one": "The recording was added to the Archive.",
   "app.watchFolder.added.other": "New recordings ({count}) were added to the Archive.",
   "app.confirm.removeTitle": "Remove from archive?",
