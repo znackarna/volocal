@@ -129,6 +129,19 @@ pub fn export_audio(app: State<'_, AppState>, id: String, destination: String) -
         return Err(UserMessage::new("audio_export.source_missing"));
     }
     let target = std::path::Path::new(&destination);
+    /* **Not onto itself.** Both branches below would destroy the recording:
+    `fs::copy` truncates the destination before reading the source, and
+    ffmpeg's `-y` opens the output for writing over the input it is reading.
+    Either way the audio is gone and the archive still points at the path.
+
+    The picker makes this easy rather than exotic — a recording the archive
+    holds a copy of already lives in the recordings folder, which is where
+    the save dialog opens. `points_at_the_same_file` is the same comparison
+    `restore_backup` makes before overwriting an archive, and it is here for
+    the same reason: a file dialog cannot be relied on to refuse. */
+    if crate::commands::backups::points_at_the_same_file(source, target) {
+        return Err(UserMessage::new("audio_export.same_file"));
+    }
     let extension = |path: &std::path::Path| {
         path.extension()
             .map(|value| value.to_string_lossy().to_ascii_lowercase())

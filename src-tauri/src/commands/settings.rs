@@ -109,10 +109,17 @@ pub fn diagnostic_report(app: State<'_, AppState>) -> Reported<String> {
         "speech detection: on (threshold {})",
         settings.vad_threshold
     );
+    /* `cluster_threshold` stood in this line and is gone from it. It is stored,
+    defaulted, migrated at every startup and read by no computation: the
+    speaker comparison uses `SAME_VOICE` in `voiceprint.rs`, a constant on a
+    different scale, and has done since sherpa left. A report is read to
+    diagnose something, so a number in it that decides nothing is worse than
+    a number missing — it invites an afternoon spent tuning a setting with no
+    effect. The column stays until a migration goes past it. */
     let _ = writeln!(
         out,
-        "speakers: {} (count {}, clustering {})",
-        settings.diarization, settings.speaker_count, settings.cluster_threshold
+        "speakers: {} (count {})",
+        settings.diarization, settings.speaker_count
     );
     let _ = writeln!(
         out,

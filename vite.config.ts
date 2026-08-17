@@ -5,6 +5,22 @@ import react from "@vitejs/plugin-react";
 export default defineConfig({
   plugins: [react()],
   clearScreen: false,
+  build: {
+    /* **The only browser this application has is Evergreen WebView2.**
+       Vite's default browser list still contains Safari 14, and compiling for
+       browsers this application cannot run in is how it shipped a stylesheet
+       its own engine ignored: with both spellings of `backdrop-filter` in the
+       source, esbuild decided the `-webkit-` one covered every target it had
+       been given and dropped the other — the one Blink actually implements.
+       Nothing blurred anywhere in a packaged build for two releases.
+
+       That was fixed at the source, by deleting the hand-written prefixes, and
+       this is the other half: the list was wrong before it broke anything, and
+       leaving it wrong leaves the same trap set for the next property. Verified
+       the way that incident taught — the built stylesheet diffed before and
+       after, and the only changes are ones this engine understands. */
+    cssTarget: "chrome120",
+  },
   server: {
     // 1420, Tauri's default, is often reserved on Windows by Hyper-V or WSL,
     // and the dev server then dies with EACCES. That is what EACCES means here

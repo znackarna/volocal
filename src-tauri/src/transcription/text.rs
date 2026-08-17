@@ -885,15 +885,83 @@ mod sentence_block_tests {
         assert_eq!(output[0].speakers.as_deref(), Some("A"));
         assert_eq!(output[1].speakers.as_deref(), Some("B"));
     }
+
+    fn plain(text: &str, edited: bool) -> Segment {
+        Segment {
+            id: "one".into(),
+            recording_id: "recording".into(),
+            text: text.into(),
+            edited,
+            ..Default::default()
+        }
+    }
+
+    fn entry(find: &str, replace: &str) -> db::DictionaryEntry {
+        db::DictionaryEntry {
+            id: "entry".into(),
+            find: find.into(),
+            replace: replace.into(),
+        }
+    }
+
+    /// A dictionary is for what the machine mishears. A segment somebody has
+    /// been through is no longer that — and this used to rewrite it anyway,
+    /// without setting `edited` or keeping `original`, so the correction was
+    /// undone with nothing in `Opravy` to say so.
+    #[test]
+    fn a_hand_corrected_segment_is_left_alone() {
+        let mut segments = vec![plain("součás DNA", false), plain("součás DNA", true)];
+        apply_dictionary(&mut segments, &[entry("součás", "součást")]);
+        assert_eq!(segments[0].text, "součást DNA", "the machine's own text");
+        assert_eq!(segments[1].text, "součás DNA", "and a person's, untouched");
+    }
+
+    /// An entry ending in a full stop compiled to a pattern that can never
+    /// match: the boundary after it wants a word character and the sentence
+    /// puts a space there. Czech is full of these, and they did nothing at all.
+    #[test]
+    fn an_entry_ending_in_punctuation_still_matches() {
+        let mut segments = vec![plain("psal to Mgr. Novák", false)];
+        apply_dictionary(&mut segments, &[entry("Mgr.", "magistr")]);
+        assert_eq!(segments[0].text, "psal to magistr Novák");
+
+        // And an ordinary word still may not match inside a longer one.
+        let mut inside = vec![plain("nedokonalost", false)];
+        apply_dictionary(&mut inside, &[entry("dokonal", "hotov")]);
+        assert_eq!(
+            inside[0].text, "nedokonalost",
+            "still bounded where it can be"
+        );
+    }
 }
 
 pub(crate) fn apply_dictionary(segments: &mut [Segment], dictionary: &[db::DictionaryEntry]) {
+    /* **A word boundary only where there is a word to bound.**
+    `\b` sits between a word character and a non-word one, so an entry that
+    begins or ends in punctuation — `Mgr.`, `č.`, `s.r.o.` — compiled to a
+    pattern that can never match anything: `\b` after a full stop wants a
+    letter, and the entry itself put a space or the end of a sentence there.
+    The rule was accepted, listed, and silently did nothing for ever.
+
+    Czech is full of abbreviations, so this is not an exotic entry to write.
+    The boundary is asked for at each end separately, and only at the end
+    that has a word character to anchor it. */
+    let bounded = |text: &str| {
+        let escaped = regex::escape(text);
+        let word = |c: char| c.is_alphanumeric() || c == '_';
+        let starts = text.chars().next().is_some_and(word);
+        let ends = text.chars().next_back().is_some_and(word);
+        format!(
+            "(?i){}{escaped}{}",
+            if starts { r"\b" } else { "" },
+            if ends { r"\b" } else { "" }
+        )
+    };
     let rules: Vec<(Regex, String)> = dictionary
         .iter()
         .filter(|p| !p.find.trim().is_empty())
         .filter_map(|p| {
-            let pattern = format!(r"(?i)\b{}\b", regex::escape(p.find.trim()));
-            Regex::new(&pattern)
+            Regex::new(&bounded(p.find.trim()))
                 .ok()
                 .map(|regex| (regex, p.replace.clone()))
         })
@@ -903,6 +971,18 @@ pub(crate) fn apply_dictionary(segments: &mut [Segment], dictionary: &[db::Dicti
         return;
     }
     for s in segments.iter_mut() {
+        /* **A human's text is not the dictionary's to rewrite.**
+        This ran over every segment, corrected ones included, and without
+        setting `edited` or keeping `original` — so one wrong entry could
+        silently undo somebody's correction and leave nothing in `Opravy`
+        saying it had. It is the same rule `rebuild_sentences` already
+        follows: where a person has written the sentence, the machine stops.
+
+        A dictionary is for what the machine mishears. A segment somebody has
+        been through is, by definition, no longer that. */
+        if s.edited {
+            continue;
+        }
         for (re, replacement) in &rules {
             // `NoExpand`: the replacement is what the person typed, not a
             // template. Without it `$` starts a capture-group reference, so a

@@ -20,12 +20,6 @@
 //!   window collects more than one speaker. Two seconds is also, conveniently,
 //!   about the size of a transcript block.
 
-// Nothing calls this yet: the model that consumes these features arrives in the
-// next step, and the tests below are what keeps this half honest until it does.
-// The exception goes when the embedder lands; if it is still here after that,
-// something was built and then abandoned.
-#![allow(dead_code)]
-
 /// What the model was trained at, and what ffmpeg already gives us.
 pub const SAMPLE_RATE: u32 = 16_000;
 

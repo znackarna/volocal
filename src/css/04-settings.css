@@ -587,8 +587,9 @@
   padding: 17px 16px 16px; display: flex; flex-direction: column; flex: 1 1 auto;
 }
 /* `justify-content` musí být uvedeno, ne zděděno: sdílené `.choice-head` má
-   `space-between`, protože jinde na kartě stojí vlevo jméno a vpravo velikost.
-   Tady vpravo nestojí nic, takže to nadpis odstrčilo k pravému okraji. */
+   `space-between` is named rather than inherited: elsewhere on a choice card
+   the name stands left and the size right, and with nothing on the right here
+   that rule pushed the heading to the far edge. */
 .setup-choices .choice-head {
   display: flex; justify-content: flex-start; align-items: center; gap: 10px;
 }

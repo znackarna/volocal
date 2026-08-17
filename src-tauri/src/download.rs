@@ -517,8 +517,13 @@ fn directory_size(root: &Path) -> u64 {
 #[derive(Serialize, Clone)]
 pub struct DownloadProgress {
     pub id: String,
-    /// The stored value, in Czech like the others:
-    /// stahuji | rozbaluji | hotovo | chyba | zruseno
+    /// `waiting | downloading | extracting | complete | error | cancelled`.
+    ///
+    /// English, and it has been since the identifiers were translated. This
+    /// comment went on naming Czech phases through two more being added
+    /// directly underneath it. `src/types.ts` carries the accurate list, and
+    /// the window compares these strings by value — so a wrong word here is a
+    /// wrong word in the one place somebody looks before changing them.
     pub phase: String,
     pub downloaded_mb: f64,
     pub total_mb: f64,
@@ -634,19 +639,45 @@ fn download_file(
         0
     };
 
-    let mut request = client()?.get(url);
-    if resume_from > 0 {
-        request = request.header(reqwest::header::RANGE, format!("bytes={resume_from}-"));
-    }
-    let mut response = request
-        .send()
-        .map_err(|error| {
-            UserMessage::new("download.connection_failed")
-                .with("url", url)
-                .detail(error)
-        })?
-        .error_for_status()
-        .map_err(|error| UserMessage::new("download.rejected").detail(error))?;
+    /* **A partial that is already the whole file is thrown away, not resumed.**
+    Stopping between the last byte and `place_verified` leaves a complete
+    `.cast`, and asking a server to continue past the end of a file it has
+    gets `416 Range Not Satisfiable` — which `error_for_status` turns into a
+    plain refusal, before any branch that could clear the leftover. Every
+    later attempt then failed the same way, for ever, with nothing on screen
+    saying which file to delete.
+
+    The same holds for a `.cast` left over from a remote file that has since
+    been replaced by a shorter one. Neither case is worth resuming: the
+    digest at the end would have to reject it anyway. */
+    let fetch = |from: u64| {
+        let mut request = client()?.get(url);
+        if from > 0 {
+            request = request.header(reqwest::header::RANGE, format!("bytes={from}-"));
+        }
+        request
+            .send()
+            .map_err(|error| {
+                UserMessage::new("download.connection_failed")
+                    .with("url", url)
+                    .detail(error)
+            })?
+            .error_for_status()
+            .map_err(|error| UserMessage::new("download.rejected").detail(error))
+    };
+
+    let (mut response, resume_from) = match fetch(resume_from) {
+        Err(refusal) if resume_from > 0 => {
+            let _ = std::fs::remove_file(&partial);
+            let fresh = fetch(0);
+            // Only the range was the problem; a second refusal is the real one.
+            match fresh {
+                Ok(response) => (response, 0),
+                Err(_) => return Err(refusal),
+            }
+        }
+        other => (other?, resume_from),
+    };
 
     // A server that honours the range answers 206 and sends the rest. One that
     // does not answers 200 and sends the whole file — so the answer decides,
@@ -709,7 +740,7 @@ fn download_file(
                         downloaded_mb: seeded as f64 / 1_048_576.0,
                         total_mb,
                         percent: if total > 0 {
-                            ((seeded as f64 / total as f64) * 100.0) as u32
+                            (((seeded as f64 / total as f64) * 100.0) as u32).min(100)
                         } else {
                             0
                         },
@@ -758,8 +789,12 @@ fn download_file(
                     phase: "downloading".into(),
                     downloaded_mb: downloaded as f64 / 1_048_576.0,
                     total_mb,
+                    // Clamped. A 206 answer that carries no `Content-Length`
+                    // leaves `total` holding only the resumed part, and the bar
+                    // then walks past its own end — 140 % on a row that is
+                    // working perfectly.
                     percent: if total > 0 {
-                        ((downloaded as f64 / total as f64) * 100.0) as u32
+                        (((downloaded as f64 / total as f64) * 100.0) as u32).min(100)
                     } else {
                         0
                     },
@@ -1544,6 +1579,14 @@ struct Work {
     /// A `Vec` and not a `HashSet` for one reason: `HashSet::new` is not `const`
     /// and this static is. It holds one or two ids.
     stop: Vec<String>,
+    /// Components taken out of the queue before any worker reached them.
+    ///
+    /// They have to reach `download:complete`'s list of what did not land, and
+    /// nothing else can put them there — the worker never saw them. Without it
+    /// the window read a component the reader had stopped while it still said
+    /// *čeká ve frontě* as one that had installed, and the wizard wrote
+    /// `settings.model` naming a file that was never fetched.
+    dropped: Vec<String>,
 }
 
 static WORK: std::sync::Mutex<Work> = std::sync::Mutex::new(Work {
@@ -1552,6 +1595,7 @@ static WORK: std::sync::Mutex<Work> = std::sync::Mutex::new(Work {
     current: None,
     queue: std::collections::VecDeque::new(),
     stop: Vec::new(),
+    dropped: Vec::new(),
 });
 
 /// Stops one component without touching the rest of the queue.
@@ -1570,6 +1614,9 @@ pub fn cancel_component(id: &str) -> bool {
     }
     if let Some(at) = work.queue.iter().position(|x| x == id) {
         work.queue.remove(at);
+        // Remembered for the worker's closing event, which is the only thing
+        // the window trusts about what did and did not install.
+        work.dropped.push(id.to_string());
         return true;
     }
     false
@@ -1688,6 +1735,7 @@ pub fn install_bundle(
                 work.current = None;
                 work.queue.clear();
                 work.stop.clear();
+                work.dropped.clear();
             }
         }
         let _done = Done(generation);
@@ -1740,12 +1788,20 @@ pub fn install_bundle(
                 }
                 break;
             }
-            if let Err(e) = install_component(&app, &settings, &id, cancellation.clone()) {
+            let outcome = install_component(&app, &settings, &id, cancellation.clone());
+            /* **Taken whatever happened.** It used to be read only on the
+            failure branch, so a stop pressed while a component was
+            *extracting* — the phase no read loop is in — left the request in
+            the list after the component had installed. The next time anything
+            asked for that same component in the same run it died at the first
+            check with `cancelled`: a wanted download killed by a press meant
+            for an attempt that had already finished. */
+            let stopped = take_stop_request(&id);
+            if let Err(e) = outcome {
                 /* Three ways to fail and two of them are a stop. This one asked
                 to stop — the loop goes on to the next component, because the
                 reader stopped a row and not the run. The application-wide
                 flag is handled at the top of the loop and does break. */
-                let stopped = take_stop_request(&id);
                 emit_progress(
                     &app,
                     DownloadProgress {
@@ -1765,6 +1821,9 @@ pub fn install_bundle(
                 unfinished.push(id);
             }
         }
+        // Anything taken out of the queue before this worker reached it. The
+        // list has to describe the whole run, not only the part a worker saw.
+        unfinished.append(&mut WORK.lock().unwrap().dropped);
         let _ = app.emit("download:complete", unfinished);
     });
     outcome
@@ -1973,6 +2032,41 @@ mod tests {
 
         assert!(take_stop_request("model-large"), "honoured once");
         assert!(!take_stop_request("model-large"), "and not twice");
+        idle();
+    }
+
+    /// A component stopped while it was still waiting has to reach the closing
+    /// event's list of what did not land. No worker ever saw it, so nothing
+    /// else can put it there — and the window reads that list to decide what
+    /// installed, right down to which model the application is set to use.
+    #[test]
+    fn a_component_stopped_in_the_queue_is_reported_as_unfinished() {
+        let _order = ORDER.lock().unwrap_or_else(|e| e.into_inner());
+        idle();
+        admit(&["model-large", "model-turbo"]);
+        {
+            let mut work = WORK.lock().unwrap();
+            work.current = work.queue.pop_front();
+        }
+
+        assert!(cancel_component("model-turbo"), "taken out of the queue");
+        {
+            let work = WORK.lock().unwrap();
+            assert_eq!(
+                work.dropped,
+                vec!["model-turbo".to_string()],
+                "and written down for the worker to report"
+            );
+        }
+
+        // What the worker does on its way out.
+        let mut unfinished: Vec<String> = Vec::new();
+        unfinished.append(&mut WORK.lock().unwrap().dropped);
+        assert_eq!(unfinished, vec!["model-turbo".to_string()]);
+        assert!(
+            WORK.lock().unwrap().dropped.is_empty(),
+            "and taken, so a later run cannot report it again"
+        );
         idle();
     }
 

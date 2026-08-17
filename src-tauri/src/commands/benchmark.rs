@@ -120,18 +120,23 @@ pub fn benchmark_compute(
 
     let _ = std::fs::remove_dir_all(&working_directory);
 
-    // the fastest of those that finished at all is stored right away
-    if let Some(best) = results
-        .iter()
-        .filter(|v| v.error.is_none() && v.realtime_factor > 0.0)
-        .max_by(|a, b| a.realtime_factor.partial_cmp(&b.realtime_factor).unwrap())
-    {
-        let db = app.db.lock().unwrap();
-        let mut settings = reported(db::load_settings(&db))?;
-        settings.compute = best.compute.clone();
-        settings.last_machine = name_machine();
-        reported(db::save_settings(&db, &settings))?;
-    }
+    /* **It measures and reports; it no longer decides.**
+    The fastest backend used to be written straight into `settings.compute`
+    and `last_machine`. That was right when this command had a button and a
+    reader watching it — *Změřit rychlost*, removed on 14 August, when the
+    machine's drivers took over choosing a backend and `Výkon` became two
+    cards and a switch.
+
+    What is left is a command with no caller in the window, and a command
+    with no caller that silently rewrites where transcription runs is a trap
+    waiting for whoever wires it up again — most likely to measure the
+    wizard's four unmeasured time estimates, which is what two comments in
+    the interface already point at it for. Measuring must not move a setting
+    the reader chose.
+
+    It is kept rather than deleted for that reason: it is the application's
+    only instrument for timing a backend, and the estimates it would settle
+    are still guesses. */
 
     results.sort_by(|a, b| b.realtime_factor.partial_cmp(&a.realtime_factor).unwrap());
     Ok(results)

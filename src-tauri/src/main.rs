@@ -417,9 +417,72 @@ fn breakaway() -> Reported<()> {
     Ok(())
 }
 
+/// Refuses to start a second copy over the same archive, and shows the first.
+///
+/// **A second Volocal is not a second workspace, it is two programs writing one
+/// file.** Its start-up marks whatever the first copy is transcribing as
+/// interrupted — `db.rs` documents that case and leaves it, calling the
+/// underlying problem worse than the symptom — and the two then compete for the
+/// same graphics card. Double-clicking a pinned icon while a long transcription
+/// runs is not an unusual thing to do.
+///
+/// Diagnosing the symptom without taking the cure is what left it open. A guard
+/// here makes the whole class unreachable, and it costs no dependency: a named
+/// mutex is the Windows way of asking *am I the first*, and both window calls
+/// are already linked for the job object.
+///
+/// `Local\` scopes the name to this logon session, which is as far as one
+/// user's archive reaches; the identifier is in it so a portable copy on a
+/// stick still collides with an installed one, which is right — what is being
+/// protected is the archive, not the executable.
+///
+/// Returns false when another copy already holds it.
+#[cfg(windows)]
+fn take_the_only_instance() -> bool {
+    use windows::core::{w, PCWSTR};
+    use windows::Win32::Foundation::{GetLastError, ERROR_ALREADY_EXISTS};
+    use windows::Win32::System::Threading::CreateMutexW;
+    use windows::Win32::UI::WindowsAndMessaging::{
+        FindWindowW, SetForegroundWindow, ShowWindow, SW_RESTORE,
+    };
+
+    let held = unsafe { CreateMutexW(None, true, w!("Local\\cz.znackarna.volocal.single")) };
+    let already = unsafe { GetLastError() } == ERROR_ALREADY_EXISTS;
+    if held.is_err() {
+        // Unable to ask is not an answer, and starting is the safer of the two
+        // mistakes: refusing here would be an unexplainable failure to open.
+        return true;
+    }
+    /* The handle is not kept and does not need to be: `HANDLE` is a plain
+    `Copy` value with no destructor, so nothing here closes the mutex. It is
+    held by the process until the process ends, which is exactly the lifetime
+    being asked for. */
+    if !already {
+        return true;
+    }
+
+    /* Bring the copy that is already running to the front, so a second
+    double-click does what the person meant by it rather than nothing at all.
+    By title, which is the only handle this process has on the other one, and
+    a failure here is no worse than the silence it replaces. */
+    if let Ok(window) = unsafe { FindWindowW(PCWSTR::null(), w!("volocal\u{2122}")) } {
+        unsafe {
+            let _ = ShowWindow(window, SW_RESTORE);
+            let _ = SetForegroundWindow(window);
+        }
+    }
+    false
+}
+
 fn main() {
     // Before anything is started, so that everything started after it is
     // covered — including whatever a failure below might spawn.
+    #[cfg(windows)]
+    if !take_the_only_instance() {
+        // Nothing is drawn and nothing is said: the window that answers is the
+        // one already open, which the guard has just brought forward.
+        return;
+    }
     #[cfg(windows)]
     die_with_this_process();
     // Must happen before Tauri creates the window.
@@ -964,6 +1027,19 @@ fn connect_database(app: &tauri::App, db_path: PathBuf) -> Result<()> {
             "reclaimed {} MB of leftover temporary files",
             reclaimed / 1_000_000
         );
+    }
+
+    /* And the online import's own working folders, which are not in the temp
+    directory: it works beside the recordings so that finishing is a rename
+    rather than a copy of a gigabyte. Interrupted, it leaves a hidden
+    `.download-<uuid>` holding a full-size video in the one folder somebody
+    actually browses. */
+    if let Ok(settings) = db::load_settings(&connection) {
+        let left =
+            tools::clear_leftover_imports(&commands::library::recordings_dir(&settings, &db_path));
+        if left > 0 {
+            crate::note!("reclaimed {} MB from interrupted imports", left / 1_000_000);
+        }
     }
 
     // The default paths are relative ("bin", "models") and are resolved

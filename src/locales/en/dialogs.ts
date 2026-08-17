@@ -8,20 +8,16 @@ export const enDialogs: Partial<Record<keyof typeof csDialogs, string>> = {
   "dialogs.retranscribe.textMany.other": "The finished transcripts of {count} recordings will be replaced by new ones. Manual corrections and spots you have signed off will be lost.",
   "dialogs.retranscribe.confirm": "Transcribe again",
   "dialogs.speakers.title": "How many people speak in this recording?",
-  "dialogs.speakers.intro":
-    "If you know how many people speak, the tool has an easier job. With two people the guess often gets it wrong.",
-  "dialogs.speakers.introMany.one":
-    "If you know how many people speak, the tool has an easier job. Applies to {count} recording.",
-  "dialogs.speakers.introMany.other":
-    "If you know how many people speak, the tool has an easier job. Applies to {count} recordings.",
+  "dialogs.speakers.intro": "If you know how many people speak, the tool has an easier job. With two people the guess often gets it wrong.",
+  "dialogs.speakers.introMany.one": "If you know how many people speak, the tool has an easier job. Applies to {count} recording.",
+  "dialogs.speakers.introMany.other": "If you know how many people speak, the tool has an easier job. Applies to {count} recordings.",
   "dialogs.speakers.exactLabel": "Exact number of speakers",
   "dialogs.speakers.morePlaceholder": "more",
   "dialogs.speakers.note": "The answer applies to this transcription only; settings stay as they are.",
   "dialogs.speakers.unknown": "I don’t know",
   "dialogs.speakers.confirm": "Transcribe",
   "dialogs.speakers.namesTitle": "What are their names?",
-  "dialogs.speakers.namesIntro":
-    "The names are offered under each voice after the run. You pick one with a single tap, once you have heard its sample.",
+  "dialogs.speakers.namesIntro": "The names are offered under each voice after the run. You pick one with a single tap, once you have heard its sample.",
   "dialogs.speakers.nameLabel": "Name of speaker {number}",
   "dialogs.speakers.namePlaceholder": "Speaker {number}",
   "dialogs.speakers.namesNote": "You can add the names later.",
@@ -42,6 +38,7 @@ export const enDialogs: Partial<Record<keyof typeof csDialogs, string>> = {
   "dialogs.addRecording.preparingVideo": "Preparing audio",
   "dialogs.addRecording.percent": "{value}%",
   "dialogs.addRecording.submitting": "Adding…",
+  "dialogs.addRecording.submit": "Download and add",
   "dialogs.addRecording.microphone": "New recording",
   "dialogs.addRecording.microphoneNote": "Records sound from the microphone.",
   "dialogs.addRecording.micIntro": "The take is saved as a recording. Nothing leaves the computer.",
@@ -60,7 +57,6 @@ export const enDialogs: Partial<Record<keyof typeof csDialogs, string>> = {
   "dialogs.addRecording.micDiscard": "Discard",
   "dialogs.addRecording.micTranscribe": "Transcribe",
   "dialogs.addRecording.micSaving": "Saving…",
-  "dialogs.addRecording.submit": "Download and add",
   "dialogs.recordingMenu.more": "More actions",
   "dialogs.recordingMenu.retranscribe": "Transcribe again",
   "dialogs.recordingMenu.deleteTranscript": "Delete transcript",
@@ -80,10 +76,8 @@ export const enDialogs: Partial<Record<keyof typeof csDialogs, string>> = {
   "dialogs.folder.create": "Create",
   "dialogs.folder.deleteTitle": "Delete the folder {name}?",
   "dialogs.folder.deleteEmpty": "The folder is empty, so nothing else is lost.",
-  "dialogs.folder.deleteText.one":
-    "The folder holds 1 transcript. You can move it to the archive, or delete it along with the folder.",
-  "dialogs.folder.deleteText.other":
-    "The folder holds {count} transcripts. You can move them to the archive, or delete them along with the folder.",
+  "dialogs.folder.deleteText.one": "The folder holds 1 transcript. You can move it to the archive, or delete it along with the folder.",
+  "dialogs.folder.deleteText.other": "The folder holds {count} transcripts. You can move them to the archive, or delete them along with the folder.",
   "dialogs.folder.deleteKeep": "The folder only",
   "dialogs.folder.deleteAll": "Including transcripts",
   "dialogs.recordingMenu.transcribeInLanguage": "Transcribe in language",

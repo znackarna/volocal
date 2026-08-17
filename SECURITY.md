@@ -52,7 +52,7 @@ spustil, a má přesně jeho oprávnění.
 ### Co v aplikaci opravdu je a je dobré to vědět
 
 Tohle nejsou hypotézy. Jsou to vlastnosti dnešního kódu, ověřené proti němu
-13. srpna 2026.
+17. srpna 2026 — po přepsání stahování, kterého se první tři body týkají.
 
 **1. Patnáct z šestnácti stažených součástí se porovnává s otiskem. Šestnáctá
 ne, a je to na ní vidět.**
@@ -161,9 +161,11 @@ CSP na tom nic nemění — `media-src` i `img-src` protokol `asset:` povolují 
 rozhoduje ten rozsah.
 
 **3. Program není podepsaný.** Instalátor zatím nenese podpis, takže Windows
-SmartScreen na něj upozorní. Podepisování je připravené (`Vydání` v README),
-ale nasazené není — a nepodepsaný instalátor nedokážete odlišit od
-podvrženého jinak než tím, odkud jste ho stáhli.
+SmartScreen na něj upozorní. Je to vědomé rozhodnutí, ne nedodělek:
+certifikát, který ten dialog opravdu odstraní, se nedá koupit za rozumné peníze
+pro jednoho člověka. Nepodepsaný instalátor ale nedokážete odlišit od
+podvrženého jinak než tím, odkud jste ho stáhli — proto ho berte jen ze stránky
+vydání na GitHubu.
 
 ### Co s tím může udělat uživatel
 
@@ -232,7 +234,8 @@ has exactly that user's rights.
 ### What is actually in the application, and worth knowing
 
 These are not hypotheticals. They are properties of today's code, checked
-against it on 13 August 2026.
+against it on 17 August 2026 — after the download subsystem was rewritten, which
+is what the first three describe.
 
 **1. Fifteen of the sixteen downloaded components are compared against a
 digest. The sixteenth is not, and it says so.**
@@ -347,9 +350,11 @@ over `asset:`. The policy changes nothing about that — both `media-src` and
 `img-src` admit the `asset:` protocol — the scope is what decides.
 
 **3. The program is not signed.** The installer carries no signature yet, so
-Windows SmartScreen warns about it. Signing is prepared (`Vydání` in README) but
-not in place — and an unsigned installer cannot be told apart from a forged one
-except by where you downloaded it.
+Windows SmartScreen warns about it. That is a decision rather than an omission:
+the certificate that actually removes the dialog is not buyable at a sensible
+price for one person. An unsigned installer cannot be told apart from a forged
+one except by where you downloaded it — so take it only from the GitHub
+releases page.
 
 ### What a user can do
 
