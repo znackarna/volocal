@@ -757,6 +757,26 @@ fn download_file(
     let mut downloaded: u64 = already;
     let mut last_update = std::time::Instant::now();
     let mut buffer = vec![0u8; 262_144];
+    /* **A connection that breaks mid-file is picked up, not reported.**
+    Everything on disk was hashed as it was written, so continuing is a
+    matter of asking for the rest: the digest, the file handle and the byte
+    count are all still exactly right.
+
+    Written for the wait this function makes for itself. A resumed download
+    re-reads and hashes what a previous attempt left before it reads a byte
+    off the network — gigabytes, tens of seconds — and the connection is
+    open for the whole of it. Servers close a write that has been blocked
+    too long (nginx calls it `send_timeout`, and the default is a minute),
+    and the first read then failed *after* the entire wait, so the row
+    showed an error and the next attempt spent the same minutes reaching
+    the same place.
+
+    The obvious fix, hashing before the request, was not taken: the wait's
+    progress bar is drawn against the total from the response, and without
+    it that pass goes back to standing at nought — the exact fault the
+    reporting was added for this morning. Recovering costs one request;
+    losing the bar costs the thing that made the wait legible. */
+    let mut retries_left = 3u32;
 
     loop {
         // Two ways to be told to stop, and both leave the same thing behind.
@@ -771,7 +791,44 @@ fn download_file(
             drop(file);
             return Err(UserMessage::new("download.cancelled"));
         }
-        let bytes_read = response.read(&mut buffer)?;
+        let bytes_read = match response.read(&mut buffer) {
+            Ok(read) => read,
+            Err(broken) if retries_left > 0 => {
+                retries_left -= 1;
+                file.flush()?;
+                // In slices, so `Přerušit` is not left waiting on a pause taken
+                // for a server's benefit. The loop above answers it.
+                for _ in 0..10 {
+                    if cancellation.load(Ordering::Relaxed) || component_stopping(id) {
+                        break;
+                    }
+                    std::thread::sleep(std::time::Duration::from_millis(200));
+                }
+                // Only a continuation is any use here. A server that answers 200
+                // to a range means starting from zero, which the digest and the
+                // file on disk cannot follow — that is the original failure, and
+                // it is reported as one.
+                match fetch(downloaded) {
+                    Ok(again) if again.status() == reqwest::StatusCode::PARTIAL_CONTENT => {
+                        crate::note!(
+                            "download: {id} lost the connection at {downloaded} bytes and asked for the rest"
+                        );
+                        response = again;
+                        continue;
+                    }
+                    _ => {
+                        return Err(UserMessage::new("download.connection_failed")
+                            .with("url", url)
+                            .detail(broken))
+                    }
+                }
+            }
+            Err(broken) => {
+                return Err(UserMessage::new("download.connection_failed")
+                    .with("url", url)
+                    .detail(broken))
+            }
+        };
         if bytes_read == 0 {
             break;
         }
@@ -1724,21 +1781,48 @@ pub fn install_bundle(
         // why it is a guard and not a line at the end. It empties the queue as
         // well as lowering the flag: a worker that died holding work would
         // otherwise leave that work behind for a later run to inherit silently.
-        struct Done(u64);
+        struct Done {
+            generation: u64,
+            app: AppHandle,
+            /// Set on the last line of the loop below. False in the guard means
+            /// the run left by the one door nothing else speaks for.
+            spoke: bool,
+        }
         impl Drop for Done {
             fn drop(&mut self) {
-                let mut work = WORK.lock().unwrap();
-                if work.generation != self.0 {
-                    return;
+                let left_behind = {
+                    let mut work = WORK.lock().unwrap();
+                    if work.generation != self.generation {
+                        return;
+                    }
+                    let mut rest: Vec<String> = work.current.take().into_iter().collect();
+                    rest.extend(work.queue.drain(..));
+                    rest.append(&mut work.dropped);
+                    work.running = false;
+                    work.stop.clear();
+                    rest
+                };
+                /* **A panic used to end the run in silence.** The guard put the
+                queue back in order and said nothing, so the window kept every
+                row live for ever and the guided run stayed *running* — the only
+                way out being *Stahovat na pozadí*. `download:complete` is the
+                one event that closes a run, and it has to be sent by whoever
+                ends it, including the door taken by accident.
+
+                The list is what nothing reached: the component in hand and
+                everything behind it. Not an empty list — that says every
+                component landed, and the wizard would write a model setting
+                for a file that is not on the disk. */
+                if !self.spoke {
+                    let _ = self.app.emit("download:complete", left_behind);
                 }
-                work.running = false;
-                work.current = None;
-                work.queue.clear();
-                work.stop.clear();
-                work.dropped.clear();
             }
         }
-        let _done = Done(generation);
+        let mut done = Done {
+            generation,
+            app: app.clone(),
+            spoke: false,
+        };
 
         // What did not land. `download:complete` carries it, because the
         // window cannot work it out for itself: the batch stops on a
@@ -1824,6 +1908,7 @@ pub fn install_bundle(
         // Anything taken out of the queue before this worker reached it. The
         // list has to describe the whole run, not only the part a worker saw.
         unfinished.append(&mut WORK.lock().unwrap().dropped);
+        done.spoke = true;
         let _ = app.emit("download:complete", unfinished);
     });
     outcome

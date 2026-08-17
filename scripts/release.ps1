@@ -331,6 +331,9 @@ as far as replacing it. Run the first pass again and watch it finish.
 # newer time. The first pass writes this down; a missing note means the
 # installer came from somewhere else, which is exactly when to say so.
 $note = Join-Path (Split-Path $exe.FullName -Parent) "built-from.txt"
+# Read out here and not inside the check, because the tag is created from it
+# further down whether the checks ran or not.
+$here = (git rev-parse HEAD).Trim()
 if (-not $SkipChecks) {
   if (-not (Test-Path $note)) {
     Fail @"
@@ -342,7 +345,6 @@ Build again, or pass -SkipChecks if you know what this installer is.
 "@
   }
   $built = (Get-Content $note -Raw).Trim() -split "`n"
-  $here = (git rev-parse HEAD).Trim()
   if ($built[0] -ne $here) {
     Fail @"
 $($exe.Name) was built from $($built[0].Substring(0, 8)); this tree is at $($here.Substring(0, 8)).
@@ -439,7 +441,14 @@ if ($existing -contains $tag) {
   Fail "$tag already exists on GitHub. Move the version on with scripts\version.ps1."
 }
 # English on the page, Czech in the file the page carries.
-gh release create $tag --draft --title "Volocal $version" --notes $NotesEn `
+#
+# `--target`, because a draft has no tag yet: GitHub makes it at the moment the
+# draft is published, from the default branch's head *then*. Publish an hour
+# later with one more merge on main and the tag names code this installer does
+# not contain - the release page, `git describe` and every later `-Material`
+# then describe the wrong tree. It is the commit the checks above just agreed
+# the installer was built from.
+gh release create $tag --draft --target $here --title "Volocal $version" --notes $NotesEn `
   $exe.FullName "$($exe.FullName).sig" $latestPath
 if ($LASTEXITCODE) { Fail "Creating the release failed." }
 

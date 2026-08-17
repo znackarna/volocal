@@ -17,6 +17,8 @@ belongs in `docs/history/`, which is what that folder is for.
   Alt+F4 could shut the window.
 - **A dragged file offers a transcript only in the archive**, which is where it
   lands.
+- **A download whose connection drops carries on** instead of asking you to
+  start it again.
 
 ## 1.2.14 — 17 August 2026
 
