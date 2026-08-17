@@ -11,6 +11,24 @@ altered, not how, not which file. Entries before 1.2.6 are written the old way
 and are left as they are; they are not a model for the next one. The mechanism
 belongs in `docs/history/`, which is what that folder is for.
 
+## 1.2.14 — 17 August 2026
+
+- **A recording you have made cannot be lost.** Volocal asks before the window
+  closes over an unsaved take, and keeps the take if converting it fails.
+- **Nothing can be overwritten by saving onto it** — a recording, an archive
+  copy, or an archive being worked with.
+- **A correction stays corrected.** The dictionary no longer rewrites sentences
+  you have edited yourself.
+- **Subtitles of an edited sentence are readable again**, and two people are
+  never merged into one caption.
+- **Dictionary entries like `Mgr.` work.** They were accepted and did nothing.
+- **The model you chose is the model you get**, even when the download finishes
+  after the setup window is closed.
+- **Stopping one download stops one download**, and an interrupted one can
+  always be picked up again.
+- **Volocal opens once.** A second launch brings the window you already have.
+- **The whole application is in English**, including the newest feature.
+
 ## 1.2.13 — 17 August 2026
 
 - **Volocal says when the graphics card is sitting a transcription out**, so a
