@@ -105,7 +105,7 @@ npm run tauri dev     # první běh překládá Rust: 5-15 minut. Další: vteř
 npm run tauri build   # instalátor přistane v src-tauri\target\release\bundle\nsis\
 ```
 
-Výsledkem je `Volocal_1.2.11_x64-setup.exe`.
+Výsledkem je `Volocal_1.2.12_x64-setup.exe`.
 
 Před odevzdáním práce:
 
