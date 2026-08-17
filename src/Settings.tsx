@@ -15,6 +15,7 @@ import ConfirmationDialog from "./ConfirmationDialog";
 import type { ConfirmationRequest } from "./ConfirmationDialog";
 import CountdownRing from "./CountdownRing";
 import InfoNote from "./InfoNote";
+import { computeMode } from "./compute";
 import { LineIcon, ModelMark, type LineIconName } from "./icons";
 import Select from "./Select";
 import { useI18n, type AppLanguage } from "./i18n";
@@ -156,28 +157,11 @@ const COMPUTE_CHOICES = [
   note: TranslationKey;
 }>;
 
-/** Which of them a stored value stands for, or none of them.
- *
- *  None is automatic, and automatic is the resting state: a fresh installation
- *  has it, and it is where `Automaticky` puts a machine back. It is not a third
- *  card, because it is not a third place for the work to happen — it is the
- *  absence of a decision, and the panel under the cards says what the drivers
- *  made of it.
- *
- *  Settings written before 14 August 2026 name a build — `cuda` or `vulkan` —
- *  and both are the reader having asked for the graphics card, which is what
- *  this screen now calls that. They are left in the settings record rather than
- *  rewritten on sight: `choose_compute` honours them where the machine can run
- *  them, and a screen that quietly edited a stored value while merely being
- *  looked at would be a worse habit than a two-word translation here. The first
- *  press of either card replaces them with the new vocabulary.
- *
- *  Anything else — an empty value, a name from some future build — is
- *  automatic, which is what `choose_compute` also does with it. */
-function computeMode(stored: string): "auto" | "gpu" | "cpu" {
-  if (stored === "cpu") return "cpu";
-  return stored === "gpu" || stored === "cuda" || stored === "vulkan" ? "gpu" : "auto";
-}
+/* `computeMode` stood here, with the note about settings written before
+   14 August naming a build. Both live in `compute.ts` now, beside the reading
+   of when the graphics card has been left out of a run — the archive's notice
+   bar asks that second question, this card asks both, and two screens deciding
+   the same thing separately is how they come to disagree about one machine. */
 
 /** Which downloadable module corresponds to which compute backend. */
 const COMPUTE_MODULES: Record<string, string> = {

@@ -13,6 +13,12 @@ export const csApp = {
   // running — a folder emptied in Explorer, a component deleted in Nastavení.
   // The archive's notice says the same thing, but quietly and only where
   // somebody happens to be looking.
+  // Said once at start-up when the graphics card is sitting out a run it could
+  // have done. `choose_compute` substitutes the processor in silence because a
+  // transcription must run; this is so the reader knows the slower run is a
+  // stand-in and not how the application is.
+  "app.computeFellBack": "Přepis počítá procesor, i když je v počítači grafická karta. Bude trvat déle.",
+  "app.computeFellBack.where": "Kde to nastavit",
   "app.setupBroke": "V počítači chybí klíčové nástroje pro přepis.",
   "app.setupFirst": "Přepis zatím nemůže běžet, chybí k němu součásti.",
   "app.download.cancel": "Zrušit stahování",
