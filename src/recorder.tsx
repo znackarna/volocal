@@ -339,11 +339,32 @@ export function RecorderProvider({ children }: { children: ReactNode }) {
    *  `ready` is an open microphone with nothing in it — stopping either would
    *  be a dialog about nothing. */
   const [closeAsked, setCloseAsked] = useState<ConfirmationRequest | null>(null);
+  /** **The listener exists only while there is a take to lose, and that is not
+   *  tidiness — it is what keeps the window closable.**
+   *
+   *  Tauri hands the entire decision to the webview the moment a
+   *  `tauri://close-requested` listener exists: `manager/window.rs` calls
+   *  `api.prevent_close()` on sight of one, and the JavaScript wrapper is then
+   *  the only thing that can end the window, through `destroy()`. Registered
+   *  for the life of the application — which is how 1.2.14 shipped — every
+   *  ordinary close became a round trip through JavaScript, and `destroy` is
+   *  not in `core:default`, so the trip ended in a denied command. The window
+   *  could not be closed by its button, by Alt+F4, or at all.
+   *
+   *  Off these two phases there is no listener, so Windows closes the window
+   *  without asking the webview anything. The permission is granted as well —
+   *  the guarded path needs it — but the common path no longer depends on the
+   *  webview being alive to answer. */
+  const guardingTake = phase === "recording" || phase === "preview";
   useEffect(() => {
+    if (!guardingTake) return;
     let alive = true;
     let stop: (() => void) | undefined;
     void getCurrentWindow()
       .onCloseRequested((event) => {
+        // The phase can still have moved on between the event and the unlisten
+        // above resolving. Letting it through means the wrapper's own
+        // `destroy()`, which is why that permission is granted.
         if (phaseRef.current !== "recording" && phaseRef.current !== "preview") return;
         event.preventDefault();
         setCloseAsked({
@@ -374,7 +395,7 @@ export function RecorderProvider({ children }: { children: ReactNode }) {
       alive = false;
       stop?.();
     };
-  }, [t]);
+  }, [guardingTake, t]);
 
   return (
     <RecorderContext.Provider value={value}>
