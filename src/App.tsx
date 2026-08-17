@@ -1010,6 +1010,19 @@ export default function App() {
   );
 
   useEffect(() => {
+    /* A dropped file joins the archive, so the archive is the only screen that
+       answers a drag. On a transcript, in Settings or in the by-hand listing
+       there is nothing for it to land in, and the overlay promised one all the
+       same: a full-window veil offering to transcribe, over a screen that was
+       going to send the reader somewhere else to see the result. The listener
+       is not registered off the archive, so those screens do not answer a drag
+       at all rather than answering it invisibly. */
+    if (screen !== "library") {
+      // A drag cannot outlive the screen it started on: without this the veil
+      // would still be standing on whatever comes next.
+      setDragging(false);
+      return;
+    }
     // The same guard as above, and it matters more here: two stray listeners
     // would mean every dropped file gets added and transcribed twice.
     let liveSegments = true;
@@ -1030,7 +1043,7 @@ export default function App() {
       liveSegments = false;
       unlisten?.();
     };
-  }, [acceptFiles]);
+  }, [acceptFiles, screen]);
 
   const selectFile = useCallback(async () => {
     const selected = await open({
