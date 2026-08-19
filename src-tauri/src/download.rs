@@ -611,6 +611,55 @@ fn resolve_url(source: &Source) -> String {
     }
 }
 
+/// The server a URL names, for a sentence a person reads.
+///
+/// The whole address is what the dialog used to show, and on these URLs that is
+/// a repository path, a forty-character commit and a file name — four lines of
+/// a small red typeface, none of which says anything the reader can act on. The
+/// host is the part that either answered or did not.
+fn host_of(url: &str) -> String {
+    reqwest::Url::parse(url)
+        .ok()
+        .and_then(|parsed| parsed.host_str().map(str::to_owned))
+        .unwrap_or_else(|| url.to_owned())
+}
+
+/// Why a connection failed, in the words of whatever actually refused it.
+///
+/// The outermost layer of a `reqwest` failure reads `error sending request for
+/// url (…)`, which is the one thing the sentence around it already says. What
+/// identifies the fault is underneath — `dns error`, `tcp connect error`, an
+/// operating system code, a certificate that was not accepted — so the first
+/// level is dropped and the rest joined.
+///
+/// This is English inside Czech copy, and it is deliberate. *Nepodařilo se
+/// spojit se serverem* is true of a name that does not resolve, a proxy nobody
+/// configured, an antivirus opening the connection, and a cable that is out;
+/// on a machine that is not here, the only person who can tell them apart is
+/// the one reading this line. The yt-dlp import is reported the same way, and
+/// on 20 August that raw text was the whole diagnosis.
+fn connection_cause(error: &dyn std::error::Error) -> String {
+    let mut causes = Vec::new();
+    let mut current = error.source();
+    while let Some(step) = current {
+        causes.push(step.to_string());
+        current = step.source();
+    }
+    let text = if causes.is_empty() {
+        error.to_string()
+    } else {
+        causes.join(": ")
+    };
+    let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    // A dialog, not a log: a chain long enough to need scrolling is one nobody
+    // reads to the end of, and the identifying part is at the front.
+    if text.chars().count() > 200 {
+        format!("{}…", text.chars().take(199).collect::<String>())
+    } else {
+        text
+    }
+}
+
 fn download_file(
     app: &AppHandle,
     id: &str,
@@ -659,11 +708,22 @@ fn download_file(
             .send()
             .map_err(|error| {
                 UserMessage::new("download.connection_failed")
-                    .with("url", url)
+                    .with("host", host_of(url))
+                    .with("reason", connection_cause(&error))
                     .detail(error)
             })?
             .error_for_status()
-            .map_err(|error| UserMessage::new("download.rejected").detail(error))
+            .map_err(|error| {
+                UserMessage::new("download.rejected")
+                    .with(
+                        "status",
+                        error
+                            .status()
+                            .map(|status| status.as_u16().to_string())
+                            .unwrap_or_else(|| "?".into()),
+                    )
+                    .detail(error)
+            })
     };
 
     let (mut response, resume_from) = match fetch(resume_from) {
@@ -818,14 +878,16 @@ fn download_file(
                     }
                     _ => {
                         return Err(UserMessage::new("download.connection_failed")
-                            .with("url", url)
+                            .with("host", host_of(url))
+                            .with("reason", connection_cause(&broken))
                             .detail(broken))
                     }
                 }
             }
             Err(broken) => {
                 return Err(UserMessage::new("download.connection_failed")
-                    .with("url", url)
+                    .with("host", host_of(url))
+                    .with("reason", connection_cause(&broken))
                     .detail(broken))
             }
         };
@@ -1981,6 +2043,67 @@ fn copy_tree(app: &AppHandle, source: &Path, destination: &Path) -> Result<u64> 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// One level of a `source()` chain, which is the shape reqwest reports a
+    /// refused connection in and which no constructor of its own will build.
+    #[derive(Debug)]
+    struct Layer(&'static str, Option<Box<Layer>>);
+
+    impl std::fmt::Display for Layer {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "{}", self.0)
+        }
+    }
+
+    impl std::error::Error for Layer {
+        fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+            self.1
+                .as_deref()
+                .map(|inner| inner as &(dyn std::error::Error + 'static))
+        }
+    }
+
+    #[test]
+    fn the_reason_shown_is_the_innermost_one_not_the_address_again() {
+        let refused = Layer(
+            "error sending request for url (https://huggingface.co/ggml-org/whisper-vad/resolve/9ffd54a/ggml-silero-v6.2.0.bin)",
+            Some(Box::new(Layer(
+                "client error (Connect)",
+                Some(Box::new(Layer(
+                    "dns error: No such host is known. (os error 11001)",
+                    None,
+                ))),
+            ))),
+        );
+
+        assert_eq!(
+            connection_cause(&refused),
+            "client error (Connect): dns error: No such host is known. (os error 11001)"
+        );
+    }
+
+    #[test]
+    fn a_failure_with_nothing_under_it_still_says_something() {
+        let broken = std::io::Error::new(
+            std::io::ErrorKind::TimedOut,
+            "the connection timed out while reading",
+        );
+
+        assert_eq!(
+            connection_cause(&broken),
+            "the connection timed out while reading"
+        );
+    }
+
+    #[test]
+    fn the_sentence_names_the_server_and_not_the_path_to_the_file() {
+        assert_eq!(
+            host_of("https://huggingface.co/ggml-org/whisper-vad/resolve/9ffd54a/ggml-silero-v6.2.0.bin"),
+            "huggingface.co"
+        );
+        // Nothing parseable is better shown whole than shown as an empty name.
+        assert_eq!(host_of("not a url"), "not a url");
+    }
 
     /// The decision `install_bundle` makes before it touches a thread: what is
     /// new, what is already in hand, and whether a worker has to be started.

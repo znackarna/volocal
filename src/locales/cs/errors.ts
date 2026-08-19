@@ -135,8 +135,8 @@ export const csErrors = {
     "ji smazat půjde.",
   "errors.download.remove_failed": "Smazat se nepodařilo: {detail}",
   "errors.download.cancelled": "Zrušeno",
-  "errors.download.connection_failed": "Nepodařilo se spojit se serverem ({url})",
-  "errors.download.rejected": "Server odmítl soubor vydat",
+  "errors.download.connection_failed": "Nepodařilo se spojit se serverem {host}: {reason}",
+  "errors.download.rejected": "Server odmítl soubor vydat ({status})",
   "errors.download.tar_launch_failed":
     "Nepodařilo se spustit tar (je součástí Windows 10 a novějších)",
   "errors.download.extract_failed": "Rozbalení archivu selhalo",
