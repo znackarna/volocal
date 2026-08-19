@@ -219,6 +219,15 @@ pub fn import(
         .arg(format!("deno:{}", javascript_runtime.to_string_lossy()))
         .arg("--ffmpeg-location")
         .arg(ffmpeg_directory)
+        /* YouTube's default players hand out an audio address that serves
+        about a megabyte and then answers 403 to the rest, unless the request
+        carries a PO token this application has no way to mint. The embedded
+        web player's address has no such condition, so it is asked first;
+        `default` stays behind it as the fallback for what that player will
+        not open, and for every other site, which this argument never
+        reaches — `--extractor-args` is addressed to youtube alone. */
+        .arg("--extractor-args")
+        .arg("youtube:player_client=web_embedded,default")
         .arg("--format")
         .arg("bestaudio/best")
         .arg("--extract-audio")

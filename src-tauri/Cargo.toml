@@ -1,6 +1,6 @@
 [package]
 name = "volocal"
-version = "1.2.15"
+version = "1.2.16"
 description = "Volocal turns speech into text, on your own machine"
 authors = ["značkárna s.r.o."]
 edition = "2021"
