@@ -20,6 +20,9 @@ belongs in `docs/history/`, which is what that folder is for.
 - **Language editing recovers on its own** instead of staying busy until restart.
 - **A recording never quietly disappears from the archive.**
 - **A model card says it is downloading only while it really is.**
+- **The save menu opens whole**, instead of being cut off by the dialog it sits in.
+- **A summary is written in the language that was spoken**, so an English
+  recording is summarised in English.
 
 ## 1.2.18 — 20 August 2026
 
