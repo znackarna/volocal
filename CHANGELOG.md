@@ -11,6 +11,14 @@ altered, not how, not which file. Entries before 1.2.6 are written the old way
 and are left as they are; they are not a model for the next one. The mechanism
 belongs in `docs/history/`, which is what that folder is for.
 
+## 1.2.17 — 20 August 2026
+
+- **The list marks what is missing**, so a warning about a missing model says
+  which row to press.
+- **The model you already have is the one offered**, instead of a fresh
+  three-gigabyte download beside it.
+- **Choosing a model asks before it downloads gigabytes.**
+
 ## 1.2.16 — 20 August 2026
 
 - **Adding a recording from an online link works again.**

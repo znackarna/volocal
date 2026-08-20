@@ -16,7 +16,7 @@ upload — the models run on your own hardware, offline, after the first setup.
 **Windows 10 or 11.** [Download the installer](../../releases/latest) — it
 installs for you alone and does not ask for administrator rights.
 
-**Status: released, 1.2.16.** In daily use by its author.
+**Status: released, 1.2.17.** In daily use by its author.
 
 One thing to expect on first run: the installer is not code signed, so Windows
 shows *Windows protected your PC*. Choose **More info** → **Run anyway**. That

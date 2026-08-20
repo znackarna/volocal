@@ -191,7 +191,13 @@ export const csSettings = {
   // What Whisper is told to do.
   "settings.transcription.model": "Model přepisu",
   "settings.transcription.modelDescription": "Stažený model.",
-  "settings.transcription.modelNote": "Výběr nestaženého modelu zahájí stahování.",
+  "settings.transcription.modelNote": "U nestaženého modelu se aplikace nejdřív zeptá.",
+  // 575 MB a 3 GB na jedno kliknutí. Karta jazykové úpravy se ptala od
+  // začátku, tahle ne — a je to ta, kterou lidé mačkají častěji.
+  "settings.transcription.downloadTitle": "Stáhnout model pro přepis?",
+  "settings.transcription.downloadText":
+    "Model přepisuje váš zvuk přímo v počítači. Jednorázově stáhne asi {size} dat. Stahování běží na pozadí, můžete pracovat dál.",
+  "settings.transcription.downloadConfirm": "Stáhnout {size}",
   "settings.transcription.modelDownloading": "stahuje se…",
   "settings.transcription.language": "Jazyk nahrávky",
   "settings.transcription.languageNote":

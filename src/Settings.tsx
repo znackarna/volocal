@@ -754,7 +754,7 @@ export default function SettingsScreen({
      one hook fewer than on the render after, and the screen stopped opening at
      all. TypeScript cannot see it; the rule is that every hook runs on every
      render, without exception. */
-  const [editorConfirm, setEditorConfirm] = useState<ConfirmationRequest | null>(null);
+  const [downloadConfirm, setDownloadConfirm] = useState<ConfirmationRequest | null>(null);
 
   if (!n) return <main className="settings"><p>{t("common.loading")}</p></main>;
 
@@ -814,14 +814,33 @@ export default function SettingsScreen({
       return;
     }
     if (!card.component || card.id === modelWanted) return;
-    try {
-      await api.download([card.component]);
-      localStorage.setItem(MODEL_WANTED, card.id);
-      setModelWanted(card.id);
-      setModules(await api.catalog());
-    } catch (e) {
-      onError(userMessage(e));
-    }
+    const component = card.component;
+    const apply = async () => {
+      try {
+        await api.download([component]);
+        localStorage.setItem(MODEL_WANTED, card.id);
+        setModelWanted(card.id);
+        setModules(await api.catalog());
+      } catch (e) {
+        onError(userMessage(e));
+      }
+    };
+    /* **Asked first, the same as the language-editing card one section down.**
+       Both are a single click that starts gigabytes, and until 20 August only
+       one of them asked — the smaller one. `settings.transcription.modelNote`
+       had been carrying the difference in words for as long as it existed,
+       which is a warning standing in for a control: *Výběr nestaženého modelu
+       zahájí stahování* is a true sentence and not a way back.
+
+       Nothing is destroyed, so the confirming button is the plain one and
+       carries the size, which is the fact the answer turns on. */
+    const size = formats.dataSize(megabytes(component));
+    setDownloadConfirm({
+      title: t("settings.transcription.downloadTitle"),
+      text: t("settings.transcription.downloadText", { size }),
+      confirm: t("settings.transcription.downloadConfirm", { size }),
+      action: apply,
+    });
   };
 
   /* ------------------------------------------------------ language editing
@@ -896,7 +915,7 @@ export default function SettingsScreen({
       return;
     }
     const size = formats.dataSize(needs.reduce((total, need) => total + megabytes(need), 0));
-    setEditorConfirm({
+    setDownloadConfirm({
       title: t("settings.editor.downloadTitle"),
       text: t("settings.editor.downloadText", { size }),
       confirm: t("settings.editor.downloadConfirm", { size }),
@@ -2322,8 +2341,8 @@ export default function SettingsScreen({
           alternative — excluding overlays from it — raises its specificity and
           turns the two overrides underneath into a question of file order. */}
       <ConfirmationDialog
-        query={editorConfirm}
-        onClose={() => setEditorConfirm(null)}
+        query={downloadConfirm}
+        onClose={() => setDownloadConfirm(null)}
         onError={onError}
       />
     </>

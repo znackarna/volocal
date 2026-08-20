@@ -551,6 +551,20 @@ pub struct ToolCheck {
     pub issues: Vec<UserMessage>,
     pub issues_diarization: Vec<UserMessage>,
     pub issues_editor: Vec<UserMessage>,
+    /// The components that would answer `issues`, by id.
+    ///
+    /// **`issues` says what is wrong and this says what to press.** The
+    /// catalogue's own `required` flag cannot: it is true of `ffmpeg` and
+    /// `vad` and of nothing else, because no single transcription model and no
+    /// single whisper build is required — any one of several will do, and a
+    /// static flag has no way to say *one of these*. So a model deleted by hand
+    /// raised the card's warning and marked no row in the listing it sent the
+    /// reader to, which is a screen saying *something is missing* and refusing
+    /// to say what.
+    ///
+    /// Filled from the same reads that filled `issues`, so the two cannot
+    /// disagree about what is on the disk.
+    pub needed: Vec<String>,
 }
 
 pub fn check(n: &crate::db::Settings) -> ToolCheck {
@@ -651,6 +665,70 @@ pub fn check(n: &crate::db::Settings) -> ToolCheck {
     }
     if k.model_vad.is_none() {
         k.issues.push(UserMessage::new("tools.vad_model_missing"));
+    }
+
+    /* What to press, for each of those. ffprobe ships inside the ffmpeg
+    archive, so two issues have one answer; the whisper build and the model are
+    chosen the way the catalogue recommends them, from the drivers, because
+    that is the row the reader would be told to take anyway.
+
+    The model the setting names comes first: somebody who deleted
+    `ggml-large-v3.bin` is being offered the file they had, not the one this
+    machine would have been sold. Only if that name matches no component at
+    all — a model put in the folder by hand and then removed — does the
+    machine's own pair answer instead. */
+    if k.ffmpeg.is_none() || k.ffprobe.is_none() {
+        k.needed.push("ffmpeg".into());
+    }
+    if k.whisper_cli.is_none() {
+        k.needed.push(
+            if k.nvidia_driver {
+                "whisper-cuda"
+            } else if k.vulkan_driver {
+                "whisper-vulkan"
+            } else {
+                "whisper-cpu"
+            }
+            .into(),
+        );
+    }
+    if k.model_whisper.is_none() {
+        /* Three answers, in the order of how much each knows about this reader.
+
+        The setting names a model: that is the file the transcription will look
+        for, and offering anything else would be offering something that does
+        not fix it.
+
+        It can name nothing, and does on any machine where a model was chosen
+        but never landed - `settings.model` is written when a download finishes
+        and is empty until then. **`quality_choice` is the answer to the
+        question that was actually asked**, and it survives the model being
+        empty. Reported on 20 August: `model` empty, `quality_choice` `fast`,
+        the fast model deleted by hand - and the row marked as necessary was
+        the accurate one, three gigabytes, because this fell straight through
+        to the machine. The right model for the graphics card and the wrong
+        answer to the person, who had said *fast* and could see they had.
+
+        The drivers are last, being a guess about the computer made where there
+        is nothing else at all to go on. */
+        let by_choice = match n.quality_choice.as_str() {
+            "fast" => Some("model-turbo"),
+            "accurate" => Some("model-large"),
+            _ => None,
+        };
+        let by_machine = if k.nvidia_driver || k.vulkan_driver {
+            "model-large"
+        } else {
+            "model-turbo"
+        };
+        k.needed.push(
+            crate::download::component_for_model(&n.model)
+                .or_else(|| by_choice.map(str::to_string))
+                .unwrap_or_else(|| by_machine.into()),
+        );
+    }
+    if k.model_vad.is_none() {
+        k.needed.push("vad".into());
     }
 
     // Speaker recognition needs one model and no program. Until 2026-08-07 it
@@ -1408,6 +1486,142 @@ mod memory_tests {
         assert!(
             (1..=4096).contains(&gigabytes),
             "implausible reading: {gigabytes} GB"
+        );
+    }
+}
+
+#[cfg(test)]
+mod needed_tests {
+    use super::*;
+
+    /// A machine with nothing installed, in a folder of this test's own.
+    ///
+    /// `use_tools_root_for_this_test` matters as much as the two directories:
+    /// settings name `bin` and `models`, and everything else `check` looks at
+    /// hangs off the tools root, which without this is the real one.
+    fn bare_machine(name: &str, model: &str) -> crate::db::Settings {
+        let directory = std::env::temp_dir().join(format!("volocal-check-{name}"));
+        let _ = std::fs::remove_dir_all(&directory);
+        std::fs::create_dir_all(directory.join("bin")).expect("scratch");
+        std::fs::create_dir_all(directory.join("models")).expect("scratch");
+        use_tools_root_for_this_test(&directory);
+        crate::db::Settings {
+            bin_directory: directory.join("bin").to_string_lossy().to_string(),
+            models_directory: directory.join("models").to_string_lossy().to_string(),
+            model: model.into(),
+            editor_model: String::new(),
+            ..Default::default()
+        }
+    }
+
+    /// **The invariant the report of 20 August broke.** A model deleted by hand
+    /// raised the card's warning and marked no row in the listing that warning
+    /// sent the reader to: complaints on one screen, nothing to press on the
+    /// other.
+    ///
+    /// Nothing here asserts on ffmpeg or on the whisper build, and that is not
+    /// laziness: `find_program_in` falls back to `PATH`, so on a machine with
+    /// ffmpeg installed for other reasons neither is missing and neither is
+    /// asked for. The models have no such fallback, and the pairing itself has
+    /// none either — which is what is checked.
+    #[test]
+    fn every_complaint_leaves_something_to_press() {
+        let settings = bare_machine("needed", "large-v3");
+        let found = check(&settings);
+
+        assert!(
+            !found.issues.is_empty(),
+            "a folder with nothing in it must raise complaints"
+        );
+        assert_eq!(
+            found.issues.is_empty(),
+            found.needed.is_empty(),
+            "complaints and answers appear and vanish together: {:?} against {:?}",
+            found.issues.iter().map(|i| &i.code).collect::<Vec<_>>(),
+            found.needed
+        );
+        assert!(
+            found.needed.contains(&"vad".to_string()),
+            "speech detection is missing: {:?}",
+            found.needed
+        );
+        assert!(
+            found.needed.contains(&"model-large".to_string()),
+            "the model to offer is the one the setting names, not the one this              machine would be sold: {:?}",
+            found.needed
+        );
+    }
+
+    /// A model put in the folder by hand belongs to no component, and the
+    /// answer then has to be one this machine can actually download rather
+    /// than nothing at all — which is what the reader would otherwise get.
+    /// **The reported state, and the reason the wrong row was marked.** A
+    /// machine where a model was chosen and never landed has `model` empty --
+    /// it is written when a download finishes -- while `quality_choice` still
+    /// holds the answer that was given. Falling through to the drivers there
+    /// marked the accurate model and three gigabytes at a reader who had
+    /// chosen the fast one and could see they had.
+    ///
+    /// Both choices are asserted in one test on purpose: the machine's own
+    /// fallback agrees with one of them, and which one depends on whether the
+    /// computer running this has a graphics card. Together they always tell
+    /// the answer apart from the guess.
+    #[test]
+    fn an_unwritten_model_falls_back_to_the_choice_and_not_to_the_drivers() {
+        let mut settings = bare_machine("needed-choice-fast", "");
+        settings.quality_choice = "fast".into();
+        assert!(
+            check(&settings).needed.contains(&"model-turbo".to_string()),
+            "the reader asked for the fast one"
+        );
+
+        let mut settings = bare_machine("needed-choice-accurate", "");
+        settings.quality_choice = "accurate".into();
+        assert!(
+            check(&settings).needed.contains(&"model-large".to_string()),
+            "and here for the accurate one"
+        );
+    }
+
+    #[test]
+    fn a_model_no_component_delivers_still_leaves_something_to_press() {
+        let settings = bare_machine("needed-unknown", "small.en");
+        let found = check(&settings);
+
+        assert!(
+            found
+                .needed
+                .iter()
+                .any(|id| id == "model-large" || id == "model-turbo"),
+            "one of the offered pair has to stand in: {:?}",
+            found.needed
+        );
+    }
+
+    /// The list is not everything this application could install; it is the
+    /// answer to one warning. Put the model back and it stops being asked for.
+    #[test]
+    fn a_model_that_is_there_is_not_asked_for_again() {
+        let settings = bare_machine("needed-have-model", "large-v3");
+        std::fs::write(
+            std::path::Path::new(&settings.models_directory).join("ggml-large-v3.bin"),
+            b"not a model, but a file with the right name",
+        )
+        .expect("model");
+
+        let found = check(&settings);
+
+        assert!(
+            !found.needed.contains(&"model-large".to_string()),
+            "the model is on the disk: {:?}",
+            found.needed
+        );
+        assert!(
+            !found
+                .issues
+                .iter()
+                .any(|issue| issue.code == "tools.whisper_model_missing"),
+            "and nothing complains about it either"
         );
     }
 }

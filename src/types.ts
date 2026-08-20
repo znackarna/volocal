@@ -366,6 +366,9 @@ export interface ToolCheck {
   issues: UserMessage[];
   issues_diarization: UserMessage[];
   issues_editor: UserMessage[];
+  /** Component ids that would answer `issues` — what to press, where `issues`
+   *  says only what is wrong. See `ToolCheck::needed` in `tools.rs`. */
+  needed: string[];
 }
 
 export interface AiDocument {
