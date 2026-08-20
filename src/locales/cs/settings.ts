@@ -144,6 +144,10 @@ export const csSettings = {
     "Převádí mluvené slovo na text. Data zpracovává pouze na vašem počítači a nic neodesílá ven. Nahrávky, přepisy a modely jsou plně pod vaší kontrolou.",
   "settings.about.version": "Verze",
   "settings.about.author": "Autor",
+  // Instalace zavírá aplikaci přes process::exit, které neprojde ochranou
+  // zavření okna. Nahrávka je jediná věc tady, která nejde pořídit znovu.
+  "settings.about.updateBlockedByTake":
+    "Nejdřív uložte nebo zahoďte rozdělanou nahrávku. Instalace aktualizace zavře aplikaci a nahrávka by se ztratila.",
   "settings.about.updateCheck": "Zkontrolovat aktualizace",
   "settings.about.updateAutoDescription":
     "Po spuštění hledá novější verzi. Stáhne ji na vaši žádost.",

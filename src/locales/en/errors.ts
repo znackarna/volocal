@@ -80,6 +80,7 @@ export const enErrors: Partial<Record<keyof typeof csErrors, string>> = {
   "errors.download.cannot_remove": "The application does not know which files belong to this component. Download it again and it can be deleted.",
   "errors.download.remove_failed": "It could not be deleted: {detail}",
   "errors.download.cancelled": "Cancelled",
+  "errors.archive.row_unreadable": "This entry could not be read from the archive ({id}). The transcript and the audio may be fine; what is damaged is the row that describes them.",
   "errors.download.connection_failed": "Could not connect to {host}: {reason}",
   "errors.download.rejected": "The server refused to hand over the file ({status})",
   "errors.download.tar_launch_failed": "Could not start tar (it is part of Windows 10 and later)",

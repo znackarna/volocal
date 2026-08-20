@@ -10,6 +10,7 @@ import {
 } from "react";
 
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { api } from "./api";
 
 import ConfirmationDialog from "./ConfirmationDialog";
 import type { ConfirmationRequest } from "./ConfirmationDialog";
@@ -114,6 +115,13 @@ export function RecorderProvider({ children }: { children: ReactNode }) {
   /* Frames of TAKE_BANDS values, 0–255, appended while the take runs. */
   const equalizer = useRef<number[]>([]);
   const tick = useRef<number | undefined>(undefined);
+  /** The chain every slice of a take is appended through.
+   *
+   *  One promise rather than a call per slice, because the slices of a
+   *  `MediaRecorder` concatenate into a playable file only in the order they
+   *  were produced — two appends in flight can land the other way round. */
+  const shadow = useRef<Promise<void>>(Promise.resolve());
+
   const phaseRef = useRef<RecorderPhase>("idle");
   phaseRef.current = phase;
 
@@ -125,6 +133,9 @@ export function RecorderProvider({ children }: { children: ReactNode }) {
     capture.current = null;
     chunks.current = [];
     takeRef.current = null;
+    /* Closing the microphone is a decision too — and where it follows the
+       close dialog's *zahodit*, it is the decision. */
+    void api.discardTake().catch(() => {});
     stream.current?.getTracks().forEach((track) => track.stop());
     stream.current = null;
     void audioContext.current?.close();
@@ -193,7 +204,23 @@ export function RecorderProvider({ children }: { children: ReactNode }) {
     chunks.current = [];
     takeRef.current = null;
     recorder.ondataavailable = (event) => {
-      if (event.data.size > 0) chunks.current.push(event.data);
+      if (event.data.size === 0) return;
+      chunks.current.push(event.data);
+      /* **And the same bytes to disk, behind the recording.** In one chain
+         rather than in parallel: the slices of a `MediaRecorder` concatenate
+         into a playable WebM only in the order they were produced, and two
+         appends in flight at once can land the other way round.
+
+         Nothing is awaited by the caller and no failure reaches the screen.
+         This is a net under a recording in progress; a dialog about the net
+         would interrupt the thing it is there to protect, and the take in
+         memory is unaffected either way. The Rust side writes to the log. */
+      shadow.current = shadow.current
+        .then(async () => {
+          const bytes = new Uint8Array(await event.data.arrayBuffer());
+          await api.appendTakeChunk(bytes);
+        })
+        .catch(() => {});
     };
     recorder.onstop = () => {
       takeRef.current = new Blob(chunks.current, { type: recorder.mimeType });
@@ -208,7 +235,13 @@ export function RecorderProvider({ children }: { children: ReactNode }) {
     elapsedBase.current = 0;
     begun.current = Date.now();
     setPhase("recording");
-    recorder.start();
+    /* **A timeslice, which is the whole of the repair.** Without one
+       `MediaRecorder` hands over a single blob at the end, so until somebody
+       pressed save the only copy of a two-hour interview was in webview
+       memory. Three seconds is the most that can be lost to a crash, against
+       an append of a few tens of kilobytes. */
+    shadow.current = api.beginTake().catch(() => {});
+    recorder.start(3000);
     tick.current = window.setInterval(
       () =>
         setSeconds(
@@ -278,6 +311,10 @@ export function RecorderProvider({ children }: { children: ReactNode }) {
   const discard = useCallback(() => {
     takeRef.current = null;
     chunks.current = [];
+    // Deliberate. **This is what stops the rescue at the next start handing
+    // back a recording somebody chose to be rid of** — every ending that is a
+    // decision deletes the shadow, so anything left in it is a crash.
+    void api.discardTake().catch(() => {});
     setSeconds(0);
     setPhase("ready");
   }, []);

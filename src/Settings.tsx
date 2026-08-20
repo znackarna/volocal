@@ -84,6 +84,12 @@ interface Props {
    *  corner counting it at the same moment. The count is not wrong; the offer
    *  is, because the errand it proposes is already under way. */
   fetching: boolean;
+  /** The component actually coming down right now, or "". **A card says
+   *  *stahuje se…* about a live download and about nothing else.** It used to
+   *  say it about `MODEL_WANTED`, which is an intent - and an intent outlives
+   *  the download it was made for, so a stopped download left that word on the
+   *  card for ever, across restarts, with nothing behind it. */
+  fetchingComponent?: string;
 }
 
 /* `EDITOR_CHOICES` stood here: three cards, `Úsporná`, `Doporučená`,
@@ -442,6 +448,7 @@ export default function SettingsScreen({
   initialTab,
   foundUpdate,
   fetching,
+  fetchingComponent = "",
 }: Props) {
   const labels = useLabels();
   const formats = useFormats();
@@ -471,6 +478,14 @@ export default function SettingsScreen({
   /** A transcription model picked before it was on the disk. Mirrors
    *  `localStorage[MODEL_WANTED]`, which is where it actually lives — see
    *  `load`, which is the only thing that turns it into `settings.model`. */
+  /** Whether this is the first read since the screen opened. A stale intent is
+   *  only recognisable there — later reads happen *during* a download. */
+  const firstLook = useRef(true);
+  /** Read through a ref rather than a dependency: `load` is what the mount
+   *  effect runs, and rebuilding it every time a download starts or stops
+   *  would reload this whole screen on each of them. */
+  const fetchingNow = useRef(fetching);
+  fetchingNow.current = fetching;
   const [modelWanted, setModelWanted] = useState(() => localStorage.getItem(MODEL_WANTED) ?? "");
   /** What the archive holds, as opposed to what is in the fields. A row is
    *  edited in place, so `dictionary` follows every keystroke; this follows
@@ -639,6 +654,22 @@ export default function SettingsScreen({
          cancelled never reaches this branch, and `Rychlý`/`Přesný` clears the
          intent when a different card is pressed. */
       const wanted = localStorage.getItem(MODEL_WANTED) ?? "";
+      /* **An intent that outlived its download is dropped on the way in.**
+         It is cleared where the file appears and where the download visibly
+         ends, but neither of those happens if the application was closed in
+         between - so one made months ago sat in `localStorage` waiting to
+         overwrite a choice made since. On the first read of this screen it is
+         either wanted-and-arrived (below), or coming down now, or nothing. */
+      if (
+        firstLook.current &&
+        wanted &&
+        !tools.found_models.includes(wanted) &&
+        !fetchingNow.current
+      ) {
+        localStorage.removeItem(MODEL_WANTED);
+        setModelWanted("");
+      }
+      firstLook.current = false;
       if (wanted && tools.found_models.includes(wanted)) {
         localStorage.removeItem(MODEL_WANTED);
         setModelWanted("");
@@ -2079,7 +2110,7 @@ export default function SettingsScreen({
                   <em className="badge complete">{t("wizard.download.downloadedBadge")}</em>
                 ) : (
                   <span className="choice-size">
-                    {card.id === modelWanted
+                    {card.component && card.component === fetchingComponent
                       ? t("settings.transcription.modelDownloading")
                       : formats.dataSize(card.megabytes)}
                   </span>

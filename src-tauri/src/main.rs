@@ -534,6 +534,9 @@ fn main() {
             commands::library::import_watch_folder_files,
             commands::library::ignore_watch_folder_files,
             commands::library::save_microphone_recording,
+            commands::library::begin_take,
+            commands::library::append_take_chunk,
+            commands::library::discard_take,
             commands::library::import_online_recording,
             commands::library::cancel_online_import,
             commands::folders::delete_recording,
@@ -1039,6 +1042,16 @@ fn connect_database(app: &tauri::App, db_path: PathBuf) -> Result<()> {
             tools::clear_leftover_imports(&commands::library::recordings_dir(&settings, &db_path));
         if left > 0 {
             crate::note!("reclaimed {} MB from interrupted imports", left / 1_000_000);
+        }
+
+        /* And a take the application never got to save. Anything left in the
+        shadow file is by definition a crash - every deliberate ending deletes
+        it - so it becomes an archive row rather than being swept away with the
+        working folders above. */
+        if let Some(title) =
+            commands::library::rescue_interrupted_take(&connection, &settings, &db_path)
+        {
+            crate::note!("recovered an interrupted take as {title}");
         }
     }
 

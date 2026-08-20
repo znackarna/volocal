@@ -123,6 +123,70 @@ pub struct AiEditProgress {
     pub description: UserMessage,
 }
 
+/// Runs the work where a panic is an error rather than a silence.
+///
+/// The same shape as `without_panicking` in `transcription/mod.rs`, which the
+/// transcription pipeline was given for the same reason and which this file
+/// never got: a detached thread that panics prints to a console nobody is
+/// watching, and the reader is left with a card that stops moving.
+fn caught<F>(work: F) -> Reported<()>
+where
+    F: FnOnce() -> Reported<()>,
+{
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(work)) {
+        Ok(result) => result,
+        Err(panic) => {
+            let text = panic
+                .downcast_ref::<&str>()
+                .map(|s| s.to_string())
+                .or_else(|| panic.downcast_ref::<String>().cloned())
+                .unwrap_or_else(|| "panic".to_string());
+            crate::note!("ai edit worker panicked: {text}");
+            Err(UserMessage::new("unknown").detail(text))
+        }
+    }
+}
+
+/// Holds the busy slot for the length of one run, and gives it back however
+/// the run ends.
+///
+/// **The line that freed the slot used to be the last line of the worker
+/// closure**, which is not a place a panic passes through. Every `Vylepšit`,
+/// summary and translation then answered *už běží jinde* for the lifetime of
+/// the process, the progress card stood at whatever percentage it had reached,
+/// and the module listing kept llama.cpp and seven gigabytes of model locked -
+/// with nothing anywhere saying why, and nothing to do but restart.
+///
+/// The exact defect `WaveformJob` in `main.rs` was given a guard for on
+/// 17 August, in a second place that had not been looked at.
+///
+/// It clears only its own run: a slot already taken by a newer one is left
+/// alone, so a thread ending late cannot unlock the run that replaced it.
+struct Slot {
+    running: Arc<Mutex<Option<String>>>,
+    progress: Arc<Mutex<Option<AiEditProgress>>>,
+    recording_id: String,
+}
+
+impl Drop for Slot {
+    fn drop(&mut self) {
+        let mut running = self.running.lock().unwrap();
+        if running.as_deref() == Some(self.recording_id.as_str()) {
+            *running = None;
+            // The card is left as it is on an ordinary end - the reporter has
+            // already written the last word into it. A panic writes nothing,
+            // so a progress state still naming this run would stand at its last
+            // percentage for ever; `Reporter` cannot clear it, being gone.
+            let mut progress = self.progress.lock().unwrap();
+            if progress.as_ref().is_some_and(|state| {
+                state.recording_id == self.recording_id && state.phase == "running"
+            }) {
+                *progress = None;
+            }
+        }
+    }
+}
+
 #[derive(Clone, Default)]
 pub struct AiEditTask {
     running: Arc<Mutex<Option<String>>>,
@@ -178,19 +242,26 @@ impl AiEditTask {
         let progress = self.progress.clone();
         let server = self.server.clone();
         std::thread::spawn(move || {
+            let _slot = Slot {
+                running: running.clone(),
+                progress: progress.clone(),
+                recording_id: recording_id.clone(),
+            };
             let reporter = Reporter {
                 app: &app,
                 recording_id: &recording_id,
                 state: &progress,
             };
-            if let Err(error) = generate_document(
-                &reporter,
-                &db_path,
-                &settings,
-                &mode,
-                &cancellation,
-                &server,
-            ) {
+            if let Err(error) = caught(|| {
+                generate_document(
+                    &reporter,
+                    &db_path,
+                    &settings,
+                    &mode,
+                    &cancellation,
+                    &server,
+                )
+            }) {
                 let cancelled = cancellation.load(Ordering::Relaxed);
                 reporter.say(
                     if cancelled { "cancelled" } else { "error" },
@@ -202,7 +273,6 @@ impl AiEditTask {
                     },
                 );
             }
-            *running.lock().unwrap() = None;
         });
         Ok(())
     }
@@ -254,6 +324,11 @@ impl AiEditTask {
         let progress = self.progress.clone();
         let server = self.server.clone();
         std::thread::spawn(move || {
+            let _slot = Slot {
+                running: running.clone(),
+                progress: progress.clone(),
+                recording_id: recording_id.clone(),
+            };
             let reporter = Reporter {
                 app: &app,
                 recording_id: &recording_id,
@@ -264,26 +339,28 @@ impl AiEditTask {
             // instruction itself. One column, because to everything that
             // watches a run (progress, cancelling, the busy lock) they are the
             // same thing: what this run was asked for.
-            let outcome = if kind == "custom" {
-                generate_custom_document(
-                    &reporter,
-                    &db_path,
-                    &settings,
-                    &variant,
-                    &cancellation,
-                    &server,
-                )
-            } else {
-                generate_output(
-                    &reporter,
-                    &db_path,
-                    &settings,
-                    &kind,
-                    &variant,
-                    &cancellation,
-                    &server,
-                )
-            };
+            let outcome = caught(|| {
+                if kind == "custom" {
+                    generate_custom_document(
+                        &reporter,
+                        &db_path,
+                        &settings,
+                        &variant,
+                        &cancellation,
+                        &server,
+                    )
+                } else {
+                    generate_output(
+                        &reporter,
+                        &db_path,
+                        &settings,
+                        &kind,
+                        &variant,
+                        &cancellation,
+                        &server,
+                    )
+                }
+            });
             if let Err(error) = outcome {
                 let cancelled = cancellation.load(Ordering::Relaxed);
                 reporter.say(
@@ -296,7 +373,6 @@ impl AiEditTask {
                     },
                 );
             }
-            *running.lock().unwrap() = None;
         });
         Ok(())
     }
@@ -1636,6 +1712,77 @@ mod tests {
         assert_eq!(
             output_source_hash("Source", "translation", "en"),
             source_hash("Source")
+        );
+    }
+
+    /// **The defect this exists for.** Freeing the slot was the last line of
+    /// the worker closure, and a panic does not pass through there - so every
+    /// later `Vylepšit` answered *už běží jinde* until the application was
+    /// restarted, with the progress card frozen and the model locked.
+    #[test]
+    fn a_panicking_run_still_gives_the_slot_back() {
+        let task = AiEditTask::default();
+        *task.running.lock().unwrap() = Some("r1".into());
+        *task.progress.lock().unwrap() = Some(AiEditProgress {
+            recording_id: "r1".into(),
+            phase: "running".into(),
+            percent: 41.0,
+            description: UserMessage::new("ai.working"),
+        });
+
+        let running = task.running.clone();
+        let progress = task.progress.clone();
+        let worker = std::thread::spawn(move || {
+            let _slot = Slot {
+                running,
+                progress,
+                recording_id: "r1".into(),
+            };
+            panic!("llama.cpp fell over");
+        });
+        assert!(worker.join().is_err(), "the thread really did panic");
+
+        assert!(
+            task.running.lock().unwrap().is_none(),
+            "the slot is free and the next document can be asked for"
+        );
+        assert!(
+            task.progress.lock().unwrap().is_none(),
+            "and the card does not stand at 41 % for ever"
+        );
+    }
+
+    /// A thread ending after its run was replaced must not unlock the run that
+    /// replaced it - the guard clears its own id and no other.
+    #[test]
+    fn a_late_thread_does_not_free_somebody_elses_slot() {
+        let task = AiEditTask::default();
+        *task.running.lock().unwrap() = Some("newer".into());
+
+        drop(Slot {
+            running: task.running.clone(),
+            progress: task.progress.clone(),
+            recording_id: "older".into(),
+        });
+
+        assert_eq!(
+            task.running.lock().unwrap().as_deref(),
+            Some("newer"),
+            "the newer run keeps the slot it took"
+        );
+    }
+
+    /// A panic is reported rather than swallowed: the reader gets an error
+    /// card, and the text goes to the log.
+    #[test]
+    fn a_panic_comes_back_as_a_failure_with_its_text() {
+        let outcome = caught(|| panic!("out of memory in llama.cpp"));
+        let message = outcome.expect_err("a panic is not a success");
+        assert_eq!(message.code, "unknown");
+        assert!(
+            message.detail.contains("out of memory"),
+            "the panic's own words survive: {}",
+            message.detail
         );
     }
 }

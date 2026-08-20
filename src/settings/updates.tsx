@@ -19,6 +19,7 @@ import { api } from "../api";
 import { LineIcon } from "../icons";
 import { SettingsToggle } from "./toggle";
 import { useI18n } from "../i18n";
+import { useRecorder } from "../recorder";
 import { useDialog } from "../useDialog";
 import { lastUpdateCheck, noteUpdateCheck } from "../types";
 import { readNotes } from "./releaseNotes";
@@ -147,6 +148,9 @@ export function UpdateCheck({
   found?: { version: string; notes: string } | null;
 }) {
   const { t, formatDate } = useI18n();
+  /** Whether a take is live. `RecorderProvider` wraps the whole application in
+   *  `main.tsx`, so this panel can ask without anything being threaded to it. */
+  const recorder = useRecorder();
   const [state, setState] = useState<State>(
     found ? { at: "found", version: found.version, notes: found.notes } : { at: "idle" }
   );
@@ -211,6 +215,23 @@ export function UpdateCheck({
   }
 
   async function install() {
+    /* **A take is not something an update may take with it.**
+       `downloadAndInstall` ends by calling `process::exit(0)` - see the note at
+       the top of this file - and `exit` raises no `tauri://close-requested`,
+       so the recorder's close guard never hears it. The gesture that was made
+       safe on 17 August was the window's close button; this is the same loss
+       through a different door, and a take is the one artefact in this
+       application that cannot be made again.
+
+       A refusal rather than a question, and deliberately: the two phases
+       guarded here are the two the close dialog guards, and the way out of
+       both is a press away - save it, or throw it away on purpose. An update
+       that can wait is not worth an *install anyway* button beside an
+       unrepeatable recording. */
+    if (recorder.phase === "recording" || recorder.phase === "preview") {
+      onError(t("settings.about.updateBlockedByTake"));
+      return;
+    }
     setReading(false);
     setState({ at: "downloading", percent: null });
     try {

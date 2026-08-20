@@ -1707,6 +1707,9 @@ export default function App() {
                where Settings opens for good. */
             initialTab={settingsTab ?? undefined}
             foundUpdate={foundUpdate}
+            /* Which component, not just whether something is coming down: a
+               card saying *stahuje se…* has to mean this one. */
+            fetchingComponent={downloading?.id ?? ""}
             fetching={!!downloading}
             onComplete={() => {
               loadToolCheck();

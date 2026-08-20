@@ -11,6 +11,16 @@ altered, not how, not which file. Entries before 1.2.6 are written the old way
 and are left as they are; they are not a model for the next one. The mechanism
 belongs in `docs/history/`, which is what that folder is for.
 
+## 1.2.19 — 20 August 2026
+
+- **A recording survives a crash.** It is written to disk as it is made, and
+  offered back the next time Volocal starts.
+- **An update will not install over a recording** you have not saved yet.
+- **The dictionary corrects the transcript you can see**, subtitles included.
+- **Language editing recovers on its own** instead of staying busy until restart.
+- **A recording never quietly disappears from the archive.**
+- **A model card says *stahuje se…* only while it really is.**
+
 ## 1.2.18 — 20 August 2026
 
 - **A model you no longer have gives way to one you do**, instead of leaving
