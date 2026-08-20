@@ -35,6 +35,12 @@ export const api = {
     invoke<void>("ignore_watch_folder_files", { files }),
   saveMicrophoneRecording: (audio: Uint8Array) =>
     invoke<Recording>("save_microphone_recording", audio),
+  /** Opens the shadow file a take is streamed into while it records. */
+  beginTake: () => invoke<void>("begin_take"),
+  /** One slice of a take, on its way to disk behind the recording. */
+  appendTakeChunk: (audio: Uint8Array) => invoke<void>("append_take_chunk", audio),
+  /** The take is saved, or thrown away on purpose. Either way the shadow goes. */
+  discardTake: () => invoke<void>("discard_take"),
   importOnlineRecording: (url: string) =>
     invoke<Recording>("import_online_recording", { url }),
   cancelOnlineImport: () => invoke<void>("cancel_online_import"),

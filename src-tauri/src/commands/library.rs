@@ -347,6 +347,148 @@ pub fn free_path(directory: &std::path::Path, stem: &str, extension: &str) -> Pa
     candidate
 }
 
+/// Where a take is written while it is still being made.
+///
+/// One name, not one per session: this application has a single recorder and
+/// can only be making one take at a time. A new take truncates whatever the
+/// last one left, and the prefix is deliberately not `.download-`, which
+/// `clear_leftover_imports` deletes on sight.
+pub fn take_in_progress(recordings: &std::path::Path) -> PathBuf {
+    recordings.join(".take-in-progress.webm")
+}
+
+/// Below this a take holds no audible speech - the same floor
+/// `save_microphone_recording` refuses at, and the one a rescued file has to
+/// clear before it is worth an archive card.
+const TAKE_FLOOR: u64 = 4096;
+
+/// Opens the shadow file a take is streamed into, discarding any previous one.
+///
+/// **Until 20 August a take existed only as a `Blob` in the webview until
+/// somebody pressed save.** `MediaRecorder` was started with no timeslice, so
+/// the chunks sat in a JavaScript array and nothing was on disk. The close
+/// guard written on 17 August covers the deliberate gesture and covers nothing
+/// else: a renderer crash, a graphics driver reset - plausible while whisper is
+/// working the same card, because recording during a transcription is allowed -
+/// a power cut or a restart from Windows took a two-hour interview with nothing
+/// left behind.
+///
+/// A take is the one artefact here that cannot be made again. Everything else
+/// - a transcript, a document, a component - can be produced a second time from
+/// something that survives.
+#[tauri::command]
+pub fn begin_take(app: State<'_, AppState>) -> Reported<()> {
+    let root = take_root(&app)?;
+    std::fs::create_dir_all(&root)
+        .map_err(|error| UserMessage::new("microphone.save_failed").detail(error))?;
+    // Truncating rather than appending: what the last take left is either
+    // already an archive row or was thrown away on purpose.
+    std::fs::write(take_in_progress(&root), [])
+        .map_err(|error| UserMessage::new("microphone.save_failed").detail(error))?;
+    Ok(())
+}
+
+/// One slice of a take, appended as it is recorded.
+///
+/// The chunks of a single `MediaRecorder` concatenate into a playable WebM -
+/// the first carries the header, the rest are clusters - which is what makes a
+/// crash leave a file that can be listened to rather than a fragment.
+///
+/// Failure is not reported to the window and must not be: this is a safety net
+/// running behind a recording in progress, and a dialog about it would
+/// interrupt the one thing the net exists to protect. It goes to the log.
+#[tauri::command(async)]
+pub fn append_take_chunk(
+    app: State<'_, AppState>,
+    request: tauri::ipc::Request<'_>,
+) -> Reported<()> {
+    let tauri::ipc::InvokeBody::Raw(bytes) = request.body() else {
+        return Ok(());
+    };
+    let root = take_root(&app)?;
+    let path = take_in_progress(&root);
+    let appended = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&path)
+        .and_then(|mut file| std::io::Write::write_all(&mut file, bytes));
+    if let Err(error) = appended {
+        crate::note!("take shadow could not be written: {error}");
+    }
+    Ok(())
+}
+
+/// Throws the shadow away: the take is either saved or deliberately discarded.
+///
+/// Every path out of a take calls this, and that is what stops the rescue below
+/// resurrecting a recording somebody chose to be rid of.
+#[tauri::command]
+pub fn discard_take(app: State<'_, AppState>) -> Reported<()> {
+    let root = take_root(&app)?;
+    let _ = std::fs::remove_file(take_in_progress(&root));
+    Ok(())
+}
+
+fn take_root(app: &State<'_, AppState>) -> Reported<PathBuf> {
+    let (settings, db_path) = {
+        let db = app.db.lock().unwrap();
+        (reported(db::load_settings(&db))?, app.db_path.clone())
+    };
+    Ok(recordings_dir(&settings, &db_path))
+}
+
+/// A take the application never got to save, turned into an archive row at the
+/// next start.
+///
+/// Anything of a reasonable size left in the shadow file is by definition a
+/// crash: every deliberate ending - saved, discarded, closed with the guard's
+/// consent - deletes it. So it is renamed and listed rather than swept, and
+/// the name says what it is, because somebody is going to come looking for a
+/// recording they thought they had lost.
+///
+/// WebM rather than the M4A a saved take gets: converting needs ffmpeg and a
+/// startup is not the place to shell out. The archive already accepts a `.webm`
+/// here - the failed-conversion path leaves one under the same kind of name.
+pub fn rescue_interrupted_take(
+    connection: &rusqlite::Connection,
+    settings: &db::Settings,
+    db_path: &std::path::Path,
+) -> Option<String> {
+    let root = recordings_dir(settings, db_path);
+    let shadow = take_in_progress(&root);
+    let size = std::fs::metadata(&shadow).ok()?.len();
+    if size < TAKE_FLOOR {
+        let _ = std::fs::remove_file(&shadow);
+        return None;
+    }
+    let stamp = chrono::Local::now().format("%Y-%m-%d %H-%M").to_string();
+    let rescued = free_path(&root, &format!("Záznam {stamp} (obnovený)"), "webm");
+    std::fs::rename(&shadow, &rescued).ok()?;
+
+    // No duration: reading it needs ffprobe, and the archive fills it in when
+    // the recording is first opened. A row with a wrong length would be worse
+    // than one that does not claim to know.
+    let recording = db::Recording {
+        id: uuid::Uuid::new_v4().to_string(),
+        path: rescued.to_string_lossy().to_string(),
+        title: rescued
+            .file_stem()
+            .map(|stem| stem.to_string_lossy().to_string())
+            .unwrap_or_else(|| "Záznam".into()),
+        duration: 0.0,
+        created_at: chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
+        status: db::status::NEW.into(),
+        model: String::new(),
+        language: String::new(),
+        language_choice: String::new(),
+        error: None,
+        segment_count: 0,
+        folder: None,
+    };
+    db::insert_recording(connection, &recording).ok()?;
+    Some(recording.title)
+}
+
 /// A take from the interface's microphone recorder.
 ///
 /// The audio arrives as the raw invoke body — a longer take is tens of
@@ -436,6 +578,11 @@ pub fn save_microphone_recording(
         }
     }
 
+    // The shadow has done its job: the audio is in the archive under its own
+    // name. Deleted here rather than by the window, so that a save the window
+    // never hears the end of still cleans up after itself.
+    let _ = std::fs::remove_file(take_in_progress(&root));
+
     // Probe before the lock, for the reason `probe_duration` carries.
     let duration = probe_duration(&settings, &output);
     let db = app.db.lock().unwrap();
@@ -469,4 +616,93 @@ pub async fn import_online_recording(
 #[tauri::command]
 pub fn cancel_online_import(app: State<'_, AppState>) {
     app.online_import.cancel();
+}
+
+#[cfg(test)]
+mod take_rescue_tests {
+    use super::*;
+
+    /// An archive of this test's own, with the recordings folder inside it so
+    /// `recordings_dir` resolves there and nothing touches the real one.
+    fn archive(name: &str) -> (rusqlite::Connection, db::Settings, PathBuf) {
+        let directory = std::env::temp_dir().join(format!("volocal-take-{name}"));
+        let _ = std::fs::remove_dir_all(&directory);
+        std::fs::create_dir_all(&directory).expect("scratch");
+        let db_path = directory.join("volocal.db");
+        let connection = db::open(&db_path).expect("archive");
+        let settings = db::load_settings(&connection).expect("settings");
+        (connection, settings, db_path)
+    }
+
+    fn shadow_of(settings: &db::Settings, db_path: &std::path::Path) -> PathBuf {
+        take_in_progress(&recordings_dir(settings, db_path))
+    }
+
+    /// **The repair.** Anything of a reasonable size left in the shadow file is
+    /// a crash by definition, because every deliberate ending deletes it - so
+    /// it comes back as a recording rather than being swept away.
+    #[test]
+    fn a_take_the_application_never_saved_comes_back_as_a_recording() {
+        let (connection, settings, db_path) = archive("rescued");
+        let shadow = shadow_of(&settings, &db_path);
+        std::fs::create_dir_all(shadow.parent().unwrap()).unwrap();
+        std::fs::write(&shadow, vec![7u8; 64 * 1024]).unwrap();
+
+        let title = rescue_interrupted_take(&connection, &settings, &db_path)
+            .expect("a take of this size is worth rescuing");
+
+        assert!(
+            title.contains("obnovený"),
+            "the name says what it is: {title}"
+        );
+        assert!(
+            !shadow.exists(),
+            "and the shadow is not left to be rescued twice"
+        );
+
+        let listed = db::list_recordings(&connection).unwrap();
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].status, db::status::NEW);
+        assert!(
+            std::path::Path::new(&listed[0].path).is_file(),
+            "the row points at bytes that are really there"
+        );
+    }
+
+    /// A take somebody threw away on purpose leaves nothing behind, so there is
+    /// nothing to hand back. This is the half that keeps the rescue honest.
+    #[test]
+    fn a_discarded_take_is_not_handed_back() {
+        let (connection, settings, db_path) = archive("discarded");
+        let shadow = shadow_of(&settings, &db_path);
+        std::fs::create_dir_all(shadow.parent().unwrap()).unwrap();
+        std::fs::write(&shadow, vec![7u8; 64 * 1024]).unwrap();
+        // What `discard_take` does, without needing an `AppState` to do it.
+        std::fs::remove_file(&shadow).unwrap();
+
+        assert!(rescue_interrupted_take(&connection, &settings, &db_path).is_none());
+        assert!(db::list_recordings(&connection).unwrap().is_empty());
+    }
+
+    /// A recorder opened and closed without a word leaves a header and little
+    /// else. An archive card for that is noise, and the same floor
+    /// `save_microphone_recording` refuses at applies here.
+    #[test]
+    fn a_take_too_short_to_hold_speech_is_swept_rather_than_listed() {
+        let (connection, settings, db_path) = archive("tiny");
+        let shadow = shadow_of(&settings, &db_path);
+        std::fs::create_dir_all(shadow.parent().unwrap()).unwrap();
+        std::fs::write(&shadow, vec![7u8; 100]).unwrap();
+
+        assert!(rescue_interrupted_take(&connection, &settings, &db_path).is_none());
+        assert!(!shadow.exists(), "and it does not sit there for ever");
+        assert!(db::list_recordings(&connection).unwrap().is_empty());
+    }
+
+    /// Nothing at all is the ordinary case: every start must not pay for this.
+    #[test]
+    fn an_ordinary_start_finds_nothing_to_rescue() {
+        let (connection, settings, db_path) = archive("clean");
+        assert!(rescue_interrupted_take(&connection, &settings, &db_path).is_none());
+    }
 }
