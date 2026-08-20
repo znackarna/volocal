@@ -465,9 +465,17 @@ pub fn rescue_interrupted_take(
     let rescued = free_path(&root, &format!("Záznam {stamp} (obnovený)"), "webm");
     std::fs::rename(&shadow, &rescued).ok()?;
 
-    // No duration: reading it needs ffprobe, and the archive fills it in when
-    // the recording is first opened. A row with a wrong length would be worse
-    // than one that does not claim to know.
+    /* **Its length, read here or nowhere.** The first version of this said the
+    archive would fill it in when the recording was opened. It does not:
+    `probe_duration` is called where a recording is *created* - an import, the
+    watched folder, a saved take - and nothing updates a duration afterwards.
+    A rescued row would have shown 0:00 for ever.
+
+    So it is probed, which is one ffprobe over one file on a start that follows
+    a crash - not something every start pays for. If ffprobe is not installed,
+    `probe_duration` answers 0.0 and the row says nothing rather than something
+    wrong, which was the only true half of that first comment. */
+    let duration = probe_duration(settings, &rescued);
     let recording = db::Recording {
         id: uuid::Uuid::new_v4().to_string(),
         path: rescued.to_string_lossy().to_string(),
@@ -475,7 +483,7 @@ pub fn rescue_interrupted_take(
             .file_stem()
             .map(|stem| stem.to_string_lossy().to_string())
             .unwrap_or_else(|| "Záznam".into()),
-        duration: 0.0,
+        duration,
         created_at: chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
         status: db::status::NEW.into(),
         model: String::new(),
@@ -666,6 +674,67 @@ mod take_rescue_tests {
         assert!(
             std::path::Path::new(&listed[0].path).is_file(),
             "the row points at bytes that are really there"
+        );
+    }
+
+    /// **And it carries its length.** The first version of this repair left the
+    /// duration at zero on the belief that the archive fills it in later. It
+    /// does not — `probe_duration` runs where a recording is created and
+    /// nothing updates it afterwards — so a rescued take would have read 0:00
+    /// for ever.
+    ///
+    /// The audio is made here rather than kept as a fixture, which also makes
+    /// the test say what it depends on: with no ffmpeg on this machine there is
+    /// nothing to probe with either, and the row must still appear. That is the
+    /// half worth keeping in both cases — a rescue that needs a converter
+    /// installed would be no rescue at all.
+    #[test]
+    fn a_rescued_take_says_how_long_it_is_where_that_can_be_read() {
+        let (connection, settings, db_path) = archive("duration");
+        let shadow = shadow_of(&settings, &db_path);
+        std::fs::create_dir_all(shadow.parent().unwrap()).unwrap();
+
+        let check = crate::tools::check(&settings);
+        let (Some(ffmpeg), Some(_)) = (check.ffmpeg.as_ref(), check.ffprobe.as_ref()) else {
+            // No converter here. The rescue still has to work, on bytes that
+            // are not audio at all.
+            std::fs::write(&shadow, vec![7u8; 64 * 1024]).unwrap();
+            assert!(rescue_interrupted_take(&connection, &settings, &db_path).is_some());
+            let listed = db::list_recordings(&connection).unwrap();
+            assert_eq!(
+                listed[0].duration, 0.0,
+                "nothing is claimed that cannot be read"
+            );
+            return;
+        };
+
+        let made = crate::tools::command(std::path::Path::new(ffmpeg))
+            .args([
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-f",
+                "lavfi",
+                "-i",
+                "sine=frequency=440:duration=2",
+                "-c:a",
+                "libopus",
+            ])
+            .arg(&shadow)
+            .status();
+        assert!(
+            made.is_ok_and(|status| status.success()),
+            "two seconds of tone"
+        );
+
+        rescue_interrupted_take(&connection, &settings, &db_path).expect("rescued");
+
+        let listed = db::list_recordings(&connection).unwrap();
+        assert!(
+            (listed[0].duration - 2.0).abs() < 0.3,
+            "the card says how long it is: {} s",
+            listed[0].duration
         );
     }
 
