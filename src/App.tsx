@@ -29,7 +29,6 @@ import type { ConfirmationRequest } from "./ConfirmationDialog";
 import { formatTime, applyFonts, applyTheme, fileName, noteUpdateCheck } from "./types";
 import { rememberSpeakerNames } from "./speakerNames";
 import { computeFellBack } from "./compute";
-import { forgetPendingModel, pendingModel } from "./pendingModel";
 import { useI18n } from "./i18n";
 import type { TranslationKey } from "./i18n";
 import { useProgressMessage, useUserMessage } from "./messages";
@@ -872,39 +871,19 @@ export default function App() {
     add(
       listen<string[]>("download:complete", async (u) => {
         setDownloading(null);
-        /* **The chosen model is written here, and only here.**
-           `settings.model` names a file that `tools.rs` resolves with no
-           fallback, so it must not be written before that file exists — and by
-           the time it does, the screen that made the choice is often gone:
-           `Stahovat na pozadí` closes the wizard and leaves the download
-           running.
+        /* **Nothing writes the chosen model here any more, and nothing
+           needs to.** What stood here read a `localStorage` record and wrote
+           `settings.model` when the component was absent from this run's list
+           of failures - which is not the same question as *did the file
+           arrive*. A component that was never part of the run is absent from
+           that list too, so an unrelated download finishing could write a
+           model that had never landed; a record left by a run interrupted at
+           the window closing survived a restart and waited to do exactly that.
 
-           The wizard used to do this itself, from its own `quality`, and so
-           wrote nothing at all in that ordinary case — or, when it was reopened
-           onto the running download, wrote the *recommended* model rather than
-           the chosen one, because `chosen` starts as null on every mount. The
-           choice is written down when the download starts; this honours it when
-           the download ends.
-
-           Forgotten either way. A component that did not land leaves a
-           record naming a file that is not there, and a record that outlived
-           its download is worse than none. */
-        const wanted = pendingModel();
-        if (wanted) {
-          const unfinished = u.payload ?? [];
-          if (!unfinished.includes(wanted.component)) {
-            try {
-              const settings = await api.loadSettings();
-              if (settings.model !== wanted.settings) {
-                await api.saveSettings({ ...settings, model: wanted.settings });
-              }
-            } catch {
-              /* The setting can still be changed by hand, and the wizard
-                 reopens as required if the model it names is missing. */
-            }
-          }
-          forgetPendingModel();
-        }
+           `resolve_transcription_model` in `tools.rs` asks the disk instead,
+           every time anything is checked. Choosing a quality records the
+           choice; the model that arrives is found because it is there. There
+           is no note to keep in step, so there is no note to go stale. */
         loadToolCheck();
       })
     );

@@ -374,6 +374,27 @@ pub fn component_for_model(model: &str) -> Option<String> {
         .map(|k| k.id)
 }
 
+/// The other direction: which model file a component writes, without its
+/// `ggml-` prefix or its extension - the form `settings.model` holds.
+///
+/// Only the tests need it, and they need it for one job: `tools.rs` writes the
+/// three offered model names out by hand, the way `resolve_editor_model` writes
+/// its own three, and this is what holds that list to the catalogue that
+/// actually downloads the files. Kept here rather than in the test module
+/// because it is a fact about the catalogue.
+#[cfg(test)]
+pub fn model_for_component(id: &str) -> Option<String> {
+    raw_catalog()
+        .into_iter()
+        .find(|k| k.id == id)
+        .and_then(|k| {
+            k.verification_path
+                .strip_prefix("models/ggml-")
+                .and_then(|rest| rest.strip_suffix(".bin"))
+                .map(str::to_owned)
+        })
+}
+
 /// Fills in what is already done, what suits this particular computer, and what
 /// may be done to each row while the application is doing whatever it is doing.
 pub fn catalog(settings: &crate::db::Settings, busy: Busy) -> Vec<DownloadComponent> {
@@ -1803,6 +1824,42 @@ pub enum Queued {
 /// appended later land in the folders named when the run began. Those are the
 /// program and model directories, which a person changes by moving their whole
 /// installation — not something done between two clicks of a download.
+/// What the queue does with a request, decided in one place.
+///
+/// **It lived inside `install_bundle`, and the test kept its own copy of the
+/// same loop.** A copy is not a model: the test could pass while the real one
+/// behaved differently, which is exactly what had happened - the real loop
+/// re-queued a component without taking it out of `dropped`, and no test could
+/// see it because the test's loop had no `dropped` at all.
+///
+/// The `dropped` line is the repair. That list holds what was taken out of the
+/// queue before a worker reached it, and it is appended to what
+/// `download:complete` reports as unfinished. A component stopped while it
+/// waited and then pressed again stayed in it - so it landed on the disk, with
+/// a tick on its row, and was announced as having failed. Stop, reconsider,
+/// press again is an ordinary gesture.
+fn accept_into_queue(work: &mut Work, ids: Vec<String>) -> (Queued, Vec<String>) {
+    let mut accepted: Vec<String> = Vec::new();
+    for id in ids {
+        let known = work.current.as_deref() == Some(id.as_str()) || work.queue.contains(&id);
+        if !known {
+            work.dropped.retain(|waiting| waiting != &id);
+            work.queue.push_back(id.clone());
+            accepted.push(id);
+        }
+    }
+    if accepted.is_empty() {
+        return (Queued::Nothing, accepted);
+    }
+    if work.running {
+        (Queued::Appended, accepted)
+    } else {
+        work.running = true;
+        work.generation += 1;
+        (Queued::Started, accepted)
+    }
+}
+
 pub fn install_bundle(
     app: AppHandle,
     settings: crate::db::Settings,
@@ -1811,25 +1868,13 @@ pub fn install_bundle(
 ) -> Queued {
     let (outcome, accepted, generation) = {
         let mut work = WORK.lock().unwrap();
-        let mut accepted: Vec<String> = Vec::new();
-        for id in ids {
-            let known = work.current.as_deref() == Some(id.as_str()) || work.queue.contains(&id);
-            if !known {
-                work.queue.push_back(id.clone());
-                accepted.push(id);
-            }
+        let (outcome, accepted) = accept_into_queue(&mut work, ids);
+        match outcome {
+            Queued::Nothing => return Queued::Nothing,
+            Queued::Started => cancellation.store(false, Ordering::SeqCst),
+            Queued::Appended => {}
         }
-        if accepted.is_empty() {
-            return Queued::Nothing;
-        }
-        if work.running {
-            (Queued::Appended, accepted, work.generation)
-        } else {
-            work.running = true;
-            work.generation += 1;
-            cancellation.store(false, Ordering::SeqCst);
-            (Queued::Started, accepted, work.generation)
-        }
+        (outcome, accepted, work.generation)
     };
 
     // Said for every one of them, including the one about to start: a row that
@@ -2158,27 +2203,47 @@ mod tests {
         work.queue.clear();
     }
 
+    /// **Stop, reconsider, press again.** The component comes back out of
+    /// `dropped`, so the run it finishes in does not report it as unfinished -
+    /// which had it landing on the disk, with a tick on its row, announced as
+    /// having failed, and every reader of that event refusing to record a model
+    /// that was demonstrably there.
+    #[test]
+    fn a_component_asked_for_again_is_no_longer_counted_as_dropped() {
+        let _order = ORDER.lock().unwrap();
+        idle();
+
+        admit(&["model-large", "vad"]);
+        {
+            // `vad` is taken out of the queue while it waits, the way the row's
+            // stop square takes it out before any worker has reached it.
+            let mut work = WORK.lock().unwrap();
+            work.queue.retain(|id| id != "vad");
+            work.dropped.push("vad".into());
+        }
+
+        admit(&["vad"]);
+
+        let work = WORK.lock().unwrap();
+        assert!(
+            work.queue.contains(&"vad".to_string()),
+            "it is queued again: {:?}",
+            work.queue
+        );
+        assert!(
+            work.dropped.is_empty(),
+            "and no longer counted as dropped: {:?}",
+            work.dropped
+        );
+        drop(work);
+        idle();
+    }
+
+    /// The real decision, not a second copy of it. This used to be its own
+    /// loop and that is how `dropped` went unnoticed - see `accept_into_queue`.
     fn admit(ids: &[&str]) -> (Queued, Vec<String>) {
         let mut work = WORK.lock().unwrap();
-        let mut accepted = Vec::new();
-        for id in ids {
-            let id = (*id).to_string();
-            if work.current.as_deref() == Some(id.as_str()) || work.queue.contains(&id) {
-                continue;
-            }
-            work.queue.push_back(id.clone());
-            accepted.push(id);
-        }
-        if accepted.is_empty() {
-            return (Queued::Nothing, accepted);
-        }
-        if work.running {
-            (Queued::Appended, accepted)
-        } else {
-            work.running = true;
-            work.generation += 1;
-            (Queued::Started, accepted)
-        }
+        accept_into_queue(&mut work, ids.iter().map(|id| (*id).to_string()).collect())
     }
 
     /// The reported defect: pressing a second row while the first was coming

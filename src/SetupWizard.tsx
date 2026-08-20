@@ -9,7 +9,6 @@ import { useI18n, type TranslationKey } from "./i18n";
 import { useProgressMessage, useUserMessage } from "./messages";
 import { useFormats } from "./formats";
 import { useDialog } from "./useDialog";
-import { rememberPendingModel } from "./pendingModel";
 import {
   EDITOR_MODELS,
   UNOFFERED_COMPONENTS,
@@ -645,24 +644,15 @@ export default function SetupWizard({
         const n = await api.loadSettings();
         const changesApplied = { ...n };
         if (!manual) {
-          /* **The guided model is not written here any more.** It was, from
-             `MODELS[quality]` — and `quality` is `chosen ?? recommended`, with
-             `chosen` reset to null every time this component mounts. A wizard
-             reopened onto a running download therefore concluded with the
-             *recommended* quality rather than the chosen one: pick `Rychlý`,
-             press `Stahovat na pozadí`, come back through `Zobrazit průběh`,
-             and `settings.model` was written as `large-v3` for a file that had
-             never been fetched.
+          /* The answer to the one question this run asked. `settings.model` is
+             written beside it only where the file is demonstrably here; where
+             it is not, `quality_choice` is what `resolve_transcription_model`
+             reads, and the model is found the moment it lands.
 
-             It also could not work at all in the ordinary case, because
-             `Stahovat na pozadí` unmounts this screen — so the thing waiting to
-             record the answer was gone before the download it was waiting for
-             finished.
-
-             Both are the same mistake: a decision that outlives this screen was
-             being kept inside it. `rememberPendingModel` writes it down when the
-             download starts and `App.tsx` honours it when the run ends, whether
-             or not anybody is still looking at this dialog. */
+             What stood here was a paragraph about a `localStorage` record that
+             carried the choice past this screen while bytes came down. The
+             record is gone: it was one of three notes claiming to know what had
+             arrived, and none of them was asking the disk. */
           changesApplied.quality_choice = MODELS[quality].choice;
           /* **And the model itself, when nothing had to be fetched for it.**
              This is the whole of *pak vzniká chaos při opětovném stažení*.
@@ -697,8 +687,18 @@ export default function SetupWizard({
              Written only if it landed, and only if it is not already the
              setting, so opening the list to add something unrelated cannot
              change which model transcribes. */
+          /* **`landed` is not the same question as *is it here*.** It reads
+             this run's list of failures, and a component that was stopped in an
+             earlier run, or never queued at all, is absent from it too - while
+             `startedHere` never forgets a component it once started. Pressing a
+             model row, stopping it, then letting any other row finish therefore
+             wrote the setting for a partial file. The catalogue's `complete` is
+             the disk's own answer and settles both. */
           const pickedModel = Object.values(MODELS).find(
-            (choice) => startedHereRef.current.has(choice.component) && landed(choice.component)
+            (choice) =>
+              startedHereRef.current.has(choice.component) &&
+              landed(choice.component) &&
+              items.find((p) => p.id === choice.component)?.complete
           );
           if (pickedModel) {
             changesApplied.model = pickedModel.settings;
@@ -711,7 +711,10 @@ export default function SetupWizard({
              `resolve_editor_model` in `tools.rs` falls back through. Whichever
              it picks, both files are on the disk and the other stays usable. */
           const selectedEditor = Object.keys(EDITOR_MODELS).find(
-            (component) => startedHereRef.current.has(component) && landed(component)
+            (component) =>
+              startedHereRef.current.has(component) &&
+              landed(component) &&
+              items.find((p) => p.id === component)?.complete
           );
           if (selectedEditor) changesApplied.editor_model = EDITOR_MODELS[selectedEditor];
         }
@@ -736,10 +739,6 @@ export default function SetupWizard({
           (items.find((p) => p.id === a)?.megabytes ?? 0) -
           (items.find((p) => p.id === b)?.megabytes ?? 0)
       );
-      /* Written down before the call, and outside this component. The screen
-         that made the choice does not survive `Stahovat na pozadí`, and the
-         answer has to. */
-      rememberPendingModel(MODELS[quality].component, MODELS[quality].settings);
       startedRun.current = true;
       await api.download(sortedIds);
     } catch (e) {

@@ -524,6 +524,11 @@ pub struct ToolCheck {
     pub ffprobe: Option<String>,
     pub whisper_cli: Option<String>,
     pub model_whisper: Option<String>,
+    /// Which model that turned out to be. It differs from `settings.model`
+    /// exactly when the setting could not be honoured, and a screen showing the
+    /// chosen card has to draw this one instead - otherwise it names a model
+    /// that is not the one transcribing.
+    pub model_whisper_id: Option<String>,
     pub model_vad: Option<String>,
     pub embedding_model: Option<String>,
     pub editor_cli: Option<String>,
@@ -612,7 +617,10 @@ pub fn check(n: &crate::db::Settings) -> ToolCheck {
             .then(|| server.to_string_lossy().to_string())
     });
 
-    k.model_whisper = na_text(&find_file(&models, &[&format!("ggml-{}.bin", n.model)]));
+    if let Some((id, path)) = resolve_transcription_model(n) {
+        k.model_whisper_id = Some(id);
+        k.model_whisper = Some(path.to_string_lossy().to_string());
+    }
     k.model_vad = na_text(&find_file(
         &models,
         &["ggml-silero-v6.2.0.bin", "ggml-silero-v5.1.2.bin"],
@@ -660,8 +668,14 @@ pub fn check(n: &crate::db::Settings) -> ToolCheck {
             .push(UserMessage::new("tools.whisper_missing_in").with("directory", &position));
     }
     if k.model_whisper.is_none() {
+        /* Named by the model that would answer it, not by `settings.model`.
+        That field is empty on a machine where a model was chosen and never
+        landed, and the sentence then read *Chybí model `ggml-.bin`* - a file
+        name with nothing in it, shown to the one reader least able to guess
+        what it meant. `wanted_model` is the same order `needed` uses below, so
+        the sentence and the row that answers it name the same thing. */
         k.issues
-            .push(UserMessage::new("tools.whisper_model_missing").with("model", &n.model));
+            .push(UserMessage::new("tools.whisper_model_missing").with("model", wanted_model(n)));
     }
     if k.model_vad.is_none() {
         k.issues.push(UserMessage::new("tools.vad_model_missing"));
@@ -711,20 +725,16 @@ pub fn check(n: &crate::db::Settings) -> ToolCheck {
 
         The drivers are last, being a guess about the computer made where there
         is nothing else at all to go on. */
-        let by_choice = match n.quality_choice.as_str() {
-            "fast" => Some("model-turbo"),
-            "accurate" => Some("model-large"),
-            _ => None,
-        };
         let by_machine = if k.nvidia_driver || k.vulkan_driver {
-            "model-large"
+            MODEL_ACCURATE
         } else {
-            "model-turbo"
+            MODEL_FAST
         };
+        let model = wanted_model(n);
         k.needed.push(
-            crate::download::component_for_model(&n.model)
-                .or_else(|| by_choice.map(str::to_string))
-                .unwrap_or_else(|| by_machine.into()),
+            crate::download::component_for_model(&model)
+                .or_else(|| crate::download::component_for_model(by_machine))
+                .unwrap_or_else(|| "model-turbo".into()),
         );
     }
     if k.model_vad.is_none() {
@@ -781,6 +791,79 @@ pub fn resolve_editor_model(n: &crate::db::Settings) -> Option<(String, PathBuf)
             path.is_file().then(|| (id.to_string(), path))
         })
 }
+
+/// Which model this reader is owed, when none is on the disk.
+///
+/// The same order `resolve_transcription_model` searches in, minus the disk:
+/// what the setting names, then what the recorded choice implies. Empty when
+/// neither says anything, which is a machine nobody has ever asked.
+///
+/// One function so that the sentence saying what is missing and the row offered
+/// to fix it cannot name two different models - they did, and the sentence was
+/// naming nothing at all.
+fn wanted_model(n: &crate::db::Settings) -> String {
+    if !n.model.is_empty() {
+        return n.model.clone();
+    }
+    match n.quality_choice.as_str() {
+        "fast" => MODEL_FAST.into(),
+        "accurate" => MODEL_ACCURATE.into(),
+        _ => String::new(),
+    }
+}
+
+/// Resolves the transcription model, repairing a setting that names a file
+/// which is not there.
+///
+/// **The disk decides, and it is the only thing that does.** Until 20 August
+/// this application kept three separate notes saying *this is the one I asked
+/// for* - a `localStorage` record honoured by `App.tsx`, another one in
+/// Settings, and a set inside the wizard - each with its own lifetime, none of
+/// them asking whether the file had arrived. Every paradox found in that flow
+/// was one of those notes outliving what it described: a setting naming a
+/// deleted model, a card saying *stahuje se...* for ever, a first run that
+/// congratulated itself while the banner behind it still asked for a model.
+///
+/// A note may say what somebody wanted. Whether it arrived is a question for
+/// the disk, and this is where it is asked.
+///
+/// The order is the same shape as `resolve_editor_model` below, and for the
+/// same reason: asking for another multi-gigabyte download because a chosen
+/// file is missing, when a perfectly good one is sitting beside it, is a loop.
+///
+/// 1. what the setting names - the answer, when there is one;
+/// 2. what `quality_choice` implies, which survives `model` being empty and is
+///    empty only on a machine where nobody has ever been asked;
+/// 3. any offered model that is actually here, best first.
+///
+/// `check` reports which of the three answered, so a screen can say the model
+/// in force rather than the model on record.
+pub fn resolve_transcription_model(n: &crate::db::Settings) -> Option<(String, PathBuf)> {
+    let models = expand(&n.models_directory);
+    let by_choice = match n.quality_choice.as_str() {
+        "fast" => Some(MODEL_FAST),
+        "accurate" => Some(MODEL_ACCURATE),
+        _ => None,
+    };
+    std::iter::once(n.model.as_str())
+        .chain(by_choice)
+        .chain(OFFERED_MODELS)
+        .filter(|id| !id.is_empty())
+        .find_map(|id| {
+            let path = models.join(format!("ggml-{id}.bin"));
+            path.is_file().then(|| (id.to_string(), path))
+        })
+}
+
+/// The two the cards ask about, and the middle one nothing offers any more but
+/// a machine set up before 14 August 2026 may still be running on.
+///
+/// Written here rather than derived from the catalogue because the neighbour
+/// below does the same with its own three, and a test holds this list to the
+/// catalogue so the two cannot drift.
+const MODEL_ACCURATE: &str = "large-v3";
+const MODEL_FAST: &str = "large-v3-turbo-q5_0";
+const OFFERED_MODELS: [&str; 3] = [MODEL_ACCURATE, "large-v3-q5_0", MODEL_FAST];
 
 /// Lists the transcription models actually on the disk, so the menu does not
 /// offer choices this copy did not bring with it.
@@ -1555,6 +1638,92 @@ mod needed_tests {
     /// A model put in the folder by hand belongs to no component, and the
     /// answer then has to be one this machine can actually download rather
     /// than nothing at all — which is what the reader would otherwise get.
+    /// The three names above are written out by hand, the way the editor's
+    /// three are. This is what stops them drifting from the catalogue that
+    /// actually downloads the files: every one of them has to be a component,
+    /// and every offered component's model has to be in the list.
+    #[test]
+    fn the_models_named_here_are_the_ones_the_catalogue_delivers() {
+        for id in OFFERED_MODELS {
+            assert!(
+                crate::download::component_for_model(id).is_some(),
+                "{id} is named here but no component writes it"
+            );
+        }
+        for component in ["model-turbo", "model-large-q5", "model-large"] {
+            let model = crate::download::model_for_component(component)
+                .unwrap_or_else(|| panic!("{component} is not in the catalogue"));
+            assert!(
+                OFFERED_MODELS.contains(&model.as_str()),
+                "the catalogue delivers {model} and this list does not know it"
+            );
+        }
+        assert_eq!(
+            crate::download::component_for_model(MODEL_FAST).as_deref(),
+            Some("model-turbo")
+        );
+        assert_eq!(
+            crate::download::component_for_model(MODEL_ACCURATE).as_deref(),
+            Some("model-large")
+        );
+    }
+
+    /// **A setting that cannot be honoured falls back to what is here.** The
+    /// reported machine had `model` empty, `quality_choice` `fast`, and no
+    /// model at all; the same machine with the fast model back on the disk must
+    /// transcribe rather than go on asking for one.
+    #[test]
+    fn a_model_that_cannot_be_honoured_gives_way_to_one_that_is_here() {
+        let mut settings = bare_machine("resolve-choice", "");
+        settings.quality_choice = "fast".into();
+        std::fs::write(
+            std::path::Path::new(&settings.models_directory).join("ggml-large-v3-turbo-q5_0.bin"),
+            b"a file with the right name",
+        )
+        .expect("model");
+
+        let found = check(&settings);
+
+        assert_eq!(
+            found.model_whisper_id.as_deref(),
+            Some("large-v3-turbo-q5_0")
+        );
+        assert!(
+            !found
+                .issues
+                .iter()
+                .any(|issue| issue.code == "tools.whisper_model_missing"),
+            "nothing is missing: a model is here and it is the one that was chosen"
+        );
+        assert!(
+            !found.needed.iter().any(|id| id.starts_with("model-")),
+            "and nothing is asked for: {:?}",
+            found.needed
+        );
+    }
+
+    /// The setting still wins where it can be honoured, which is the whole
+    /// point of it. A machine holding both models transcribes with the chosen
+    /// one and not with whichever the fallback would have reached first.
+    #[test]
+    fn the_setting_wins_wherever_it_can_be_honoured() {
+        let mut settings = bare_machine("resolve-honoured", "large-v3-turbo-q5_0");
+        settings.quality_choice = "accurate".into();
+        for name in ["ggml-large-v3.bin", "ggml-large-v3-turbo-q5_0.bin"] {
+            std::fs::write(
+                std::path::Path::new(&settings.models_directory).join(name),
+                b"a file with the right name",
+            )
+            .expect("model");
+        }
+
+        assert_eq!(
+            check(&settings).model_whisper_id.as_deref(),
+            Some("large-v3-turbo-q5_0"),
+            "the setting names a model that is here, so nothing falls back"
+        );
+    }
+
     /// **The reported state, and the reason the wrong row was marked.** A
     /// machine where a model was chosen and never landed has `model` empty --
     /// it is written when a download finishes -- while `quality_choice` still
