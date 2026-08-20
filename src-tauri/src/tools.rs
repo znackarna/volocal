@@ -889,23 +889,56 @@ pub fn list_models(models: &Path) -> Vec<String> {
 // ---------------------------------------------------------------- audio
 
 pub fn audio_duration(ffprobe: &Path, file: &Path) -> Result<f64> {
-    let output = command(ffprobe)
-        .args([
-            "-v",
-            "error",
-            "-show_entries",
-            "format=duration",
-            "-of",
-            "csv=p=0",
-        ])
-        .arg(file)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .output()?;
-    let text = String::from_utf8_lossy(&output.stdout);
-    text.trim()
-        .parse::<f64>()
-        .map_err(|_| anyhow!("Nepodařilo se zjistit délku nahrávky"))
+    let ask = |arguments: &[&str]| -> Result<String> {
+        let output = command(ffprobe)
+            .args(arguments)
+            .arg(file)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .output()?;
+        Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+    };
+
+    let stated = ask(&[
+        "-v",
+        "error",
+        "-show_entries",
+        "format=duration",
+        "-of",
+        "csv=p=0",
+    ])?;
+    if let Ok(seconds) = stated.parse::<f64>() {
+        return Ok(seconds);
+    }
+
+    /* **A file recorded live has no length written in it.** `MediaRecorder`
+    streams its container out as it goes and never returns to fill the header
+    in, so `format=duration` answers `N/A` - on a take rescued after a crash,
+    and on any WebM that arrived the same way. The archive card then said 0:00
+    about twelve seconds of somebody talking.
+
+    The timestamps are still there, so the last packet's is the length. It
+    reads packet headers rather than audio: 56 ms over a twelve-second take on
+    the machine this was found on, and it grows with the number of packets
+    rather than with the sound in them.
+
+    Tried second and not first, because where a header states the length that
+    is both cheaper and what every other tool would answer. */
+    let timestamps = ask(&[
+        "-v",
+        "error",
+        "-select_streams",
+        "a:0",
+        "-show_entries",
+        "packet=pts_time",
+        "-of",
+        "csv=p=0",
+    ])?;
+    timestamps
+        .lines()
+        .rev()
+        .find_map(|line| line.trim().parse::<f64>().ok())
+        .ok_or_else(|| anyhow!("Nepodařilo se zjistit délku nahrávky"))
 }
 
 /// Both whisper.cpp and sherpa-onnx work exclusively with 16 kHz mono PCM.

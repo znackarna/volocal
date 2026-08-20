@@ -720,12 +720,44 @@ mod take_rescue_tests {
                 "sine=frequency=440:duration=2",
                 "-c:a",
                 "libopus",
+                /* Written the way `MediaRecorder` writes: streamed out with
+                **no duration in the header**, which is what the real fault
+                turned out to be. `-live 1` is what makes ffmpeg leave the
+                length out, the same as a browser recording as it goes.
+                Without it this test passes on a file no crash could produce. */
+                "-f",
+                "webm",
+                "-live",
+                "1",
             ])
             .arg(&shadow)
             .status();
         assert!(
             made.is_ok_and(|status| status.success()),
             "two seconds of tone"
+        );
+
+        // The fault, pinned: the header says nothing about how long it is, so
+        // a test whose fixture answers here would be testing the wrong file.
+        let stated = crate::tools::command(std::path::Path::new(check.ffprobe.as_ref().unwrap()))
+            .args([
+                "-v",
+                "error",
+                "-show_entries",
+                "format=duration",
+                "-of",
+                "csv=p=0",
+            ])
+            .arg(&shadow)
+            .stdout(std::process::Stdio::piped())
+            .output()
+            .expect("ffprobe");
+        assert!(
+            String::from_utf8_lossy(&stated.stdout)
+                .trim()
+                .parse::<f64>()
+                .is_err(),
+            "this fixture must be one no header can answer for"
         );
 
         rescue_interrupted_take(&connection, &settings, &db_path).expect("rescued");
