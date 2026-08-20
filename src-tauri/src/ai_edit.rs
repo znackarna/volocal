@@ -409,14 +409,22 @@ pub fn source_hash(text: &str) -> String {
     format!("{hash:016x}")
 }
 
-/// Cache key for derived documents. Summary prompts changed from direct Czech
-/// summarisation to source-language-first, so that pipeline needs its own
-/// versioned key. Translations keep their original key and remain reusable.
+/// Cache key for derived documents. Translations keep their original key and
+/// remain reusable.
+///
+/// **The key changes only where the behaviour did.** A Czech recording's
+/// summary is what it always was, so none of those regenerate. A recording in
+/// any other language used to be summarised and then translated into Czech and
+/// is not any more, so its stored output must not be handed back as though it
+/// were what this pipeline now produces.
 pub fn output_source_hash(source: &str, kind: &str, source_language: &str) -> String {
     if kind == "summary" {
-        source_hash(&format!(
-            "summary-source-first-v1\0{source_language}\0{source}"
-        ))
+        let shape = if source_language == "cs" {
+            "summary-source-first-v1"
+        } else {
+            "summary-in-the-source-language-v1"
+        };
+        source_hash(&format!("{shape}\0{source_language}\0{source}"))
     } else {
         source_hash(source)
     }
@@ -663,6 +671,41 @@ fn translation_prompt(code: &str, language: &str) -> String {
     )
 }
 
+/// Added to the reduce instruction only when the notes came from more than one
+/// part, and it is the sentence that was missing: the reduce was told what to
+/// produce and never what it was reading. Given `ČÁST 1` to `ČÁST 7` and asked
+/// for a well-organised summary, the model reproduced the organisation it was
+/// shown — one paragraph per part, each starting as though the recording began
+/// there. Nothing about that division is about the conversation; it is where
+/// the text had to be cut to fit a window.
+const SPLIT_NOTE: &str = " Podklady jsou z jedné nahrávky, která byla kvůli \
+     délce rozdělena na části. Shrnutí nesmí být členěné podle nich a nesmí je \
+     zmiňovat: piš o celém rozhovoru jako o jednom celku, v jedné souvislé \
+     linii, bez opakovaných úvodů.";
+
+fn summary_prompt(variant: &str) -> Option<&'static str> {
+    match variant {
+        "short" => Some(
+            "Z podkladů vytvoř stručné shrnutí celého rozhovoru v 5 až 7 bodech, \
+             nejvýše 140 slov. Zachovej nejdůležitější jména, fakta a závěry. Nic nepřidávej. \
+             Piš ve stejném jazyce jako podklady a nic nepřekládej. Vrať pouze shrnutí.",
+        ),
+        "standard" => Some(
+            "Z podkladů vytvoř přehledné shrnutí celého rozhovoru ve 3 až 6 kratších \
+             odstavcích. Zachovej hlavní myšlenky, důležité souvislosti, jména, fakta a závěry. \
+             Piš ve stejném jazyce jako podklady a nic nepřekládej. Nic nepřidávej. \
+             Vrať pouze shrnutí.",
+        ),
+        "detailed" => Some(
+            "Z podkladů vytvoř podrobné, dobře členěné shrnutí celého rozhovoru. \
+             Pokryj všechny hlavní tematické okruhy, argumenty, důležité souvislosti, jména, \
+             fakta a závěry. Piš ve stejném jazyce jako podklady a nic nepřekládej. Použij \
+             krátké nadpisy a odstavce, nic nevymýšlej a vrať pouze shrnutí.",
+        ),
+        _ => None,
+    }
+}
+
 fn czech_review_prompt() -> &'static str {
     "Jsi pečlivý český korektor. Oprav pouze gramatiku, pády, slovesné vazby, nepřirozený \
      slovosled a zbylé překladové kalky. Zachovej beze změny všechny informace, jména, čísla, \
@@ -705,49 +748,6 @@ fn summary_notes_prompt() -> String {
          Zachovej všechna důležitá fakta, jména, čísla, postoje a souvislosti. Nevymýšlej nic, \
          co v textu není. Vrať nejvýše osm stručných bodů bez úvodu.{CZECH_NOTE}"
     )
-}
-
-/// Added to the reduce instruction only when the notes came from more than one
-/// part, and it is the sentence that was missing: the reduce was told what to
-/// produce and never what it was reading. Given `ČÁST 1` to `ČÁST 7` and asked
-/// for a well-organised summary, the model reproduced the organisation it was
-/// shown — one paragraph per part, each starting as though the recording began
-/// there. Nothing about that division is about the conversation; it is where
-/// the text had to be cut to fit a window.
-const SPLIT_NOTE: &str = " Podklady jsou z jedné nahrávky, která byla kvůli \
-     délce rozdělena na části. Shrnutí nesmí být členěné podle nich a nesmí je \
-     zmiňovat: piš o celém rozhovoru jako o jednom celku, v jedné souvislé \
-     linii, bez opakovaných úvodů.";
-
-fn summary_prompt(variant: &str) -> Option<&'static str> {
-    match variant {
-        "short" => Some(
-            "Z podkladů vytvoř stručné shrnutí celého rozhovoru v 5 až 7 bodech, \
-             nejvýše 140 slov. Zachovej nejdůležitější jména, fakta a závěry. Nic nepřidávej. \
-             Piš ve stejném jazyce jako podklady a nic nepřekládej. Vrať pouze shrnutí.",
-        ),
-        "standard" => Some(
-            "Z podkladů vytvoř přehledné shrnutí celého rozhovoru ve 3 až 6 kratších \
-             odstavcích. Zachovej hlavní myšlenky, důležité souvislosti, jména, fakta a závěry. \
-             Piš ve stejném jazyce jako podklady a nic nepřekládej. Nic nepřidávej. \
-             Vrať pouze shrnutí.",
-        ),
-        "detailed" => Some(
-            "Z podkladů vytvoř podrobné, dobře členěné shrnutí celého rozhovoru. \
-             Pokryj všechny hlavní tematické okruhy, argumenty, důležité souvislosti, jména, \
-             fakta a závěry. Piš ve stejném jazyce jako podklady a nic nepřekládej. Použij \
-             krátké nadpisy a odstavce, nic nevymýšlej a vrať pouze shrnutí.",
-        ),
-        _ => None,
-    }
-}
-
-fn czech_summary_translation_prompt() -> &'static str {
-    "Teď přelož hotové shrnutí do přirozené češtiny. Už ho znovu neshrnuj. Zachovej všechny \
-     body, fakta, jména, čísla, závěry, pořadí a členění. Nic nevynechávej ani nepřidávej. \
-     Překlad musí znít, jako by od začátku vznikl česky: nepřebírej cizí slovosled, větné \
-     kostry ani kalky. Používej konkrétní česká slovesa a činný rod. Pokud je vstup už česky, \
-     zachovej ho věcně beze změny. Vrať pouze přeložené shrnutí bez úvodu a komentáře."
 }
 
 /// The reader's own instruction, with the little the model needs around it.
@@ -1277,8 +1277,16 @@ fn generate_output(
             translated.join("\n\n")
         }
     } else {
-        let translate_summary = source_language != "cs";
-        let notes_end = if translate_summary { 54.0 } else { 70.0 };
+        /* **A summary comes back in the language that was spoken.** Until
+        20 August a recording in anything but Czech was summarised, translated
+        into Czech and then reviewed as Czech - so an English interview could
+        not be summarised in English at all, and the bar read *Kontroluji
+        cestinu ve shrnuti* over an English transcript.
+
+        Asked for and decided by the owner: the summary follows the recording,
+        and `Preklad` is the tab for wanting it in another language. This was
+        doing that tab's work and leaving no way to have the other thing. */
+        let notes_end = 70.0;
         let mut notes = Vec::with_capacity(chunks.len());
         for (index, chunk) in chunks.iter().enumerate() {
             if cancellation.load(Ordering::Relaxed) {
@@ -1324,64 +1332,37 @@ fn generate_output(
         /* The Czech note goes on every variant rather than into the three
         prompts, which would be one rule written three times and two of them
         eventually out of step. The split note only when there is a split. */
+        /* The Czech note is for Czech. It tells the model to write flowing
+        Czech, mind the cases and not reach for English turns of phrase - which
+        over an English summary is an instruction to translate, and was one. */
         let instruction = format!(
             "{}{}{}",
             summary_instruction.unwrap(),
             if split { SPLIT_NOTE } else { "" },
-            CZECH_NOTE,
+            if source_language == "cs" {
+                CZECH_NOTE
+            } else {
+                ""
+            },
         );
         let step = Step {
-            from: if translate_summary { 57.0 } else { 78.0 },
-            to: if translate_summary { 70.0 } else { 95.0 },
-            caption: UserMessage::new(if translate_summary {
-                "ai.summarizing_source"
-            } else {
-                "ai.summarizing"
-            }),
+            from: 78.0,
+            to: 95.0,
+            caption: UserMessage::new("ai.summarizing"),
         };
         let max_tokens = match variant {
             "short" => 512,
             "standard" => 1024,
             _ => 2048,
         };
-        let source_summary = reporter.run_step(
+        reporter.run_step(
             step,
             &combined,
             &instruction,
             max_tokens,
             cancellation,
             &mut server,
-        )?;
-
-        if translate_summary {
-            let translated = reporter.run_step(
-                Step {
-                    from: 73.0,
-                    to: 85.0,
-                    caption: UserMessage::new("ai.translating_summary"),
-                },
-                &source_summary,
-                czech_summary_translation_prompt(),
-                max_tokens,
-                cancellation,
-                &mut server,
-            )?;
-
-            reporter.run_step(
-                Step {
-                    from: 87.0,
-                    to: 95.0,
-                    caption: UserMessage::new("ai.reviewing_summary"),
-                },
-                &translated,
-                czech_review_prompt(),
-                max_tokens,
-                cancellation,
-                &mut server,
-            )?
-        } else {
-            source_summary
-        }
+        )?
     };
 
     db::save_ai_output(
@@ -1697,21 +1678,27 @@ mod tests {
         assert!(!english.contains("adresovat problém"));
     }
 
+    /// **A summary stays in the language that was spoken.** It used to be
+    /// summarised, translated into Czech and reviewed as Czech, so an English
+    /// interview could not be summarised in English at all.
     #[test]
-    fn summary_is_written_in_the_source_language_before_translation() {
+    fn a_summary_is_written_in_the_language_that_was_spoken() {
         assert!(summary_notes_prompt().contains("stejném jazyce jako přepis"));
         assert!(summary_prompt("standard")
             .unwrap()
             .contains("nic nepřekládej"));
-        assert!(czech_summary_translation_prompt().contains("hotové shrnutí"));
-        assert!(czech_summary_translation_prompt().contains("Už ho znovu neshrnuj"));
+
+        // The key parts company with the old one only where the behaviour did:
+        // a Czech recording's stored summary is still its summary.
         assert_ne!(
             output_source_hash("Source", "summary", "en"),
-            source_hash("Source")
+            output_source_hash("Source", "summary", "cs"),
+            "the two pipelines are not the same pipeline"
         );
         assert_eq!(
             output_source_hash("Source", "translation", "en"),
-            source_hash("Source")
+            source_hash("Source"),
+            "translations keep their key and stay reusable"
         );
     }
 
