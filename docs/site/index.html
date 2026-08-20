@@ -359,15 +359,12 @@ main > section > h2 {
 .rows p { margin: 6px 0 0; font-size: 14.5px; color: var(--text-quiet); }
 .rows.narrow { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 48px; }
 .rows.narrow > li:nth-child(-n+3) { border-top: 0; }
-/* The three occasions are counted in the lede above them — *jen třikrát* — so
-   each one says which of the three it is. A counter rather than typed numerals:
-   the list cannot then disagree with itself about the order. */
-.rows.narrow { counter-reset: occasion; }
-.rows.narrow > li::before {
-  counter-increment: occasion; content: counter(occasion) ".";
-  display: block; margin-bottom: 7px;
-  font-size: 11px; font-weight: 700; letter-spacing: 0.09em;
-  font-variant-numeric: tabular-nums; color: var(--text-quiet);
+/* No numerals. They were 11 px labels above each block, then for an hour on
+   20 August a 92 px figure in the page's own background colour raised out of
+   it by nothing but its shadow. Both are gone: the lede already says *jen
+   třikrát*, so counting them again is the section repeating itself, and the
+   figure was the largest thing on a block whose smallest fact it carried.
+   What accompanies these three is still open. */
 }
 
 
@@ -511,6 +508,308 @@ main > section > h2 {
 .cards p { margin: 7px 0 0; font-size: 13.5px; line-height: 1.55; color: var(--text-quiet); }
 @media (max-width: 980px) { .cards { column-count: 2; } }
 @media (max-width: 620px) { .cards { column-count: 1; } }
+
+/* Each of the ten function rows carries one fragment of the application's
+   own UI -- the owner's ask of 19 August: not a separate band above the
+   list, a token on every card. The first cut stacked the faces under the
+   sentences and the owner turned it down for swelling the section; what
+   stands is his own counter-proposal: at rest the row is exactly the text
+   list it always was, and the fragment slides in over the sentence while the
+   pointer -- or keyboard focus -- is on the row. The sentence still says
+   everything on its own; a phone never sees the fragment, so the fragment
+   is proof, not information, and no wording lives only inside it.
+
+   Sideways, and over the words, on the owner's word of 20 August. The first
+   build unfolded the fragment under the sentence, which meant the row grew
+   by 106 px under the pointer and everything below it hopped -- reading two
+   rows down became a moving target. Out of flow there is nothing to push:
+   the card is absolute, one fixed height, and the row measures the same
+   whether it is open or shut. */
+/* Every row that can open is at least as tall as the tallest one, so the card
+   that slides into it clears the hairline by the same 18 px everywhere. The
+   last two rows have one line of writing where the rest have two, which made
+   them 105 px -- and a 92 px card in a 105 px row leaves 6 px above it. The
+   card looked stuck to the line above, because it was. */
+.rows li:has(.row-reveal) { position: relative; min-height: 128px; }
+.row-reveal {
+  position: absolute; z-index: 2;
+  /* From the text column, not the row: the drawing stays out in its own
+     22 px column and holds the reader's place while the words go. */
+  left: 36px; right: 0; top: 50%; height: 92px;
+  transform: translateY(-50%) translateX(20px); opacity: 0;
+  pointer-events: none;
+  transition: transform 0.26s cubic-bezier(.4, 0, .2, 1), opacity 0.2s ease;
+}
+/* The card is one height on every row, taller than the two lines it covers
+   and shorter than the row itself, so it is the same object everywhere and
+   still never reaches the hairline above or below. */
+.rows li:hover .row-reveal,
+.rows li:focus-within .row-reveal {
+  transform: translateY(-50%) translateX(0); opacity: 1; pointer-events: auto;
+}
+/* The words leave the way the card arrives, a shorter distance so the card
+   is the thing that moves. */
+.row-words { transition: transform 0.26s cubic-bezier(.4, 0, .2, 1), opacity 0.18s ease; }
+.rows li:hover .row-words,
+.rows li:focus-within .row-words { transform: translateX(-10px); opacity: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .row-reveal, .row-words { transition: opacity 0.2s ease; }
+  .rows li:hover .row-reveal,
+  .rows li:focus-within .row-reveal { transform: translateY(-50%); }
+  .rows li:hover .row-words,
+  .rows li:focus-within .row-words { transform: none; }
+}
+/* One surface per fragment: 92 px tall, the row's column width, a `--line`
+   hairline, `--r-card` corners. Where the fragment brings a fill of its own
+   (a highlighted segment, the note paper, the header bar, the save menu's
+   panel) it fills the surface edge to edge and gives up its own radius, so
+   nothing sits in a frame inside a frame; where it has none, the surface
+   stays the app's `--ground` and the fragment is centred on it. `shot` on
+   every face: app-shot.css prefixes every rule with it, so a fragment
+   outside such a wrapper draws as bare HTML -- raw input boxes and no
+   colour. */
+.row-face {
+  height: 100%; min-height: 0; overflow: hidden;
+  /* Opaque, because it lies on top of the sentence rather than under it, and
+     lifted by the same shadow the cards above use -- an object that arrived,
+     not a panel that was always there.
+
+     `--panel`, not `--surface`: there is no `--surface` in this page or in the
+     application's stylesheet, and an undefined `var()` drops the declaration
+     without a word. The card stood transparent for a day and nobody saw it,
+     because the sentence under it fades out at the same moment. */
+  background: var(--panel);
+  box-shadow: inset 0 0 0 1px var(--line), var(--shadow);
+  border-radius: var(--r-card);
+  display: grid; grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+}
+/* Fragment and strut share the one cell -- auto-placement would otherwise
+   shove the fragment into an implicit second row under the strut. */
+.row-face > * { min-width: 0; grid-area: 1 / 1; }
+/* A folder filling up, which is what the sentence beside this row is about.
+   Three names arrive one after another and each is taken in turn: the dot is
+   the archive's own -- the accent one pulsing while the file is being
+   transcribed, the green one after. All three lines exist from the first
+   frame, so the block never resizes; only what is written in it changes.
+
+   5.4 s the whole way round: a name every 1.2 s, each taken 1.2 s later, and
+   a breath at the end before the folder fills again. It was 8 s until the
+   owner said it dawdled. The three keyframe sets
+   differ in one number, the point where the line goes -- each animation
+   counts from its own delay, so the same moment in the loop is a different
+   percentage for each line. */
+.row-face.watch { padding: 0 20px; }
+.watch-list {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; grid-template-rows: repeat(3, auto); gap: 5px;
+  align-content: center; justify-items: start;
+}
+.watch-file { opacity: 0; }
+.watch-file .row-title { display: flex; align-items: center; gap: 9px; }
+/* The two dots share one cell: the line must not shift when one replaces the
+   other, and the working dot's 4 px halo needs the room either way. */
+.watch-file .row-status-icon { display: grid; width: 9px; height: 9px; }
+.watch-file .mark-slot { grid-area: 1 / 1; width: 9px; height: 9px; }
+/* Sized and blockified here: in the application the dot is a flex item and
+   takes its 9 px from `flex: 0 0 auto`. Stacked in this slot it is an inline
+   span again, and an inline span ignores both -- it drew nothing at all. */
+.watch-file .status-mark { display: block; width: 9px; height: 9px; margin-top: 0; }
+.watch-file .row-name { font-size: 13.5px; }
+.row-face.watch.run .watch-file {
+  animation-duration: 5.4s; animation-iteration-count: infinite;
+  animation-timing-function: ease;
+}
+.row-face.watch.run .f1 { animation-name: watch-1; }
+.row-face.watch.run .f2 { animation-name: watch-2; animation-delay: 1.2s; }
+.row-face.watch.run .f3 { animation-name: watch-3; animation-delay: 2.4s; }
+/* The first name is already standing when the card arrives -- it fades over
+   0.1 s, not the 0.24 s the first build gave it, because anything longer put
+   an empty card under the pointer and read as the animation thinking about
+   it. The two that follow do slide in: they are the ones arriving. */
+@keyframes watch-1 {
+  0% { opacity: 0; } 2% { opacity: 1; }
+  85% { opacity: 1; } 91%, 100% { opacity: 0; }
+}
+@keyframes watch-2 {
+  0% { opacity: 0; transform: translateY(5px); }
+  4% { opacity: 1; transform: none; }
+  63% { opacity: 1; } 69%, 100% { opacity: 0; }
+}
+@keyframes watch-3 {
+  0% { opacity: 0; transform: translateY(5px); }
+  4% { opacity: 1; transform: none; }
+  41% { opacity: 1; } 47%, 100% { opacity: 0; }
+}
+/* The dots are wrapped rather than animated themselves: the working one
+   already carries the application's `puls` on its own `animation`, and a
+   second declaration would take it off. */
+.row-face.watch.run .mark-slot.working { animation: mark-working 5.4s ease infinite; }
+.row-face.watch.run .mark-slot.ready { animation: mark-ready 5.4s ease infinite; }
+.row-face.watch.run .f2 .mark-slot { animation-delay: 1.2s; }
+.row-face.watch.run .f3 .mark-slot { animation-delay: 2.4s; }
+/* 1.2 s of work each, which is 22 % of the way round -- the same number for
+   all three, because each counts from its own arrival. */
+@keyframes mark-working { 0%, 20% { opacity: 1; } 24%, 100% { opacity: 0; } }
+@keyframes mark-ready { 0%, 20% { opacity: 0; } 24%, 100% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  /* The folder stands full and taken care of. */
+  .row-face.watch.run .watch-file,
+  .row-face.watch.run .mark-slot { animation: none; }
+  .row-face.watch .watch-file { opacity: 1; }
+  .row-face.watch .mark-slot.working { opacity: 0; }
+}
+/* `.rows li` is a descendant selector, so every list inside a fragment was
+   being given the feature row's own 24 px and its hairline -- three file names
+   came to 217 px in a 92 px card and the card showed two slivers and a name.
+   Undone once, here, rather than in each fragment. */
+.row-face li { padding: 0; border-top: 0; }
+/* Every format the application writes, in one row: five for the transcript,
+   three for the sound. Each is a sheet 52 x 56 -- wider than tall through the
+   middle, which is what a sheet with writing on it looks like; the first cut
+   was 44 x 52 and read as a column. Eight sheets and seven gaps come to 465 px
+   of the 520 the card has, so the row still stops short of the edges. The name sits on the sheet
+   rather than under it: a label under each one would be a second row of
+   writing, and the sheet is already the thing that says *file*. It sits at the
+   foot of the sheet, where a name is written on a folder tab -- halfway up it
+   read as one more line of the text above it. */
+.save-formats { display: flex; gap: 7px; justify-content: center; }
+.fmt {
+  position: relative; width: 52px; height: 56px; flex: 0 0 auto;
+  color: var(--line-field);
+}
+.fmt svg { display: block; width: 100%; height: 100%; }
+/* The sound sheets take the accent, which is the colour the application gives
+   anything to do with playing. */
+.fmt.sound { color: var(--accent-line); }
+.fmt b {
+  position: absolute; left: 0; right: 0; bottom: 6px;
+  text-align: center; font-size: 10px; font-weight: 700;
+  letter-spacing: 0.06em; color: var(--text-quiet);
+}
+/* Sound and subtitle, lit by one sweep. Both copies are the same markup; the
+   upper one is clipped from the left, so a peak and the word over it brighten
+   in the same frame and no amount of drift can creep in between them. The dark
+   bar under the words is in both copies and identical, so the clip leaves no
+   seam across it -- only the writing changes. */
+.row-face.cue { padding: 0 22px; }
+.cue-body { grid-area: 1 / 1; display: grid; align-content: center; gap: 9px; }
+.cue-body.lit { clip-path: inset(0 100% 0 0); }
+.row-face.cue.run .cue-body.lit { animation: cue-sweep 4.4s linear infinite; }
+.cue-waves svg { display: block; width: 100%; height: 26px; }
+.cue-body.base .cue-waves { color: var(--line-field); }
+.cue-body.lit .cue-waves { color: var(--accent); }
+.cue-cap { justify-self: center; max-width: 100%; }
+.cue-cap > span {
+  display: inline-block; padding: 3px 10px 4px; border-radius: 5px;
+  background: var(--text); font-size: 12.5px; font-weight: 600;
+  white-space: nowrap;
+}
+/* The bar itself is the same darkness in both copies -- dimming the whole
+   span turned the unplayed half into a grey block, and a subtitle does not
+   arrive in halves. Only the writing changes. */
+.cue-body.base .cue-cap > span { color: var(--text-quiet); }
+.cue-body.lit .cue-cap > span { color: var(--panel); }
+/* The return is not a cut: the lit copy fades out where it stands and is put
+   back at the left while nothing of it is on screen. */
+@keyframes cue-sweep {
+  0% { opacity: 1; clip-path: inset(0 100% 0 0); }
+  76% { opacity: 1; clip-path: inset(0 0 0 0); }
+  90% { opacity: 1; clip-path: inset(0 0 0 0); }
+  97% { opacity: 0; clip-path: inset(0 0 0 0); }
+  97.01%, 100% { opacity: 0; clip-path: inset(0 100% 0 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  /* The line stands lit, which is the state the claim is about. */
+  .row-face.cue.run .cue-body.lit { animation: none; clip-path: inset(0 0 0 0); }
+}
+
+/* The three ways the sound gets in, as marks in the header bar. Drawn by the
+   page: the application's bar has no such row, it has the mark and whatever is
+   playing. Here the bar is standing for the whole application, and the row
+   beside it is about where a recording comes from. */
+.bar-left .sources { display: flex; align-items: center; gap: 6px; margin-left: 14px; }
+.source {
+  width: 24px; height: 24px; border-radius: 50%; flex: 0 0 auto;
+  border: 1px solid var(--line); background: var(--ground);
+  display: grid; place-items: center; color: var(--text-quiet);
+}
+.source svg { width: 13px; height: 13px; display: block; }
+/* The wrong word and the right one stand in one grid cell, so the line does
+   not shift by a hair when they change over -- `blob.` and `blog.` are not the
+   same width in this face, and a line that jumps says *something was replaced*
+   where the point is *one letter was put right*. 5 s the whole way round. */
+.fix-word { position: relative; display: inline-grid; vertical-align: baseline; }
+.fix-word > .word { grid-area: 1 / 1; justify-self: start; }
+.fix-word > .after { opacity: 0; }
+.row-face.fix.run .fix-word > .before { animation: fix-out 5s ease infinite; }
+.row-face.fix.run .fix-word > .after { animation: fix-in 5s ease infinite; }
+@keyframes fix-out { 0%, 45% { opacity: 1; } 49%, 100% { opacity: 0; } }
+@keyframes fix-in { 0%, 45% { opacity: 0; } 49%, 100% { opacity: 1; } }
+/* The caret comes to the word before anything happens to it, waits a beat --
+   long enough to read what is wrong -- and leaves once it is right. It blinks
+   on its own clock, the way a caret does, rather than on the loop's. */
+.fix-caret {
+  position: absolute; right: -2px; top: 50%; transform: translateY(-50%);
+  width: 1.5px; height: 1.05em; background: var(--text); opacity: 0;
+}
+.row-face.fix.run .fix-caret {
+  animation: fix-caret-shows 5s ease infinite, fix-caret-blinks 1s steps(1) infinite;
+}
+@keyframes fix-caret-shows { 0%, 24% { opacity: 0; } 28%, 74% { opacity: 1; } 78%, 100% { opacity: 0; } }
+@keyframes fix-caret-blinks { 0%, 49% { visibility: visible; } 50%, 100% { visibility: hidden; } }
+@media (prefers-reduced-motion: reduce) {
+  /* The word stands put right, which is what the row claims. */
+  .row-face.fix.run .fix-word > .before,
+  .row-face.fix.run .fix-caret { animation: none; opacity: 0; }
+  .row-face.fix.run .fix-word > .after { animation: none; opacity: 1; }
+}
+/* The recorder's spectrum. In the application these bars are a canvas the
+   recorder repaints from what the microphone hears; here they are the same
+   bars as an SVG, each rising and falling on its own clock. Every bar carries
+   its own floor, duration and a negative delay, so they start out of step --
+   one shared animation would make the strip breathe as a single block, which
+   no microphone ever does.
+
+   `scaleY` from the bottom, because the application anchors its bars there
+   too; `transform-box: fill-box` is what gives an SVG rect an origin of its
+   own instead of the whole canvas's. */
+/* An SVG with a viewBox and a height takes its width from that ratio, which
+   left the strip 302 px wide in a 530 px dialog -- half a spectrum. */
+.mic-bars { width: 100%; }
+.mic-bars rect {
+  transform-box: fill-box; transform-origin: bottom;
+  animation-name: mic-bar; animation-iteration-count: infinite;
+  animation-direction: alternate; animation-timing-function: ease-in-out;
+}
+@keyframes mic-bar { from { transform: scaleY(var(--lo, 0.35)); } to { transform: scaleY(1); } }
+@media (prefers-reduced-motion: reduce) {
+  .mic-bars rect { animation: none; }
+}
+/* Loose fragments -- a switch, the speed pills -- stand centred on the ground. */
+.row-face.center { place-items: center; }
+/* The fragments that are the surface. */
+.row-face .segment { display: grid; align-content: center; margin: 0; border-radius: 0; height: 100%; }
+/* The app shows a segment's actions on its top edge, beside a first line the
+   segment aligns to its top; this face centres the one line, so the actions
+   centre with it. */
+.row-face .segment-actions { top: 50%; transform: translateY(-50%); }
+.row-face .stickies { display: grid; height: 100%; }
+.row-face .sticky { height: 100%; display: grid; align-content: center; border-radius: 0; border: 0; }
+.row-face .bar { height: 100%; border-bottom: 0; }
+.row-face .save-list {
+  position: static; height: 100%; min-width: 0;
+  border: 0; border-radius: 0; box-shadow: none; justify-content: center;
+}
+.row-face .list { display: grid; height: 100%; margin: 0; padding: 0; }
+.row-face .folder-row { height: 100%; border-radius: 0; border: 0; align-content: center; }
+/* The pill's waveform is a live canvas in the application; here it is the
+   same bars drawn once, as an SVG filling the same box. */
+.row-face .mini-waves > svg { display: block; width: 100%; height: 100%; }
+/* Below the section's one-column breakpoint the fragments go entirely: a
+   phone has no hover and gets the clean text list. This also retires the
+   app's own 900 px rule that would fold the recorder pill -- by the time it
+   bites, the fragment is gone. */
+@media (max-width: 900px) { .row-reveal { display: none; } }
 
 /* Hierarchy. Three cards carry the reasons somebody installs this at all, so
    they stand above the masonry as a grid of three and one step larger — 19 px
@@ -763,7 +1062,7 @@ footer { padding: 96px 0 72px; }
 
   <div class="hero">
     <div class="hero-text">
-    <p class="tagline">Co spolu dneska přepíšeme?</p>
+    <p class="tagline">Co spolu dnes přepíšeme?</p>
     <h1>
       <span class="beat">Zapněte počítač.</span>
       <span class="kicker"><span class="beat">Vypněte předplatné.</span></span>
@@ -2660,7 +2959,85 @@ footer { padding: 96px 0 72px; }
   </div>
       <p class="slide-caption"><span class="caption-icon" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.2" stroke="currentColor" stroke-width="1.35"/><path d="M8 7.1v3.7M8 4.8h.01" stroke="currentColor" stroke-width="1.55" stroke-linecap="round"/></svg></span><span>Vylepšený přepis, shrnutí i překlad v jednom šuplíku.</span></p>
     </div>
-    <div class="slide">
+        <div class="slide">
+      <div class="preview-window">
+        <div class="preview-titlebar">
+      <svg viewBox="0 0 320 320" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path d="M-0.00012207 160C-0.00012207 84.5753 -0.00012207 46.8629 23.4313 23.4315C46.8628 0 84.5752 0 160 0C235.425 0 273.137 0 296.568 23.4315C320 46.8629 320 84.5753 320 160C320 235.425 320 273.137 296.568 296.569C273.137 320 235.425 320 160 320C84.5752 320 46.8628 320 23.4313 296.569C-0.00012207 273.137 -0.00012207 235.425 -0.00012207 160Z" fill="white"/>
+          <path d="M234.435 195.645C225.207 195.645 216.89 193.641 209.484 189.635C202.077 185.628 196.249 179.921 191.999 172.514C187.749 165.108 185.624 156.426 185.624 146.47C185.624 136.513 187.749 127.831 191.999 120.425C196.249 112.897 202.077 107.129 209.484 103.122C216.89 99.1155 225.207 97.1121 234.435 97.1121C243.663 97.1121 251.981 99.1155 259.387 103.122C266.794 107.129 272.622 112.897 276.872 120.425C281.122 127.831 283.246 136.513 283.246 146.47C283.246 156.426 281.122 165.108 276.872 172.514C272.622 179.921 266.794 185.628 259.387 189.635C251.981 193.641 243.663 195.645 234.435 195.645ZM234.435 174.153C240.749 174.153 245.91 171.664 249.917 166.686C253.923 161.708 255.927 154.969 255.927 146.47C255.927 137.849 253.923 131.049 249.917 126.071C245.91 121.093 240.689 118.604 234.253 118.604C227.818 118.604 222.597 121.093 218.59 126.071C214.583 131.049 212.58 137.849 212.58 146.47C212.58 154.969 214.583 161.708 218.59 166.686C222.718 171.664 228 174.153 234.435 174.153Z" fill="black"/>
+          <path d="M173.565 193.459H146.428V62.3251H173.565V193.459Z" fill="black"/>
+          <path d="M85.5647 195.645C76.3367 195.645 68.0194 193.641 60.6128 189.635C53.2061 185.628 47.3779 179.921 43.1282 172.514C38.8785 165.108 36.7536 156.426 36.7536 146.47C36.7536 136.513 38.8785 127.831 43.1282 120.425C47.3779 112.897 53.2061 107.129 60.6128 103.122C68.0194 99.1155 76.3367 97.1121 85.5647 97.1121C94.7926 97.1121 103.11 99.1155 110.517 103.122C117.923 107.129 123.751 112.897 128.001 120.425C132.251 127.831 134.376 136.513 134.376 146.47C134.376 156.426 132.251 165.108 128.001 172.514C123.751 179.921 117.923 185.628 110.517 189.635C103.11 193.641 94.7926 195.645 85.5647 195.645ZM85.5647 174.153C91.8785 174.153 97.0389 171.664 101.046 166.686C105.053 161.708 107.056 154.969 107.056 146.47C107.056 137.849 105.053 131.049 101.046 126.071C97.0389 121.093 91.8178 118.604 85.3825 118.604C78.9472 118.604 73.7262 121.093 69.7193 126.071C65.7124 131.049 63.709 137.849 63.709 146.47C63.709 154.969 65.7124 161.708 69.7193 166.686C73.8476 171.664 79.1294 174.153 85.5647 174.153Z" fill="black"/>
+          <path d="M219.312 233.118C211.526 240.904 202.284 247.079 192.111 251.293C181.939 255.506 171.037 257.675 160.027 257.675C149.016 257.675 138.114 255.506 127.942 251.293C117.77 247.079 108.527 240.904 100.742 233.118L118.527 215.333C123.977 220.782 130.447 225.106 137.567 228.055C144.688 231.004 152.319 232.522 160.027 232.522C167.734 232.522 175.365 231.004 182.486 228.055C189.606 225.106 196.076 220.783 201.526 215.333L219.312 233.118Z" fill="black"/>
+        </svg>
+      <span class="name">volocal™</span>
+      <span class="window-buttons" aria-hidden="true">
+        <span><svg viewBox="0 0 10 10"><path d="M1 5h8"/></svg></span>
+        <span><svg viewBox="0 0 10 10"><rect x="1.4" y="1.4" width="7.2" height="7.2" rx="1"/></svg></span>
+        <span><svg viewBox="0 0 10 10"><path d="M1.6 1.6l6.8 6.8M8.4 1.6l-6.8 6.8"/></svg></span>
+      </span>
+    </div>
+        <div class="preview-viewport">
+          <div class="preview-stage">
+            <div class="shot">
+              <div class="app">
+                <header class="bar">
+                  <div class="bar-left">
+                    <span class="mark header-brand-mark" id="mic-wordmark"></span>
+                  </div>
+                  <!-- What the archive's own header carries while a take is
+                       running and its dialog is open: the two quiet buttons.
+                       The mini recorder is not among them -- it appears only
+                       once the dialog is minimised, and here it is not. -->
+                  <div class="bar-right">
+                    <button class="button quiet">
+                      <svg width="15" height="15" viewBox="0 0 15 15" aria-hidden="true">
+                        <path d="M7.5 2v11M2 7.5h11" fill="none" stroke="currentColor"
+                              stroke-width="1.5" stroke-linecap="round"/>
+                      </svg>
+                      Nový přepis
+                    </button>
+                    <button class="button quiet">
+                      <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+                        <path d="M2 4.5h3.2M8.8 4.5H14M2 11.5h6.2M11.8 11.5H14"
+                              fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                        <circle cx="7" cy="4.5" r="1.8" fill="none" stroke="currentColor" stroke-width="1.5"/>
+                        <circle cx="10" cy="11.5" r="1.8" fill="none" stroke="currentColor" stroke-width="1.5"/>
+                      </svg>
+                      Nastavení
+                    </button>
+                  </div>
+                </header>
+                <main class="library"></main>
+              </div>
+              <div class="shot-dialog">
+                <!-- Přidat nahrávku > Nový záznam, uprostřed záznamu. The stage
+                     carries `running`, which is what makes the application pulse
+                     the microphone capsule and turn the spectrum accent -- both
+                     of those come from its own stylesheet, not from here. -->
+                <div class="dialog add-recording-dialog" role="img" aria-label="Nový záznam">
+                  <h2>Nový záznam</h2>
+                  <p>Záznam se uloží jako nahrávka. Ani slovo neopustí počítač.</p>
+                  <div class="mic-stage running">
+                    <span class="choice-icon mic-mark" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="7.25" y="1.75" width="5.5" height="10" rx="2.75" stroke="currentColor" stroke-width="1.5"/><path d="M4.5 9.5a5.5 5.5 0 0 0 11 0M10 15v3M7 18h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span>
+                    <div class="mic-readout">
+                      <span class="mic-status">Nahrává se…</span>
+                      <span class="mic-time">02:14</span>
+                    </div>
+                    <div class="mic-spectrum-wrap"><svg class="mic-spectrum running mic-bars" viewBox="0 0 302 38" preserveAspectRatio="none" fill="currentColor" aria-hidden="true"><rect x="1.0" y="12.9" width="2" height="25.1" rx="1" style="--lo:0.22;animation-duration:640ms;animation-delay:0ms"/><rect x="7.0" y="11.7" width="2" height="26.3" rx="1" style="--lo:0.46;animation-duration:708ms;animation-delay:-91ms"/><rect x="13.0" y="16.0" width="2" height="22.0" rx="1" style="--lo:0.31;animation-duration:776ms;animation-delay:-182ms"/><rect x="19.0" y="13.5" width="2" height="24.5" rx="1" style="--lo:0.55;animation-duration:844ms;animation-delay:-273ms"/><rect x="25.0" y="14.8" width="2" height="23.2" rx="1" style="--lo:0.39;animation-duration:912ms;animation-delay:-364ms"/><rect x="31.0" y="24.4" width="2" height="13.6" rx="1" style="--lo:0.24;animation-duration:980ms;animation-delay:-455ms"/><rect x="37.0" y="26.3" width="2" height="11.7" rx="1" style="--lo:0.48;animation-duration:1048ms;animation-delay:-546ms"/><rect x="43.0" y="22.8" width="2" height="15.2" rx="1" style="--lo:0.32;animation-duration:1116ms;animation-delay:-637ms"/><rect x="49.0" y="25.9" width="2" height="12.1" rx="1" style="--lo:0.57;animation-duration:1184ms;animation-delay:-728ms"/><rect x="55.0" y="24.8" width="2" height="13.2" rx="1" style="--lo:0.41;animation-duration:674ms;animation-delay:-145ms"/><rect x="61.0" y="16.0" width="2" height="22.0" rx="1" style="--lo:0.25;animation-duration:742ms;animation-delay:-168ms"/><rect x="67.0" y="15.7" width="2" height="22.3" rx="1" style="--lo:0.50;animation-duration:810ms;animation-delay:-191ms"/><rect x="73.0" y="19.7" width="2" height="18.3" rx="1" style="--lo:0.34;animation-duration:878ms;animation-delay:-214ms"/><rect x="79.0" y="16.4" width="2" height="21.6" rx="1" style="--lo:0.59;animation-duration:946ms;animation-delay:-237ms"/><rect x="85.0" y="17.0" width="2" height="21.0" rx="1" style="--lo:0.43;animation-duration:1014ms;animation-delay:-260ms"/><rect x="91.0" y="23.7" width="2" height="14.3" rx="1" style="--lo:0.27;animation-duration:1082ms;animation-delay:-283ms"/><rect x="97.0" y="21.0" width="2" height="17.0" rx="1" style="--lo:0.52;animation-duration:1150ms;animation-delay:-306ms"/><rect x="103.0" y="14.6" width="2" height="23.4" rx="1" style="--lo:0.36;animation-duration:640ms;animation-delay:-267ms"/><rect x="109.0" y="16.2" width="2" height="21.8" rx="1" style="--lo:0.60;animation-duration:708ms;animation-delay:-222ms"/><rect x="115.0" y="14.3" width="2" height="23.7" rx="1" style="--lo:0.45;animation-duration:776ms;animation-delay:-177ms"/><rect x="121.0" y="7.8" width="2" height="30.2" rx="1" style="--lo:0.29;animation-duration:844ms;animation-delay:-132ms"/><rect x="127.0" y="11.6" width="2" height="26.4" rx="1" style="--lo:0.53;animation-duration:912ms;animation-delay:-87ms"/><rect x="133.0" y="18.7" width="2" height="19.3" rx="1" style="--lo:0.38;animation-duration:980ms;animation-delay:-42ms"/><rect x="139.0" y="17.8" width="2" height="20.2" rx="1" style="--lo:0.22;animation-duration:1048ms;animation-delay:-1045ms"/><rect x="145.0" y="20.6" width="2" height="17.4" rx="1" style="--lo:0.46;animation-duration:1116ms;animation-delay:-1068ms"/><rect x="151.0" y="27.5" width="2" height="10.5" rx="1" style="--lo:0.31;animation-duration:1184ms;animation-delay:-1091ms"/><rect x="157.0" y="23.9" width="2" height="14.1" rx="1" style="--lo:0.55;animation-duration:674ms;animation-delay:-344ms"/><rect x="163.0" y="18.2" width="2" height="19.8" rx="1" style="--lo:0.39;animation-duration:742ms;animation-delay:-231ms"/><rect x="169.0" y="20.9" width="2" height="17.1" rx="1" style="--lo:0.24;animation-duration:810ms;animation-delay:-118ms"/><rect x="175.0" y="19.8" width="2" height="18.2" rx="1" style="--lo:0.48;animation-duration:878ms;animation-delay:-5ms"/><rect x="181.0" y="14.9" width="2" height="23.1" rx="1" style="--lo:0.32;animation-duration:946ms;animation-delay:-838ms"/><rect x="187.0" y="20.0" width="2" height="18.0" rx="1" style="--lo:0.57;animation-duration:1014ms;animation-delay:-793ms"/><rect x="193.0" y="25.4" width="2" height="12.6" rx="1" style="--lo:0.41;animation-duration:1082ms;animation-delay:-748ms"/><rect x="199.0" y="21.2" width="2" height="16.8" rx="1" style="--lo:0.25;animation-duration:1150ms;animation-delay:-703ms"/><rect x="205.0" y="20.7" width="2" height="17.3" rx="1" style="--lo:0.50;animation-duration:640ms;animation-delay:-534ms"/><rect x="211.0" y="23.1" width="2" height="14.9" rx="1" style="--lo:0.34;animation-duration:708ms;animation-delay:-353ms"/><rect x="217.0" y="15.6" width="2" height="22.4" rx="1" style="--lo:0.59;animation-duration:776ms;animation-delay:-172ms"/><rect x="223.0" y="9.2" width="2" height="28.8" rx="1" style="--lo:0.43;animation-duration:844ms;animation-delay:-835ms"/><rect x="229.0" y="12.8" width="2" height="25.2" rx="1" style="--lo:0.27;animation-duration:912ms;animation-delay:-722ms"/><rect x="235.0" y="12.8" width="2" height="25.2" rx="1" style="--lo:0.52;animation-duration:980ms;animation-delay:-609ms"/><rect x="241.0" y="10.5" width="2" height="27.5" rx="1" style="--lo:0.36;animation-duration:1048ms;animation-delay:-496ms"/><rect x="247.0" y="18.0" width="2" height="20.0" rx="1" style="--lo:0.60;animation-duration:1116ms;animation-delay:-383ms"/><rect x="253.0" y="23.5" width="2" height="14.5" rx="1" style="--lo:0.45;animation-duration:1184ms;animation-delay:-270ms"/><rect x="259.0" y="19.3" width="2" height="18.7" rx="1" style="--lo:0.29;animation-duration:674ms;animation-delay:-543ms"/><rect x="265.0" y="19.8" width="2" height="18.2" rx="1" style="--lo:0.53;animation-duration:742ms;animation-delay:-294ms"/><rect x="271.0" y="22.7" width="2" height="15.3" rx="1" style="--lo:0.38;animation-duration:810ms;animation-delay:-45ms"/><rect x="277.0" y="16.8" width="2" height="21.2" rx="1" style="--lo:0.22;animation-duration:878ms;animation-delay:-674ms"/><rect x="283.0" y="14.2" width="2" height="23.8" rx="1" style="--lo:0.46;animation-duration:946ms;animation-delay:-493ms"/><rect x="289.0" y="21.0" width="2" height="17.0" rx="1" style="--lo:0.31;animation-duration:1014ms;animation-delay:-312ms"/><rect x="295.0" y="22.2" width="2" height="15.8" rx="1" style="--lo:0.55;animation-duration:1082ms;animation-delay:-131ms"/></svg></div>
+                  </div>
+                  <div class="dialog-footer">
+                    <button class="button quiet">Minimalizovat</button>
+                    <button class="button primary">Zastavit</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="slide-caption"><span class="caption-icon" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.2" stroke="currentColor" stroke-width="1.35"/><path d="M8 7.1v3.7M8 4.8h.01" stroke="currentColor" stroke-width="1.55" stroke-linecap="round"/></svg></span><span>Diktafon uvnitř aplikace. Nahrajete a rovnou přepíšete.</span></p>
+    </div>
+<div class="slide">
       <div class="preview-window">
         <div class="preview-titlebar">
       <svg viewBox="0 0 320 320" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -2792,20 +3169,21 @@ footer { padding: 96px 0 72px; }
     <ul class="cards lead">
       <li>
         <div class="step-art lead-art" aria-hidden="true"><span class="step-bar" aria-hidden="true"><span class="step-name">volocal™</span><span class="step-buttons-win"><i><svg viewBox="0 0 10 10"><path d="M1 5h8"/></svg></i><i><svg viewBox="0 0 10 10"><rect x="1.4" y="1.4" width="7.2" height="7.2" rx="1"/></svg></i><i><svg viewBox="0 0 10 10"><path d="M1.6 1.6l6.8 6.8M8.4 1.6l-6.8 6.8"/></svg></i></span></span><span class="step-body art-home"><span class="art-house-wrap"><svg class="art-house" viewBox="0 0 64 44"><path d="M11 20 32 2.5l21 17.5 M11 19.5V41h42V19.5"/></svg><span class="art-mark" id="home-mark"></span></span></span></div>
-        <b>Co je doma, to se počítá.</b>
+        <b>Naprosté soukromí.</b>
         <p>Nahrávky se nikdy nikam neodesílají. Po nastavení se obejdete bez internetu.</p>
       </li>
       <li>
         <div class="step-art lead-art" aria-hidden="true"><span class="step-bar" aria-hidden="true"><span class="step-name">volocal™</span><span class="step-buttons-win"><i><svg viewBox="0 0 10 10"><path d="M1 5h8"/></svg></i><i><svg viewBox="0 0 10 10"><rect x="1.4" y="1.4" width="7.2" height="7.2" rx="1"/></svg></i><i><svg viewBox="0 0 10 10"><path d="M1.6 1.6l6.8 6.8M8.4 1.6l-6.8 6.8"/></svg></i></span></span><span class="step-body art-voices"><span class="art-line"><b style="background:#2563eb"></b><i style="width:74px"></i></span><span class="art-line"><b style="background:#c2410c"></b><i style="width:54px"></i></span><span class="art-line"><b style="background:#2563eb"></b><i style="width:64px"></i></span></span></div>
-        <b>Vidíte, kdo co řekl.</b>
+        <b>Perfektní přehled.</b>
         <p>Řeč se rozdělí mezi mluvčí a jména jim dáte vy. Zápis je pak čitelný bez vysvětlování.</p>
       </li>
       <li>
         <div class="step-art lead-art" aria-hidden="true"><span class="step-bar" aria-hidden="true"><span class="step-name">volocal™</span><span class="step-buttons-win"><i><svg viewBox="0 0 10 10"><path d="M1 5h8"/></svg></i><i><svg viewBox="0 0 10 10"><rect x="1.4" y="1.4" width="7.2" height="7.2" rx="1"/></svg></i><i><svg viewBox="0 0 10 10"><path d="M1.6 1.6l6.8 6.8M8.4 1.6l-6.8 6.8"/></svg></i></span></span><span class="step-body art-shorter"><span class="art-page"><i></i><i></i><i></i><i class="short"></i></span><svg class="art-arrow" viewBox="0 0 24 24"><path d="M4 12h14M13 7l5 5-5 5"/></svg><span class="art-page small"><i></i><i class="short"></i></span></span></div>
-        <b>Shrnete i přeložíte u sebe.</b>
+        <b>Inteligence po ruce.</b>
         <p>Opravy, překlad i shrnutí zvládnete lokálně. AI modely běží vždy ve vašem počítači.</p>
       </li>
     </ul>
+
 
     <ul class="rows">
       <li>
@@ -2813,81 +3191,383 @@ footer { padding: 96px 0 72px; }
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
                stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h2.6l2-6.4 3 12.8 2.4-9.4 2 5.2 1.6-2.2H22"/></svg>
         </span>
-        <div><b>Vidíte, co slyšíte.</b>
+        <div class="row-words"><b>Vidíte, co slyšíte.</b>
           <p>Vždycky vidíte to, co právě posloucháte. Žádné přetáčení a hledání.
-          Stačí kliknout.</p></div>
+          Stačí kliknout.</p>
+        </div>
+        <div class="row-reveal">
+          <div class="row-face shot">
+            <div class="segment current">
+              <button class="time-mark">39:07</button>
+              <p class="segment-text">
+                <span class="word sounded">Letos</span>
+                <span class="word sounded">za</span>
+                <span class="word sounded">přepisy</span>
+                <span class="word">ani</span>
+                <span class="word">korunu.</span>
+              </p>
+            </div>
+          </div>
+        </div>
       </li>
       <li>
         <span class="row-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
                stroke-linecap="round" stroke-linejoin="round"><path d="M5 19h3.5L19.4 8.1a1.9 1.9 0 0 0 0-2.7l-.8-.8a1.9 1.9 0 0 0-2.7 0L5 15.5V19Z M14.8 6.6l2.6 2.6"/></svg>
         </span>
-        <div><b>Opravíte, co nesedí.</b>
-          <p>Text si přečtete, přepíšete v něm slovo i větu a vyhledáte v něm, co potřebujete.</p></div>
+        <div class="row-words"><b>Opravíte, co nesedí.</b>
+          <p>Text si přečtete, přepíšete v něm slovo i větu a vyhledáte v něm, co potřebujete.</p>
+        </div>
+        <div class="row-reveal">
+          <div class="row-face shot loop fix">
+            <!-- One word being put right. The application does this in a text
+                 field -- a double click turns the segment into a `textarea` --
+                 and a field would have to be focused to show a caret, which in
+                 a picture of a window would take the focus off the page. So
+                 the two states of the word are both here, the real `.word` and
+                 the real `.word.corrected` in one cell, and the caret is drawn.
+                 What is shown is true: a wrong word, a cursor at it, the right
+                 word with the application's own dashed underline afterwards. -->
+            <div class="segment">
+              <button class="time-mark">12:41</button>
+              <p class="segment-text">
+                <span class="word">Podcasty</span>
+                <span class="word">z</span>
+                <span class="word">YouTube</span>
+                <span class="word">dáme</span>
+                <span class="word">na</span>
+                <span class="fix-word">
+                  <span class="word before">blob.</span>
+                  <span class="word corrected after">blog.</span>
+                  <span class="fix-caret" aria-hidden="true"></span>
+                </span>
+              </p>
+            </div>
+          </div>
+        </div>
       </li>
       <li>
         <span class="row-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
                stroke-linecap="round" stroke-linejoin="round"><path d="M2.6 12s3.6-6 9.4-6 9.4 6 9.4 6-3.6 6-9.4 6-9.4-6-9.4-6Z M12 14.6a2.6 2.6 0 1 0 0-5.2 2.6 2.6 0 0 0 0 5.2Z"/></svg>
         </span>
-        <div><b>Odhalíte nejistá místa.</b>
-          <p>Volocal označí sporná místa, takže víte, kam se podívat, než přepis pošlete dál.</p></div>
+        <div class="row-words"><b>Odhalíte nejistá místa.</b>
+          <p>Volocal označí sporná místa, takže víte, kam se podívat, než přepis pošlete dál.</p>
+        </div>
+        <div class="row-reveal">
+          <div class="row-face shot">
+            <div class="segment uncertain">
+              <button class="time-mark">21:03</button>
+              <div class="segment-actions" style="opacity: 1">
+                <button title="Je to správně" aria-label="Označit jako správné">
+                  <svg width="15" height="15" viewBox="0 0 14 14" aria-hidden="true">
+                    <path d="M2.5 7.5l3 3 6-7" fill="none" stroke="currentColor"
+                          stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </button>
+                <button title="Opravit text" aria-label="Opravit text">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17v3Z M13.5 6.5l4 4"
+                          stroke="currentColor" stroke-width="1.7"
+                          stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </button>
+              </div>
+              <p class="segment-text">
+                <span class="word">Hlasovky</span>
+                <span class="word">půjdou</span>
+                <span class="word">rovnou</span>
+                <span class="word">Petrovi.</span>
+              </p>
+            </div>
+          </div>
+        </div>
       </li>
       <li>
         <span class="row-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
                stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 4.5h6v6 M19.5 4.5 11.5 12.5 M17 13.5v5A1.5 1.5 0 0 1 15.5 20h-10A1.5 1.5 0 0 1 4 18.5v-10A1.5 1.5 0 0 1 5.5 7h5"/></svg>
         </span>
-        <div><b>Přepíšete odkudkoli.</b>
-          <p>Nahrajete z mikrofonu, vložíte odkaz na online službu, nebo přetáhnete soubor do okna.</p></div>
+        <div class="row-words"><b>Přepíšete odkudkoli.</b>
+          <p>Nahrajete z mikrofonu, vložíte odkaz na online službu, nebo přetáhnete soubor do okna.</p>
+        </div>
+        <div class="row-reveal">
+          <div class="row-face shot">
+            <header class="bar">
+              <div class="bar-left">
+                <span class="mark header-brand-mark" id="row-wordmark"></span>
+              <!-- Where the sound comes from, in the order the sentence
+                   says it: a file off the disk, a video service, an audio
+                   service. The application names YouTube and SoundCloud
+                   itself in the Online služba step; the marks are drawn in
+                   the page's line, not lifted from either brand. -->
+              <span class="sources" aria-hidden="true">
+                <span class="source"><svg viewBox="0 0 16 16" fill="none"
+                  stroke="currentColor" stroke-width="1.3" stroke-linecap="round"
+                  stroke-linejoin="round"><path d="M2 5.2a1.4 1.4 0 0 1 1.4-1.4h2.9L7.7 5.4h4.9A1.4 1.4 0 0 1 14 6.8v5A1.4 1.4 0 0 1 12.6 13.2H3.4A1.4 1.4 0 0 1 2 11.8V5.2Z"/><path d="M5.6 8.4h4.8M5.6 10.6h3"/></svg></span>
+                <span class="source"><svg viewBox="0 0 16 16" fill="none"
+                  stroke="currentColor" stroke-width="1.3" stroke-linecap="round"
+                  stroke-linejoin="round"><path d="M1.6 4.4a1.6 1.6 0 0 1 1.6-1.6h9.6a1.6 1.6 0 0 1 1.6 1.6v7.2a1.6 1.6 0 0 1-1.6 1.6H3.2a1.6 1.6 0 0 1-1.6-1.6V4.4Z"/><path d="M6.6 5.9 10.6 8l-4 2.1V5.9Z"/></svg></span>
+                <span class="source"><svg viewBox="0 0 16 16" fill="none"
+                  stroke="currentColor" stroke-width="1.3" stroke-linecap="round"
+                  stroke-linejoin="round"><path d="M2 12.4V9.6M4.4 12.4V8.2M6.8 12.4V7.2"/><path d="M6.8 12.4h5.1a2.3 2.3 0 0 0 .2-4.6 3.2 3.2 0 0 0-5.3-1.7"/></svg></span>
+              </span>
+              </div>
+              <div class="bar-right">
+                <div class="mini-player mini-recorder">
+                  <span class="mini-waves playing" aria-hidden="true">
+                    <svg viewBox="0 0 156 36" preserveAspectRatio="none" fill="currentColor"><rect x="0.2" y="22.5" width="1.5" height="13.5" rx="0.75"/><rect x="5.6" y="23.4" width="1.5" height="12.6" rx="0.75"/><rect x="10.9" y="18.1" width="1.5" height="17.9" rx="0.75"/><rect x="16.2" y="23.1" width="1.5" height="12.9" rx="0.75"/><rect x="21.5" y="17.4" width="1.5" height="18.6" rx="0.75"/><rect x="26.8" y="18.6" width="1.5" height="17.4" rx="0.75"/><rect x="32.1" y="21.8" width="1.5" height="14.2" rx="0.75"/><rect x="37.4" y="15.2" width="1.5" height="20.8" rx="0.75"/><rect x="42.7" y="21.2" width="1.5" height="14.8" rx="0.75"/><rect x="48.0" y="14.9" width="1.5" height="21.1" rx="0.75"/><rect x="53.4" y="20.0" width="1.5" height="16.0" rx="0.75"/><rect x="58.7" y="19.4" width="1.5" height="16.6" rx="0.75"/><rect x="64.0" y="13.7" width="1.5" height="22.3" rx="0.75"/><rect x="69.3" y="6.7" width="1.5" height="29.3" rx="0.75"/><rect x="74.6" y="18.4" width="1.5" height="17.6" rx="0.75"/><rect x="79.9" y="16.7" width="1.5" height="19.3" rx="0.75"/><rect x="85.2" y="10.0" width="1.5" height="26.0" rx="0.75"/><rect x="90.5" y="5.1" width="1.5" height="30.9" rx="0.75"/><rect x="95.8" y="11.6" width="1.5" height="24.4" rx="0.75"/><rect x="101.1" y="14.9" width="1.5" height="21.1" rx="0.75"/><rect x="106.5" y="6.7" width="1.5" height="29.3" rx="0.75"/><rect x="111.8" y="21.1" width="1.5" height="14.9" rx="0.75"/><rect x="117.1" y="10.4" width="1.5" height="25.6" rx="0.75"/><rect x="122.4" y="18.8" width="1.5" height="17.2" rx="0.75"/><rect x="127.7" y="21.3" width="1.5" height="14.7" rx="0.75"/><rect x="133.0" y="22.1" width="1.5" height="13.9" rx="0.75"/><rect x="138.3" y="20.7" width="1.5" height="15.3" rx="0.75"/><rect x="143.6" y="16.5" width="1.5" height="19.5" rx="0.75"/><rect x="148.9" y="23.1" width="1.5" height="12.9" rx="0.75"/><rect x="154.2" y="20.4" width="1.5" height="15.6" rx="0.75"/></svg>
+                  </span>
+                  <span class="mini-recorder-dot" aria-hidden="true"></span>
+                  <button class="mini-label" title="Otevřít nahrávání">Záznam</button>
+                  <span class="mini-time">09:26</span>
+                  <button class="mini-close" aria-label="Zastavit záznam" title="Zastavit záznam">
+                    <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+                      <rect x="3.4" y="3.4" width="7.2" height="7.2" rx="1.6" fill="currentColor"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </header>
+          </div>
+        </div>
       </li>
       <li>
         <span class="row-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
                stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v9.4 M8.2 9.1 12 12.9l3.8-3.8 M4.5 17.5h15"/></svg>
         </span>
-        <div><b>Uložíte, co potřebujete.</b>
-          <p>Text do TXT, Markdownu, SRT, VTT nebo JSON; zvuk do MP3, M4A nebo WAV.</p></div>
+        <div class="row-words"><b>Uložíte, co potřebujete.</b>
+          <p>Text do TXT, Markdownu, SRT, VTT nebo JSON; zvuk do MP3, M4A nebo WAV.</p>
+        </div>
+        <div class="row-reveal">
+          <div class="row-face shot center">
+            <!-- All eight at once, rather than the top two rows of the Uložit
+                 menu. The application has no icon for a format -- it has the
+                 abbreviation and a sentence -- so these are drawn here, in the
+                 page's own hand, like the windows on the three cards above.
+                 What is the application's is which eight and how they group:
+                 five the transcript goes out in, three the sound does, and the
+                 sound ones carry a waveform where the others carry lines of
+                 text. -->
+            <div class="save-formats">
+              <span class="fmt text">
+                <svg viewBox="0 0 46 52" fill="none" stroke="currentColor"
+                     stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"
+                     aria-hidden="true"><path d="M9 3.5h19L40 15v30.5a3 3 0 0 1-3 3H9a3 3 0 0 1-3-3v-39a3 3 0 0 1 3-3Z"/><path d="M28 3.5V15h12"/><path d="M11.5 21h23M11.5 25.5h23M11.5 30h14"/></svg>
+                <b>TXT</b>
+              </span>
+              <span class="fmt text">
+                <svg viewBox="0 0 46 52" fill="none" stroke="currentColor"
+                     stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"
+                     aria-hidden="true"><path d="M9 3.5h19L40 15v30.5a3 3 0 0 1-3 3H9a3 3 0 0 1-3-3v-39a3 3 0 0 1 3-3Z"/><path d="M28 3.5V15h12"/><path d="M11.5 21h23M11.5 25.5h23M11.5 30h14"/></svg>
+                <b>MD</b>
+              </span>
+              <span class="fmt text">
+                <svg viewBox="0 0 46 52" fill="none" stroke="currentColor"
+                     stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"
+                     aria-hidden="true"><path d="M9 3.5h19L40 15v30.5a3 3 0 0 1-3 3H9a3 3 0 0 1-3-3v-39a3 3 0 0 1 3-3Z"/><path d="M28 3.5V15h12"/><path d="M11.5 21h23M11.5 25.5h23M11.5 30h14"/></svg>
+                <b>SRT</b>
+              </span>
+              <span class="fmt text">
+                <svg viewBox="0 0 46 52" fill="none" stroke="currentColor"
+                     stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"
+                     aria-hidden="true"><path d="M9 3.5h19L40 15v30.5a3 3 0 0 1-3 3H9a3 3 0 0 1-3-3v-39a3 3 0 0 1 3-3Z"/><path d="M28 3.5V15h12"/><path d="M11.5 21h23M11.5 25.5h23M11.5 30h14"/></svg>
+                <b>VTT</b>
+              </span>
+              <span class="fmt text">
+                <svg viewBox="0 0 46 52" fill="none" stroke="currentColor"
+                     stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"
+                     aria-hidden="true"><path d="M9 3.5h19L40 15v30.5a3 3 0 0 1-3 3H9a3 3 0 0 1-3-3v-39a3 3 0 0 1 3-3Z"/><path d="M28 3.5V15h12"/><path d="M11.5 21h23M11.5 25.5h23M11.5 30h14"/></svg>
+                <b>JSON</b>
+              </span>
+              <span class="fmt sound">
+                <svg viewBox="0 0 46 52" fill="none" stroke="currentColor"
+                     stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"
+                     aria-hidden="true"><path d="M9 3.5h19L40 15v30.5a3 3 0 0 1-3 3H9a3 3 0 0 1-3-3v-39a3 3 0 0 1 3-3Z"/><path d="M28 3.5V15h12"/><path d="M13 27v-5M17.5 29.5v-10M22 31.5v-14M26.5 28.5v-8M31 26.5v-4M35 28.5v-8"/></svg>
+                <b>MP3</b>
+              </span>
+              <span class="fmt sound">
+                <svg viewBox="0 0 46 52" fill="none" stroke="currentColor"
+                     stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"
+                     aria-hidden="true"><path d="M9 3.5h19L40 15v30.5a3 3 0 0 1-3 3H9a3 3 0 0 1-3-3v-39a3 3 0 0 1 3-3Z"/><path d="M28 3.5V15h12"/><path d="M13 27v-5M17.5 29.5v-10M22 31.5v-14M26.5 28.5v-8M31 26.5v-4M35 28.5v-8"/></svg>
+                <b>M4A</b>
+              </span>
+              <span class="fmt sound">
+                <svg viewBox="0 0 46 52" fill="none" stroke="currentColor"
+                     stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"
+                     aria-hidden="true"><path d="M9 3.5h19L40 15v30.5a3 3 0 0 1-3 3H9a3 3 0 0 1-3-3v-39a3 3 0 0 1 3-3Z"/><path d="M28 3.5V15h12"/><path d="M13 27v-5M17.5 29.5v-10M22 31.5v-14M26.5 28.5v-8M31 26.5v-4M35 28.5v-8"/></svg>
+                <b>WAV</b>
+              </span>
+            </div>
+          </div>
+        </div>
       </li>
       <li>
         <span class="row-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
                stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v9l-6 6H5a1 1 0 0 1-1-1V5Z M20 14h-5a1 1 0 0 0-1 1v5 M8 9h8 M8 12.5h5"/></svg>
         </span>
-        <div><b>Poznámky drží slovo.</b>
-          <p>Připnete je přesně k času v nahrávce a v panelu je pak máte pohromadě.</p></div>
+        <div class="row-words"><b>Poznámky drží slovo.</b>
+          <p>Připnete je přesně k času v nahrávce a v panelu je pak máte pohromadě.</p>
+        </div>
+        <div class="row-reveal">
+          <div class="row-face shot">
+            <!-- The note open, not shut: shut it is a line of writing and a
+                 time, and the row is about what you can do with it. Open, the
+                 application puts the whole row of controls under the text --
+                 the time it hangs on, the time as a field, Odepnout, Smazat.
+                 The play button loses its figures while the note is open,
+                 because the field beside it is carrying them. -->
+            <ul class="stickies">
+              <li class="sticky open">
+                <div class="sticky-body">
+                  <textarea class="sticky-editor" rows="1" readonly tabindex="-1"
+                    >Spočítat, kolik jsme loni dali za přepisy u agentury.</textarea>
+                  <div class="sticky-tools">
+                    <button class="sticky-time" aria-label="Přejít na 39:07">
+                      <svg width="9" height="10" viewBox="0 0 10 12" aria-hidden="true"><path d="M2 1.8 8.4 6 2 10.2Z" fill="currentColor"/></svg>
+                    </button>
+                    <input class="sticky-time-input" value="39:07" readonly tabindex="-1"
+                           aria-label="Čas poznámky">
+                    <button class="sticky-quiet">Odepnout</button>
+                    <button class="sticky-danger">Smazat</button>
+                  </div>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </div>
       </li>
       <li>
         <span class="row-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
                stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/></svg>
         </span>
-        <div><b>Sledovaná složka.</b>
-          <p>V nastavení zvolíte složku. Volocal ji sleduje, přepisuje a přidává obsah do archivu sám.</p></div>
+        <div class="row-words"><b>Sledovaná složka.</b>
+          <p>V nastavení zvolíte složku. Volocal ji sleduje, přepisuje a přidává obsah do archivu sám.</p>
+        </div>
+        <div class="row-reveal">
+          <div class="row-face shot loop watch">
+            <!-- The switch that stood here said only *transcribe on arrival*,
+                 which is the smaller half of the sentence beside it, and the
+                 folder field that replaced it said only where. What the row is
+                 about is what the folder does while nobody watches: files turn
+                 up in it and are taken one after another. Each line is the
+                 application's own row title -- the status dot and the name --
+                 and the dot goes from working to done as it does in the
+                 archive. -->
+            <ul class="watch-list">
+              <li class="watch-file f1">
+                <span class="row-title">
+                  <span class="row-status-icon" aria-hidden="true">
+                    <span class="mark-slot working"><span class="status-mark transcribing"></span></span>
+                    <span class="mark-slot ready"><span class="status-mark done"></span></span>
+                  </span>
+                  <span class="row-name">Porada vedení 18082026.m4a</span>
+                </span>
+              </li>
+              <li class="watch-file f2">
+                <span class="row-title">
+                  <span class="row-status-icon" aria-hidden="true">
+                    <span class="mark-slot working"><span class="status-mark transcribing"></span></span>
+                    <span class="mark-slot ready"><span class="status-mark done"></span></span>
+                  </span>
+                  <span class="row-name">Hlasová poznámka 0812.m4a</span>
+                </span>
+              </li>
+              <li class="watch-file f3">
+                <span class="row-title">
+                  <span class="row-status-icon" aria-hidden="true">
+                    <span class="mark-slot working"><span class="status-mark transcribing"></span></span>
+                    <span class="mark-slot ready"><span class="status-mark done"></span></span>
+                  </span>
+                  <span class="row-name">Podcast díl 12.mp3</span>
+                </span>
+              </li>
+            </ul>
+          </div>
+        </div>
       </li>
       <li>
         <span class="row-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
                stroke-linecap="round" stroke-linejoin="round"><path d="M11.6 3H5a2 2 0 0 0-2 2v6.6a2 2 0 0 0 .6 1.4l7.4 7.4a2 2 0 0 0 2.8 0l6.6-6.6a2 2 0 0 0 0-2.8L13 3.6a2 2 0 0 0-1.4-.6Z M7.4 8.4h.01"/></svg>
         </span>
-        <div><b>Složky na úložky.</b>
-          <p>Přepisy schováte, kam patří. Zvukové soubory na disku zůstanou, kde jsou.</p></div>
+        <div class="row-words"><b>Složky na úložky.</b>
+          <p>Přepisy schováte, kam patří. Zvukové soubory na disku zůstanou, kde jsou.</p>
+        </div>
+        <div class="row-reveal">
+          <div class="row-face shot">
+            <ul class="list folder-list">
+              <li class="row folder-row">
+                <button class="row-main">
+                  <span class="folder-mark" aria-hidden="true">
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/>
+                    </svg>
+                  </span>
+                  <span class="row-text">
+                    <span class="row-title"><span class="row-name">Porady vedení</span></span>
+                    <span class="recording-metadata">
+                      <span class="recording-metadata-item" title="Počet přepisů: 14 přepisů"><span>14 přepisů</span></span>
+                      <span class="recording-metadata-item" title="Délka nahrávky: 9:42:11"><span>9:42:11</span></span>
+                    </span>
+                  </span>
+                </button>
+                <div class="row-actions"><button class="button">Otevřít</button></div>
+              </li>
+            </ul>
+          </div>
+        </div>
       </li>
       <li>
         <span class="row-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
                stroke-linecap="round" stroke-linejoin="round"><path d="M12 4.5a7.5 7.5 0 1 0 0 15 7.5 7.5 0 0 0 0-15 M12 8.1v4.2l2.9 1.7"/></svg>
         </span>
-        <div><b>Zrychlíte i zpomalíte.</b>
-          <p>Od tří čtvrtin do dvojnásobku, podle toho, jak rychle kdo mluví.</p></div>
+        <div class="row-words"><b>Zrychlíte i zpomalíte.</b>
+          <p>Od tří čtvrtin do dvojnásobku, podle toho, jak rychle kdo mluví.</p>
+        </div>
+        <div class="row-reveal">
+          <div class="row-face shot center">
+            <div class="speeds">
+              <button class="button button-small">0,75×</button>
+              <button class="button button-small">1×</button>
+              <button class="button button-small">1,25×</button>
+              <button class="button button-small current">1,5×</button>
+              <button class="button button-small">2×</button>
+            </div>
+          </div>
+        </div>
       </li>
       <li>
         <span class="row-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
                stroke-linecap="round" stroke-linejoin="round"><path d="M3 6.5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-11Z M10.2 9.4l4.6 2.6-4.6 2.6V9.4Z"/></svg>
         </span>
-        <div><b>Titulky sedí na obraz.</b>
-          <p>SRT i VTT titulky můžete exportovat a použít pro původní video nebo zvuk.</p></div>
+        <div class="row-words"><b>Titulky sedí na obraz.</b>
+          <p>SRT i VTT titulky můžete exportovat a použít pro původní video nebo zvuk.</p>
+        </div>
+        <div class="row-reveal">
+          <div class="row-face shot loop cue">
+            <!-- The application does not draw a subtitle -- a subtitle is
+                 something another program shows. So this is the page's own
+                 picture of the claim: the sound underneath, the line of
+                 speech over it, and one sweep lighting both at the same
+                 moment. Two identical copies stacked, the upper one clipped
+                 by an animated inset -- one animation for the peaks and the
+                 words together, which is the only way they cannot drift. -->
+            <div class="cue-body base">
+              <span class="cue-waves"><svg viewBox="0 0 200 24" preserveAspectRatio="none" fill="currentColor" aria-hidden="true"><rect x="0.5" y="4.1" width="1.5" height="15.7" rx="0.75"/><rect x="5.0" y="3.9" width="1.5" height="16.2" rx="0.75"/><rect x="9.5" y="3.8" width="1.5" height="16.5" rx="0.75"/><rect x="14.0" y="2.9" width="1.5" height="18.3" rx="0.75"/><rect x="18.5" y="6.2" width="1.5" height="11.7" rx="0.75"/><rect x="23.0" y="6.4" width="1.5" height="11.2" rx="0.75"/><rect x="27.5" y="5.8" width="1.5" height="12.4" rx="0.75"/><rect x="32.0" y="7.0" width="1.5" height="10.0" rx="0.75"/><rect x="36.5" y="4.6" width="1.5" height="14.7" rx="0.75"/><rect x="41.0" y="5.2" width="1.5" height="13.5" rx="0.75"/><rect x="45.5" y="7.4" width="1.5" height="9.1" rx="0.75"/><rect x="50.0" y="6.9" width="1.5" height="10.3" rx="0.75"/><rect x="54.5" y="9.0" width="1.5" height="6.0" rx="0.75"/><rect x="59.0" y="8.4" width="1.5" height="7.1" rx="0.75"/><rect x="63.5" y="5.4" width="1.5" height="13.1" rx="0.75"/><rect x="68.0" y="5.8" width="1.5" height="12.3" rx="0.75"/><rect x="72.5" y="3.9" width="1.5" height="16.1" rx="0.75"/><rect x="77.0" y="3.9" width="1.5" height="16.2" rx="0.75"/><rect x="81.5" y="6.5" width="1.5" height="11.0" rx="0.75"/><rect x="86.0" y="5.2" width="1.5" height="13.6" rx="0.75"/><rect x="90.5" y="5.6" width="1.5" height="12.8" rx="0.75"/><rect x="95.0" y="5.4" width="1.5" height="13.1" rx="0.75"/><rect x="99.5" y="2.8" width="1.5" height="18.4" rx="0.75"/><rect x="104.0" y="4.7" width="1.5" height="14.7" rx="0.75"/><rect x="108.5" y="5.7" width="1.5" height="12.7" rx="0.75"/><rect x="113.0" y="6.2" width="1.5" height="11.6" rx="0.75"/><rect x="117.5" y="9.3" width="1.5" height="5.5" rx="0.75"/><rect x="122.0" y="7.8" width="1.5" height="8.4" rx="0.75"/><rect x="126.5" y="6.6" width="1.5" height="10.7" rx="0.75"/><rect x="131.0" y="7.0" width="1.5" height="10.0" rx="0.75"/><rect x="135.5" y="4.6" width="1.5" height="14.8" rx="0.75"/><rect x="140.0" y="6.1" width="1.5" height="11.7" rx="0.75"/><rect x="144.5" y="7.5" width="1.5" height="9.1" rx="0.75"/><rect x="149.0" y="5.9" width="1.5" height="12.2" rx="0.75"/><rect x="153.5" y="6.9" width="1.5" height="10.2" rx="0.75"/><rect x="158.0" y="4.7" width="1.5" height="14.6" rx="0.75"/><rect x="162.5" y="2.5" width="1.5" height="19.0" rx="0.75"/><rect x="167.0" y="4.2" width="1.5" height="15.5" rx="0.75"/><rect x="171.5" y="3.6" width="1.5" height="16.7" rx="0.75"/><rect x="176.0" y="5.4" width="1.5" height="13.1" rx="0.75"/><rect x="180.5" y="7.9" width="1.5" height="8.2" rx="0.75"/><rect x="185.0" y="6.0" width="1.5" height="12.0" rx="0.75"/><rect x="189.5" y="6.6" width="1.5" height="10.7" rx="0.75"/><rect x="194.0" y="6.2" width="1.5" height="11.6" rx="0.75"/></svg></span>
+              <span class="cue-cap"><span>Letos nula. Děláme si je sami.</span></span>
+            </div>
+            <div class="cue-body lit">
+              <span class="cue-waves"><svg viewBox="0 0 200 24" preserveAspectRatio="none" fill="currentColor" aria-hidden="true"><rect x="0.5" y="4.1" width="1.5" height="15.7" rx="0.75"/><rect x="5.0" y="3.9" width="1.5" height="16.2" rx="0.75"/><rect x="9.5" y="3.8" width="1.5" height="16.5" rx="0.75"/><rect x="14.0" y="2.9" width="1.5" height="18.3" rx="0.75"/><rect x="18.5" y="6.2" width="1.5" height="11.7" rx="0.75"/><rect x="23.0" y="6.4" width="1.5" height="11.2" rx="0.75"/><rect x="27.5" y="5.8" width="1.5" height="12.4" rx="0.75"/><rect x="32.0" y="7.0" width="1.5" height="10.0" rx="0.75"/><rect x="36.5" y="4.6" width="1.5" height="14.7" rx="0.75"/><rect x="41.0" y="5.2" width="1.5" height="13.5" rx="0.75"/><rect x="45.5" y="7.4" width="1.5" height="9.1" rx="0.75"/><rect x="50.0" y="6.9" width="1.5" height="10.3" rx="0.75"/><rect x="54.5" y="9.0" width="1.5" height="6.0" rx="0.75"/><rect x="59.0" y="8.4" width="1.5" height="7.1" rx="0.75"/><rect x="63.5" y="5.4" width="1.5" height="13.1" rx="0.75"/><rect x="68.0" y="5.8" width="1.5" height="12.3" rx="0.75"/><rect x="72.5" y="3.9" width="1.5" height="16.1" rx="0.75"/><rect x="77.0" y="3.9" width="1.5" height="16.2" rx="0.75"/><rect x="81.5" y="6.5" width="1.5" height="11.0" rx="0.75"/><rect x="86.0" y="5.2" width="1.5" height="13.6" rx="0.75"/><rect x="90.5" y="5.6" width="1.5" height="12.8" rx="0.75"/><rect x="95.0" y="5.4" width="1.5" height="13.1" rx="0.75"/><rect x="99.5" y="2.8" width="1.5" height="18.4" rx="0.75"/><rect x="104.0" y="4.7" width="1.5" height="14.7" rx="0.75"/><rect x="108.5" y="5.7" width="1.5" height="12.7" rx="0.75"/><rect x="113.0" y="6.2" width="1.5" height="11.6" rx="0.75"/><rect x="117.5" y="9.3" width="1.5" height="5.5" rx="0.75"/><rect x="122.0" y="7.8" width="1.5" height="8.4" rx="0.75"/><rect x="126.5" y="6.6" width="1.5" height="10.7" rx="0.75"/><rect x="131.0" y="7.0" width="1.5" height="10.0" rx="0.75"/><rect x="135.5" y="4.6" width="1.5" height="14.8" rx="0.75"/><rect x="140.0" y="6.1" width="1.5" height="11.7" rx="0.75"/><rect x="144.5" y="7.5" width="1.5" height="9.1" rx="0.75"/><rect x="149.0" y="5.9" width="1.5" height="12.2" rx="0.75"/><rect x="153.5" y="6.9" width="1.5" height="10.2" rx="0.75"/><rect x="158.0" y="4.7" width="1.5" height="14.6" rx="0.75"/><rect x="162.5" y="2.5" width="1.5" height="19.0" rx="0.75"/><rect x="167.0" y="4.2" width="1.5" height="15.5" rx="0.75"/><rect x="171.5" y="3.6" width="1.5" height="16.7" rx="0.75"/><rect x="176.0" y="5.4" width="1.5" height="13.1" rx="0.75"/><rect x="180.5" y="7.9" width="1.5" height="8.2" rx="0.75"/><rect x="185.0" y="6.0" width="1.5" height="12.0" rx="0.75"/><rect x="189.5" y="6.6" width="1.5" height="10.7" rx="0.75"/><rect x="194.0" y="6.2" width="1.5" height="11.6" rx="0.75"/></svg></span>
+              <span class="cue-cap"><span>Letos nula. Děláme si je sami.</span></span>
+            </div>
+          </div>
+        </div>
       </li>
     </ul>
   </section>
@@ -2909,7 +3589,7 @@ footer { padding: 96px 0 72px; }
 
   <section>
     <h2>Na čem to běží</h2>
-    <p class="sec-lede">Bleskurychlý a bezpečný stack s důrazem na udržitelnost.</p>
+    <p class="sec-lede">Bezpečný a bleskurychlý stack s důrazem na udržitelnost.</p>
     <ul class="cards tech">
       <li>
         <span class="card-icon" aria-hidden="true">
@@ -3024,14 +3704,14 @@ footer { padding: 96px 0 72px; }
 
   <section class="business" id="firmy">
     <div class="business-panel">
-      <p>Jste firma a chcete Volocal nasadit jako privátní cloudové řešení?</p>
+      <p>Jste firma a chcete Volocal do privátního cloudu?</p>
       <a class="btn quiet" href="mailto:jsme@znackarna.cz?subject=Volocal%20ve%20firm%C4%9B">Ozvěte se</a>
     </div>
   </section>
 
   <div class="closing">
     <div class="sign"><span id="face"></span></div>
-    <h2>Co spolu dneska přepíšeme?</h2>
+    <h2>Co spolu dnes přepíšeme?</h2>
     <p>Verze 1.2.15 pro Windows 10 a 11. Autor ji používá každý den.</p>
     <div class="cta">
       <a class="btn" href="https://github.com/znackarna/volocal/releases/latest">Stáhnout pro Windows</a>
@@ -3100,6 +3780,51 @@ footer { padding: 96px 0 72px; }
   /* Značka v hlavičce: přesně to, co dělá aplikace — pět vteřin stojí celé
      jméno, pak se sesune na `olo` a pod ukazovátkem se zase rozvine. */
   if (window.volocalWordmark) volocalWordmark(document.getElementById("brand"));
+
+  /* The recorder-pill fragment wears the application's own header bar, so the
+     mark in it does what the mark in a header does: the whole name for five
+     seconds, then down to `olo`, and open again under a pointer. Same call as
+     `#brand` -- no options, so a reader who asked for less motion gets the
+     still mark here too.
+
+     The one difference is when the clock starts. The row is closed at rest, so
+     an intro staged at load would run behind a shut door and the reader would
+     only ever meet the aftermath. It is built on the first open instead, once
+     per page: hover or keyboard focus, whichever arrives first. */
+  var rowWordmark = document.getElementById("row-wordmark");
+  if (rowWordmark && window.volocalWordmark) {
+    var rowHost = rowWordmark.closest("li") || rowWordmark.parentElement;
+    var stage = function () {
+      rowHost.removeEventListener("pointerenter", stage);
+      rowHost.removeEventListener("focusin", stage);
+      volocalWordmark(rowWordmark);
+    };
+    rowHost.addEventListener("pointerenter", stage);
+    rowHost.addEventListener("focusin", stage);
+  }
+
+  /* A card that loops runs only while its row is open, and always from the
+     top: somebody coming back to the row should not join halfway through. The
+     reflow between the two class changes is what makes it a restart -- without
+     it the browser sees no change at all and the loop runs on. */
+  Array.prototype.forEach.call(document.querySelectorAll(".row-face.loop"), function (face) {
+    var host = face.closest("li");
+    var again = function () {
+      face.classList.remove("run");
+      void face.offsetWidth;
+      face.classList.add("run");
+    };
+    host.addEventListener("pointerenter", again);
+    host.addEventListener("focusin", again);
+  });
+
+  /* The recorder slide wears the application's header bar, so its mark does
+     what a mark in a header does. Still, like the wizard's: a carousel slide
+     is not the stage for the name to introduce itself on. */
+  var micMark = document.getElementById("mic-wordmark");
+  if (micMark && window.volocalWordmark) {
+    volocalWordmark(micMark, { reducedMotion: true, label: "volocal" });
+  }
 
   /* V první kartě bydlí značka v domečku. `reducedMotion: true` ji nakreslí
      rovnou a nechá stát — v kartě, která není hlavní scénou, by mrkání jen
