@@ -9,7 +9,7 @@ import { useI18n, type TranslationKey } from "./i18n";
 import { useProgressMessage, useUserMessage } from "./messages";
 import { useFormats } from "./formats";
 import { useDialog } from "./useDialog";
-import { forgetPendingModel, rememberPendingModel } from "./pendingModel";
+import { rememberPendingModel } from "./pendingModel";
 import {
   EDITOR_MODELS,
   UNOFFERED_COMPONENTS,
@@ -664,6 +664,26 @@ export default function SetupWizard({
              download starts and `App.tsx` honours it when the run ends, whether
              or not anybody is still looking at this dialog. */
           changesApplied.quality_choice = MODELS[quality].choice;
+          /* **And the model itself, when nothing had to be fetched for it.**
+             This is the whole of *pak vzniká chaos při opětovném stažení*.
+
+             The model is App.tsx's to write, from the pending record, once
+             `download:complete` says the file landed — and on a machine that
+             already holds the chosen model there is no download, so no event,
+             so nothing was ever written. The dialog closed on *Zavřít*,
+             `settings.model` went on naming the file that had been deleted,
+             and the banner asking for it stayed up. Pressing again did the
+             same thing again.
+
+             The condition App.tsx guards is that the file exists. Here it
+             demonstrably does — `complete` is the catalogue's own answer about
+             the disk — so writing it now breaks nothing that record was
+             protecting. It was reachable before today and became the obvious
+             path the moment the cards stopped ignoring the model already
+             downloaded. */
+          if (items.find((p) => p.id === MODELS[quality].component)?.complete) {
+            changesApplied.model = MODELS[quality].settings;
+          }
         } else {
           /* The by-hand path used to write `editor_model` and nothing else, and
              that was a way to break a working installation with a download that
@@ -700,7 +720,7 @@ export default function SetupWizard({
         /* settings can still be adjusted by hand */
       }
     },
-    [quality, manual]
+    [quality, manual, items]
   );
 
   const start = useCallback(async () => {
@@ -716,37 +736,6 @@ export default function SetupWizard({
           (items.find((p) => p.id === a)?.megabytes ?? 0) -
           (items.find((p) => p.id === b)?.megabytes ?? 0)
       );
-      /* **Nothing left to fetch is a finished run, not a started one.**
-         `install_bundle` returns `Nothing` when every id asked for is already
-         in hand, and it starts no worker — so no `download:complete` is
-         emitted, so `App.tsx` never honours the pending model and `dokonci`
-         never runs. The choice was therefore never written down: the dialog
-         sat on a download that was not happening, `settings.model` went on
-         naming the file that had been deleted, and the banner stayed up.
-         That is the whole of *pak vzniká chaos při opětovném stažení* — and
-         it became reachable the moment the card above stopped ignoring the
-         model already on the disk, because choosing it is now the sensible
-         thing to do.
-
-         Written here rather than through the pending record, and the reason
-         that record exists does not apply: it is for a choice that has to
-         outlive this screen while bytes come down. Nothing is coming down,
-         and the file whose name is being written is already there — which is
-         the one condition `App.tsx` guards. */
-      if (sortedIds.length === 0) {
-        forgetPendingModel();
-        const settings = await api.loadSettings();
-        await api.saveSettings({
-          ...settings,
-          model: MODELS[quality].settings,
-          quality_choice: MODELS[quality].choice,
-        });
-        await load();
-        setRunning(false);
-        setStep(STEP_DONE);
-        return;
-      }
-
       /* Written down before the call, and outside this component. The screen
          that made the choice does not survive `Stahovat na pozadí`, and the
          answer has to. */
@@ -757,7 +746,7 @@ export default function SetupWizard({
       setError(userMessage(e));
       setRunning(false);
     }
-  }, [items, selected, userMessage, quality, load]);
+  }, [items, selected, userMessage, quality]);
 
   /* `cancelled` counts as unfinished, not as done. The backend emits it for
      the component that was interrupted and for every one after it, and then

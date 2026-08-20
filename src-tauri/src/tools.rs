@@ -1463,3 +1463,111 @@ mod memory_tests {
         );
     }
 }
+
+#[cfg(test)]
+mod needed_tests {
+    use super::*;
+
+    /// A machine with nothing installed, in a folder of this test's own.
+    ///
+    /// `use_tools_root_for_this_test` matters as much as the two directories:
+    /// settings name `bin` and `models`, and everything else `check` looks at
+    /// hangs off the tools root, which without this is the real one.
+    fn bare_machine(name: &str, model: &str) -> crate::db::Settings {
+        let directory = std::env::temp_dir().join(format!("volocal-check-{name}"));
+        let _ = std::fs::remove_dir_all(&directory);
+        std::fs::create_dir_all(directory.join("bin")).expect("scratch");
+        std::fs::create_dir_all(directory.join("models")).expect("scratch");
+        use_tools_root_for_this_test(&directory);
+        crate::db::Settings {
+            bin_directory: directory.join("bin").to_string_lossy().to_string(),
+            models_directory: directory.join("models").to_string_lossy().to_string(),
+            model: model.into(),
+            editor_model: String::new(),
+            ..Default::default()
+        }
+    }
+
+    /// **The invariant the report of 20 August broke.** A model deleted by hand
+    /// raised the card's warning and marked no row in the listing that warning
+    /// sent the reader to: complaints on one screen, nothing to press on the
+    /// other.
+    ///
+    /// Nothing here asserts on ffmpeg or on the whisper build, and that is not
+    /// laziness: `find_program_in` falls back to `PATH`, so on a machine with
+    /// ffmpeg installed for other reasons neither is missing and neither is
+    /// asked for. The models have no such fallback, and the pairing itself has
+    /// none either — which is what is checked.
+    #[test]
+    fn every_complaint_leaves_something_to_press() {
+        let settings = bare_machine("needed", "large-v3");
+        let found = check(&settings);
+
+        assert!(
+            !found.issues.is_empty(),
+            "a folder with nothing in it must raise complaints"
+        );
+        assert_eq!(
+            found.issues.is_empty(),
+            found.needed.is_empty(),
+            "complaints and answers appear and vanish together: {:?} against {:?}",
+            found.issues.iter().map(|i| &i.code).collect::<Vec<_>>(),
+            found.needed
+        );
+        assert!(
+            found.needed.contains(&"vad".to_string()),
+            "speech detection is missing: {:?}",
+            found.needed
+        );
+        assert!(
+            found.needed.contains(&"model-large".to_string()),
+            "the model to offer is the one the setting names, not the one this              machine would be sold: {:?}",
+            found.needed
+        );
+    }
+
+    /// A model put in the folder by hand belongs to no component, and the
+    /// answer then has to be one this machine can actually download rather
+    /// than nothing at all — which is what the reader would otherwise get.
+    #[test]
+    fn a_model_no_component_delivers_still_leaves_something_to_press() {
+        let settings = bare_machine("needed-unknown", "small.en");
+        let found = check(&settings);
+
+        assert!(
+            found
+                .needed
+                .iter()
+                .any(|id| id == "model-large" || id == "model-turbo"),
+            "one of the offered pair has to stand in: {:?}",
+            found.needed
+        );
+    }
+
+    /// The list is not everything this application could install; it is the
+    /// answer to one warning. Put the model back and it stops being asked for.
+    #[test]
+    fn a_model_that_is_there_is_not_asked_for_again() {
+        let settings = bare_machine("needed-have-model", "large-v3");
+        std::fs::write(
+            std::path::Path::new(&settings.models_directory).join("ggml-large-v3.bin"),
+            b"not a model, but a file with the right name",
+        )
+        .expect("model");
+
+        let found = check(&settings);
+
+        assert!(
+            !found.needed.contains(&"model-large".to_string()),
+            "the model is on the disk: {:?}",
+            found.needed
+        );
+        assert!(
+            !found
+                .issues
+                .iter()
+                .any(|issue| issue.code == "tools.whisper_model_missing"),
+            "and nothing complains about it either"
+        );
+    }
+}
