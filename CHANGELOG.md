@@ -11,6 +11,12 @@ altered, not how, not which file. Entries before 1.2.6 are written the old way
 and are left as they are; they are not a model for the next one. The mechanism
 belongs in `docs/history/`, which is what that folder is for.
 
+## 1.2.20 — 20 August 2026
+
+- **The save menu opens whole**, instead of being cut off by the dialog it sits in.
+- **A summary is written in the language that was spoken**, so an English
+  recording is summarised in English.
+
 ## 1.2.19 — 20 August 2026
 
 - **A recording survives a crash.** It is written to disk as it is made, and
@@ -20,9 +26,6 @@ belongs in `docs/history/`, which is what that folder is for.
 - **Language editing recovers on its own** instead of staying busy until restart.
 - **A recording never quietly disappears from the archive.**
 - **A model card says it is downloading only while it really is.**
-- **The save menu opens whole**, instead of being cut off by the dialog it sits in.
-- **A summary is written in the language that was spoken**, so an English
-  recording is summarised in English.
 
 ## 1.2.18 — 20 August 2026
 
