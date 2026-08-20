@@ -19,7 +19,7 @@ belongs in `docs/history/`, which is what that folder is for.
 - **The dictionary corrects the transcript you can see**, subtitles included.
 - **Language editing recovers on its own** instead of staying busy until restart.
 - **A recording never quietly disappears from the archive.**
-- **A model card says *stahuje se…* only while it really is.**
+- **A model card says it is downloading only while it really is.**
 
 ## 1.2.18 — 20 August 2026
 
