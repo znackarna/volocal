@@ -344,11 +344,21 @@
     var penTimer = 0;
     var homeTimer = 0;
 
+    /* Not while the mark is the mill. Turned on its side the two `o` are
+       rollers, and a roller does not blink — the squash still fires, so what
+       the eye sees is the machine twitching. The clock keeps running rather
+       than being stopped and restarted, for the same reason the grin's does:
+       a beat skipped is quieter than a beat that lands the moment the work
+       ends. */
+    function working() { return el.classList.contains("working"); }
+
     function blinkOnce() {
-      el.classList.add("blinking");
-      unblinkTimer = setTimeout(function () {
-        el.classList.remove("blinking");
-      }, ALIVE.blinkFor);
+      if (!working()) {
+        el.classList.add("blinking");
+        unblinkTimer = setTimeout(function () {
+          el.classList.remove("blinking");
+        }, ALIVE.blinkFor);
+      }
       blinkTimer = setTimeout(blinkOnce, jitter(ALIVE.blinkEvery));
     }
     function grinOnce() {
@@ -356,7 +366,10 @@
          starting again on the way out would mean the face smiles a second time
          the moment the pointer leaves — which reads as an answer to having been
          there, and the unprompted smile is meant to be a mood. */
-      if (!grin.hovering) {
+      /* And no unprompted smile while the mill runs: `.working` hides the
+         smile, so the glide would happen behind a curtain and the shape that
+         swings back when the work ends would be whatever the grin left there. */
+      if (!grin.hovering && !working()) {
         glide(ALIVE.grinTo, ALIVE.grinFor, easeOutBack);
         grin.back = setTimeout(function () {
           glide(SMILE.rest, ALIVE.grinFor * 1.6, easeOut);

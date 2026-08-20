@@ -13,7 +13,11 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, "volocal-page.html")
 
-page = io.open(os.path.join(HERE, "index.html"), encoding="utf-8").read()
+# The page to bundle. `index.html` unless a second argument names another one,
+# which is how a one-off sample beside it gets the same fonts and stylesheet.
+SOURCE = sys.argv[2] if len(sys.argv) > 2 else "index.html"
+
+page = io.open(os.path.join(HERE, SOURCE), encoding="utf-8").read()
 
 
 def read(name):

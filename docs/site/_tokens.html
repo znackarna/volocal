@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kusy rozhraní</title>
+<link rel="stylesheet" href="app-shot.css">
+<style>
+@font-face { font-family: "Geist Variable"; src: url(fonts/geist-latin-wght-normal.woff2) format("woff2-variations"); font-weight: 100 900; font-display: swap; }
+@font-face { font-family: "Literata Variable"; src: url(fonts/literata-latin-wght-normal.woff2) format("woff2-variations"); font-weight: 200 900; font-display: swap; }
+
+body {
+  margin: 0; padding: 56px 32px 80px; background: var(--ground); color: var(--text);
+  font-family: var(--font); font-size: 14px; line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+.wrap { max-width: 1180px; margin-inline: auto; }
+h1 { margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -.03em; }
+.lede { margin: 14px 0 0; max-width: 62ch; font-family: var(--font-body); font-size: 18px; line-height: 1.6; color: var(--text-quiet); }
+
+.grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; margin: 48px 0 0; }
+.demo {
+  border: 1px solid var(--line); border-radius: var(--r-card); background: var(--panel);
+  padding: 20px 22px 22px;
+}
+/* Two kinds of stage, because two of these are cut-outs rather than objects:
+   `.mini-player` fills itself with `--ground` so it reads as a hole in the
+   surface it sits in. On a stage of that same grey there is no pill left to
+   see, so those two stand on the application bar, which is `--panel`. */
+.stage {
+  display: flex; align-items: center; justify-content: center;
+  height: 96px; padding: 0; margin-bottom: 16px;
+  border-radius: 10px; background: var(--ground); border: 1px solid var(--line);
+  overflow: hidden;
+}
+/* Every text-bearing fragment stands in a box of one width — 420 px — so
+   their edges line up from card to card and a sentence sits on two easy
+   lines instead of a narrow tower. The two pills are exempt: they keep the
+   width the application gives them (290 and 200 px) and stand on the bar
+   above, and the speeds row centres at its natural size. */
+.stage > * { width: 420px; max-width: calc(100% - 32px); flex: 0 0 auto; }
+/* Fragments that bring their own colour (the blue segment, the yellow sticky,
+   the grey uncertain segment) would read as a frame inside a frame if centred
+   on the grey stage. Instead the fragment IS the stage surface: it stretches
+   to the full box, loses its own rounding (the stage's 10 px and its
+   `overflow: hidden` shape the corners), and its content is recomposed into
+   the same centred 420 px column every other card uses, vertically centred.
+   `calc(50% - 210px)` is half the leftover beside that column; padding clamps
+   to 0 when a narrow stage leaves none. Layout only — colours, type and the
+   fragments' internal geometry stay the application's. */
+.stage.fill { display: grid; grid-template: minmax(0, 1fr) / minmax(0, 1fr); }
+.stage.fill > * {
+  width: 100%; max-width: none; height: 100%; box-sizing: border-box;
+  margin: 0; border-radius: 0;
+}
+.stage.fill .segment { align-content: center; padding: 0 calc(50% - 210px); }
+/* The app pins the actions to the segment's first line; on a fixed-height
+   surface with one centred line, the middle of that line is the same place. */
+.stage.fill .segment-actions { top: 50%; translate: 0 -50%; right: calc(50% - 206px); }
+.stage.fill .stickies { display: grid; grid-template: minmax(0, 1fr) / minmax(0, 1fr); }
+.stage.fill .sticky {
+  height: 100%; box-sizing: border-box; border-radius: 0;
+  display: grid; align-content: center; padding: 0 calc(50% - 210px);
+}
+.stage .speeds { width: auto; justify-content: center; }
+.stage.bar-stage { background: none; }
+.stage.bar-stage > .bar { width: 100%; max-width: none; height: 94px; border-bottom: 0; border-radius: 9px; justify-content: center; }
+/* Centred on the bar and both pills at one width, at the owner's ask. In the
+   application the player is 290 and the recorder 200 and both keep the right
+   edge — that stays true in the app; the sample trades it for a tidy row.
+   `.mini-player.mini-recorder` beats the app's own 200 by the page coming
+   later in the cascade at equal specificity. */
+.stage.bar-stage .bar-left { display: none; }
+.stage.bar-stage .mini-player,
+.stage.bar-stage .mini-player.mini-recorder { width: 290px; }
+.demo b { display: block; font-size: 15px; font-weight: 680; letter-spacing: -.01em; }
+.demo p { margin: 6px 0 0; font-size: 13px; line-height: 1.5; color: var(--text-quiet); }
+.demo em { font-style: normal; color: var(--accent); }
+.demo code { font-family: var(--font-path); font-size: 12px; }
+.note { margin: 40px 0 0; max-width: 68ch; font-family: var(--font-body); font-size: 17px; line-height: 1.6; color: var(--text-quiet); }
+@media (max-width: 900px) {
+  .grid { grid-template-columns: minmax(0, 1fr); }
+  /* The application compacts its pill below 900 px — vlna, název i čas zmizí a
+     zbude prázdná kapsle. Ta podmínka se ale ptá na okno prohlížeče, a to tady
+     není okno aplikace: pilulka má svých 290 px bez ohledu na to, jak úzká je
+     stránka kolem ní. Proto se ta media query pro ukázku vrací zpátky. */
+  .stage.bar-stage .mini-player { width: 290px; }
+  .stage.bar-stage .mini-player > .mini-waves,
+  .stage.bar-stage .mini-player > .mini-label,
+  .stage.bar-stage .mini-player > .mini-time { display: block; }
+  .stage.bar-stage .mini-player > .mini-waves { display: block; }
+}
+</style>
+</head>
+<body>
+<div class="wrap shot">
+
+  <h1>Kusy rozhraní na kartách</h1>
+  <p class="lede">Ukázka, než to zapracuji. Každý kus je opravdový prvek aplikace pod
+    jejím vlastním stylem — nic z toho není překreslené. Řekněte, které z nich chcete
+    na kterou kartu, a nasadím je.</p>
+
+  <div class="grid">
+
+    <div class="demo">
+      <div class="stage bar-stage">
+        <header class="bar">
+          <div class="bar-left"></div>
+          <div class="bar-right">
+            <div class="mini-player">
+              <span class="mini-waves playing" id="waves-player" aria-hidden="true"><canvas></canvas></span>
+              <button class="mini-play" aria-label="Přehrát">
+                <svg class="mini-ring" width="30" height="30" viewBox="0 0 30 30" aria-hidden="true">
+                  <circle class="mini-track" cx="15" cy="15" r="12.5"/>
+                  <circle class="mini-progress" cx="15" cy="15" r="12.5" stroke-dasharray="78.54" stroke-dashoffset="27"/>
+                </svg>
+                <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+                  <rect x="2.5" y="2" width="2.8" height="8" rx="0.9" fill="currentColor"/>
+                  <rect x="6.7" y="2" width="2.8" height="8" rx="0.9" fill="currentColor"/>
+                </svg>
+              </button>
+              <button class="mini-label">Porada vedení</button>
+              <span class="mini-time">39:11</span>
+              <button class="mini-close" aria-label="Zastavit">
+                <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+                  <path d="M3 3l8 8M11 3l-8 8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </header>
+      </div>
+      <b>Mini přehrávač</b>
+      <p>Sedí v hlavičce, dokud něco hraje — přehrávání běží dál, i když jste jinde
+        v aplikaci. Prstenec kolem tlačítka ukazuje, kde jste.</p>
+    </div>
+
+    <div class="demo">
+      <div class="stage bar-stage">
+        <header class="bar">
+          <div class="bar-left"></div>
+          <div class="bar-right">
+            <div class="mini-player mini-recorder">
+              <span class="mini-waves playing" id="waves-recorder" aria-hidden="true"><canvas></canvas></span>
+              <span class="mini-recorder-dot" aria-hidden="true"></span>
+              <button class="mini-label">Nahrávám</button>
+              <span class="mini-time">1:04</span>
+              <button class="mini-close" aria-label="Zastavit nahrávání">
+                <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+                  <rect x="3.4" y="3.4" width="7.2" height="7.2" rx="1.6" fill="currentColor"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </header>
+      </div>
+      <b>Mini rekordér</b>
+      <p>Stejná pilulka, když se nahrává: tepající červená tečka, čas a čtvereček
+        pro stop. Ke kartě <em>Přepíšete odkudkoli</em>.</p>
+    </div>
+
+    <div class="demo">
+      <div class="stage fill">
+        <div class="segment current" style="border-left-color: #2563eb">
+          <button class="time-mark">39:07</button>
+          <p class="segment-text">
+            <span class="word sounded">Letos</span>
+            <span class="word sounded">za</span>
+            <span class="word sounded">přepisy</span>
+            <span class="word sounded">nedáme</span>
+            <span class="word">vůbec</span>
+            <span class="word">nic.</span>
+            <span class="word">Děláme</span>
+            <span class="word">si</span>
+            <span class="word">je</span>
+            <span class="word">sami.</span>
+          </p>
+        </div>
+      </div>
+      <b>Slovo, které právě zní</b>
+      <p>Úsek pod přehrávací hlavou má vlastní pozadí a slova, která už zazněla,
+        jsou v akcentu. Tohle patří ke kartě <em>Vidíte, co slyšíte</em>.</p>
+    </div>
+
+    <div class="demo">
+      <div class="stage">
+        <ul class="speaker-list">
+          <li>
+            <button type="button" class="speaker-sample" style="background: #2563eb" aria-label="Přehrát ukázku">
+              <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2.5 1.5 L8.5 5 L2.5 8.5 Z" fill="currentColor"/></svg>
+            </button>
+            <input value="Jana" aria-label="Jméno mluvčího" spellcheck="false" tabindex="-1">
+            <span class="speaker-share">47 %</span>
+          </li>
+          <li>
+            <button type="button" class="speaker-sample" style="background: #c2410c" aria-label="Přehrát ukázku">
+              <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2.5 1.5 L8.5 5 L2.5 8.5 Z" fill="currentColor"/></svg>
+            </button>
+            <input value="Tomáš" aria-label="Jméno mluvčího" spellcheck="false" tabindex="-1">
+            <span class="speaker-share">31 %</span>
+          </li>
+        </ul>
+      </div>
+      <b>Řádky mluvčích</b>
+      <p>Barevná tečka na ukázku hlasu, jméno k přepsání, podíl na řeči.
+        Ke kartě <em>Vidíte, kdo co řekl</em>.</p>
+    </div>
+
+    <div class="demo">
+      <div class="stage fill">
+        <ul class="stickies">
+          <li class="sticky">
+            <div class="sticky-body">
+              <button class="sticky-text">Spočítat, kolik jsme loni dali za přepisy.</button>
+              <div class="sticky-tools">
+                <button class="sticky-time" aria-label="Přejít na 39:07">
+                  <svg width="9" height="10" viewBox="0 0 10 12" aria-hidden="true"><path d="M2 1.8 8.4 6 2 10.2Z" fill="currentColor"/></svg>
+                  39:07
+                </button>
+              </div>
+            </div>
+          </li>
+        </ul>
+      </div>
+      <b>Poznámka na papírku</b>
+      <p>Žlutá je v aplikaci jediná barva, která není chrom — říká „psáno rukou“.
+        Ke kartě <em>Poznámky drží slovo</em>.</p>
+    </div>
+
+    <div class="demo">
+      <div class="stage">
+        <div class="speeds">
+          <button class="button button-small">0,75×</button>
+          <button class="button button-small current">1×</button>
+          <button class="button button-small">1,25×</button>
+          <button class="button button-small">1,5×</button>
+          <button class="button button-small">2×</button>
+        </div>
+      </div>
+      <b>Rychlosti přehrávání</b>
+      <p>Pilulky <code>.button.button-small</code>, vybraná v inverzi — přesně to,
+        co má hlavička přepisu. Ke kartě <em>Zrychlíte i zpomalíte</em>.</p>
+    </div>
+
+    <div class="demo">
+      <div class="stage">
+        <div>
+          <div class="progress-bar"><div class="progress-fill" style="width: 64%"></div></div>
+          <div class="progress-label" style="margin-top: 8px">
+            <span>Přepisuji</span>
+            <span class="p-progress-count">64 %</span>
+          </div>
+        </div>
+      </div>
+      <b>Průběh přepisu</b>
+      <p>Pruh a procenta z archivu. Ke kartě <em>Hodinu zvládne za minutu</em>,
+        nebo do trojice hlavních karet.</p>
+    </div>
+
+    <div class="demo">
+      <div class="stage fill">
+        <div class="segment uncertain" style="border-left-color: #c2410c">
+          <button class="time-mark">39:19</button>
+          <div class="segment-actions" style="opacity: 1">
+            <button title="Je to správně" aria-label="Označit jako správné">
+              <svg width="15" height="15" viewBox="0 0 14 14" aria-hidden="true">
+                <path d="M2.5 7.5l3 3 6-7" fill="none" stroke="currentColor"
+                      stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+            <button title="Opravit text" aria-label="Opravit text">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17v3Z M13.5 6.5l4 4"
+                      stroke="currentColor" stroke-width="1.7"
+                      stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+          </div>
+          <p class="segment-text">
+            <span class="word">Za</span>
+            <span class="word">přepisy</span>
+            <span class="word">letos</span>
+            <span class="word">ani</span>
+            <span class="word">korunu.</span>
+          </p>
+        </div>
+      </div>
+      <b>Nejisté místo</b>
+      <p>Tečkované podtržení pod celým úsekem a po ruce fajfka a tužka — schválit,
+        nebo opravit. Ke kartě <em>Odhalíte nejistá místa</em>.</p>
+    </div>
+
+  </div>
+
+  <p class="note">Peaky kreslí stejný kód jako aplikace — <code>drawBars</code>
+    z <code>src/player.tsx</code>, se stejnými čísly, jaká té komponentě předává.
+    Oba proužky teď dostávají stejné hodnoty, takže je to jedna nahrávka; liší se
+    už jen tvarováním, které si každý z nich v aplikaci říká sám (přehrávač
+    0,7 / 0,04 / 0,55, rekordér 0,85 / 0,15 / 0,95). Výšky jsou to jediné
+    vymyšlené: v aplikaci vycházejí z dekódovaného zvuku, tady z pevného vzorce,
+    takže vypadají pokaždé stejně.</p>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* `drawBars` a `emphasise` ze `src/player.tsx`. Ne přiblížení: stejná šířka
+     sloupku, stejné zaoblení, stejná podlaha i strop, stejné kotvení ke dnu
+     bez zaoblení tam, kde sloupek stojí na hraně. */
+  function emphasise(value, gamma, floor, peak) {
+    var above = (value - floor) / Math.max(0.001, peak - floor);
+    return above <= 0 ? 0 : Math.min(1, Math.pow(above, gamma));
+  }
+
+  function drawBars(canvas, values, o) {
+    var ctx = canvas.getContext("2d");
+    var w = canvas.width, h = canvas.height;
+    if (!ctx || !w || !h) return;
+    ctx.clearRect(0, 0, w, h);
+
+    var gain = 1.6;
+    var widthBars = Math.max(1, Math.round(o.thickness * o.ratio));
+    var step = w / values.length;
+    var centerLine = h;
+    var maxHeight = (centerLine - Math.round(o.ratio)) * o.ceiling;
+    var minHeight = Math.max(widthBars, Math.round(2 * o.ratio));
+    var r = widthBars / 2;
+
+    ctx.fillStyle = getComputedStyle(canvas).color;
+    ctx.beginPath();
+    for (var i = 0; i < values.length; i += 1) {
+      var x = Math.round(i * step + (step - widthBars) / 2);
+      var shaped = emphasise(values[i], o.gamma, o.floor, o.peak);
+      var height = Math.max(minHeight, Math.round(Math.min(1, shaped * gain) * maxHeight));
+      ctx.roundRect(x, centerLine - height, widthBars, height, [r, r, 0, 0]);
+    }
+    ctx.fill();
+  }
+
+  /* Čtyřicet čtyři pásem, což je `MINI_BANDS`. */
+  function bands(count) {
+    var out = [];
+    for (var i = 0; i < count; i += 1) {
+      var t = i / count;
+      var a = 0.5 + 0.5 * Math.sin(t * 17.3 + 0.9);
+      var b = 0.5 + 0.5 * Math.sin(t * 4.1 + 1.5);
+      var c = 0.5 + 0.5 * Math.sin(t * 41.9 + 0.3);
+      out.push(Math.max(0.05, Math.pow(b, 0.7) * (0.45 + 0.55 * a) * (0.72 + 0.28 * c)));
+    }
+    return out;
+  }
+
+  var VALUES = bands(44);
+
+  function paint(host, options) {
+    if (!host) return;
+    var canvas = host.querySelector("canvas");
+    var ratio = window.devicePixelRatio || 1;
+    var w = host.clientWidth, h = host.clientHeight;
+    if (!canvas || !w || !h) return;
+    canvas.width = Math.round(w * ratio);
+    canvas.height = Math.round(h * ratio);
+    canvas.style.width = w + "px";
+    canvas.style.height = h + "px";
+    options.ratio = ratio;
+    drawBars(canvas, VALUES, options);
+  }
+
+  function draw() {
+    paint(document.getElementById("waves-player"),
+          { gamma: 0.7, floor: 0.04, peak: 0.55, ceiling: 0.78, thickness: 1.5 });
+    paint(document.getElementById("waves-recorder"),
+          { gamma: 0.85, floor: 0.15, peak: 0.95, ceiling: 0.78, thickness: 1.5 });
+  }
+
+  draw();
+  window.addEventListener("resize", draw, { passive: true });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(draw);
+}());
+</script>
+</body>
+</html>

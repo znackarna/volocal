@@ -40,6 +40,10 @@
      and one second close. It is the same mark doing the same thing. */
   if (shotWordmark && window.volocalWordmark) volocalWordmark(shotWordmark, { label: "Archiv" });
 
+  /* The first-run view carries the same header, so it carries the same mark. */
+  var wizardWordmark = document.getElementById("wizard-wordmark");
+  if (wizardWordmark && window.volocalWordmark) volocalWordmark(wizardWordmark, { label: "Archiv" });
+
   var millHost = document.getElementById("shot-mill");
   /* The archive window shows a recording being transcribed, and while that
      runs the mark turns on its side and becomes the mill. */

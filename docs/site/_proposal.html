@@ -512,6 +512,150 @@ main > section > h2 {
 @media (max-width: 980px) { .cards { column-count: 2; } }
 @media (max-width: 620px) { .cards { column-count: 1; } }
 
+/* Each of the ten function rows carries one fragment of the application's
+   own UI -- the owner's ask of 19 August: not a separate band above the
+   list, a token on every card. The first cut stacked the faces under the
+   sentences and the owner turned it down for swelling the section; what
+   stands is his own counter-proposal: at rest the row is exactly the text
+   list it always was, and the fragment slides in over the sentence while the
+   pointer -- or keyboard focus -- is on the row. The sentence still says
+   everything on its own; a phone never sees the fragment, so the fragment
+   is proof, not information, and no wording lives only inside it.
+
+   Sideways, and over the words, on the owner's word of 20 August. The first
+   build unfolded the fragment under the sentence, which meant the row grew
+   by 106 px under the pointer and everything below it hopped -- reading two
+   rows down became a moving target. Out of flow there is nothing to push:
+   the card is absolute, one fixed height, and the row measures the same
+   whether it is open or shut. */
+.rows li:has(.row-reveal) { position: relative; }
+.row-reveal {
+  position: absolute; z-index: 2;
+  /* From the text column, not the row: the drawing stays out in its own
+     22 px column and holds the reader's place while the words go. */
+  left: 36px; right: 0; top: 50%; height: 92px;
+  transform: translateY(-50%) translateX(20px); opacity: 0;
+  pointer-events: none;
+  transition: transform 0.26s cubic-bezier(.4, 0, .2, 1), opacity 0.2s ease;
+}
+/* The card is one height on every row, taller than the two lines it covers
+   and shorter than the row itself, so it is the same object everywhere and
+   still never reaches the hairline above or below. */
+.rows li:hover .row-reveal,
+.rows li:focus-within .row-reveal {
+  transform: translateY(-50%) translateX(0); opacity: 1; pointer-events: auto;
+}
+/* The words leave the way the card arrives, a shorter distance so the card
+   is the thing that moves. */
+.row-words { transition: transform 0.26s cubic-bezier(.4, 0, .2, 1), opacity 0.18s ease; }
+.rows li:hover .row-words,
+.rows li:focus-within .row-words { transform: translateX(-10px); opacity: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .row-reveal, .row-words { transition: opacity 0.2s ease; }
+  .rows li:hover .row-reveal,
+  .rows li:focus-within .row-reveal { transform: translateY(-50%); }
+  .rows li:hover .row-words,
+  .rows li:focus-within .row-words { transform: none; }
+}
+/* One surface per fragment: 92 px tall, the row's column width, a `--line`
+   hairline, `--r-card` corners. Where the fragment brings a fill of its own
+   (a highlighted segment, the note paper, the header bar, the save menu's
+   panel) it fills the surface edge to edge and gives up its own radius, so
+   nothing sits in a frame inside a frame; where it has none, the surface
+   stays the app's `--ground` and the fragment is centred on it. `shot` on
+   every face: app-shot.css prefixes every rule with it, so a fragment
+   outside such a wrapper draws as bare HTML -- raw input boxes and no
+   colour. */
+.row-face {
+  height: 100%; min-height: 0; overflow: hidden;
+  /* Opaque, because it lies on top of the sentence rather than under it, and
+     lifted by the same shadow the cards above use -- an object that arrived,
+     not a panel that was always there. */
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line), var(--shadow);
+  border-radius: var(--r-card);
+  display: grid; grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+}
+/* Fragment and strut share the one cell -- auto-placement would otherwise
+   shove the fragment into an implicit second row under the strut. */
+.row-face > * { min-width: 0; grid-area: 1 / 1; }
+/* Three ways in, one after another. The sentence beside this row names all
+   three -- a microphone, a link, a file dragged in -- and a single still can
+   only ever show the last of them. The card turns through the three surfaces
+   the application really uses: the archive's drop panel, the field the online
+   dialog asks in, and the recorder running in the header bar. It stands still
+   until the row opens, and starts again from the file every time it does, so
+   the card plays in the order the sentence reads. */
+.row-face.ways > .way {
+  grid-area: 1 / 1; opacity: 0;
+  display: grid; grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+}
+.row-face.ways > .way > .field {
+  align-self: center; justify-self: center; width: min(100%, 420px);
+}
+.row-face.ways.run > .way { animation: way-turns 8.4s ease infinite; }
+.row-face.ways.run > .way:nth-child(2) { animation-delay: 2.8s; }
+.row-face.ways.run > .way:nth-child(3) { animation-delay: 5.6s; }
+/* Each way holds the floor for a third of the loop and hands over in the
+   4 % either side of the change -- about a third of a second, the amount the
+   application gives its own dialogs. */
+@keyframes way-turns {
+  0%   { opacity: 0; transform: translateY(9px); }
+  4%   { opacity: 1; transform: translateY(0); }
+  29%  { opacity: 1; transform: translateY(0); }
+  33%  { opacity: 0; transform: translateY(-9px); }
+  100% { opacity: 0; transform: translateY(-9px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  /* No turning; the first way stands. The sentence still names all three, so
+     nothing is lost that only the card knew. */
+  .row-face.ways.run > .way { animation: none; }
+  .row-face.ways > .way:first-child { opacity: 1; }
+}
+/* The drop panel carries the archive's own 20/16 above and below it, for a
+   list it sits on top of. Here the card is the window, so the panel is the
+   whole of it -- and the selector has to out-weigh `.shot .archive-drop-zone
+   .compact`, which is why `.ways` is in it and not only `.row-face`. Left at
+   two classes the padding stayed, and the panel lost the second line of its
+   own sentence off the bottom edge.
+
+   The dashed edge takes the card's radius so the two frames land on each
+   other. Nested, they were the doubleframe this page has been told off for
+   once already. */
+.row-face.ways .archive-drop-zone { height: 100%; background: none; }
+.row-face.ways .archive-drop-zone.compact { padding: 0; }
+.row-face.ways .archive-drop-zone-surface {
+  min-height: 0; height: 100%; border-radius: var(--r-card);
+}
+/* A settings field on a card has no column to take its width from. 420 px is
+   the application's own dialog width for a question with fields. */
+.row-face .field.watch-field { width: min(100%, 420px); }
+/* Loose fragments -- a switch, the speed pills -- stand centred on the ground. */
+.row-face.center { place-items: center; }
+/* The fragments that are the surface. */
+.row-face .segment { display: grid; align-content: center; margin: 0; border-radius: 0; height: 100%; }
+/* The app shows a segment's actions on its top edge, beside a first line the
+   segment aligns to its top; this face centres the one line, so the actions
+   centre with it. */
+.row-face .segment-actions { top: 50%; transform: translateY(-50%); }
+.row-face .stickies { display: grid; height: 100%; }
+.row-face .sticky { height: 100%; display: grid; align-content: center; border-radius: 0; border: 0; }
+.row-face .bar { height: 100%; border-bottom: 0; }
+.row-face .save-list {
+  position: static; height: 100%; min-width: 0;
+  border: 0; border-radius: 0; box-shadow: none; justify-content: center;
+}
+.row-face .list { display: grid; height: 100%; margin: 0; padding: 0; }
+.row-face .folder-row { height: 100%; border-radius: 0; border: 0; align-content: center; }
+/* The pill's waveform is a live canvas in the application; here it is the
+   same bars drawn once, as an SVG filling the same box. */
+.row-face .mini-waves > svg { display: block; width: 100%; height: 100%; }
+/* Below the section's one-column breakpoint the fragments go entirely: a
+   phone has no hover and gets the clean text list. This also retires the
+   app's own 900 px rule that would fold the recorder pill -- by the time it
+   bites, the fragment is gone. */
+@media (max-width: 900px) { .row-reveal { display: none; } }
+
 /* Hierarchy. Three cards carry the reasons somebody installs this at all, so
    they stand above the masonry as a grid of three and one step larger — 19 px
    title, the icon in the accent colour. Twelve cards of equal weight asked the
@@ -2807,87 +2951,306 @@ footer { padding: 96px 0 72px; }
       </li>
     </ul>
 
+
     <ul class="rows">
       <li>
         <span class="row-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
                stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h2.6l2-6.4 3 12.8 2.4-9.4 2 5.2 1.6-2.2H22"/></svg>
         </span>
-        <div><b>Vidíte, co slyšíte.</b>
+        <div class="row-words"><b>Vidíte, co slyšíte.</b>
           <p>Vždycky vidíte to, co právě posloucháte. Žádné přetáčení a hledání.
-          Stačí kliknout.</p></div>
+          Stačí kliknout.</p>
+        </div>
+        <div class="row-reveal">
+          <div class="row-face shot">
+            <div class="segment current">
+              <button class="time-mark">39:07</button>
+              <p class="segment-text">
+                <span class="word sounded">Letos</span>
+                <span class="word sounded">za</span>
+                <span class="word sounded">přepisy</span>
+                <span class="word">ani</span>
+                <span class="word">korunu.</span>
+              </p>
+            </div>
+          </div>
+        </div>
       </li>
       <li>
         <span class="row-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
                stroke-linecap="round" stroke-linejoin="round"><path d="M5 19h3.5L19.4 8.1a1.9 1.9 0 0 0 0-2.7l-.8-.8a1.9 1.9 0 0 0-2.7 0L5 15.5V19Z M14.8 6.6l2.6 2.6"/></svg>
         </span>
-        <div><b>Opravíte, co nesedí.</b>
-          <p>Text si přečtete, přepíšete v něm slovo i větu a vyhledáte v něm, co potřebujete.</p></div>
+        <div class="row-words"><b>Opravíte, co nesedí.</b>
+          <p>Text si přečtete, přepíšete v něm slovo i větu a vyhledáte v něm, co potřebujete.</p>
+        </div>
+        <div class="row-reveal">
+          <div class="row-face shot">
+            <div class="segment">
+              <button class="time-mark">12:41</button>
+              <p class="segment-text">
+                <span class="word">Podcasty</span>
+                <span class="word">z</span>
+                <span class="word">YouTube</span>
+                <span class="word">dáme</span>
+                <span class="word">na</span>
+                <span class="word corrected">blog.</span>
+              </p>
+            </div>
+          </div>
+        </div>
       </li>
       <li>
         <span class="row-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
                stroke-linecap="round" stroke-linejoin="round"><path d="M2.6 12s3.6-6 9.4-6 9.4 6 9.4 6-3.6 6-9.4 6-9.4-6-9.4-6Z M12 14.6a2.6 2.6 0 1 0 0-5.2 2.6 2.6 0 0 0 0 5.2Z"/></svg>
         </span>
-        <div><b>Odhalíte nejistá místa.</b>
-          <p>Volocal označí sporná místa, takže víte, kam se podívat, než přepis pošlete dál.</p></div>
+        <div class="row-words"><b>Odhalíte nejistá místa.</b>
+          <p>Volocal označí sporná místa, takže víte, kam se podívat, než přepis pošlete dál.</p>
+        </div>
+        <div class="row-reveal">
+          <div class="row-face shot">
+            <div class="segment uncertain">
+              <button class="time-mark">21:03</button>
+              <div class="segment-actions" style="opacity: 1">
+                <button title="Je to správně" aria-label="Označit jako správné">
+                  <svg width="15" height="15" viewBox="0 0 14 14" aria-hidden="true">
+                    <path d="M2.5 7.5l3 3 6-7" fill="none" stroke="currentColor"
+                          stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </button>
+                <button title="Opravit text" aria-label="Opravit text">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17v3Z M13.5 6.5l4 4"
+                          stroke="currentColor" stroke-width="1.7"
+                          stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </button>
+              </div>
+              <p class="segment-text">
+                <span class="word">Hlasovky</span>
+                <span class="word">půjdou</span>
+                <span class="word">rovnou</span>
+                <span class="word">Petrovi.</span>
+              </p>
+            </div>
+          </div>
+        </div>
       </li>
       <li>
         <span class="row-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
                stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 4.5h6v6 M19.5 4.5 11.5 12.5 M17 13.5v5A1.5 1.5 0 0 1 15.5 20h-10A1.5 1.5 0 0 1 4 18.5v-10A1.5 1.5 0 0 1 5.5 7h5"/></svg>
         </span>
-        <div><b>Přepíšete odkudkoli.</b>
-          <p>Nahrajete z mikrofonu, vložíte odkaz na online službu, nebo přetáhnete soubor do okna.</p></div>
+        <div class="row-words"><b>Přepíšete odkudkoli.</b>
+          <p>Nahrajete z mikrofonu, vložíte odkaz na online službu, nebo přetáhnete soubor do okna.</p>
+        </div>
+        <div class="row-reveal">
+          <div class="row-face shot ways" id="ways">
+            <div class="way">
+              <!-- The archive's own drop panel, in the compact form it takes
+                   once the list under it has been scrolled. -->
+              <div class="archive-drop-zone compact">
+                <div class="archive-drop-zone-surface">
+                  <span class="archive-drop-zone-mark" id="ways-mark"></span>
+                  <div class="archive-drop-zone-copy">
+                    <h1>Sem přetáhněte svou nahrávku</h1>
+                    <p>Přepis se spustí automaticky. Data neopustí počítač.</p>
+                  </div>
+                  <div class="archive-drop-zone-actions">
+                    <button class="button primary">
+                      <svg width="15" height="15" viewBox="0 0 15 15" aria-hidden="true">
+                        <path d="M7.5 2v11M2 7.5h11" fill="none" stroke="currentColor"
+                              stroke-width="1.5" stroke-linecap="round"/>
+                      </svg>
+                      Nový přepis
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="way">
+              <!-- Přidat nahrávku > Online služba: the field the dialog asks in. -->
+              <div class="field add-recording-url">
+                <label>Odkaz na záznam</label>
+                <input value="https://www.youtube.com/watch?v=8s_4pAB_2fA" readonly tabindex="-1"
+                       aria-label="Odkaz na záznam">
+              </div>
+            </div>
+            <div class="way">
+              <header class="bar">
+                <div class="bar-left">
+                  <span class="mark header-brand-mark" id="row-wordmark"></span>
+                </div>
+                <div class="bar-right">
+                  <div class="mini-player mini-recorder">
+                    <span class="mini-waves playing" aria-hidden="true">
+                      <svg viewBox="0 0 156 36" preserveAspectRatio="none" fill="currentColor"><rect x="0.2" y="22.5" width="1.5" height="13.5" rx="0.75"/><rect x="5.6" y="23.4" width="1.5" height="12.6" rx="0.75"/><rect x="10.9" y="18.1" width="1.5" height="17.9" rx="0.75"/><rect x="16.2" y="23.1" width="1.5" height="12.9" rx="0.75"/><rect x="21.5" y="17.4" width="1.5" height="18.6" rx="0.75"/><rect x="26.8" y="18.6" width="1.5" height="17.4" rx="0.75"/><rect x="32.1" y="21.8" width="1.5" height="14.2" rx="0.75"/><rect x="37.4" y="15.2" width="1.5" height="20.8" rx="0.75"/><rect x="42.7" y="21.2" width="1.5" height="14.8" rx="0.75"/><rect x="48.0" y="14.9" width="1.5" height="21.1" rx="0.75"/><rect x="53.4" y="20.0" width="1.5" height="16.0" rx="0.75"/><rect x="58.7" y="19.4" width="1.5" height="16.6" rx="0.75"/><rect x="64.0" y="13.7" width="1.5" height="22.3" rx="0.75"/><rect x="69.3" y="6.7" width="1.5" height="29.3" rx="0.75"/><rect x="74.6" y="18.4" width="1.5" height="17.6" rx="0.75"/><rect x="79.9" y="16.7" width="1.5" height="19.3" rx="0.75"/><rect x="85.2" y="10.0" width="1.5" height="26.0" rx="0.75"/><rect x="90.5" y="5.1" width="1.5" height="30.9" rx="0.75"/><rect x="95.8" y="11.6" width="1.5" height="24.4" rx="0.75"/><rect x="101.1" y="14.9" width="1.5" height="21.1" rx="0.75"/><rect x="106.5" y="6.7" width="1.5" height="29.3" rx="0.75"/><rect x="111.8" y="21.1" width="1.5" height="14.9" rx="0.75"/><rect x="117.1" y="10.4" width="1.5" height="25.6" rx="0.75"/><rect x="122.4" y="18.8" width="1.5" height="17.2" rx="0.75"/><rect x="127.7" y="21.3" width="1.5" height="14.7" rx="0.75"/><rect x="133.0" y="22.1" width="1.5" height="13.9" rx="0.75"/><rect x="138.3" y="20.7" width="1.5" height="15.3" rx="0.75"/><rect x="143.6" y="16.5" width="1.5" height="19.5" rx="0.75"/><rect x="148.9" y="23.1" width="1.5" height="12.9" rx="0.75"/><rect x="154.2" y="20.4" width="1.5" height="15.6" rx="0.75"/></svg>
+                    </span>
+                    <span class="mini-recorder-dot" aria-hidden="true"></span>
+                    <button class="mini-label" title="Otevřít nahrávání">Záznam</button>
+                    <span class="mini-time">09:26</span>
+                    <button class="mini-close" aria-label="Zastavit záznam" title="Zastavit záznam">
+                      <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+                        <rect x="3.4" y="3.4" width="7.2" height="7.2" rx="1.6" fill="currentColor"/>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </header>
+            </div>
+          </div>
+        </div>
       </li>
       <li>
         <span class="row-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
                stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v9.4 M8.2 9.1 12 12.9l3.8-3.8 M4.5 17.5h15"/></svg>
         </span>
-        <div><b>Uložíte, co potřebujete.</b>
-          <p>Text do TXT, Markdownu, SRT, VTT nebo JSON; zvuk do MP3, M4A nebo WAV.</p></div>
+        <div class="row-words"><b>Uložíte, co potřebujete.</b>
+          <p>Text do TXT, Markdownu, SRT, VTT nebo JSON; zvuk do MP3, M4A nebo WAV.</p>
+        </div>
+        <div class="row-reveal">
+          <div class="row-face shot">
+            <div class="save-list" role="menu">
+              <button role="menuitem">
+                <span class="save-format">TXT</span>
+                <span class="save-label">Textový soubor</span>
+              </button>
+              <button role="menuitem">
+                <span class="save-format">MD</span>
+                <span class="save-label">Markdown</span>
+              </button>
+            </div>
+          </div>
+        </div>
       </li>
       <li>
         <span class="row-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
                stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v9l-6 6H5a1 1 0 0 1-1-1V5Z M20 14h-5a1 1 0 0 0-1 1v5 M8 9h8 M8 12.5h5"/></svg>
         </span>
-        <div><b>Poznámky drží slovo.</b>
-          <p>Připnete je přesně k času v nahrávce a v panelu je pak máte pohromadě.</p></div>
+        <div class="row-words"><b>Poznámky drží slovo.</b>
+          <p>Připnete je přesně k času v nahrávce a v panelu je pak máte pohromadě.</p>
+        </div>
+        <div class="row-reveal">
+          <div class="row-face shot">
+            <ul class="stickies">
+              <li class="sticky">
+                <div class="sticky-body">
+                  <button class="sticky-text">Spočítat, co jsme loni dali za přepisy.</button>
+                  <div class="sticky-tools">
+                    <button class="sticky-time" aria-label="Přejít na 39:07">
+                      <svg width="9" height="10" viewBox="0 0 10 12" aria-hidden="true"><path d="M2 1.8 8.4 6 2 10.2Z" fill="currentColor"/></svg>
+                      39:07
+                    </button>
+                  </div>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </div>
       </li>
       <li>
         <span class="row-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
                stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/></svg>
         </span>
-        <div><b>Sledovaná složka.</b>
-          <p>V nastavení zvolíte složku. Volocal ji sleduje, přepisuje a přidává obsah do archivu sám.</p></div>
+        <div class="row-words"><b>Sledovaná složka.</b>
+          <p>V nastavení zvolíte složku. Volocal ji sleduje, přepisuje a přidává obsah do archivu sám.</p>
+        </div>
+        <div class="row-reveal">
+          <div class="row-face shot center">
+            <!-- The switch that stood here said only *transcribe on arrival*,
+                 which is the smaller half of the sentence beside it. What the
+                 row is about is that a folder is watched at all, and in the
+                 application that is this field in Nastavení > Soubory. -->
+            <div class="field watch-field">
+              <label>Umístění</label>
+              <div class="input-row">
+                <input value="C:\Users\jana\Nahrávky\Porady" readonly tabindex="-1"
+                       aria-label="Sledovaná složka">
+                <button class="button">Vybrat…</button>
+              </div>
+            </div>
+          </div>
+        </div>
       </li>
       <li>
         <span class="row-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
                stroke-linecap="round" stroke-linejoin="round"><path d="M11.6 3H5a2 2 0 0 0-2 2v6.6a2 2 0 0 0 .6 1.4l7.4 7.4a2 2 0 0 0 2.8 0l6.6-6.6a2 2 0 0 0 0-2.8L13 3.6a2 2 0 0 0-1.4-.6Z M7.4 8.4h.01"/></svg>
         </span>
-        <div><b>Složky na úložky.</b>
-          <p>Přepisy schováte, kam patří. Zvukové soubory na disku zůstanou, kde jsou.</p></div>
+        <div class="row-words"><b>Složky na úložky.</b>
+          <p>Přepisy schováte, kam patří. Zvukové soubory na disku zůstanou, kde jsou.</p>
+        </div>
+        <div class="row-reveal">
+          <div class="row-face shot">
+            <ul class="list folder-list">
+              <li class="row folder-row">
+                <button class="row-main">
+                  <span class="folder-mark" aria-hidden="true">
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/>
+                    </svg>
+                  </span>
+                  <span class="row-text">
+                    <span class="row-title"><span class="row-name">Porady vedení</span></span>
+                    <span class="recording-metadata">
+                      <span class="recording-metadata-item" title="Počet přepisů: 14 přepisů"><span>14 přepisů</span></span>
+                      <span class="recording-metadata-item" title="Délka nahrávky: 9:42:11"><span>9:42:11</span></span>
+                    </span>
+                  </span>
+                </button>
+                <div class="row-actions"><button class="button">Otevřít</button></div>
+              </li>
+            </ul>
+          </div>
+        </div>
       </li>
       <li>
         <span class="row-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
                stroke-linecap="round" stroke-linejoin="round"><path d="M12 4.5a7.5 7.5 0 1 0 0 15 7.5 7.5 0 0 0 0-15 M12 8.1v4.2l2.9 1.7"/></svg>
         </span>
-        <div><b>Zrychlíte i zpomalíte.</b>
-          <p>Od tří čtvrtin do dvojnásobku, podle toho, jak rychle kdo mluví.</p></div>
+        <div class="row-words"><b>Zrychlíte i zpomalíte.</b>
+          <p>Od tří čtvrtin do dvojnásobku, podle toho, jak rychle kdo mluví.</p>
+        </div>
+        <div class="row-reveal">
+          <div class="row-face shot center">
+            <div class="speeds">
+              <button class="button button-small">0,75×</button>
+              <button class="button button-small">1×</button>
+              <button class="button button-small">1,25×</button>
+              <button class="button button-small current">1,5×</button>
+              <button class="button button-small">2×</button>
+            </div>
+          </div>
+        </div>
       </li>
       <li>
         <span class="row-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
                stroke-linecap="round" stroke-linejoin="round"><path d="M3 6.5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-11Z M10.2 9.4l4.6 2.6-4.6 2.6V9.4Z"/></svg>
         </span>
-        <div><b>Titulky sedí na obraz.</b>
-          <p>SRT i VTT titulky můžete exportovat a použít pro původní video nebo zvuk.</p></div>
+        <div class="row-words"><b>Titulky sedí na obraz.</b>
+          <p>SRT i VTT titulky můžete exportovat a použít pro původní video nebo zvuk.</p>
+        </div>
+        <div class="row-reveal">
+          <div class="row-face shot">
+            <div class="save-list" role="menu">
+              <button role="menuitem">
+                <span class="save-format">SRT</span>
+                <span class="save-label">Titulky</span>
+              </button>
+              <button role="menuitem">
+                <span class="save-format">VTT</span>
+                <span class="save-label">Webové titulky</span>
+              </button>
+            </div>
+          </div>
+        </div>
       </li>
     </ul>
   </section>
@@ -3100,6 +3463,48 @@ footer { padding: 96px 0 72px; }
   /* Značka v hlavičce: přesně to, co dělá aplikace — pět vteřin stojí celé
      jméno, pak se sesune na `olo` a pod ukazovátkem se zase rozvine. */
   if (window.volocalWordmark) volocalWordmark(document.getElementById("brand"));
+
+  /* The recorder-pill fragment wears the application's own header bar, so the
+     mark in it does what the mark in a header does: the whole name for five
+     seconds, then down to `olo`, and open again under a pointer. Same call as
+     `#brand` -- no options, so a reader who asked for less motion gets the
+     still mark here too.
+
+     The one difference is when the clock starts. The row is closed at rest, so
+     an intro staged at load would run behind a shut door and the reader would
+     only ever meet the aftermath. It is built on the first open instead, once
+     per page: hover or keyboard focus, whichever arrives first. */
+  var rowWordmark = document.getElementById("row-wordmark");
+  if (rowWordmark && window.volocalWordmark) {
+    var rowHost = rowWordmark.closest("li") || rowWordmark.parentElement;
+    var stage = function () {
+      rowHost.removeEventListener("pointerenter", stage);
+      rowHost.removeEventListener("focusin", stage);
+      volocalWordmark(rowWordmark);
+    };
+    rowHost.addEventListener("pointerenter", stage);
+    rowHost.addEventListener("focusin", stage);
+  }
+
+  /* The three ways turn only while the row is open, and always from the top:
+     somebody coming back to the row should not join the loop in the middle.
+     The reflow between the two class changes is what makes it a restart --
+     without it the browser sees no change at all and the loop runs on. */
+  var ways = document.getElementById("ways");
+  if (ways) {
+    var waysHost = ways.closest("li");
+    var turn = function () {
+      ways.classList.remove("run");
+      void ways.offsetWidth;
+      ways.classList.add("run");
+    };
+    waysHost.addEventListener("pointerenter", turn);
+    waysHost.addEventListener("focusin", turn);
+  }
+  var waysMark = document.getElementById("ways-mark");
+  if (waysMark && window.volocalFace) {
+    volocalFace(waysMark, { height: "38px", reducedMotion: true });
+  }
 
   /* V první kartě bydlí značka v domečku. `reducedMotion: true` ji nakreslí
      rovnou a nechá stát — v kartě, která není hlavní scénou, by mrkání jen
