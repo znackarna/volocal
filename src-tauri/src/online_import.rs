@@ -402,6 +402,12 @@ pub fn import(
         // Everything arriving from outside lands in the archive's root; a
         // folder is a decision the person makes afterwards.
         folder: None,
+        /* The link the audio came from, kept in the validated form rather than
+        what was pasted. It is written here because here is the only place it
+        exists: the file on disk carries the video's title and nothing else, so
+        an import that does not store the address loses it for good. Nothing
+        reads it yet. */
+        source_url: Some(url),
     };
     let connection = db::open(db_path)?;
     db::insert_recording(&connection, &recording)?;

@@ -140,6 +140,8 @@ pub(crate) fn create_recording(
         // Everything arriving from outside lands in the archive's root; a
         // folder is a decision the person makes afterwards.
         folder: None,
+        // A file opened from the disk has no web address behind it.
+        source_url: None,
     };
     db::insert_recording(db, &recording)?;
     Ok(recording)
@@ -492,6 +494,9 @@ pub fn rescue_interrupted_take(
         error: None,
         segment_count: 0,
         folder: None,
+        // Rescued from the recordings folder; whatever put it there is not
+        // recorded anywhere this can read.
+        source_url: None,
     };
     db::insert_recording(connection, &recording).ok()?;
     Some(recording.title)

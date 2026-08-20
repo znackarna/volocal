@@ -48,6 +48,10 @@ export interface Recording {
   segment_count: number;
   /** The folder holding the recording; null is the archive's root. */
   folder: string | null;
+  /** Where an online import fetched the audio from. Null when the origin is not
+   *  known — a file opened from the disk never had one, and an online import
+   *  made before the archive stored it no longer has one. */
+  source_url: string | null;
 }
 
 /** A folder in the archive, with what it holds. */

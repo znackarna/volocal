@@ -60,6 +60,15 @@ pub struct Recording {
     pub segment_count: i64,
     /// The folder holding this recording; `None` is the archive's root.
     pub folder: Option<String>,
+    /// The address the audio was fetched from, for a recording that came in
+    /// through an online import.
+    ///
+    /// `None` means the origin is not known, and that covers two different
+    /// recordings: one opened from a file, which never had a web address, and
+    /// one imported online before this column existed, whose address was
+    /// discarded the moment the download finished. Neither can be told from
+    /// the other afterwards, and nothing here invents a link for either.
+    pub source_url: Option<String>,
 }
 
 /// A folder in the archive, with what it holds. The two totals come from the
@@ -890,7 +899,12 @@ pub fn open(path: &std::path::Path) -> Result<Connection> {
             -- Which folder holds the recording; NULL is the archive's root.
             -- ON DELETE SET NULL is what makes "delete the folder, keep the
             -- recordings" atomic instead of a loop that can half-finish.
-            folder_id       TEXT REFERENCES folders(id) ON DELETE SET NULL
+            folder_id       TEXT REFERENCES folders(id) ON DELETE SET NULL,
+            -- Where the audio was fetched from, when it came through an online
+            -- import. NULL for every other recording, and for the online
+            -- imports made before this column existed: an address that was
+            -- never written down is not one that can be filled in later.
+            source_url      TEXT
         );
 
         CREATE TABLE IF NOT EXISTS folders (
@@ -1274,6 +1288,19 @@ fn migrate_legacy_schema(db: &Connection) {
         "ALTER TABLE notes ADD COLUMN pinned INTEGER NOT NULL DEFAULT 1",
         [],
     );
+    /* The address an online import came from. Nullable and with no default, on
+    purpose: every recording already in the archive gets NULL, which is the
+    truth about them — the importer validated a URL, downloaded the audio and
+    threw the URL away, so their origin is gone rather than absent. An empty
+    string would say instead that they were never imported from anywhere.
+
+    `SCHEMA_VERSION` stays at 3. It is raised when an older build would read
+    this archive wrongly, and a column added at the end is not that: every
+    query in this module names its columns, so a build without `source_url`
+    goes on reading and writing the same rows and only cannot see this one
+    value. Refusing the archive over that would cost its owner far more than
+    the column is worth. */
+    let _ = db.execute("ALTER TABLE recordings ADD COLUMN source_url TEXT", []);
 }
 
 /// Earlier versions hard-coded Czech as the default language, so Whisper
@@ -1346,8 +1373,9 @@ pub fn save_settings(db: &Connection, settings: &Settings) -> Result<()> {
 
 pub fn insert_recording(db: &Connection, recording: &Recording) -> Result<()> {
     db.execute(
-        "INSERT INTO recordings (id, path, name, duration, created_at, status, model, error)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+        "INSERT INTO recordings (id, path, name, duration, created_at, status, model, error,
+             source_url)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
         params![
             recording.id,
             recording.path,
@@ -1356,7 +1384,8 @@ pub fn insert_recording(db: &Connection, recording: &Recording) -> Result<()> {
             recording.created_at,
             recording.status,
             recording.model,
-            recording.error
+            recording.error,
+            recording.source_url
         ],
     )?;
     Ok(())
@@ -1524,13 +1553,14 @@ fn recording_from_row(r: &rusqlite::Row) -> rusqlite::Result<Recording> {
         language: r.get(9).unwrap_or_default(),
         language_choice: r.get(10).unwrap_or_default(),
         folder: r.get(11).unwrap_or_default(),
+        source_url: r.get(12).unwrap_or_default(),
     })
 }
 
 const RECORDING_SELECT_SQL: &str =
     "SELECT n.id, n.path, n.name, n.duration, n.created_at, n.status, n.model, n.error,
         (SELECT COUNT(*) FROM segments s WHERE s.recording_id = n.id), n.jazyk, n.jazyk_volba,
-        n.folder_id
+        n.folder_id, n.source_url
      FROM recordings n";
 
 /// Every recording in the archive, and **a row that cannot be read is shown as
@@ -1586,6 +1616,9 @@ pub fn list_recordings(db: &Connection) -> Result<Vec<Recording>> {
                 ),
                 segment_count: 0,
                 folder: None,
+                // A row that could not be read says nothing about where it came
+                // from either.
+                source_url: None,
                 id,
             })
         })
@@ -2525,7 +2558,7 @@ mod tests {
         folders, has_table, insert_recording, insert_recording_note, insert_segment,
         insert_speaker, keep_only_speakers, list_recordings, load_settings,
         look_at_offered_archive, metadata_value, migrate_legacy_schema, move_to_folder, open,
-        recording_notes, recover_interrupted, save_ai_document, save_ai_output,
+        recording, recording_notes, recover_interrupted, save_ai_document, save_ai_output,
         save_metadata_value, search, segments, speakers, status, update_recording_note,
         watch_file_imported, watch_file_is_stable, waveform, AiDocument, AiOutput,
         ArchiveFromTheFuture, Offered, Recording, RecordingNote, Segment, Speaker, WaveformData,
@@ -3084,6 +3117,7 @@ mod tests {
                     error: None,
                     segment_count: 0,
                     folder: None,
+                    source_url: None,
                 },
             )
             .unwrap();
@@ -3121,6 +3155,109 @@ mod tests {
                 .any(|r| r.id == "good" && r.status == status::DONE),
             "the healthy row is untouched"
         );
+    }
+
+    /// **Where an import came from is the one thing about it that cannot be
+    /// recovered afterwards.** The file the downloader leaves behind is named
+    /// after the video's title and carries nothing else, so a transcript made
+    /// from a link whose address was not stored has no way back to it.
+    #[test]
+    fn a_recording_keeps_the_address_it_was_imported_from() {
+        let temp = TempDb::new("source-url");
+        let db = open(&temp.0).unwrap();
+        let link = "https://www.youtube.com/watch?v=test";
+
+        insert_recording(
+            &db,
+            &Recording {
+                id: "imported".into(),
+                path: "C:/recordings/Talk.m4a".into(),
+                title: "Talk".into(),
+                duration: 61.0,
+                created_at: "2026-08-20 11:00:00".into(),
+                status: status::NEW.into(),
+                model: String::new(),
+                language: String::new(),
+                language_choice: String::new(),
+                error: None,
+                segment_count: 0,
+                folder: None,
+                source_url: Some(link.into()),
+            },
+        )
+        .unwrap();
+
+        assert_eq!(
+            recording(&db, "imported").unwrap().source_url.as_deref(),
+            Some(link)
+        );
+        // And through the listing as well, which is a second query over the
+        // same columns and has been the one to fall behind before.
+        let listed = list_recordings(&db).unwrap();
+        assert_eq!(listed[0].source_url.as_deref(), Some(link));
+    }
+
+    /// An archive written before the column existed gets it on the next start,
+    /// and the recordings already in it stay honest: their address was thrown
+    /// away at import time, so NULL is what is true about them.
+    #[test]
+    fn recordings_from_before_the_column_have_no_address_rather_than_a_wrong_one() {
+        let temp = TempDb::new("source-url-older");
+        let path = temp.0.clone();
+        {
+            let older = Connection::open(&path).unwrap();
+            older
+                .execute_batch(
+                    "CREATE TABLE recordings (
+                         id TEXT PRIMARY KEY, path TEXT NOT NULL, name TEXT NOT NULL,
+                         duration REAL NOT NULL DEFAULT 0, created_at TEXT NOT NULL,
+                         status TEXT NOT NULL DEFAULT 'new', model TEXT NOT NULL DEFAULT '',
+                         error TEXT, folder_id TEXT);
+                     INSERT INTO recordings (id, path, name, created_at, status)
+                         VALUES ('older', 'C:\\older.m4a', 'Older', '2026-08-01', 'done');",
+                )
+                .unwrap();
+        }
+
+        let db = open(&path).unwrap();
+        let carried = recording(&db, "older").unwrap();
+        assert_eq!(carried.title, "Older", "the row itself is untouched");
+        assert_eq!(carried.source_url, None);
+
+        // The archive still says schema 3: a column added at the end changes
+        // nothing an older build reads, and refusing it would cost more than
+        // this value is worth.
+        assert_eq!(
+            metadata_value(&db, "schema-version").unwrap().as_deref(),
+            Some("3")
+        );
+
+        // An import made after the migration stores its address beside the row
+        // that has none, and the two are told apart.
+        insert_recording(
+            &db,
+            &Recording {
+                id: "newer".into(),
+                path: "C:/newer.m4a".into(),
+                title: "Newer".into(),
+                duration: 1.0,
+                created_at: "2026-08-20 12:00:00".into(),
+                status: status::NEW.into(),
+                model: String::new(),
+                language: String::new(),
+                language_choice: String::new(),
+                error: None,
+                segment_count: 0,
+                folder: None,
+                source_url: Some("https://example.com/talk".into()),
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            recording(&db, "newer").unwrap().source_url.as_deref(),
+            Some("https://example.com/talk")
+        );
+        assert_eq!(recording(&db, "older").unwrap().source_url, None);
     }
 
     /// **A re-run used to add speakers and never take any away.** Transcribe a
