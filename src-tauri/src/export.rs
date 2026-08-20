@@ -748,6 +748,7 @@ mod tests {
             error: None,
             segment_count: 0,
             folder: None,
+            source_url: None,
         }
     }
 
