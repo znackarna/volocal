@@ -11,6 +11,13 @@ altered, not how, not which file. Entries before 1.2.6 are written the old way
 and are left as they are; they are not a model for the next one. The mechanism
 belongs in `docs/history/`, which is what that folder is for.
 
+## 1.2.18 — 20 August 2026
+
+- **A model you no longer have gives way to one you do**, instead of leaving
+  transcription waiting for a download.
+- **Stopping a download and starting it again works.**
+- **The model card shows the one that is actually transcribing.**
+
 ## 1.2.17 — 20 August 2026
 
 - **The list marks what is missing**, so a warning about a missing model says

@@ -71,6 +71,7 @@ function machine(over: Partial<ToolCheck> = {}): ToolCheck {
     ffprobe: "ffprobe.exe",
     whisper_cli: "whisper-cli.exe",
     model_whisper: null,
+    model_whisper_id: null,
     model_vad: "vad.bin",
     embedding_model: null,
     editor_cli: null,

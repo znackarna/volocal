@@ -346,6 +346,9 @@ export interface ToolCheck {
   ffprobe: string | null;
   whisper_cli: string | null;
   model_whisper: string | null;
+  /** Which model that turned out to be — see `ToolCheck::model_whisper_id`.
+   *  Differs from `settings.model` exactly when the setting cannot be honoured. */
+  model_whisper_id: string | null;
   model_vad: string | null;
   embedding_model: string | null;
   editor_cli: string | null;

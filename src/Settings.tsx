@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type KeyboardEvent,
@@ -675,15 +676,40 @@ export default function SettingsScreen({
      Nothing depends on this listener being alive — `load` does the same work
      when Settings is next opened — so leaving the screen mid-download loses
      nothing but the immediacy. */
+  /** Which component the standing intent is waiting for, so its own failure
+   *  can be told from anybody else's. */
+  const wantedComponent = useMemo(
+    () =>
+      Object.entries(TRANSCRIPTION_MODELS).find(([, model]) => model === modelWanted)?.[0] ?? "",
+    [modelWanted]
+  );
+
   useEffect(() => {
     if (!modelWanted) return;
     const unlisten = listen<DownloadProgress>("download:progress", (event) => {
-      if (event.payload.phase === "complete") void load();
+      if (event.payload.phase === "complete") {
+        void load();
+        return;
+      }
+      /* **An intent that cannot come true is dropped.** It used to be cleared
+         only where the file appeared, so stopping the download left the card
+         saying *stahuje se…* for ever - in `localStorage`, so across restarts -
+         and left an intent that would fire whenever that model turned up for
+         any other reason, months later, over a choice made since.
+         Only this component's own end counts: another row failing says nothing
+         about this one. */
+      if (
+        event.payload.id === wantedComponent &&
+        (event.payload.phase === "error" || event.payload.phase === "cancelled")
+      ) {
+        localStorage.removeItem(MODEL_WANTED);
+        setModelWanted("");
+      }
     });
     return () => {
       void unlisten.then((stop) => stop());
     };
-  }, [modelWanted, load]);
+  }, [modelWanted, wantedComponent, load]);
 
   const save = useCallback(
     async (nove: Settings) => {
@@ -780,6 +806,17 @@ export default function SettingsScreen({
      written into each `domain.modelDescription.*` sentence by hand, where it
      had already drifted — `large-v3` said 3,1 GB against the catalogue's
      3095 MB, which rounds to 3,0. */
+  /** Which card is drawn as chosen: the model that will actually transcribe.
+   *
+   *  `n.model` is what is on record, and the two part company exactly when the
+   *  setting cannot be honoured — a file deleted by hand, a choice made before
+   *  its download finished. `resolve_transcription_model` in `tools.rs` decides
+   *  what runs; drawing the record instead would put the highlight on a model
+   *  that is not the one working, which is the same paradox in a different
+   *  place. `n.model` is the fallback only for the instant before the first
+   *  check comes back. */
+  const modelInForce = check?.model_whisper_id ?? n.model;
+
   const offeredModels = Object.entries(TRANSCRIPTION_MODELS);
   const modelCards = [
     ...new Set([...Object.values(TRANSCRIPTION_MODELS), ...(check?.found_models ?? [])]),
@@ -2014,9 +2051,9 @@ export default function SettingsScreen({
             {modelCards.map((card) => (
               <button
                 key={card.id}
-                className={`choice with-icon ${n.model === card.id ? "chosen" : ""}`}
+                className={`choice with-icon ${modelInForce === card.id ? "chosen" : ""}`}
                 onClick={() => void chooseModel(card)}
-                aria-pressed={n.model === card.id}
+                aria-pressed={modelInForce === card.id}
               >
                 <span className="choice-icon" aria-hidden>
                   <ModelMark id={card.id} />
