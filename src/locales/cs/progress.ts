@@ -30,9 +30,6 @@ export const csProgress = {
   "progress.ai.reviewing_chunk": "Kontroluji češtinu v části {index} z {total}",
   "progress.ai.reading_chunk": "Čtu část {index} z {total}",
   "progress.ai.summarizing": "Sestavuji celkové shrnutí",
-  "progress.ai.summarizing_source": "Sestavuji shrnutí v původním jazyce",
-  "progress.ai.translating_summary": "Překládám hotové shrnutí do češtiny",
-  "progress.ai.reviewing_summary": "Kontroluji češtinu ve shrnutí",
   "progress.ai.custom_chunk": "Zpracovávám podle vašeho pokynu část {index} z {total}",
   "progress.ai.document_ready": "Vylepšený přepis je připravený",
   "progress.ai.custom_ready": "Dokument podle vašeho pokynu je připravený",
@@ -72,8 +69,6 @@ export const csProgressContext: Partial<Record<keyof typeof csProgress, string>>
     "Dlouhý přepis se upravuje po částech. {index} je pořadí právě zpracované části, {total} jejich celkový počet.",
   "progress.ai.reviewing_chunk":
     "Po překladu do češtiny se každá část ještě čte znovu a opravují se kalky a pády.",
-  "progress.ai.translating_summary":
-    "Shrnutí vzniklo v jazyce nahrávky a teď se překládá do češtiny.",
   "progress.ai.custom_chunk":
     "Dlouhý přepis se i podle vlastního pokynu zpracovává po částech. {index} je pořadí právě zpracované části, {total} jejich celkový počet.",
   "progress.ai.preparing_custom":
