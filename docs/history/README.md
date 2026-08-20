@@ -31,7 +31,7 @@ the time.
 | [2026-08-17](2026-08-17.md) | 36 | The mark turns on its side, then the whole application is surveyed … |
 | [2026-08-18](2026-08-18.md) | 16 | A presentation page: invented, rebuilt from the application, cut to a column, and the live windows returned as figures … |
 | [2026-08-19](2026-08-19.md) | 5 | The one live preview becomes five, driven by hand … |
-| [2026-08-20](2026-08-20.md) | 13 | Online import fixed at the chunk that returns 403, and the link it came from is now kept … |
+| [2026-08-20](2026-08-20.md) | 14 | Online import fixed at the chunk that returns 403, and the link it came from is now kept … |
 
 ## What each day was about
 
