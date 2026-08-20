@@ -210,6 +210,23 @@ export function ExportMenu({
 }
 
 /** Compact format menu used in the document preview footer. */
+/** The edges of the first ancestor that clips, or the window where none does.
+ *
+ *  `overflow` anything but `visible` cuts a child off at the box's edge, and
+ *  an absolutely positioned menu is a child like any other. A dialog that
+ *  scrolls is exactly such a box, and it is the one this menu lives in.
+ */
+function clippingBox(from: HTMLElement | null): { top: number; bottom: number } {
+  for (let node = from?.parentElement; node; node = node.parentElement) {
+    const overflow = getComputedStyle(node).overflowY;
+    if (overflow && overflow !== "visible") {
+      const box = node.getBoundingClientRect();
+      return { top: box.top, bottom: box.bottom };
+    }
+  }
+  return { top: 0, bottom: window.innerHeight };
+}
+
 export function DocumentSaveMenu({
   disabled,
   onChoose,
@@ -230,9 +247,20 @@ export function DocumentSaveMenu({
 
     const bounds = container.current?.getBoundingClientRect();
     if (bounds) {
-      const roomBelow = window.innerHeight - bounds.bottom;
+      /* **Measured against whatever will actually cut the menu off**, which
+         is not the window. This asked `window.innerHeight`, and inside the
+         improved-transcript dialog there is plenty of window below the footer
+         — so the menu opened downwards and `.dialog`, which scrolls and
+         therefore clips, took the bottom half of it. The reader saw TXT and
+         half of MD.
+
+         The nearest scrolling ancestor is the box that decides. Where there is
+         none, it is the window after all, which is what the fallback says. */
+      const room = clippingBox(container.current);
+      const roomBelow = room.bottom - bounds.bottom;
+      const roomAbove = bounds.top - room.top;
       const estimatedMenuHeight = 112;
-      setOpenAbove(roomBelow < estimatedMenuHeight && bounds.top > roomBelow);
+      setOpenAbove(roomBelow < estimatedMenuHeight && roomAbove > roomBelow);
     }
     setOpen(true);
   };
