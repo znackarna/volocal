@@ -359,6 +359,21 @@ fn raw_catalog() -> Vec<DownloadComponent> {
     ]
 }
 
+/// Which component puts a given transcription model on the disk, named the way
+/// `settings.model` names it — `large-v3-turbo-q5_0`, not the file.
+///
+/// Read off the catalogue's own `verification_path` rather than written down a
+/// second time. A table mapping the two would be one more place to forget when
+/// a model is added, and this cannot drift from what the download actually
+/// writes, the path being the same string the completeness check uses.
+pub fn component_for_model(model: &str) -> Option<String> {
+    let file = format!("models/ggml-{model}.bin");
+    raw_catalog()
+        .into_iter()
+        .find(|k| k.verification_path == file)
+        .map(|k| k.id)
+}
+
 /// Fills in what is already done, what suits this particular computer, and what
 /// may be done to each row while the application is doing whatever it is doing.
 pub fn catalog(settings: &crate::db::Settings, busy: Busy) -> Vec<DownloadComponent> {
@@ -2093,6 +2108,25 @@ mod tests {
             connection_cause(&broken),
             "the connection timed out while reading"
         );
+    }
+
+    #[test]
+    fn the_component_that_delivers_a_model_is_found_by_the_file_it_writes() {
+        assert_eq!(
+            component_for_model("large-v3-turbo-q5_0").as_deref(),
+            Some("model-turbo")
+        );
+        assert_eq!(
+            component_for_model("large-v3").as_deref(),
+            Some("model-large")
+        );
+        assert_eq!(
+            component_for_model("large-v3-q5_0").as_deref(),
+            Some("model-large-q5")
+        );
+        // A model put in the folder by hand belongs to no component, and the
+        // caller then has to name one for the machine instead of guessing.
+        assert_eq!(component_for_model("small.en"), None);
     }
 
     #[test]

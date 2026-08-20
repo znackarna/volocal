@@ -9,7 +9,7 @@ import { useI18n, type TranslationKey } from "./i18n";
 import { useProgressMessage, useUserMessage } from "./messages";
 import { useFormats } from "./formats";
 import { useDialog } from "./useDialog";
-import { rememberPendingModel } from "./pendingModel";
+import { forgetPendingModel, rememberPendingModel } from "./pendingModel";
 import {
   EDITOR_MODELS,
   UNOFFERED_COMPONENTS,
@@ -501,9 +501,27 @@ export default function SetupWizard({
   }, [load]);
 
   const usesGpu = !!(check?.nvidia_driver || check?.vulkan_driver);
+  /** The quality whose model is already on this disk, where either one is.
+   *
+   *  **Preselection used to read the drivers and never the disk.** Delete
+   *  `ggml-large-v3.bin` by hand on a machine with a graphics card and this
+   *  dialog reopened on *Přesný — 3,0 GB ke stažení*, with *Rychlý* beside it
+   *  wearing the word *staženo*: three gigabytes offered as the obvious answer,
+   *  next to the model the reader already had. The recommendation is about
+   *  which model suits the machine, and it is a fine answer to *which should I
+   *  get*; it is the wrong answer to *what happened to mine*.
+   *
+   *  The recommended one is still tried first, so a machine holding both is
+   *  given what it would have been given anyway. */
+  const installedQuality = useMemo(() => {
+    const have = (q: Quality) => !!items.find((p) => p.id === MODELS[q].component)?.complete;
+    const preferred = recommendedQuality(usesGpu);
+    return have(preferred) ? preferred : (Object.keys(MODELS) as Quality[]).find(have);
+  }, [items, usesGpu]);
+
   /* What is chosen, or what would be if nobody chose. One expression, so the
      card drawn as selected and the model actually downloaded cannot differ. */
-  const quality = chosen ?? recommendedQuality(usesGpu);
+  const quality = chosen ?? installedQuality ?? recommendedQuality(usesGpu);
 
   /* `machineSentence` stood here and is gone with the five strings that built
      it. It recited what was found in this computer — a graphics card, and how
@@ -698,6 +716,37 @@ export default function SetupWizard({
           (items.find((p) => p.id === a)?.megabytes ?? 0) -
           (items.find((p) => p.id === b)?.megabytes ?? 0)
       );
+      /* **Nothing left to fetch is a finished run, not a started one.**
+         `install_bundle` returns `Nothing` when every id asked for is already
+         in hand, and it starts no worker — so no `download:complete` is
+         emitted, so `App.tsx` never honours the pending model and `dokonci`
+         never runs. The choice was therefore never written down: the dialog
+         sat on a download that was not happening, `settings.model` went on
+         naming the file that had been deleted, and the banner stayed up.
+         That is the whole of *pak vzniká chaos při opětovném stažení* — and
+         it became reachable the moment the card above stopped ignoring the
+         model already on the disk, because choosing it is now the sensible
+         thing to do.
+
+         Written here rather than through the pending record, and the reason
+         that record exists does not apply: it is for a choice that has to
+         outlive this screen while bytes come down. Nothing is coming down,
+         and the file whose name is being written is already there — which is
+         the one condition `App.tsx` guards. */
+      if (sortedIds.length === 0) {
+        forgetPendingModel();
+        const settings = await api.loadSettings();
+        await api.saveSettings({
+          ...settings,
+          model: MODELS[quality].settings,
+          quality_choice: MODELS[quality].choice,
+        });
+        await load();
+        setRunning(false);
+        setStep(STEP_DONE);
+        return;
+      }
+
       /* Written down before the call, and outside this component. The screen
          that made the choice does not survive `Stahovat na pozadí`, and the
          answer has to. */
@@ -708,7 +757,7 @@ export default function SetupWizard({
       setError(userMessage(e));
       setRunning(false);
     }
-  }, [items, selected, userMessage, quality]);
+  }, [items, selected, userMessage, quality, load]);
 
   /* `cancelled` counts as unfinished, not as done. The backend emits it for
      the component that was interrupted and for every one after it, and then
@@ -840,6 +889,7 @@ export default function SetupWizard({
           <h1>{t("wizard.manual.title")}</h1>
           <ManualSelection
             items={items}
+            needed={check?.needed ?? []}
             view={view}
             onView={setView}
             progress={progress}
@@ -1487,6 +1537,7 @@ const LOCK_REASON = {
 
 function ComponentRow({
   item,
+  needed,
   view,
   progress,
   onInstall,
@@ -1494,6 +1545,8 @@ function ComponentRow({
   onRemove,
 }: {
   item: DownloadComponent;
+  /** This row answers something the check found missing right now. */
+  needed: boolean;
   view: ListingView;
   progress?: DownloadProgress;
   onInstall: (component: DownloadComponent) => void;
@@ -1552,8 +1605,19 @@ function ComponentRow({
                 without — and that is the only question somebody reading this
                 list in order to fix something is asking.
                 `.badge.required` has been in the stylesheet since this listing
-                was written, in the destructive palette, waiting for a user. */}
-            {item.required && !item.complete && (
+                was written, in the destructive palette, waiting for a user.
+
+                **`item.required` alone answered it wrongly**, and on the one
+                path that matters. That flag is the catalogue's, true of
+                `ffmpeg` and `vad` and of nothing else — because no single
+                model and no single whisper build is required, any one of
+                several will do, and a static flag cannot say *one of these*.
+                So deleting the transcription model by hand raised the card's
+                warning and badged nothing at all: a screen that says something
+                is missing and then refuses to say what. `needed` is the check's
+                own answer, from the same reads that raised the warning, so the
+                two cannot disagree. */}
+            {(item.required || needed) && !item.complete && (
               <em className="badge required">{t("wizard.manual.requiredBadge")}</em>
             )}
           </span>
@@ -1693,6 +1757,7 @@ function ComponentMarkGlyph({ running, complete }: { running: boolean; complete:
  */
 function ManualSelection({
   items,
+  needed,
   view,
   onView,
   progress,
@@ -1701,6 +1766,8 @@ function ManualSelection({
   onRemove,
 }: {
   items: DownloadComponent[];
+  /** What the check says would answer what is missing — see `ToolCheck.needed`. */
+  needed: string[];
   view: ListingView;
   onView: (view: ListingView) => void;
   progress: Record<string, DownloadProgress>;
@@ -1747,6 +1814,7 @@ function ManualSelection({
                 <ComponentRow
                   key={p.id}
                   item={p}
+                  needed={needed.includes(p.id)}
                   view={view}
                   progress={progress[p.id]}
                   onInstall={onInstall}

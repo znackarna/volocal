@@ -551,6 +551,20 @@ pub struct ToolCheck {
     pub issues: Vec<UserMessage>,
     pub issues_diarization: Vec<UserMessage>,
     pub issues_editor: Vec<UserMessage>,
+    /// The components that would answer `issues`, by id.
+    ///
+    /// **`issues` says what is wrong and this says what to press.** The
+    /// catalogue's own `required` flag cannot: it is true of `ffmpeg` and
+    /// `vad` and of nothing else, because no single transcription model and no
+    /// single whisper build is required — any one of several will do, and a
+    /// static flag has no way to say *one of these*. So a model deleted by hand
+    /// raised the card's warning and marked no row in the listing it sent the
+    /// reader to, which is a screen saying *something is missing* and refusing
+    /// to say what.
+    ///
+    /// Filled from the same reads that filled `issues`, so the two cannot
+    /// disagree about what is on the disk.
+    pub needed: Vec<String>,
 }
 
 pub fn check(n: &crate::db::Settings) -> ToolCheck {
@@ -651,6 +665,44 @@ pub fn check(n: &crate::db::Settings) -> ToolCheck {
     }
     if k.model_vad.is_none() {
         k.issues.push(UserMessage::new("tools.vad_model_missing"));
+    }
+
+    /* What to press, for each of those. ffprobe ships inside the ffmpeg
+    archive, so two issues have one answer; the whisper build and the model are
+    chosen the way the catalogue recommends them, from the drivers, because
+    that is the row the reader would be told to take anyway.
+
+    The model the setting names comes first: somebody who deleted
+    `ggml-large-v3.bin` is being offered the file they had, not the one this
+    machine would have been sold. Only if that name matches no component at
+    all — a model put in the folder by hand and then removed — does the
+    machine's own pair answer instead. */
+    if k.ffmpeg.is_none() || k.ffprobe.is_none() {
+        k.needed.push("ffmpeg".into());
+    }
+    if k.whisper_cli.is_none() {
+        k.needed.push(
+            if k.nvidia_driver {
+                "whisper-cuda"
+            } else if k.vulkan_driver {
+                "whisper-vulkan"
+            } else {
+                "whisper-cpu"
+            }
+            .into(),
+        );
+    }
+    if k.model_whisper.is_none() {
+        let machine = if k.nvidia_driver || k.vulkan_driver {
+            "model-large"
+        } else {
+            "model-turbo"
+        };
+        k.needed
+            .push(crate::download::component_for_model(&n.model).unwrap_or_else(|| machine.into()));
+    }
+    if k.model_vad.is_none() {
+        k.needed.push("vad".into());
     }
 
     // Speaker recognition needs one model and no program. Until 2026-08-07 it
