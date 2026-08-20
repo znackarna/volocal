@@ -17,6 +17,7 @@ belongs in `docs/history/`, which is what that folder is for.
   which row to press.
 - **The model you already have is the one offered**, instead of a fresh
   three-gigabyte download beside it.
+- **Choosing a model asks before it downloads gigabytes.**
 
 ## 1.2.16 — 20 August 2026
 
