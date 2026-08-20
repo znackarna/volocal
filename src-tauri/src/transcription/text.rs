@@ -994,36 +994,101 @@ pub(crate) fn apply_dictionary(segments: &mut [Segment], dictionary: &[db::Dicti
                 .to_string();
         }
 
-        // Word timings carry the word text too. Without this, highlighting
-        // would keep lighting up the old wording.
+        /* Word timings carry the word text too, and **they are what the
+        screen and the subtitles are drawn from** - see the note in
+        `Detail.tsx` about rendering from the timings rather than from `text`,
+        and the caption planner in `export.rs`, which cuts from `words`.
+
+        This ran the rules over **each chunk separately**, so a rule with a
+        space in it could never match: `součas DNA`, which is the dictionary's
+        own worked example, corrected `text` and left the screen, the subtitles
+        and the click-to-seek saying `součas`. Plain-text export then disagreed
+        with the SRT beside it, and the reader was told N segments had changed
+        while nothing they could see did. */
         let Some(json) = s.words.as_deref() else {
             continue;
         };
         let Ok(mut chunks) = serde_json::from_str::<Vec<serde_json::Value>>(json) else {
             continue;
         };
-        let mut change = false;
-        for chunk in chunks.iter_mut() {
-            let Some(text) = chunk["s"].as_str() else {
-                continue;
-            };
-            let mut new = text.to_string();
-            for (re, replacement) in &rules {
-                new = re
-                    .replace_all(&new, regex::NoExpand(replacement.as_str()))
-                    .to_string();
-            }
-            if new != text {
-                chunk["s"] = serde_json::Value::String(new);
-                change = true;
-            }
-        }
-        if change {
+        if apply_rules_to_words(&mut chunks, &rules) {
             if let Ok(t) = serde_json::to_string(&chunks) {
                 s.words = Some(t);
             }
         }
     }
+}
+
+/// Applies the rules across the joined word chunks rather than one at a time,
+/// so a phrase spanning two of them is found.
+///
+/// The chunks are joined with a single space - `whisper.rs` stores each with
+/// `trim_start`, so that join is what the segment reads like - and every match
+/// is written into **the chunk where it starts**. Chunks the match swallowed
+/// are left empty and dropped, and their timestamps go with them: the surviving
+/// chunk keeps its own time, which is the phrase's start and the honest one.
+/// No timestamp value is computed, moved or scaled anywhere here.
+///
+/// One consequence worth knowing: a two-word phrase corrected to one word
+/// becomes one clickable unit and one caption token. That is what the
+/// correction asked for.
+fn apply_rules_to_words(chunks: &mut Vec<serde_json::Value>, rules: &[(Regex, String)]) -> bool {
+    let mut changed = false;
+    for (re, replacement) in rules {
+        let texts: Vec<String> = chunks
+            .iter()
+            .map(|chunk| chunk["s"].as_str().unwrap_or("").to_string())
+            .collect();
+        let mut joined = String::new();
+        let mut spans: Vec<(usize, usize)> = Vec::with_capacity(texts.len());
+        for (index, text) in texts.iter().enumerate() {
+            if index > 0 {
+                joined.push(' ');
+            }
+            let start = joined.len();
+            joined.push_str(text);
+            spans.push((start, joined.len()));
+        }
+
+        /* All the matches at once rather than one at a time in a loop. A
+        replace-and-search-again would not terminate for a rule whose
+        replacement contains its own pattern, and `replace_all` - which this
+        stands in for - does not do that either. */
+        let matches: Vec<(usize, usize)> = re
+            .find_iter(&joined)
+            .map(|m| (m.start(), m.end()))
+            .collect();
+        if matches.is_empty() {
+            continue;
+        }
+        changed = true;
+
+        for (index, (chunk_start, chunk_end)) in spans.iter().enumerate() {
+            let mut rebuilt = String::new();
+            let mut cursor = *chunk_start;
+            for (match_start, match_end) in &matches {
+                if match_end <= chunk_start || match_start >= chunk_end {
+                    continue;
+                }
+                if *match_start > cursor {
+                    rebuilt.push_str(&joined[cursor..(*match_start).min(*chunk_end)]);
+                }
+                // The replacement belongs to the chunk the match opened in;
+                // the ones it ran into contribute only what it did not cover.
+                if match_start >= chunk_start && match_start < chunk_end {
+                    rebuilt.push_str(replacement);
+                }
+                cursor = cursor.max((*match_end).min(*chunk_end));
+            }
+            if cursor < *chunk_end {
+                rebuilt.push_str(&joined[cursor..*chunk_end]);
+            }
+            chunks[index]["s"] = serde_json::Value::String(rebuilt.trim().to_string());
+        }
+
+        chunks.retain(|chunk| !chunk["s"].as_str().unwrap_or("").is_empty());
+    }
+    changed
 }
 
 /// Sample density of the waveform. Twelve per second is enough for lively
@@ -1099,6 +1164,99 @@ mod dictionary_tests {
             verified: false,
             original: None,
         }
+    }
+
+    /// Words as whisper.cpp actually stores them: one chunk per token, each
+    /// already `trim_start`ed - which is why joining them with a single space
+    /// is a faithful reading of the segment.
+    fn with_words(text: &str, words: &[(f64, &str)]) -> Segment {
+        let chunks: Vec<serde_json::Value> = words
+            .iter()
+            .map(|(t, s)| serde_json::json!({ "t": t, "s": s }))
+            .collect();
+        Segment {
+            words: Some(serde_json::to_string(&chunks).unwrap()),
+            ..spoken(text)
+        }
+    }
+
+    fn words_of(segment: &Segment) -> Vec<(f64, String)> {
+        serde_json::from_str::<Vec<serde_json::Value>>(segment.words.as_deref().unwrap())
+            .unwrap()
+            .into_iter()
+            .map(|chunk| {
+                (
+                    chunk["t"].as_f64().unwrap(),
+                    chunk["s"].as_str().unwrap().to_string(),
+                )
+            })
+            .collect()
+    }
+
+    /// **The defect Fable found on 20 August.** The rules ran over each word
+    /// chunk on its own, so an entry with a space in it could never match one -
+    /// and the screen, the subtitles and click-to-seek are drawn from the
+    /// chunks, not from `text`. `součas DNA` is the dictionary's own worked
+    /// example: `text` was corrected, everything the reader could see was not.
+    #[test]
+    fn a_phrase_spanning_two_words_is_corrected_where_the_screen_reads_it() {
+        let mut segments = [with_words(
+            "Máme to v součas DNA.",
+            &[
+                (1.0, "Máme"),
+                (1.2, "to"),
+                (1.4, "v"),
+                (1.6, "součas"),
+                (2.0, "DNA."),
+            ],
+        )];
+
+        apply_dictionary(&mut segments, &[entry("součas DNA", "součást DNA")]);
+
+        assert_eq!(segments[0].text, "Máme to v součást DNA.");
+        assert_eq!(
+            words_of(&segments[0]),
+            vec![
+                (1.0, "Máme".into()),
+                (1.2, "to".into()),
+                (1.4, "v".into()),
+                // The phrase lands in the chunk it opened in, and keeps that
+                // chunk's own time. Nothing computes a timestamp.
+                (1.6, "součást DNA".into()),
+                (2.0, ".".into()),
+            ]
+        );
+    }
+
+    /// A phrase corrected to a single word leaves one chunk, and it is the one
+    /// the phrase started in - so the click still lands where the reader
+    /// pointed and the caption still begins on time.
+    #[test]
+    fn two_words_becoming_one_leave_the_time_of_the_first() {
+        let mut segments = [with_words(
+            "na shledanou",
+            &[(4.0, "na"), (4.3, "shledanou")],
+        )];
+
+        apply_dictionary(&mut segments, &[entry("na shledanou", "nashledanou")]);
+
+        assert_eq!(words_of(&segments[0]), vec![(4.0, "nashledanou".into())]);
+    }
+
+    /// And a rule still may not run across a boundary the segment does not
+    /// have. The join puts one space between chunks and no more, so a pattern
+    /// written with two words matches two words and nothing else.
+    #[test]
+    fn the_join_invents_no_words_that_were_not_spoken() {
+        let mut segments = [with_words("do mů", &[(0.0, "do"), (0.4, "mů")])];
+
+        apply_dictionary(&mut segments, &[entry("domů", "domů")]);
+
+        assert_eq!(
+            words_of(&segments[0]),
+            vec![(0.0, "do".into()), (0.4, "mů".into())],
+            "two chunks are two words, whatever they would spell run together"
+        );
     }
 
     /// The defect: `$` in a replacement is a capture-group reference to the

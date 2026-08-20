@@ -623,19 +623,6 @@ fn run(
     let mut key: Vec<String> = segments.iter().filter_map(|s| s.speakers.clone()).collect();
     key.sort_by_key(|k| order_key(k));
     key.dedup();
-    for (i, k) in key.iter().enumerate() {
-        db::insert_speaker(
-            &connection,
-            &db::Speaker {
-                key: k.clone(),
-                recording_id: recording_id.to_string(),
-                // "Mluvčí", not "Řečník" — matching the wording used in the UI
-                name: format!("Mluvčí {}", i + 1),
-                color: db::COLORS[i % db::COLORS.len()].to_string(),
-            },
-        )?;
-    }
-
     // One transaction: either the whole transcript is stored or none of it.
     // A write failing midway must not leave half a text in the archive.
     //
@@ -649,6 +636,28 @@ fn run(
         db::delete_segments(&connection, recording_id)?;
         for s in &segments {
             db::insert_segment(&connection, s)?;
+        }
+        /* **The speakers belong in here too.** They were written before the
+        transaction opened and never cleaned up: a run that then failed left
+        the new speaker rows behind after the segments rolled back, and a run
+        that succeeded left the *previous* run's speakers standing - named
+        people with nothing in the transcript they had said.
+
+        `keep_only_speakers` takes away what this transcript has no use for and
+        leaves the rest untouched, which is what keeps a name somebody typed
+        across a second transcription. */
+        db::keep_only_speakers(&connection, recording_id, &key)?;
+        for (i, k) in key.iter().enumerate() {
+            db::insert_speaker(
+                &connection,
+                &db::Speaker {
+                    key: k.clone(),
+                    recording_id: recording_id.to_string(),
+                    // "Mluvčí", not "Řečník" — matching the wording used in the UI
+                    name: format!("Mluvčí {}", i + 1),
+                    color: db::COLORS[i % db::COLORS.len()].to_string(),
+                },
+            )?;
         }
         Ok(())
     })();

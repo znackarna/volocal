@@ -135,6 +135,10 @@ export const csErrors = {
     "ji smazat půjde.",
   "errors.download.remove_failed": "Smazat se nepodařilo: {detail}",
   "errors.download.cancelled": "Zrušeno",
+  // Řádek archivu, který se nepodařilo přečíst. Dřív takový záznam tiše zmizel
+  // ze seznamu, což čtenář může pochopit jedině jako "někdo to smazal".
+  "errors.archive.row_unreadable":
+    "Tento záznam se nepodařilo přečíst z archivu ({id}). Přepis i zvuk mohou být v pořádku; poškozený je řádek, který je popisuje.",
   "errors.download.connection_failed": "Nepodařilo se spojit se serverem {host}: {reason}",
   "errors.download.rejected": "Server odmítl soubor vydat ({status})",
   "errors.download.tar_launch_failed":

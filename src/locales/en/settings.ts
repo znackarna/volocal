@@ -100,6 +100,7 @@ export const enSettings: Partial<Record<keyof typeof csSettings, string>> = {
   "settings.about.description": "It turns speech into text. Everything is processed on your computer alone and nothing is sent out. Your recordings, transcripts and models stay fully under your control.",
   "settings.about.version": "Version",
   "settings.about.author": "Author",
+  "settings.about.updateBlockedByTake": "Save or discard the recording in progress first. Installing an update closes the application, and the recording would be lost.",
   "settings.about.updateCheck": "Check for updates",
   "settings.about.updateAutoDescription": "It looks for a newer version on start. It downloads one only when you ask it to.",
   "settings.about.website": "Website",

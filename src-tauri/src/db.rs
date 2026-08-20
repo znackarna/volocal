@@ -1533,11 +1533,63 @@ const RECORDING_SELECT_SQL: &str =
         n.folder_id
      FROM recordings n";
 
+/// Every recording in the archive, and **a row that cannot be read is shown as
+/// damaged rather than left out.**
+///
+/// `filter_map(|r| r.ok())` dropped it in silence. SQLite is dynamically typed,
+/// so a NULL where a TEXT is expected is enough — and the archive then showed
+/// the recording as simply not existing, which a reader can only take as
+/// *somebody deleted it*. This is the one screen the owner trusts to say what
+/// is there.
+///
+/// Failing the whole read is not the answer either: one bad row must not blank
+/// the archive. So the ids are read a second time, forgivingly — `id` alone,
+/// which is the primary key and cannot be the column that failed — and anything
+/// that did not map comes back as a card in the error state saying so.
 pub fn list_recordings(db: &Connection) -> Result<Vec<Recording>> {
     let sql = format!("{RECORDING_SELECT_SQL} ORDER BY n.created_at DESC");
     let mut st = db.prepare(&sql)?;
     let rows = st.query_map([], recording_from_row)?;
-    Ok(rows.filter_map(|r| r.ok()).collect())
+    let readable: Vec<Recording> = rows.filter_map(|r| r.ok()).collect();
+
+    let mut all = db.prepare("SELECT id FROM recordings ORDER BY created_at DESC")?;
+    let ids: Vec<String> = all
+        .query_map([], |row| row.get::<_, String>(0))?
+        .filter_map(|r| r.ok())
+        .collect();
+    if ids.len() == readable.len() {
+        return Ok(readable);
+    }
+
+    let mut by_id: std::collections::HashMap<String, Recording> = readable
+        .into_iter()
+        .map(|recording| (recording.id.clone(), recording))
+        .collect();
+    Ok(ids
+        .into_iter()
+        .map(|id| {
+            by_id.remove(&id).unwrap_or_else(|| Recording {
+                path: String::new(),
+                // Named by its id, which is the only thing about it that read.
+                // A blank card would be one more thing the reader cannot act on.
+                title: id.clone(),
+                duration: 0.0,
+                created_at: String::new(),
+                status: status::FAILED.into(),
+                model: String::new(),
+                language: String::new(),
+                language_choice: String::new(),
+                error: Some(
+                    crate::user_message::UserMessage::new("archive.row_unreadable")
+                        .with("id", &id)
+                        .to_stored(),
+                ),
+                segment_count: 0,
+                folder: None,
+                id,
+            })
+        })
+        .collect())
 }
 
 /// Completed recordings that have a timed transcript available for a
@@ -1934,6 +1986,42 @@ pub fn insert_speaker(db: &Connection, speaker: &Speaker) -> Result<()> {
             speaker.color
         ],
     )?;
+    Ok(())
+}
+
+/// Removes the speakers of this recording that the new transcript has no use
+/// for, leaving the rest — names included — exactly as they are.
+///
+/// **A re-run used to add and never take away.** Speakers were inserted with
+/// `ON CONFLICT DO NOTHING`, which is what lets a renamed `Mluvčí 1` keep the
+/// name a person gave it across a second transcription, and nothing anywhere
+/// deleted the ones the new run did not produce. Transcribe a diarized
+/// interview again with diarization off, or with fewer voices found, and the
+/// recording kept named people with nothing they had said.
+///
+/// Not a blanket delete, for the reason above: the names are the part worth
+/// keeping. What one cannot promise is that a kept name still belongs to the
+/// same voice — clustering may hand `speaker_1` to somebody else between two
+/// runs, and no code here can tell. Recorded rather than silently traded away.
+pub fn keep_only_speakers(db: &Connection, recording_id: &str, keys: &[String]) -> Result<()> {
+    let mut kept = String::new();
+    for index in 0..keys.len() {
+        if index > 0 {
+            kept.push(',');
+        }
+        kept.push('?');
+        kept.push_str(&(index + 2).to_string());
+    }
+    let sql = if keys.is_empty() {
+        "DELETE FROM speakers WHERE recording_id = ?1".to_string()
+    } else {
+        format!("DELETE FROM speakers WHERE recording_id = ?1 AND key NOT IN ({kept})")
+    };
+    let mut values: Vec<&dyn rusqlite::ToSql> = vec![&recording_id];
+    for key in keys {
+        values.push(key);
+    }
+    db.execute(&sql, values.as_slice())?;
     Ok(())
 }
 
@@ -2434,12 +2522,13 @@ mod tests {
     use super::{
         ai_outputs, align_word_timestamps, create_folder, delete_folder, delete_recording,
         delete_recording_note, delete_segments, delete_speaker, dictionary, folder_recording_ids,
-        folders, has_table, insert_recording_note, insert_segment, insert_speaker, load_settings,
+        folders, has_table, insert_recording, insert_recording_note, insert_segment,
+        insert_speaker, keep_only_speakers, list_recordings, load_settings,
         look_at_offered_archive, metadata_value, migrate_legacy_schema, move_to_folder, open,
         recording_notes, recover_interrupted, save_ai_document, save_ai_output,
         save_metadata_value, search, segments, speakers, status, update_recording_note,
         watch_file_imported, watch_file_is_stable, waveform, AiDocument, AiOutput,
-        ArchiveFromTheFuture, Offered, RecordingNote, Segment, Speaker, WaveformData,
+        ArchiveFromTheFuture, Offered, Recording, RecordingNote, Segment, Speaker, WaveformData,
     };
     use rusqlite::{params, Connection};
 
@@ -2966,6 +3055,154 @@ mod tests {
            color        TEXT NOT NULL,
            PRIMARY KEY (key, recording_id)
          );";
+
+    /// **A damaged row used to make a recording vanish.** `filter_map(ok)`
+    /// dropped it in silence, and the archive then showed the recording as
+    /// simply not being there - which a reader can only take as somebody
+    /// having deleted it. One bad row must not blank the whole archive either,
+    /// so it comes back as a card that says what happened.
+    #[test]
+    fn a_row_that_cannot_be_read_is_shown_as_damaged_rather_than_hidden() {
+        // A real archive, because what is being tested is the row mapper
+        // against the columns it actually reads.
+        let temp = TempDb::new("list-damaged");
+        let db = open(&temp.0).unwrap();
+
+        for id in ["good", "broken"] {
+            insert_recording(
+                &db,
+                &Recording {
+                    id: id.into(),
+                    path: format!("C:/{id}.wav"),
+                    title: id.into(),
+                    duration: 1.0,
+                    created_at: "2026-08-20 10:00:00".into(),
+                    status: status::DONE.into(),
+                    model: String::new(),
+                    language: String::new(),
+                    language_choice: String::new(),
+                    error: None,
+                    segment_count: 0,
+                    folder: None,
+                },
+            )
+            .unwrap();
+        }
+        /* The damage SQLite permits and the row mapper refuses. `NOT NULL`
+        rules out a missing value, but not a wrong *type*: a column with TEXT
+        affinity keeps a BLOB as a BLOB, and reading it as a string fails.
+        That is a torn write or a half-restored file, and it is the shape a
+        real archive comes back damaged in. */
+        db.execute(
+            "UPDATE recordings SET name = x'00ff' WHERE id = 'broken'",
+            [],
+        )
+        .unwrap();
+
+        let listed = list_recordings(&db).unwrap();
+
+        assert_eq!(listed.len(), 2, "nothing disappears: {listed:?}");
+        let broken = listed
+            .iter()
+            .find(|r| r.id == "broken")
+            .expect("still listed");
+        assert_eq!(broken.status, status::FAILED);
+        assert!(
+            broken
+                .error
+                .as_deref()
+                .is_some_and(|text| text.contains("archive.row_unreadable")),
+            "and it says what is wrong: {:?}",
+            broken.error
+        );
+        assert!(
+            listed
+                .iter()
+                .any(|r| r.id == "good" && r.status == status::DONE),
+            "the healthy row is untouched"
+        );
+    }
+
+    /// **A re-run used to add speakers and never take any away.** Transcribe a
+    /// diarized interview again with fewer voices found, or with diarization
+    /// off, and the recording kept named people with nothing in the transcript
+    /// they had said.
+    #[test]
+    fn a_second_transcript_keeps_only_the_speakers_it_found() {
+        let db = Connection::open_in_memory().unwrap();
+        db.execute_batch(SPEAKER_SCHEMA).unwrap();
+
+        for (key, name) in [
+            ("speaker_0", "Jana"),
+            ("speaker_1", "Mluvčí 2"),
+            ("speaker_2", "Mluvčí 3"),
+        ] {
+            insert_speaker(
+                &db,
+                &Speaker {
+                    key: key.into(),
+                    recording_id: "r".into(),
+                    name: name.into(),
+                    color: "#000".into(),
+                },
+            )
+            .unwrap();
+        }
+
+        keep_only_speakers(&db, "r", &["speaker_0".to_string()]).unwrap();
+
+        let left = speakers(&db, "r").unwrap();
+        assert_eq!(left.len(), 1, "only the voice this run found is left");
+        assert_eq!(
+            left[0].name, "Jana",
+            "and the name a person typed survives the re-run"
+        );
+    }
+
+    /// Diarization turned off finds no voices at all, and then none may stay.
+    #[test]
+    fn a_transcript_with_no_voices_keeps_no_speakers() {
+        let db = Connection::open_in_memory().unwrap();
+        db.execute_batch(SPEAKER_SCHEMA).unwrap();
+        insert_speaker(
+            &db,
+            &Speaker {
+                key: "speaker_0".into(),
+                recording_id: "r".into(),
+                name: "Jana".into(),
+                color: "#000".into(),
+            },
+        )
+        .unwrap();
+
+        keep_only_speakers(&db, "r", &[]).unwrap();
+
+        assert!(speakers(&db, "r").unwrap().is_empty());
+    }
+
+    /// And another recording's speakers are none of this run's business.
+    #[test]
+    fn another_recordings_speakers_are_left_where_they_are() {
+        let db = Connection::open_in_memory().unwrap();
+        db.execute_batch(SPEAKER_SCHEMA).unwrap();
+        for recording in ["r", "other"] {
+            insert_speaker(
+                &db,
+                &Speaker {
+                    key: "speaker_0".into(),
+                    recording_id: recording.into(),
+                    name: "Jana".into(),
+                    color: "#000".into(),
+                },
+            )
+            .unwrap();
+        }
+
+        keep_only_speakers(&db, "r", &[]).unwrap();
+
+        assert!(speakers(&db, "r").unwrap().is_empty());
+        assert_eq!(speakers(&db, "other").unwrap().len(), 1);
+    }
 
     /// Removing a speaker takes the name off their passages and touches nothing
     /// else. The passages themselves stay where they are — they are the reading,
