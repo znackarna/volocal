@@ -693,13 +693,39 @@ pub fn check(n: &crate::db::Settings) -> ToolCheck {
         );
     }
     if k.model_whisper.is_none() {
-        let machine = if k.nvidia_driver || k.vulkan_driver {
+        /* Three answers, in the order of how much each knows about this reader.
+
+        The setting names a model: that is the file the transcription will look
+        for, and offering anything else would be offering something that does
+        not fix it.
+
+        It can name nothing, and does on any machine where a model was chosen
+        but never landed - `settings.model` is written when a download finishes
+        and is empty until then. **`quality_choice` is the answer to the
+        question that was actually asked**, and it survives the model being
+        empty. Reported on 20 August: `model` empty, `quality_choice` `fast`,
+        the fast model deleted by hand - and the row marked as necessary was
+        the accurate one, three gigabytes, because this fell straight through
+        to the machine. The right model for the graphics card and the wrong
+        answer to the person, who had said *fast* and could see they had.
+
+        The drivers are last, being a guess about the computer made where there
+        is nothing else at all to go on. */
+        let by_choice = match n.quality_choice.as_str() {
+            "fast" => Some("model-turbo"),
+            "accurate" => Some("model-large"),
+            _ => None,
+        };
+        let by_machine = if k.nvidia_driver || k.vulkan_driver {
             "model-large"
         } else {
             "model-turbo"
         };
-        k.needed
-            .push(crate::download::component_for_model(&n.model).unwrap_or_else(|| machine.into()));
+        k.needed.push(
+            crate::download::component_for_model(&n.model)
+                .or_else(|| by_choice.map(str::to_string))
+                .unwrap_or_else(|| by_machine.into()),
+        );
     }
     if k.model_vad.is_none() {
         k.needed.push("vad".into());
@@ -1529,6 +1555,34 @@ mod needed_tests {
     /// A model put in the folder by hand belongs to no component, and the
     /// answer then has to be one this machine can actually download rather
     /// than nothing at all — which is what the reader would otherwise get.
+    /// **The reported state, and the reason the wrong row was marked.** A
+    /// machine where a model was chosen and never landed has `model` empty --
+    /// it is written when a download finishes -- while `quality_choice` still
+    /// holds the answer that was given. Falling through to the drivers there
+    /// marked the accurate model and three gigabytes at a reader who had
+    /// chosen the fast one and could see they had.
+    ///
+    /// Both choices are asserted in one test on purpose: the machine's own
+    /// fallback agrees with one of them, and which one depends on whether the
+    /// computer running this has a graphics card. Together they always tell
+    /// the answer apart from the guess.
+    #[test]
+    fn an_unwritten_model_falls_back_to_the_choice_and_not_to_the_drivers() {
+        let mut settings = bare_machine("needed-choice-fast", "");
+        settings.quality_choice = "fast".into();
+        assert!(
+            check(&settings).needed.contains(&"model-turbo".to_string()),
+            "the reader asked for the fast one"
+        );
+
+        let mut settings = bare_machine("needed-choice-accurate", "");
+        settings.quality_choice = "accurate".into();
+        assert!(
+            check(&settings).needed.contains(&"model-large".to_string()),
+            "and here for the accurate one"
+        );
+    }
+
     #[test]
     fn a_model_no_component_delivers_still_leaves_something_to_press() {
         let settings = bare_machine("needed-unknown", "small.en");
