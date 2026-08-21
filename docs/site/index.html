@@ -829,8 +829,29 @@ main > section > h2 {
   /* The row is a 22 px icon column and the text; a static card would be
      auto-placed into the icon column. */
   .row-reveal {
-    position: static; grid-column: 2; height: 92px; margin: 14px 0 2px;
+    position: static; grid-column: 2; margin: 14px 0 2px;
     transform: none; opacity: 1; pointer-events: auto; transition: none;
+  }
+  /* 92 px is a floor here rather than the height. The card was drawn for the
+     526 px column and is 299 px on a phone, so a note wraps onto a second line
+     and a folder name onto a third -- at 320 px the note needs 142. As an
+     overlay the frame had to hold, because anything taller would have covered
+     the row above; in the flow there is nothing under it to push, so a
+     fragment that needs the room takes it instead of being cut off. */
+  .row-reveal,
+  .row-face { height: auto; min-height: 92px; }
+  /* The one fragment that cannot wrap: a file name is one line by nature. At
+     320 px the longest of the three is 2 px wider than the card, so the rows
+     take the card's width instead of hugging their text, and the name is cut
+     with an ellipsis -- which is what the archive itself does with a name too
+     long for its row. */
+  .row-reveal .watch-list { justify-items: stretch; }
+  /* `min-width: auto` on a grid item is the name's own min-content, which is
+     the whole unbreakable name -- the row would still be 211 px in a 189 px
+     list without this. */
+  .row-reveal .watch-file { min-width: 0; }
+  .row-reveal .watch-file .row-name {
+    min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   /* And the words stay where they are. With the card in flow there is
      nothing for them to make way for. */
