@@ -359,13 +359,29 @@ main > section > h2 {
 .rows p { margin: 6px 0 0; font-size: 14.5px; color: var(--text-quiet); }
 .rows.narrow { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 48px; }
 .rows.narrow > li:nth-child(-n+3) { border-top: 0; }
-/* No numerals. They were 11 px labels above each block, then for an hour on
-   20 August a 92 px figure in the page's own background colour raised out of
-   it by nothing but its shadow. Both are gone: the lede already says *jen
-   třikrát*, so counting them again is the section repeating itself, and the
-   figure was the largest thing on a block whose smallest fact it carried.
-   What accompanies these three is still open. */
-}
+/* The numeral, and it took three goes to get here. It was an 11 px label above
+   each block, then for an hour on 20 August a 92 px figure in the page's own
+   background colour raised out of it by nothing but its shadow -- which looked
+   good and said nothing, being the largest thing on a block whose smallest
+   fact it carried. Both were taken off, and the brace left behind by that
+   removal stood orphaned in this stylesheet until 21 August.
+
+   What it is now: a 5 x 7 dot-matrix cell, the shape a character has had on
+   that kind of display since it existed. The whole cell is drawn, lit and
+   unlit alike -- that is what makes it a panel rather than a figure made of
+   dots, and the unlit ones take the page's hairline colour, the quietest thing
+   on it. 43 px is not an arbitrary smaller number than 92: it is the height of
+   the title and its sentence together, so the panel ends where the writing
+   ends.
+
+   Counting them again is not the section repeating itself after all. The lede
+   promises *jen třikrát* and then asks the reader to take three blocks on
+   trust as being three; the panels are the promise kept in the same breath. */
+.numeral { display: block; margin: 0 0 14px; }
+.numeral svg { display: block; }
+.numeral .dot { fill: var(--line); transition: fill 90ms linear; }
+.numeral .dot.on { fill: var(--text); }
+@media (prefers-reduced-motion: reduce) { .numeral .dot { transition: none; } }
 
 
 /* The live previews. Inside the frame is the application's own markup under
@@ -3658,11 +3674,47 @@ footer { padding: 96px 0 72px; }
       Nahrávky, přepisy, poznámky i nastavení leží bezpečně na vašem disku.
       Volocal sahá na internet jen třikrát:</p>
     <ul class="rows narrow">
-      <li><b>Poprvé po instalaci.</b>
+      <li>
+        <span class="numeral" data-digit="1">
+          <svg viewBox="0 0 29.8 42.6" width="30.1" height="43" role="img" aria-label="1.">
+            <circle class="dot" cx="2.1" cy="2.1" r="2.1"/><circle class="dot" cx="8.5" cy="2.1" r="2.1"/><circle class="dot on" cx="14.9" cy="2.1" r="2.1"/><circle class="dot" cx="21.3" cy="2.1" r="2.1"/><circle class="dot" cx="27.7" cy="2.1" r="2.1"/>
+            <circle class="dot" cx="2.1" cy="8.5" r="2.1"/><circle class="dot on" cx="8.5" cy="8.5" r="2.1"/><circle class="dot on" cx="14.9" cy="8.5" r="2.1"/><circle class="dot" cx="21.3" cy="8.5" r="2.1"/><circle class="dot" cx="27.7" cy="8.5" r="2.1"/>
+            <circle class="dot" cx="2.1" cy="14.9" r="2.1"/><circle class="dot" cx="8.5" cy="14.9" r="2.1"/><circle class="dot on" cx="14.9" cy="14.9" r="2.1"/><circle class="dot" cx="21.3" cy="14.9" r="2.1"/><circle class="dot" cx="27.7" cy="14.9" r="2.1"/>
+            <circle class="dot" cx="2.1" cy="21.3" r="2.1"/><circle class="dot" cx="8.5" cy="21.3" r="2.1"/><circle class="dot on" cx="14.9" cy="21.3" r="2.1"/><circle class="dot" cx="21.3" cy="21.3" r="2.1"/><circle class="dot" cx="27.7" cy="21.3" r="2.1"/>
+            <circle class="dot" cx="2.1" cy="27.7" r="2.1"/><circle class="dot" cx="8.5" cy="27.7" r="2.1"/><circle class="dot on" cx="14.9" cy="27.7" r="2.1"/><circle class="dot" cx="21.3" cy="27.7" r="2.1"/><circle class="dot" cx="27.7" cy="27.7" r="2.1"/>
+            <circle class="dot" cx="2.1" cy="34.1" r="2.1"/><circle class="dot" cx="8.5" cy="34.1" r="2.1"/><circle class="dot on" cx="14.9" cy="34.1" r="2.1"/><circle class="dot" cx="21.3" cy="34.1" r="2.1"/><circle class="dot" cx="27.7" cy="34.1" r="2.1"/>
+            <circle class="dot" cx="2.1" cy="40.5" r="2.1"/><circle class="dot on" cx="8.5" cy="40.5" r="2.1"/><circle class="dot on" cx="14.9" cy="40.5" r="2.1"/><circle class="dot on" cx="21.3" cy="40.5" r="2.1"/><circle class="dot" cx="27.7" cy="40.5" r="2.1"/>
+          </svg>
+        </span>
+        <b>Poprvé po instalaci.</b>
         <p>Stáhne nástroje a modely ze stránek jejich autorů.</p></li>
-      <li><b>Když vložíte odkaz.</b>
+      <li>
+        <span class="numeral" data-digit="2">
+          <svg viewBox="0 0 29.8 42.6" width="30.1" height="43" role="img" aria-label="2.">
+            <circle class="dot" cx="2.1" cy="2.1" r="2.1"/><circle class="dot on" cx="8.5" cy="2.1" r="2.1"/><circle class="dot on" cx="14.9" cy="2.1" r="2.1"/><circle class="dot on" cx="21.3" cy="2.1" r="2.1"/><circle class="dot" cx="27.7" cy="2.1" r="2.1"/>
+            <circle class="dot on" cx="2.1" cy="8.5" r="2.1"/><circle class="dot" cx="8.5" cy="8.5" r="2.1"/><circle class="dot" cx="14.9" cy="8.5" r="2.1"/><circle class="dot" cx="21.3" cy="8.5" r="2.1"/><circle class="dot on" cx="27.7" cy="8.5" r="2.1"/>
+            <circle class="dot" cx="2.1" cy="14.9" r="2.1"/><circle class="dot" cx="8.5" cy="14.9" r="2.1"/><circle class="dot" cx="14.9" cy="14.9" r="2.1"/><circle class="dot" cx="21.3" cy="14.9" r="2.1"/><circle class="dot on" cx="27.7" cy="14.9" r="2.1"/>
+            <circle class="dot" cx="2.1" cy="21.3" r="2.1"/><circle class="dot" cx="8.5" cy="21.3" r="2.1"/><circle class="dot" cx="14.9" cy="21.3" r="2.1"/><circle class="dot on" cx="21.3" cy="21.3" r="2.1"/><circle class="dot" cx="27.7" cy="21.3" r="2.1"/>
+            <circle class="dot" cx="2.1" cy="27.7" r="2.1"/><circle class="dot" cx="8.5" cy="27.7" r="2.1"/><circle class="dot on" cx="14.9" cy="27.7" r="2.1"/><circle class="dot" cx="21.3" cy="27.7" r="2.1"/><circle class="dot" cx="27.7" cy="27.7" r="2.1"/>
+            <circle class="dot" cx="2.1" cy="34.1" r="2.1"/><circle class="dot on" cx="8.5" cy="34.1" r="2.1"/><circle class="dot" cx="14.9" cy="34.1" r="2.1"/><circle class="dot" cx="21.3" cy="34.1" r="2.1"/><circle class="dot" cx="27.7" cy="34.1" r="2.1"/>
+            <circle class="dot on" cx="2.1" cy="40.5" r="2.1"/><circle class="dot on" cx="8.5" cy="40.5" r="2.1"/><circle class="dot on" cx="14.9" cy="40.5" r="2.1"/><circle class="dot on" cx="21.3" cy="40.5" r="2.1"/><circle class="dot on" cx="27.7" cy="40.5" r="2.1"/>
+          </svg>
+        </span>
+        <b>Když vložíte odkaz.</b>
         <p>Ven míří jen dotaz na službu, zpátky se vrací zvuk.</p></li>
-      <li><b>Když kontrolujete aktualizace.</b>
+      <li>
+        <span class="numeral" data-digit="3">
+          <svg viewBox="0 0 29.8 42.6" width="30.1" height="43" role="img" aria-label="3.">
+            <circle class="dot on" cx="2.1" cy="2.1" r="2.1"/><circle class="dot on" cx="8.5" cy="2.1" r="2.1"/><circle class="dot on" cx="14.9" cy="2.1" r="2.1"/><circle class="dot on" cx="21.3" cy="2.1" r="2.1"/><circle class="dot on" cx="27.7" cy="2.1" r="2.1"/>
+            <circle class="dot" cx="2.1" cy="8.5" r="2.1"/><circle class="dot" cx="8.5" cy="8.5" r="2.1"/><circle class="dot" cx="14.9" cy="8.5" r="2.1"/><circle class="dot on" cx="21.3" cy="8.5" r="2.1"/><circle class="dot" cx="27.7" cy="8.5" r="2.1"/>
+            <circle class="dot" cx="2.1" cy="14.9" r="2.1"/><circle class="dot" cx="8.5" cy="14.9" r="2.1"/><circle class="dot on" cx="14.9" cy="14.9" r="2.1"/><circle class="dot" cx="21.3" cy="14.9" r="2.1"/><circle class="dot" cx="27.7" cy="14.9" r="2.1"/>
+            <circle class="dot" cx="2.1" cy="21.3" r="2.1"/><circle class="dot" cx="8.5" cy="21.3" r="2.1"/><circle class="dot" cx="14.9" cy="21.3" r="2.1"/><circle class="dot on" cx="21.3" cy="21.3" r="2.1"/><circle class="dot" cx="27.7" cy="21.3" r="2.1"/>
+            <circle class="dot" cx="2.1" cy="27.7" r="2.1"/><circle class="dot" cx="8.5" cy="27.7" r="2.1"/><circle class="dot" cx="14.9" cy="27.7" r="2.1"/><circle class="dot" cx="21.3" cy="27.7" r="2.1"/><circle class="dot on" cx="27.7" cy="27.7" r="2.1"/>
+            <circle class="dot on" cx="2.1" cy="34.1" r="2.1"/><circle class="dot" cx="8.5" cy="34.1" r="2.1"/><circle class="dot" cx="14.9" cy="34.1" r="2.1"/><circle class="dot" cx="21.3" cy="34.1" r="2.1"/><circle class="dot on" cx="27.7" cy="34.1" r="2.1"/>
+            <circle class="dot" cx="2.1" cy="40.5" r="2.1"/><circle class="dot on" cx="8.5" cy="40.5" r="2.1"/><circle class="dot on" cx="14.9" cy="40.5" r="2.1"/><circle class="dot on" cx="21.3" cy="40.5" r="2.1"/><circle class="dot" cx="27.7" cy="40.5" r="2.1"/>
+          </svg>
+        </span>
+        <b>Když kontrolujete aktualizace.</b>
         <p>Vždycky se pouze ptá. Stažení spouštíte vy.</p></li>
     </ul>
   </section>
@@ -3923,6 +3975,81 @@ footer { padding: 96px 0 72px; }
     }, { threshold: 0.35 });
     rowHosts.forEach(function (host) { watcher.observe(host); });
   }
+
+  /* The three panels under *Třikrát a dost* are drawn in the markup as the
+     finished number. What this adds is the half second before it, in which the
+     panel runs through other digits and stops on its own -- the section is
+     about counting to three, so what the panel does on the way to its number
+     counts as well.
+
+     Driven by the clock rather than by a chain of ticks. A background tab
+     freezes `requestAnimationFrame` and throttles `setInterval` to once a
+     second, so with ticks a reader who scrolled past in a background tab and
+     came back would find a panel still shuffling; here the frame that arrives
+     on return is simply past the end, and the panel is its number. */
+  var MATRIX = {
+    1: "00100011000010000100001000010001110",
+    2: "01110100010000100010001000100011111",
+    3: "11111000100010000010000011000101110",
+    4: "00010001100101010010111110001000010",
+    5: "11111100001111000001000011000101110",
+    6: "00110010001000011110100011000101110",
+    7: "11111000010001000100010000100001000",
+    8: "01110100011000101110100011000101110",
+    9: "01110100011000101111000010001001100",
+    0: "01110100011001110101110011000101110"
+  };
+  var MATRIX_FRAME_MS = 55;
+
+  Array.prototype.forEach.call(document.querySelectorAll(".numeral"), function (panel, order) {
+    var dots = panel.querySelectorAll(".dot");
+    var value = Number(panel.getAttribute("data-digit"));
+    var settled = MATRIX[value];
+
+    var paint = function (bits) {
+      for (var i = 0; i < dots.length; i++) {
+        dots[i].classList.toggle("on", bits.charAt(i) === "1");
+      }
+    };
+
+    /* Nine digits that are not this one, ending on it. The step of three keeps
+       consecutive frames from sharing most of their lit dots, which is what
+       makes it read as a roll rather than a flicker. */
+    var frames = [];
+    for (var i = 0; i < 9; i++) frames.push(MATRIX[(value + i * 3 + 7) % 10]);
+    frames.push(settled);
+
+    var running = false;
+    var run = function () {
+      if (running) return;
+      running = true;
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+      var start = null, shown = -1;
+      var delay = order * 110;
+      var step = function (now) {
+        if (start === null) start = now;
+        var t = now - start - delay;
+        if (t >= 0) {
+          var frame = Math.floor(t / MATRIX_FRAME_MS);
+          if (frame >= frames.length) { paint(settled); return; }
+          if (frame !== shown) { paint(frames[frame]); shown = frame; }
+        }
+        requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    };
+
+    if ("IntersectionObserver" in window) {
+      var watcher = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          if (!entry.isIntersecting) return;
+          watcher.unobserve(entry.target);
+          run();
+        });
+      }, { threshold: 0.4 });
+      watcher.observe(panel);
+    }
+  });
 
   /* The recorder slide wears the application's header bar, so its mark does
      what a mark in a header does. Still, like the wizard's: a carousel slide
