@@ -419,13 +419,18 @@ main > section > h2 {
 /* Room for the window's shadow, taken straight back out of the layout: the
    viewport has to clip the slides beside this one, and with no padding it
    clipped the glow off the one being looked at. The slides keep their width,
-   because the negative margin gives back exactly what the padding took. */
+   because the negative margin gives back exactly what the padding took.
+   The amount is the page's own gutter and not a number of its own, because
+   the negative margin puts the box that much past the column on each side.
+   It was 48 against a 32 px gutter until 2026-08-21, and every window under
+   1276 px scrolled sideways by exactly the 16 px difference. The phone rule
+   further down carries the same arithmetic to the 20 px gutter. */
 .carousel-viewport {
   overflow: hidden;
-  padding: 26px 48px 4px; margin: -26px -48px -4px;
+  padding: 26px 32px 4px; margin: -26px -32px -4px;
 }
 /* And the neighbours stand 120 px away rather than edge to edge, so what shows
-   in those 48 px is ground and not the next window. The track shifts by the
+   in those 32 px is ground and not the next window. The track shifts by the
    slide plus the gap, which `preview.js` has to know: SLIDE_GAP. */
 .carousel-track { display: flex; gap: 120px; transition: transform .42s cubic-bezier(.4, 0, .2, 1); }
 .slide { flex: 0 0 100%; min-width: 0; }
@@ -672,9 +677,15 @@ main > section > h2 {
    writing, and the sheet is already the thing that says *file*. It sits at the
    foot of the sheet, where a name is written on a folder tab -- halfway up it
    read as one more line of the text above it. */
-.save-formats { display: flex; gap: 7px; justify-content: center; }
+/* A share of the card rather than a fixed size, capped at the 52 px the sheets
+   are drawn at. Eight of them and seven gaps are 465 px, which the 526 px
+   column of the two-column grid has and the 398 px it becomes at 940 does not
+   -- the row was being cut at both ends between 900 and 1150 px. At the widths
+   where there is room the arithmetic lands on the same 52 and 7 as before. */
+.save-formats { display: flex; gap: 1.4%; justify-content: center; }
 .fmt {
-  position: relative; width: 52px; height: 56px; flex: 0 0 auto;
+  position: relative; flex: 0 1 auto;
+  width: 11%; max-width: 52px; height: auto; aspect-ratio: 52 / 56;
   color: var(--line-field);
 }
 .fmt svg { display: block; width: 100%; height: 100%; }
@@ -805,11 +816,38 @@ main > section > h2 {
 /* The pill's waveform is a live canvas in the application; here it is the
    same bars drawn once, as an SVG filling the same box. */
 .row-face .mini-waves > svg { display: block; width: 100%; height: 100%; }
-/* Below the section's one-column breakpoint the fragments go entirely: a
-   phone has no hover and gets the clean text list. This also retires the
-   app's own 900 px rule that would fold the recorder pill -- by the time it
-   bites, the fragment is gone. */
-@media (max-width: 900px) { .row-reveal { display: none; } }
+/* Below the section's one-column breakpoint there is no hover to open the
+   card with -- and nothing for it to push, either, since the row now has the
+   width to itself. So the fragment stops being an overlay and becomes what it
+   always was: the proof, standing under the sentence that makes the claim.
+   Nothing hidden, nothing to discover, no animation.
+   The room is there. The fragments were drawn for the 526 px column of the
+   two-column grid, and one column is 820 px at 899 and 565 px at 620 -- wider
+   than what they were built in, all the way down to the phone breakpoint. */
+@media (max-width: 900px) {
+  .rows li:has(.row-reveal) { min-height: 0; }
+  /* The row is a 22 px icon column and the text; a static card would be
+     auto-placed into the icon column. */
+  .row-reveal {
+    position: static; grid-column: 2; height: 92px; margin: 14px 0 2px;
+    transform: none; opacity: 1; pointer-events: auto; transition: none;
+  }
+  /* And the words stay where they are. With the card in flow there is
+     nothing for them to make way for. */
+  .rows li:hover .row-reveal,
+  .rows li:focus-within .row-reveal { transform: none; }
+  .rows li:hover .row-words,
+  .rows li:focus-within .row-words { transform: none; opacity: 1; }
+  /* The application folds its player pill at exactly this width -- no waves,
+     no name, the time in their place. That is right in a 380 px window and
+     wrong in a picture of a 1280 px one, so the fragment keeps the pill it
+     was drawn with. */
+  .row-reveal .mini-player { width: 290px; }
+  .row-reveal .mini-recorder { padding-left: 3px; }
+  .row-reveal .mini-player > .mini-waves,
+  .row-reveal .mini-player > .mini-label,
+  .row-reveal .mini-player > .mini-time { display: block; }
+}
 
 /* Hierarchy. Three cards carry the reasons somebody installs this at all, so
    they stand above the masonry as a grid of three and one step larger — 19 px
@@ -1024,11 +1062,32 @@ footer { padding: 96px 0 72px; }
   .closing { padding-top: 96px; }
   .preview { margin-top: 44px; }
 }
+/* The gutter is 20 px from here down, so the carousel's shadow room follows
+   it -- see the arithmetic at `.carousel-viewport`. */
 @media (max-width: 620px) {
+  .carousel-viewport { padding: 26px 20px 4px; margin: -26px -20px -4px; }
+  /* The header bar carries three things across 526 px -- the mark, the three
+     marks for where sound comes from, and the recorder pill -- and on a phone
+     the card is 299 px. The mark is what goes: the page wears it in its own
+     header two screens up, and what this card is about is the other two. The
+     pill then takes what is left rather than its full 290 px. */
+  .row-reveal .bar-left .mark { display: none; }
+  .row-reveal .bar-left,
+  .row-reveal .sources { flex: 0 0 auto; }
+  .row-reveal .bar-right,
+  .row-reveal .mini-player { width: auto; flex: 1 1 auto; min-width: 0; }
   .wrap { padding: 0 20px; }
   .hero { padding-top: 56px; }
   .btn { width: 100%; }
   .foot-links { margin-left: 0; }
+}
+/* At 320 px the mark on one side and the three places to go on the other want
+   346 px of a 305 px line, and the page scrolled sideways by the difference.
+   They stop sharing a line rather than one of them being taken off: the page
+   has three places to go and a narrow phone is not a reason to have two. */
+@media (max-width: 420px) {
+  .top-in { flex-wrap: wrap; row-gap: 12px; }
+  .top-right { gap: 14px; }
 }
 </style>
 </head>
@@ -3195,7 +3254,7 @@ footer { padding: 96px 0 72px; }
           <p>Vždycky vidíte to, co právě posloucháte. Žádné přetáčení a hledání.
           Stačí kliknout.</p>
         </div>
-        <div class="row-reveal">
+        <div class="row-reveal" inert>
           <div class="row-face shot">
             <div class="segment current">
               <button class="time-mark">39:07</button>
@@ -3218,7 +3277,7 @@ footer { padding: 96px 0 72px; }
         <div class="row-words"><b>Opravíte, co nesedí.</b>
           <p>Text si přečtete, přepíšete v něm slovo i větu a vyhledáte v něm, co potřebujete.</p>
         </div>
-        <div class="row-reveal">
+        <div class="row-reveal" inert>
           <div class="row-face shot loop fix">
             <!-- One word being put right. The application does this in a text
                  field -- a double click turns the segment into a `textarea` --
@@ -3254,7 +3313,7 @@ footer { padding: 96px 0 72px; }
         <div class="row-words"><b>Odhalíte nejistá místa.</b>
           <p>Volocal označí sporná místa, takže víte, kam se podívat, než přepis pošlete dál.</p>
         </div>
-        <div class="row-reveal">
+        <div class="row-reveal" inert>
           <div class="row-face shot">
             <div class="segment uncertain">
               <button class="time-mark">21:03</button>
@@ -3291,7 +3350,7 @@ footer { padding: 96px 0 72px; }
         <div class="row-words"><b>Přepíšete odkudkoli.</b>
           <p>Nahrajete z mikrofonu, vložíte odkaz na online službu, nebo přetáhnete soubor do okna.</p>
         </div>
-        <div class="row-reveal">
+        <div class="row-reveal" inert>
           <div class="row-face shot">
             <header class="bar">
               <div class="bar-left">
@@ -3340,7 +3399,7 @@ footer { padding: 96px 0 72px; }
         <div class="row-words"><b>Uložíte, co potřebujete.</b>
           <p>Text do TXT, Markdownu, SRT, VTT nebo JSON; zvuk do MP3, M4A nebo WAV.</p>
         </div>
-        <div class="row-reveal">
+        <div class="row-reveal" inert>
           <div class="row-face shot center">
             <!-- All eight at once, rather than the top two rows of the Uložit
                  menu. The application has no icon for a format -- it has the
@@ -3411,7 +3470,7 @@ footer { padding: 96px 0 72px; }
         <div class="row-words"><b>Poznámky drží slovo.</b>
           <p>Připnete je přesně k času v nahrávce a v panelu je pak máte pohromadě.</p>
         </div>
-        <div class="row-reveal">
+        <div class="row-reveal" inert>
           <div class="row-face shot">
             <!-- The note open, not shut: shut it is a line of writing and a
                  time, and the row is about what you can do with it. Open, the
@@ -3447,7 +3506,7 @@ footer { padding: 96px 0 72px; }
         <div class="row-words"><b>Sledovaná složka.</b>
           <p>V nastavení zvolíte složku. Volocal ji sleduje, přepisuje a přidává obsah do archivu sám.</p>
         </div>
-        <div class="row-reveal">
+        <div class="row-reveal" inert>
           <div class="row-face shot loop watch">
             <!-- The switch that stood here said only *transcribe on arrival*,
                  which is the smaller half of the sentence beside it, and the
@@ -3497,7 +3556,7 @@ footer { padding: 96px 0 72px; }
         <div class="row-words"><b>Složky na úložky.</b>
           <p>Přepisy schováte, kam patří. Zvukové soubory na disku zůstanou, kde jsou.</p>
         </div>
-        <div class="row-reveal">
+        <div class="row-reveal" inert>
           <div class="row-face shot">
             <ul class="list folder-list">
               <li class="row folder-row">
@@ -3529,7 +3588,7 @@ footer { padding: 96px 0 72px; }
         <div class="row-words"><b>Zrychlíte i zpomalíte.</b>
           <p>Od tří čtvrtin do dvojnásobku, podle toho, jak rychle kdo mluví.</p>
         </div>
-        <div class="row-reveal">
+        <div class="row-reveal" inert>
           <div class="row-face shot center">
             <div class="speeds">
               <button class="button button-small">0,75×</button>
@@ -3549,7 +3608,7 @@ footer { padding: 96px 0 72px; }
         <div class="row-words"><b>Titulky sedí na obraz.</b>
           <p>SRT i VTT titulky můžete exportovat a použít pro původní video nebo zvuk.</p>
         </div>
-        <div class="row-reveal">
+        <div class="row-reveal" inert>
           <div class="row-face shot loop cue">
             <!-- The application does not draw a subtitle -- a subtitle is
                  something another program shows. So this is the page's own
@@ -3792,31 +3851,57 @@ footer { padding: 96px 0 72px; }
      only ever meet the aftermath. It is built on the first open instead, once
      per page: hover or keyboard focus, whichever arrives first. */
   var rowWordmark = document.getElementById("row-wordmark");
-  if (rowWordmark && window.volocalWordmark) {
-    var rowHost = rowWordmark.closest("li") || rowWordmark.parentElement;
-    var stage = function () {
-      rowHost.removeEventListener("pointerenter", stage);
-      rowHost.removeEventListener("focusin", stage);
-      volocalWordmark(rowWordmark);
-    };
-    rowHost.addEventListener("pointerenter", stage);
-    rowHost.addEventListener("focusin", stage);
-  }
+  var rowMarkDrawn = false;
+  var drawRowMark = function () {
+    if (rowMarkDrawn || !rowWordmark || !window.volocalWordmark) return;
+    rowMarkDrawn = true;
+    volocalWordmark(rowWordmark);
+  };
 
   /* A card that loops runs only while its row is open, and always from the
      top: somebody coming back to the row should not join halfway through. The
      reflow between the two class changes is what makes it a restart -- without
      it the browser sees no change at all and the loop runs on. */
-  Array.prototype.forEach.call(document.querySelectorAll(".row-face.loop"), function (face) {
-    var host = face.closest("li");
-    var again = function () {
+  var startRow = function (host) {
+    var face = host.querySelector(".row-face.loop");
+    if (face) {
       face.classList.remove("run");
       void face.offsetWidth;
       face.classList.add("run");
-    };
+    }
+    if (rowWordmark && host.contains(rowWordmark)) drawRowMark();
+  };
+
+  var rowHosts = [];
+  Array.prototype.forEach.call(
+    document.querySelectorAll(".row-face.loop, #row-wordmark"),
+    function (el) {
+      var host = el.closest("li");
+      if (host && rowHosts.indexOf(host) < 0) rowHosts.push(host);
+    }
+  );
+  rowHosts.forEach(function (host) {
+    var again = function () { startRow(host); };
     host.addEventListener("pointerenter", again);
     host.addEventListener("focusin", again);
   });
+
+  /* Below the section's breakpoint the card stands open in the flow, and no
+     pointer will ever enter it: a phone has none, and the row is not something
+     to point at any more. What starts the card there is the card arriving on
+     screen -- once, and then never again, because a picture that replays every
+     time it scrolls past is a flicker rather than a proof. */
+  var inFlow = window.matchMedia("(max-width: 900px)");
+  if (inFlow.matches && "IntersectionObserver" in window) {
+    var watcher = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (!entry.isIntersecting) return;
+        watcher.unobserve(entry.target);
+        startRow(entry.target);
+      });
+    }, { threshold: 0.35 });
+    rowHosts.forEach(function (host) { watcher.observe(host); });
+  }
 
   /* The recorder slide wears the application's header bar, so its mark does
      what a mark in a header does. Still, like the wizard's: a carousel slide
