@@ -69,6 +69,15 @@ calques from English — `Hranice důvěry` for *trust boundary* is a phrase nob
 says out loud. Where a technical word cannot be avoided, explain it once in a
 clause and move on.
 
+The one that keeps having to be corrected by hand is **the verb pushed to the
+end of the sentence, behind its object.** English tolerates it; Czech reads it
+as translated. The verb belongs after the subject:
+
+| not this | this |
+|---|---|
+| Nahrávky ani přepisy počítač neopustí. | Nahrávky ani přepisy neopustí váš počítač. |
+| Patnáct z šestnácti součástí otisk má. | Patnáct z šestnácti součástí má otisk. |
+
 **Both halves of a bilingual document say the same things**, heading for
 heading and point for point — `docs-check.mjs` counts them, and one half quietly
 gaining a paragraph is how the two start disagreeing about the program. Identical

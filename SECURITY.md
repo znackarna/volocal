@@ -24,8 +24,8 @@ umíte vy.
 
 * **Rozhraní není webová stránka.** Je součástí programu, takže se do něj nemá
   jak dostat reklama ani sledování.
-* **Nahrávky ani přepisy počítač neopustí.** Žádná telemetrie, hlášení pádů,
-  žádný účet.
+* **Nahrávky ani přepisy neopustí váš počítač.** Žádná telemetrie, hlášení
+  pádů, žádný účet.
 * **Na aktualizaci se ptá, jen když si o to řeknete** tlačítkem v Nastavení.
 * **Spouští programy od jiných autorů** — FFmpeg, whisper.cpp, llama.cpp,
   yt-dlp, Deno — a ty si samy stahuje. Tady je Volocal nejzranitelnější.
@@ -52,7 +52,7 @@ dokazoval jen to, že se soubor shoduje sám se sebou.
 kdy GitHub otisky ještě neuváděl, a novější verze neexistuje. Stáhne se tedy
 s poznámkou, že jeho původ nikdo neověřil, a chrání ho jen HTTPS. Že zůstane
 jedinou takovou položkou, hlídá automatický test:
-**patnáct z šestnácti** součástí otisk má.
+**patnáct z šestnácti** součástí má otisk.
 
 HTTPS je slušná pojistka, ne úplná. Spojení je šifrované a ověřuje se, s kým
 mluvíte, takže věříme provozovatelům `github.com`,
@@ -145,7 +145,7 @@ exactly what you can.
 
 * **The interface is not a web page.** It is part of the program, so there is no
   way in for adverts or tracking.
-* **Recordings and transcripts never leave the machine.** No telemetry, no
+* **Recordings and transcripts never leave your computer.** No telemetry, no
   crash reports, no account.
 * **It checks for updates only when you ask it to**, with a button in Settings.
 * **It runs programs written by other people** — FFmpeg, whisper.cpp,
