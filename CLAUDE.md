@@ -49,6 +49,41 @@ the GitHub page say the gain, `docs/history/` says everything.
 Asked for on 2026-08-16, after several releases went out reading as a list of
 things that had been ticked off.
 
+## Documents are written for people
+
+Everything a person opens — `SECURITY.md`, both READMEs, anything under `docs/`
+meant to be read rather than recorded — is plain and short. Say the thing and
+stop.
+
+Cut every sentence that serves the text instead of the reader: one that explains
+why the previous sentence is phrased as it is, one that praises the document's
+own honesty, one that announces what is about to be listed, one that points at
+the next heading.
+
+**Say each thing once.** *Nic neodesílá* followed by *nahrávky počítač
+neopouštějí* is one message twice. A sentence that restates the one above it
+goes, whichever of the two is weaker.
+
+**Czech is written as Czech.** Czech word order and Czech sentence structure, no
+calques from English — `Hranice důvěry` for *trust boundary* is a phrase nobody
+says out loud. Where a technical word cannot be avoided, explain it once in a
+clause and move on.
+
+**Both halves of a bilingual document say the same things**, heading for
+heading and point for point — `docs-check.mjs` counts them, and one half quietly
+gaining a paragraph is how the two start disagreeing about the program. Identical
+in content, and each written as if a person wrote it in that language: two texts,
+not a text and its translation.
+
+**Lead with what the reader gets**, not with the mechanism that provides it. The
+same rule as the release notes, one document further out.
+
+Nothing addressed to a model belongs in a document a person reads.
+
+Asked for on 2026-08-21, after a rewritten `SECURITY.md` opened with a note
+explaining its own bilingualism and described the interface as *rozhraní
+zabalené v programu* — which tells a reader nothing.
+
 ## Visual system
 
 These are the values a new screen inherits rather than re-invents. An exception

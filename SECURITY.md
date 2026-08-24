@@ -1,79 +1,73 @@
 # Bezpečnost / Security
 
-Česky i anglicky. Uživatelé jsou čeští, ale ten, kdo najde chybu, nemusí být.
-
-In both languages. The users are Czech; whoever finds a flaw may not be.
-
----
-
 ## ČESKY
 
-### Kam to hlásit
+### Kam hlásit chybu
 
 **jsme@znackarna.cz**
 
 Napište, co jste našli, jak to zopakovat a co se tím dá způsobit. Než to
 zveřejníte, dejte nám prosím vědět — ozveme se. značkárna s.r.o. je malá firma
-bez noční směny, takže odpověď může trvat dny. Slibovat konkrétní lhůtu by
-znamenalo slibovat něco, co nikdo nedodrží.
+bez noční směny, takže odpověď může trvat dny.
 
 Veřejný PGP klíč nemáme. Potřebujete-li šifrovaně, napište nejdřív bez
 podrobností a domluvíme se.
 
 ### Které verze
 
-Opravy vycházejí jen v nové verzi. Podporovaná je vždycky ta poslední.
+Opravy vycházejí jen v nové verzi. Starší se neopravují.
 
 ### Co Volocal dělá s vaším počítačem
 
 Je to obyčejný program pro Windows. Běží pod vaším účtem a umí přesně to, co
 umíte vy.
 
-* **Okno nenačítá nic z internetu.** Zobrazuje rozhraní zabalené v programu.
-  Žádná cizí stránka, reklama, analytika ani vzdálený skript.
-* **Nic neodesílá.** Nahrávky, přepisy ani nastavení počítač neopouštějí. Žádná
-  telemetrie, hlášení pádů ani účet.
+* **Rozhraní není webová stránka.** Je součástí programu, takže se do něj nemá
+  jak dostat reklama ani sledování.
+* **Nahrávky ani přepisy počítač neopustí.** Žádná telemetrie, hlášení pádů,
+  žádný účet.
 * **Na aktualizaci se ptá, jen když si o to řeknete** tlačítkem v Nastavení.
-* **Spouští cizí programy** — FFmpeg, whisper.cpp, llama.cpp, yt-dlp, Deno —
-  a ty si samy stahuje. To je nejcitlivější místo celé aplikace a je popsané
-  níž.
+* **Spouští programy od jiných autorů** — FFmpeg, whisper.cpp, llama.cpp,
+  yt-dlp, Deno — a ty si samy stahuje. Tady je Volocal nejzranitelnější.
 
 ### Kde jsou slabá místa
 
-Tři, a jsou to slabá místa vědomá.
+Tři, a víme o nich.
 
-**1. Aplikace si stahuje programy a modely a pak je spouští.**
+**1. Program si stahuje jiné programy a pak je spouští.**
 
-Odkud, to stojí v `src-tauri/components.json`. Každá položka je pevná adresa
-jednoho konkrétního souboru — žádné `latest`, žádná větev; test v
-`src-tauri/src/download.rs` neprojde, kdyby tam něco takového bylo. Otisk
-SHA-256 se počítá už při zápisu stahovaných bajtů a porovnává se dřív, než se
-cokoli rozbalí.
+FFmpeg připravuje zvuk, whisper přepisuje. Volocal je v sobě nenese, stáhne si
+je při prvním spuštění — a kdyby někdo cestou podstrčil jiný soubor, spustil by
+se místo nich.
 
-Otisk do katalogu smí zapsat jen ten, kdo ho přečetl u vydavatele. Spočítat ho
-z toho, co dorazilo sem, by dokazovalo jen to, že se soubor shoduje sám se
-sebou.
+Brání tomu dvě věci. Adresa míří vždy na jedno konkrétní vydání, ne na
+„nejnovější", takže se nemůže sama změnit. A ke každé patří **otisk**, tedy
+kontrolní součet jednoho jediného souboru: Volocal ho spočítá ze stažených dat
+dřív, než cokoli rozbalí, a když nesedí, stažené zahodí.
 
-**Jedna položka otisk nemá — model rozpoznávání hlasů.** Leží ve vydání
-staršího data, než od kdy GitHub otisky počítá, a novější není. Nainstaluje se
-s poznámkou `verified: false` a jedinou zárukou je u něj HTTPS. Že takových
-zůstane jen tahle jedna, hlídá test: **patnáct z šestnácti** součástí otisk má.
+Otisk musí být opsaný od vydavatele. Spočítaný ze staženého souboru by
+dokazoval jen to, že se soubor shoduje sám se sebou.
 
-HTTPS je pojistka slušná, ne úplná. Spojení je šifrované a certifikát se
-ověřuje, takže důvěřujeme provozovatelům `github.com`,
+**Jedna položka otisk nemá: model rozpoznávání hlasů.** Jeho vydání je z doby,
+kdy GitHub otisky ještě neuváděl, a novější verze neexistuje. Stáhne se tedy
+s poznámkou, že jeho původ nikdo neověřil, a chrání ho jen HTTPS. Že zůstane
+jedinou takovou položkou, hlídá automatický test:
+**patnáct z šestnácti** součástí otisk má.
+
+HTTPS je slušná pojistka, ne úplná. Spojení je šifrované a ověřuje se, s kým
+mluvíte, takže věříme provozovatelům `github.com`,
 `objects.githubusercontent.com` a `huggingface.co` — a všem certifikačním
-autoritám ve vašem systému.
+autoritám, kterým věří váš Windows.
 
-Kromě otisků platí: archiv, jehož obsah by mířil mimo cílovou složku, se odmítne
-celý; stahuje se do dočasného souboru a přejmenuje až nakonec, takže přerušené
-stahování nevypadá jako hotová součást; a když otisk nesedí, dočasný soubor jde
-pryč a předchozí instalace zůstane.
+Bez ohledu na otisky pak platí tohle. Archiv, jehož obsah by při rozbalení
+mířil mimo určenou složku, se odmítne celý. Stahuje se do dočasného souboru
+a přejmenuje až na konci, takže přerušené stahování nevypadá jako hotová
+součást. A novou verzi si program nenainstaluje sám: hledá ji robot jednou
+týdně, opíše otisk od vydavatele a připraví změnu, kterou někdo schválí.
 
-**Novější verzi si aplikace nevybírá sama.** Hledá ji robot jednou týdně, přečte
-otisk u vydavatele a otevře pull request, který někdo přečte. Aplikace jde vždy
-jen na adresu z katalogu.
+**2. Okno má ochranu proti cizímu obsahu. Přístup k souborům ji obchází.**
 
-**2. Okno má Content Security Policy. Přístup k souborům ji stejně obchází.**
+Okno, ve kterém Volocal běží, má pravidlo o tom, odkud se smí načíst obsah:
 
 ```
 default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';
@@ -83,121 +77,123 @@ connect-src 'self' ipc: http://ipc.localhost asset: http://asset.localhost;
 object-src 'none'; base-uri 'self'; frame-ancestors 'none'
 ```
 
-Skript, styl, písmo ani obrázek se nenačtou odjinud než z programu. `eval` ani
-`new Function` neběží. Zásuvné moduly jsou vyloučené, okno nejde vložit do cizí
-stránky, a obvyklé cesty ven — `fetch`, XHR, WebSocket i obrázkový maják — jsou
-zavřené.
+Skript, styl, písmo ani obrázek se nenačtou odjinud než z programu samotného,
+okno nejde vložit do cizí stránky a obvyklé cesty, kudy by data odcházela ven,
+jsou zavřené.
 
-Co to nezastaví, a je poctivé to říct: styly psané atributem povolené jsou,
-protože tak je React zapisuje; přesměrování okna žádná z direktiv neřeší, takže
-data v adrese by odejít mohla; a hlavně — CSP určuje, odkud se smí načíst
-obsah, ne co smí dělat kód, který už běží.
+Co to nezastaví: pravidlo hlídá, **odkud** se smí načíst obsah — ne co smí dělat
+program, který už běží. A přesměrování okna jinam neřeší, takže data schovaná
+v adrese by teoreticky odejít mohla.
 
-První obrana je proto vstup, ne CSP. Rozhraní se skládá jako text, ne jako
-HTML. Přepis, jména mluvčích, poznámky ani názvy souborů se jako HTML nikdy
-nevykreslují.
+První obrana proto není tohle pravidlo, ale způsob, jakým se obrazovky skládají:
+jako text, nikdy jako kód stránky. Ať už je v přepisu, ve jméně mluvčího nebo
+v názvu souboru cokoli, nemůže se to začít chovat jako příkaz.
 
-A přístup k souborům: `"assetProtocol": { "scope": [] }` — okno nesmí číst nic.
-Nahrávka může ležet kdekoli, takže seznam cest nejde napsat dopředu; místo toho
-se vždy otevře jen ten jeden soubor, který se chystá hrát. Jiná cesta se tudy
-nedostane.
+Otevírat soubory okno samo nesmí — v nastavení programu stojí
+`"assetProtocol": { "scope": [] }`, tedy prázdný seznam povolených cest.
+Nahrávka může ležet kdekoli na disku, takže vyjmenovat cesty dopředu nejde;
+místo toho se pokaždé otevře jen ten jediný soubor, který se právě chystá hrát.
 
-**3. Instalátor není podepsaný.** Windows SmartScreen na něj proto upozorní. Je
-to rozhodnutí, ne nedodělek: certifikát, který to varování opravdu odstraní, se
-pro jednoho člověka koupit nedá. Nepodepsaný instalátor ale nerozeznáte od
-podvrženého jinak než podle toho, odkud jste ho stáhli — berte ho jen ze
-stránky vydání na GitHubu.
+**3. Instalátor není podepsaný.** Windows proto při spuštění upozorní, že
+program nezná. Je to rozhodnutí, ne nedodělek: certifikát, který to varování
+opravdu odstraní, se pro jednoho člověka koupit nedá. Nepodepsaný instalátor ale
+nerozeznáte od podvrženého jinak než podle toho, odkud jste ho stáhli — berte ho
+jen ze stránky vydání na GitHubu.
 
 ### Co s tím můžete udělat vy
 
 * Instalujte jen z oficiálního vydání, odnikud jinud.
-* První spuštění, kdy se stahují součásti, nechte proběhnout na síti, které
-  věříte.
-* Máte-li v archivu citlivé nahrávky, zapněte si šifrování disku. Aplikace
-  archiv sama nešifruje.
+* První spuštění, při kterém se stahují součásti, nechte proběhnout na síti,
+  které věříte.
+* Máte-li v archivu citlivé nahrávky, zapněte si šifrování disku. Volocal
+  archiv sám nešifruje.
 * Než přenosnou kopii předáte dál, přečtěte si `src-tauri/LICENSE.txt`
-  a `NOTICE` — je tam FFmpeg pod GPL v3 a modely Gemma pod podmínkami Googlu.
+  a `NOTICE` — je tam FFmpeg pod licencí GPL v3 a modely Gemma pod podmínkami
+  Googlu.
 
 ### Co za chybu nepovažujeme
 
 * Že program přečte soubor, na který jste ho sami nasměrovali.
 * Že přepis obsahuje chyby nebo že jazykový model vymyslí, co nezaznělo. Přepis
   je podklad ke kontrole, ne úřední dokument.
-* Že program obejde někdo, kdo už má váš účet. Kdo ovládá účet, ovládá všechno,
-  co pod ním běží.
+* Že program obejde někdo, kdo se už dostal k vašemu účtu. Kdo ovládá účet,
+  ovládá všechno, co pod ním běží.
 
 ---
 
 ## ENGLISH
 
-### Where to report
+### Where to report a flaw
 
 **jsme@znackarna.cz**
 
 Tell us what you found, how to repeat it, and what it lets someone do. Please
 let us know before you publish — we will answer. značkárna s.r.o. is a small
-company with no night shift, so a reply can take days. Promising a deadline
-here would be promising something nobody keeps.
+company with no night shift, so a reply can take days.
 
 We have no public PGP key. If you need an encrypted channel, write first
 without the details and we will arrange one.
 
 ### Which versions
 
-Fixes ship in a new version only. The latest release is the supported one.
+Fixes ship in a new version only. Older ones are not patched.
 
 ### What Volocal does to your computer
 
 It is an ordinary Windows program. It runs under your account and can do
 exactly what you can.
 
-* **The window loads nothing from the internet.** It shows the interface
-  bundled inside the program. No third-party page, advert, analytics or remote
-  script.
-* **It sends nothing out.** Recordings, transcripts and settings never leave
-  the machine. No telemetry, no crash reports, no account.
+* **The interface is not a web page.** It is part of the program, so there is no
+  way in for adverts or tracking.
+* **Recordings and transcripts never leave the machine.** No telemetry, no
+  crash reports, no account.
 * **It checks for updates only when you ask it to**, with a button in Settings.
-* **It runs other people's programs** — FFmpeg, whisper.cpp, llama.cpp, yt-dlp,
-  Deno — and fetches them itself. That is the most sensitive thing here, and it
-  is the first item below.
+* **It runs programs written by other people** — FFmpeg, whisper.cpp,
+  llama.cpp, yt-dlp, Deno — and fetches them itself. This is where Volocal is
+  most exposed.
 
 ### Where the weak spots are
 
-Three, and all three are deliberate.
+Three, and we know about them.
 
-**1. The application downloads programs and models, then runs them.**
+**1. The program downloads other programs and then runs them.**
 
-Where from is in `src-tauri/components.json`. Every entry is a fixed address of
-one particular file — no `latest`, no branch; a test in
-`src-tauri/src/download.rs` fails if one appears. The SHA-256 is computed while
-the bytes are being written and compared before anything is unpacked.
+FFmpeg prepares the audio, whisper writes the transcript. Volocal does not carry
+them inside itself — it fetches them the first time you run it, and if somebody
+substituted a different file on the way, that is what would run.
 
-A digest may be written into the catalogue only by someone who read it at the
-publisher. Computing it from what arrived here would prove only that the file
-matches itself.
+Two things prevent it. Every address points at one particular release rather
+than at "the newest", so it cannot change by itself. And every address comes
+with a **digest**, the checksum of one single file: Volocal computes it from the
+bytes as they arrive, before anything is unpacked, and throws the download away
+if it does not match.
 
-**One entry has no digest — the speaker-recognition model.** It sits in a
-release older than the day GitHub began computing digests, and there is no
-newer one. It installs with `verified: false`, and HTTPS is its only guarantee.
-A test keeps that to this one alone: **fifteen of the sixteen** components
+The digest has to be copied from the publisher. Computed from the downloaded
+file, it would only prove the file matches itself.
+
+**One item has no digest: the speaker-recognition model.** Its release is from
+before GitHub published digests, and there is no newer one. It installs with a
+note saying its origin was never verified, and HTTPS is all that protects it. An
+automatic test keeps it the only one: **fifteen of the sixteen** components
 carry a digest.
 
-HTTPS is a decent safeguard, not a complete one. The connection is encrypted
-and the certificate checked, so we trust whoever runs `github.com`,
+HTTPS is a decent safeguard, not a complete one. The connection is encrypted and
+you can tell who you are talking to, so we trust whoever runs `github.com`,
 `objects.githubusercontent.com` and `huggingface.co` — and every certificate
-authority your system trusts.
+authority your Windows trusts.
 
-Digests aside: an archive whose contents would land outside the target folder is
-refused whole; a download is written to a temporary file and renamed only at the
-end, so an interrupted one cannot look finished; and when a digest does not
-match, the temporary file goes and the previous installation stays.
+Whatever the digests say, this also holds. An archive whose contents would land
+outside the folder meant for them is refused whole. A download is written to a
+temporary file and renamed only at the end, so an interrupted one does not look
+finished. And the program never installs a newer version by itself: a robot
+looks once a week, copies the digest from the publisher, and prepares a change
+for someone to approve.
 
-**The application does not pick newer versions itself.** A robot looks once a
-week, reads the digest at the publisher and opens a pull request somebody reads.
-The application only ever goes to the address in the catalogue.
+**2. The window is guarded against outside content. File access goes around
+that guard.**
 
-**2. The window has a Content Security Policy. File access gets around it
-anyway.**
+The window Volocal runs in carries a rule about where content may be loaded
+from:
 
 ```
 default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';
@@ -207,40 +203,39 @@ connect-src 'self' ipc: http://ipc.localhost asset: http://asset.localhost;
 object-src 'none'; base-uri 'self'; frame-ancestors 'none'
 ```
 
-No script, style, font or image loads from anywhere but the program. `eval` and
-`new Function` do not run. Plugins are excluded, the window cannot be framed by
-another page, and the usual ways out — `fetch`, XHR, WebSocket, tracking pixel —
-are closed.
+No script, style, font or image loads from anywhere but the program itself, the
+window cannot be embedded in someone else's page, and the usual routes for data
+to leave are closed.
 
-What it does not stop, said plainly: inline styles are allowed, because that is
-how React writes them; navigating the window away is covered by none of these
-directives, so data in a URL could still leave; and above all — a CSP governs
-where content may be loaded from, not what already-running code may do.
+What it does not stop: the rule governs **where** content may come from, not
+what an already-running program may do. And it says nothing about navigating the
+window elsewhere, so data hidden in a web address could in principle still
+leave.
 
-So the first defence is the input, not the CSP. The interface is assembled as
-text, never as HTML. Transcripts, speaker names, notes and file names are never
-rendered as markup.
+So the first defence is not that rule but the way the screens are assembled: as
+text, never as page code. Whatever a transcript, a speaker's name or a file name
+happens to contain, it cannot start behaving like an instruction.
 
-And file access: `"assetProtocol": { "scope": [] }` — the window may read
-nothing. A recording can be anywhere, so a list of paths cannot be written in
-advance; instead exactly one file is opened, the one about to play. Nothing else
-gets through that way.
+The window may not open files by itself — the program's settings carry
+`"assetProtocol": { "scope": [] }`, an empty list of permitted paths. A
+recording can be anywhere on the disk, so listing paths in advance is
+impossible; instead exactly one file is opened each time, the one about to play.
 
-**3. The installer is not signed.** Windows SmartScreen warns about it. That is
-a decision rather than an omission: a certificate that actually removes the
-warning cannot be bought by one person. But an unsigned installer is
-indistinguishable from a tampered one except by where you got it — take it only
-from the releases page on GitHub.
+**3. The installer is not signed.** Windows therefore warns that it does not
+recognise the program. This is a decision rather than an omission: a certificate
+that actually removes the warning cannot be bought by one person. But an
+unsigned installer is indistinguishable from a tampered one except by where you
+got it — take it only from the releases page on GitHub.
 
 ### What you can do about it
 
 * Install only from the official release, nowhere else.
-* Let the first run, when components are downloaded, happen on a network you
+* Let the first run, when the components are downloaded, happen on a network you
   trust.
-* If your archive holds sensitive recordings, turn on disk encryption. The
-  application does not encrypt the archive itself.
+* If your archive holds sensitive recordings, turn on disk encryption. Volocal
+  does not encrypt the archive itself.
 * Before passing a portable copy on, read `src-tauri/LICENSE.txt` and `NOTICE` —
-  FFmpeg is under GPL v3 and the Gemma models under Google's terms.
+  FFmpeg is under the GPL v3 licence and the Gemma models under Google's terms.
 
 ### What we do not treat as a flaw
 
