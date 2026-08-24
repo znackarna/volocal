@@ -8,7 +8,7 @@ Vložíte nahrávku a dostanete přepis, který si můžete přečíst, opravit,
 prohledat a přehrát slovo po slovu. Pozná, kdo co řekl. Text umí učesat, shrnout
 i přeložit.
 
-Vaše nahrávky nikdy neopustí počítač. Žádný účet, žádný cloud, žádné nahrávání
+Vaše nahrávky nikdy neopustí váš počítač. Žádný účet, žádný cloud, žádné nahrávání
 na server — modely běží na vašem vlastním hardwaru, po prvním nastavení bez
 připojení.
 
@@ -16,6 +16,8 @@ připojení.
 
 **Windows 10 nebo 11.** [Stáhněte si instalátor](../../releases/latest) —
 instaluje se jen pro vás a nechce práva správce.
+
+**Stav: vydáno, 1.2.20.** Autor ho používá denně.
 
 Jedna věc, na kterou se připravte při prvním spuštění: instalátor není
 podepsaný, takže Windows ukážou *Windows ochránil váš počítač*. Zvolte **Další
@@ -41,16 +43,15 @@ toho, které modely si vyberete — a po tom už je internet nepovinný.
 
 ## Vaše nahrávky zůstávají u vás
 
-To je celý smysl téhle aplikace, takže tady je přesně, kdy sahá na internet —
-a jsou to jen tyhle tři případy:
+To je celý smysl téhle aplikace. Na internet sahá ve třech případech:
 
 1. **První spuštění**, aby stáhla přepisovací nástroje a modely, které jste si
    vybrali, ze stránek jejich autorů.
 2. **Když vložíte odkaz** na online službu. Váš odkaz jde ven, zpátky přijde
    zvuk. Nic dalšího.
-3. **Když se zeptáte, jestli je nová verze.** Je tu také přepínač, ve výchozím
-   stavu vypnutý, který se na tuhle jedinou otázku zeptá po spuštění. Vždycky se
-   jen ptá — nic se nestáhne, dokud něco nezmáčknete.
+3. **Když se zeptáte, jestli je nová verze.** Je tu i přepínač, ve výchozím
+   stavu vypnutý, který se na to zeptá po spuštění. Nic se nestáhne, dokud
+   něco nezmáčknete.
 
 **A nic víc.** Žádná telemetrie, žádná hlášení o pádech, žádný účet. Vaše
 nahrávky, přepisy, poznámky a nastavení leží v souboru na vašem disku.
@@ -62,8 +63,6 @@ hlasů, jehož autor žádný otisk nezveřejňuje — u něj je jen HTTPS a nic
 Podrobně to rozepisuje [SECURITY.md](SECURITY.md).
 
 ## Co nedělá dobře
-
-Radši napsané tady než objevené později:
 
 - **Časy slov jsou přibližné, ne přesné.** Na klikání a sledování textu dobré;
   u dlouhé věty s pauzou uprostřed se to může rozejít asi o vteřinu.
@@ -121,11 +120,10 @@ cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
 neúplnou sadu množných tvarů, českou větu, která čtenáři tyká, a překlad, jehož
 česká předloha se mezitím přepsala. Čeština je zdrojový jazyk rozhraní.
 
-Na vydání jsou přísnější pravidla: u značky (tagu) běží
+Na vydání jsou pravidla přísnější. Nad tagem běží
 `node scripts/i18n.mjs check --strict`, který navíc odmítne překlad, jehož česká
-předloha nikdy nedostala otisk. Potom se sestaví instalátor, nainstaluje se na
-čistý stroj, spustí se a musí si stihnout založit archiv — teprve pak je běh
-zelený.
+předloha nikdy nedostala otisk. Pak se sestaví instalátor, nainstaluje na čistý
+stroj a spustí — a musí stihnout založit archiv. Teprve potom je běh zelený.
 
 Kam se co instaluje: nástroje a modely do `%LOCALAPPDATA%\Whisp\`, archiv do
 `%APPDATA%\cz.znackarna.volocal\`. Ta první cesta pořád říká `Whisp` — tak se

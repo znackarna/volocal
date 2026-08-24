@@ -8,7 +8,7 @@ Drop in a recording and you get a transcript you can read, correct, search and
 play back word by word. It knows who said what. It can tidy the text up,
 summarise it or translate it.
 
-Your recordings never leave the machine. There is no account, no cloud, no
+Your recordings never leave your computer. There is no account, no cloud, no
 upload — the models run on your own hardware, offline, after the first setup.
 
 ## Get it
@@ -41,16 +41,15 @@ depending on which models you choose — and after that the internet is optional
 
 ## Your recordings stay with you
 
-That is the whole point of the application, so here is exactly when it touches
-the internet — and it is only these three:
+That is the whole point of the application. It touches the internet three times:
 
 1. **The first run**, to fetch the transcription engine and the models you
    picked, from their authors' own release pages.
 2. **When you paste a link** to an online service. Your link goes out, the audio
    comes back. Nothing else.
-3. **When you ask whether there is a new version.** There is also a switch, off
-   by default, that asks that one question at startup. It only ever asks —
-   nothing downloads without you pressing something.
+3. **When you ask whether there is a new version.** There is also a switch,
+   off by default, that asks at startup. Nothing downloads without you pressing
+   something.
 
 **And nothing else.** No telemetry, no crash reports, no account. Your
 recordings, transcripts, notes and settings sit in a file on your disk.
@@ -62,8 +61,6 @@ model, whose host publishes no fingerprint — that one has HTTPS and nothing
 more. [SECURITY.md](SECURITY.md) spells this out.
 
 ## What it does not do well
-
-Written down here rather than discovered later:
 
 - **Word timings are close, not exact.** Good for clicking and following along;
   a long sentence with a pause in it can drift by about a second.

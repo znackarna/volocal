@@ -17,7 +17,7 @@
   Four more files only *say* the version — to a reader, not to a program:
 
     README.md                          the status line
-    README.cs.md                       the installer's filename, twice
+    README.cs.md                       the installer's filename, twice, and the status line
     NOTICE                             which release these components belong to
     .github/ISSUE_TEMPLATE/…yml        the example a reporter is shown
 
@@ -52,6 +52,7 @@ $files = @(
 $documents = @(
   @{ Path = "README.md";     Pattern = '(\*\*Status: released, )([\d.]+)(\.\*\*)' }
   @{ Path = "README.cs.md";  Pattern = '(Volocal_)([\d.]+)(_x64-setup\.exe)'; Every = $true }
+  @{ Path = "README.cs.md";  Pattern = '(\*\*Stav: vydáno, )([\d.]+)(\.\*\*)' }
   @{ Path = "NOTICE";        Pattern = '(?m)^(Volocal )([\d.]+)( — )' }
   @{ Path = ".github\ISSUE_TEMPLATE\bug_report.yml"; Pattern = '(placeholder: ")([\d.]+)(")' }
 )
