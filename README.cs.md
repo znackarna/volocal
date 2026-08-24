@@ -60,7 +60,7 @@ K tomu prvnímu stahování: každá součást je připnutá na konkrétní verz
 konkrétní adrese a všechny až na jednu se ověřují proti otisku, který zveřejnil
 jejich autor. Když soubor nesedí, aplikace ho odmítne. Ta výjimka je model
 hlasů, jehož autor žádný otisk nezveřejňuje — u něj je jen HTTPS a nic víc.
-Podrobně to rozepisuje [SECURITY.md](SECURITY.md).
+Podrobně to rozepisuje [SECURITY.cs.md](SECURITY.cs.md).
 
 ## Co nedělá dobře
 
@@ -82,7 +82,7 @@ Podrobně to rozepisuje [SECURITY.md](SECURITY.md).
 
 - **Něco je špatně, nebo máte nápad:** založte issue.
 - **Našli jste bezpečnostní díru:** prosím nezakládejte veřejné issue — napište
-  na jsme@znackarna.cz. [SECURITY.md](SECURITY.md) říká, co je už teď známo jako
+  na jsme@znackarna.cz. [SECURITY.cs.md](SECURITY.cs.md) říká, co je už teď známo jako
   slabé místo.
 
 ---
