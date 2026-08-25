@@ -86,7 +86,7 @@ to the stylesheet; to force a palette, put `data-theme="light"` on `<html>`.
   Committing it locally was offered and left open.
 - **The limits are parked.** *Co nedělá dobře* sits in an HTML comment in
   `index.html`, bound for a FAQ section. **Done on 25 August** — it is the
-  `#faq` section, five `<details>` under the heading *Co nedělá dobře*, and the
+  `#faq` section, five `<details>` under the heading *Jaké má limity?*, and the
   answers are the owner's sentences from that comment word for word.
 - **Recommended hardware in numbers is missing on purpose.** Nothing in this
   repository has measured a memory threshold — the comment beside
