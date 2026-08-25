@@ -1362,6 +1362,14 @@ figcaption.with-icon { display: flex; align-items: flex-start; gap: 8px; }
   gap: 20px 32px; padding: 26px 30px;
   border: 1px solid var(--line); border-radius: var(--r-large); background: var(--panel);
 }
+/* The mark stands before the sentence, not above it: the panel is one row and
+   a drawing on its own line would make it two. The pair travels together when
+   the row wraps, so the button never ends up between the mark and its
+   sentence. 420 px is the width below which that wrap happens. */
+.business-offer { display: flex; align-items: center; gap: 18px; flex: 1 1 420px; }
+/* Height, not width: the cube is 0.866 as wide as it is tall, and it is the
+   line of type beside it that decides how big it should read. */
+.business-mark { flex: 0 0 auto; display: block; height: 44px; width: auto; }
 .business-panel p {
   margin: 0; max-width: 66ch;
   font-family: var(--font-body); font-size: 18px; line-height: 1.5;
@@ -4168,7 +4176,17 @@ footer { padding: 96px 0 72px; }
 
   <section class="business" id="firmy">
     <div class="business-panel">
-      <p>Potřebujete silnější nástroje? Propojíme lidi, obsah a design napříč firmou.</p>
+      <div class="business-offer">
+        <svg class="business-mark" viewBox="0 0 660 762" fill="none"
+             xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <rect width="380.65" height="380.65" transform="matrix(0.866025 0.5 0 1 0 190.325)" fill="#FF1C26"/>
+          <rect width="380.65" height="380.65" transform="matrix(0.866025 -0.5 0 1 329.653 380.65)" fill="#7AC942"/>
+          <rect width="380.65" height="380.65" transform="matrix(0.866025 0.5 -0.866025 0.5 329.653 0)" fill="#007AFF"/>
+          <circle cx="89.921" cy="89.921" r="89.921" transform="matrix(0.866025 -0.5 0 1 425.273 431.853)" fill="white"/>
+          <rect width="158.126" height="158.126" transform="matrix(0.866025 0.5 -0.866025 0.5 329.653 111.262)" fill="white"/>
+        </svg>
+        <p>Potřebujete silnější nástroje? Propojíme lidi, obsah a design napříč firmou.</p>
+      </div>
       <a class="btn quiet" href="mailto:jsme@znackarna.cz?subject=Volocal%20ve%20firm%C4%9B">Ozvěte se</a>
     </div>
   </section>
