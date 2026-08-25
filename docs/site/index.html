@@ -1241,12 +1241,39 @@ section.minor .rows p { margin-top: 4px; font-size: 13px; }
   border-right: 1.5px solid var(--text-quiet);
   border-bottom: 1.5px solid var(--text-quiet);
   transform: rotate(45deg); transform-origin: 60% 60%;
-  transition: transform .18s ease;
+  transition: transform .26s cubic-bezier(.4, 0, .2, 1);
 }
 .faq-item[open] summary::after { transform: rotate(-135deg); }
+/* The answer slides rather than appearing. A `<details>` has always been a
+   switch -- shut, then instantly open -- because the height it is going to is
+   not a number anybody wrote down, and CSS could not animate to a height it
+   had to work out. `interpolate-size: allow-keywords` lets it, and
+   `::details-content` is the box to say it about; `allow-discrete` carries
+   `content-visibility` across the same 0.26 s instead of flipping it at one
+   end.
+
+   Behind `@supports` on purpose. A browser without these three keeps the
+   instant open it has today, which is the behaviour this page shipped with and
+   is not broken -- only abrupt.
+
+   0.26 s and the page's own easing, the same pair the cards under *Co
+   získáte?* arrive on. The chevron was on 0.18 s and `ease` and is on this
+   now: two clocks on one gesture is how a disclosure comes to feel loose. */
+@supports (interpolate-size: allow-keywords) and (selector(::details-content)) {
+  .faq-item { interpolate-size: allow-keywords; }
+  .faq-item::details-content {
+    height: 0; overflow: hidden; content-visibility: hidden;
+    transition: height .26s cubic-bezier(.4, 0, .2, 1),
+                content-visibility .26s allow-discrete;
+  }
+  .faq-item[open]::details-content { height: auto; content-visibility: visible; }
+}
 .faq-item summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .faq-item p { margin: 0 0 18px; max-width: 62ch; font-size: 13px; color: var(--text-quiet); }
-@media (prefers-reduced-motion: reduce) { .faq-item summary::after { transition: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .faq-item summary::after { transition: none; }
+  .faq-item::details-content { transition: none; }
+}
 
 /* A note about the picture, not a caption for it — so it takes the shape the
    application gives its own notes: the info glyph in the accent colour, the
