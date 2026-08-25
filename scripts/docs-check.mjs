@@ -31,7 +31,7 @@ const read = (...parts) => readFileSync(join(root, ...parts), "utf8");
 
 /** Every document that states rules about the code. A document not listed here
  *  is prose somebody reads once; these are read as instructions. */
-const DOCUMENTS = ["CLAUDE.md", "SECURITY.md", "ARCHITECTURE.md", "CONTRIBUTING.md"];
+const DOCUMENTS = ["CLAUDE.md", "SECURITY.md", "SECURITY.cs.md", "ARCHITECTURE.md", "CONTRIBUTING.md"];
 
 const problems = [];
 const fail = (where, claim, reality) => problems.push({ where, claim, reality });
@@ -133,43 +133,48 @@ for (const name of DOCUMENTS) {
 // ------------------------------- what SECURITY.md quotes from the configuration
 
 const security = read("SECURITY.md");
+const securityCs = read("SECURITY.cs.md");
 const config = JSON.parse(read("src-tauri", "tauri.conf.json"));
 const components = JSON.parse(read("src-tauri", "components.json"));
 
-/** The policy is quoted in the document, wrapped for page width, once in each
- *  language. A quotation is the claim most worth checking, because it is the
- *  one that looks verifiable and is copied by hand. */
+/** The policy is quoted in each half of the pair, wrapped for page width. A
+ *  quotation is the claim most worth checking, because it is the one that looks
+ *  verifiable and is copied by hand. */
 const collapse = (text) => text.replace(/\s+/g, " ").trim();
-const quoted = [...security.matchAll(/```\n(default-src[\s\S]*?)```/g)].map((match) =>
-  collapse(match[1]),
-);
 const policy = collapse(config.app.security.csp ?? "");
 
-if (quoted.length !== 2) {
-  fail("SECURITY.md", `politika CSP je v dokumentu ${quoted.length}×`, "má tam být dvakrát, česky i anglicky");
-}
-for (const [index, block] of quoted.entries()) {
-  if (block !== policy) {
-    fail(
-      "SECURITY.md",
-      `${index + 1}. opis CSP nesouhlasí s tauri.conf.json`,
-      `konfigurace říká:\n    ${policy}\n  dokument říká:\n    ${block}`,
-    );
+for (const [file, text] of [["SECURITY.md", security], ["SECURITY.cs.md", securityCs]]) {
+  const quoted = [...text.matchAll(/```\n(default-src[\s\S]*?)```/g)].map((match) =>
+    collapse(match[1]),
+  );
+  if (quoted.length !== 1) {
+    fail(file, `politika CSP je v dokumentu ${quoted.length}×`, "má tam být jednou");
+  }
+  for (const block of quoted) {
+    if (block !== policy) {
+      fail(
+        file,
+        "opis CSP nesouhlasí s tauri.conf.json",
+        `konfigurace říká:\n    ${policy}\n  dokument říká:\n    ${block}`,
+      );
+    }
   }
 }
 
 /** `scope: []` is the sentence a reader relies on most: the webview may read
  *  nothing until one file is opened for it. */
 const scope = config.app.security.assetProtocol?.scope ?? [];
-const scopeSaid = (security.match(/"assetProtocol": \{ "scope": \[\] \}/g) ?? []).length;
-if (scope.length === 0 && scopeSaid !== 2) {
-  fail("SECURITY.md", `věta o prázdném rozsahu asset protokolu je v dokumentu ${scopeSaid}×`, "má tam být dvakrát, česky i anglicky");
+for (const [file, text] of [["SECURITY.md", security], ["SECURITY.cs.md", securityCs]]) {
+  const said = (text.match(/"assetProtocol": \{ "scope": \[\] \}/g) ?? []).length;
+  if (scope.length === 0 && said !== 1) {
+    fail(file, `věta o prázdném rozsahu asset protokolu je v dokumentu ${said}×`, "má tam být jednou");
+  }
 }
 if (scope.length > 0) {
   fail("SECURITY.md", "tvrdí, že webview nesmí číst nic", `tauri.conf.json dává asset protokolu rozsah ${JSON.stringify(scope)}`);
 }
 
-/** How many components carry a digest read from their publisher. The document
+/** How many components carry a digest read from their publisher. Each document
  *  says the two numbers in words, so the words are what this compares. */
 const entries = Object.entries(components).filter(([key]) => !key.startsWith("$"));
 const total = entries.length;
@@ -201,23 +206,28 @@ if (!CZECH[digested] || !CZECH[total] || !ENGLISH[digested] || !ENGLISH[total]) 
 } else {
   const czech = `${CZECH[digested][0]} z ${CZECH[total][1]}`;
   const english = `${ENGLISH[digested]} of the ${ENGLISH[total]}`;
-  const has = (phrase) => security.toLowerCase().includes(phrase.toLowerCase());
-  if (!has(czech)) fail("SECURITY.md", "česká věta o počtu otisků", `components.json dnes říká „${czech}"`);
-  if (!has(english)) fail("SECURITY.md", "anglická věta o počtu otisků", `components.json dnes říká "${english}"`);
+  const has = (text, phrase) => text.toLowerCase().includes(phrase.toLowerCase());
+  if (!has(securityCs, czech)) fail("SECURITY.cs.md", "věta o počtu otisků", `components.json dnes říká „${czech}"`);
+  if (!has(security, english)) fail("SECURITY.md", "věta o počtu otisků", `components.json dnes říká "${english}"`);
 }
 
-/** The failure this document is most prone to: one half edited, the other left
- *  saying yesterday's thing. */
-const czechHalf = security.slice(security.indexOf("## ČESKY"), security.indexOf("## ENGLISH"));
-const englishHalf = security.slice(security.indexOf("## ENGLISH"));
-const findings = (half) => (half.match(/^\*\*\d+\./gm) ?? []).length;
-const headings = (half) => (half.match(/^### /gm) ?? []).length;
+/** The failure this pair is most prone to: one language edited, the other left
+ *  saying yesterday's thing. Same for the READMEs, which are the same shape. */
+const findings = (text) => (text.match(/^\*\*\d+\./gm) ?? []).length;
+// Every heading below the title, whatever its level: SECURITY uses three
+// hashes and the READMEs two, and counting only one of them made the
+// README pair compare nought with nought.
+const headings = (text) => (text.match(/^#{2,} /gm) ?? []).length;
 
-if (findings(czechHalf) !== findings(englishHalf)) {
-  fail("SECURITY.md", "poloviny nemají stejný počet číslovaných nálezů", `česky ${findings(czechHalf)}, anglicky ${findings(englishHalf)}`);
-}
-if (headings(czechHalf) !== headings(englishHalf)) {
-  fail("SECURITY.md", "poloviny nemají stejný počet nadpisů", `česky ${headings(czechHalf)}, anglicky ${headings(englishHalf)}`);
+for (const [english, czech] of [["SECURITY.md", "SECURITY.cs.md"], ["README.md", "README.cs.md"]]) {
+  const a = read(english);
+  const b = read(czech);
+  if (findings(a) !== findings(b)) {
+    fail(english, `nemá stejný počet číslovaných bodů jako ${czech}`, `anglicky ${findings(a)}, česky ${findings(b)}`);
+  }
+  if (headings(a) !== headings(b)) {
+    fail(english, `nemá stejný počet nadpisů jako ${czech}`, `anglicky ${headings(a)}, česky ${headings(b)}`);
+  }
 }
 
 // ---------------------------------------------------------------- the verdict
@@ -230,7 +240,7 @@ if (problems.length === 0) {
   console.log(
     `${plural(DOCUMENTS.length, "dokument odpovídá", "dokumenty odpovídají", "dokumentů odpovídá")} kódu: ` +
       `cesty, třídy, tokeny a testy, které jmenují, existují; ` +
-      `SECURITY.md navíc sedí na CSP, rozsah asset protokolu a ${digested} z ${total} otisků.`,
+      `SECURITY.md a SECURITY.cs.md navíc sedí na CSP, rozsah asset protokolu a ${digested} z ${total} otisků.`,
   );
   process.exit(0);
 }
@@ -240,5 +250,5 @@ for (const { where, claim, reality } of problems) {
   console.error(`  ${where} ${claim}`);
   console.error(`  → ${reality}\n`);
 }
-console.error("Oprav dokument, ne kontrolu — a u SECURITY.md obě jazykové poloviny současně.");
+console.error("Oprav dokument, ne kontrolu — a u dvojjazyčných obojí najednou.");
 process.exit(1);
