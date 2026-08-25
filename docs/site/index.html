@@ -492,7 +492,24 @@ main > section > h2 {
   fill: none; stroke: currentColor; stroke-width: 1.1; stroke-linecap: round;
 }
 .preview-viewport { position: relative; width: 100%; overflow: hidden; }
-.preview-stage { width: 1180px; height: 744px; transform-origin: 0 0; }
+/* `will-change` is not a hint here, it is the fix. The window is drawn at
+   1180 px and scaled to the column, and without the stage on a layer of its own
+   Chrome rasterises it at 1:1 and then resamples the texture down. A straight
+   1 px edge survives that; a curve does not -- the resampling piles coverage
+   into the arc, so every pill and every rounded corner came out with a heavier
+   stroke than the flat edges beside it. Promoted, the content is rasterised at
+   the scale it is shown at and the stroke is even the whole way round.
+
+   Measured rather than reasoned: the same three buttons under `scale(0.9458)`
+   with and without this, at device scale 1, magnified. The claim is only about
+   a scaled subtree; nothing else on the page is scaled.
+
+   And it is honest as a hint as well -- `fit()` in `preview.js` rewrites this
+   transform on every resize and once more when the fonts land. */
+.preview-stage {
+  width: 1180px; height: 744px; transform-origin: 0 0;
+  will-change: transform;
+}
 .preview-stage .shot { width: 1180px; height: 744px; display: flex; }
 .preview-stage .shot .app { flex: 1; min-width: 0; }
 .preview figcaption { margin: 18px 2px 0; font-size: 13.5px; color: var(--text-quiet); }
