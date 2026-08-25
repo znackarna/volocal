@@ -121,9 +121,20 @@ header.top { padding: 28px 0 0; }
    named places are quiet, the download keeps the ink. */
 .top-nav { display: flex; align-items: center; gap: 18px; }
 .top-nav a { font-size: 14px; font-weight: 600; color: var(--text-quiet); text-decoration: none; }
-.top-nav a:hover { color: var(--text); }
 .top a.get { font-size: 14px; font-weight: 600; color: var(--text); text-decoration: none; }
-.top a.get:hover { text-decoration: underline; text-underline-offset: 3px; }
+/* One hover for all three, and it is the one the footer has always used: the
+   ink darkens where it can and a line appears under every one of them. Until
+   25 August the two quiet links only darkened and the download only underlined
+   -- two behaviours in a row of three, which reads as a mistake because it is
+   one. The difference between them is their resting colour, which is the
+   hierarchy; what happens under the pointer is the same everywhere.
+
+   After `.top a.get`, not before: the two selectors weigh the same, so this
+   one has to come second to reach the download at all. */
+.top-nav a:hover {
+  color: var(--text);
+  text-decoration: underline; text-underline-offset: 3px;
+}
 .top-right { display: flex; align-items: center; gap: 18px; }
 /* One control, two drawings: whichever palette is on, the button shows the
    other one — a switch names where it goes, not where it is. */
@@ -192,7 +203,12 @@ header.top { padding: 28px 0 0; }
     display: flex; align-items: center; min-height: 44px; padding: 0 12px;
     border-radius: 8px; color: var(--text); font-size: 15px;
   }
-  .top-in.has-menu .top-nav a:hover { background: var(--muted); color: var(--text); }
+  /* A row in a menu lights up; it does not underline. The download brings its
+     line from the header and gives it up here, so all three rows behave as
+     rows. */
+  .top-in.has-menu .top-nav a:hover {
+    background: var(--muted); color: var(--text); text-decoration: none;
+  }
 }
 @media (prefers-reduced-motion: reduce) { .menu-toggle { transition: none; } }
 
