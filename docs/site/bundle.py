@@ -42,10 +42,28 @@ for name in ["geist-latin-wght-normal", "geist-latin-ext-wght-normal",
 
 # The host supplies doctype, head and body; the title stays, it names the page.
 page = re.sub(r"^<!doctype html>\s*<html lang=\"cs\">\s*<head>\s*", "", page, flags=re.I)
-page = re.sub(r"<meta[^>]*>\s*", "", page)
-page = re.sub(r'<link rel="icon"[^>]*>\s*', "", page)
+# `[^>]*` is the obvious way to say *the rest of this tag* and it is wrong:
+# an attribute may hold a `>`, and this page's icon does -- it is an inline
+# SVG in a `data:` URI. That regex stopped at the first `>` inside the drawing
+# and left the rest of it, and the closing quote and bracket, standing in the
+# page as text in the top left corner of every copy built between 25 August
+# and this fix. `TAG_REST` takes either a whole quoted value or a character
+# that is neither a quote nor the end of the tag, so a `>` inside quotes
+# cannot end it.
+TAG_REST = r'(?:"[^"]*"|[^>"])*'
+
+page = re.sub(r"<meta" + TAG_REST + r">\s*", "", page)
+page = re.sub(r'<link rel="icon"' + TAG_REST + r'>\s*', "", page)
 page = page.replace("</head>\n<body>\n", "")
 page = page.replace("</body>\n</html>\n", "")
+
+# Everything the head held is either inlined above or removed, so between the
+# title and the first `<style>` nothing may be left but comments. This is the
+# check the icon would have failed loudly instead of quietly.
+leftover = page.split("</title>", 1)[1].split("<style>", 1)[0]
+leftover = re.sub(r"<!--.*?-->", "", leftover, flags=re.S).strip()
+if leftover:
+    raise SystemExit("stripping the head left something behind: " + leftover[:160])
 
 io.open(OUT, "w", encoding="utf-8", newline="").write(page)
 print("%s — %d kB" % (OUT, len(page.encode("utf-8")) / 1024))
