@@ -1033,6 +1033,37 @@ section.minor .sec-lede { font-size: 14.5px; }
 section.minor .rows li { padding: 18px 0; }
 section.minor .rows b { font-size: 14px; font-weight: 650; }
 section.minor .rows p { margin-top: 4px; font-size: 13px; }
+/* The FAQ, which is where the limits landed. They were taken out from between
+   the gains and the first run on 18 August with a note saying they belonged in
+   a FAQ; these are the questions that note was waiting for, and every answer
+   is the owner's own sentence out of it, word for word.
+
+   `<details>` and not a script: it opens with no JavaScript, it is in the tab
+   order by itself, and find-in-page opens the one it hits. Shut to begin with
+   -- a page that opens on what the program cannot do has its proportions
+   wrong, and a reader who wants this is looking for it. */
+.faq-list { margin: 26px 0 0; border-top: 1px solid var(--line); }
+.faq-item { border-bottom: 1px solid var(--line); }
+.faq-item summary {
+  display: flex; align-items: baseline; gap: 12px;
+  padding: 16px 0; cursor: pointer; list-style: none;
+  font-size: 14px; font-weight: 650; color: var(--text);
+}
+.faq-item summary::-webkit-details-marker { display: none; }
+/* Two borders of a square turned on its corner: the same chevron the archive
+   toolbar draws, at the size the page gives a hairline mark. */
+.faq-item summary::after {
+  content: ""; flex: 0 0 auto; margin-left: auto;
+  width: 8px; height: 8px;
+  border-right: 1.5px solid var(--text-quiet);
+  border-bottom: 1.5px solid var(--text-quiet);
+  transform: rotate(45deg); transform-origin: 60% 60%;
+  transition: transform .18s ease;
+}
+.faq-item[open] summary::after { transform: rotate(-135deg); }
+.faq-item summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.faq-item p { margin: 0 0 18px; max-width: 62ch; font-size: 13px; color: var(--text-quiet); }
+@media (prefers-reduced-motion: reduce) { .faq-item summary::after { transition: none; } }
 
 /* A note about the picture, not a caption for it — so it takes the shape the
    application gives its own notes: the info glyph in the accent colour, the
@@ -1171,7 +1202,7 @@ footer { padding: 96px 0 72px; }
     <div class="cta">
       <a class="btn" href="https://github.com/znackarna/volocal/releases/latest">Stáhnout pro Windows</a>
     </div>
-    <p class="facts">Verze 1.2.15 pro Windows 10 a 11</p>
+    <p class="facts">Verze 1.2.20 pro Windows 10 a 11</p>
     </div>
 
     <figure class="chibi-figure">
@@ -3781,29 +3812,43 @@ footer { padding: 96px 0 72px; }
     </ul>
   </section>
 
-  <!-- Hidden on 2026-08-18, not deleted. The limits are to come back in a FAQ
-       rather than stand between the gains and the first run, and the copy in
-       here is the owner's, so the FAQ starts from it. Nothing else on the page
-       refers to this block; the rules for `.minor` are left in the stylesheet
-       above, waiting for it.
-
-  <section class="minor">
+  <!-- The limits, hidden on 18 August from between the gains and the first
+       run, with a note saying they belonged in a FAQ. This is that FAQ, put
+       here on 25 August because the page was about to be published and a page
+       that goes out without them is worse than one that never went out. The
+       answers are the owner's sentences from that note, word for word; the
+       questions are the page's. -->
+  <section class="minor" id="faq">
     <h2>Co nedělá dobře</h2>
-    <p class="sec-lede">Radši si to přečtěte tady, než na to přijdete později.</p>
-    <ul class="rows">
-      <li><b>Časy slov jsou přibližné.</b>
-        <p>Na klikání a sledování textu stačí; u dlouhé věty s pauzou uprostřed se můžou rozejít asi o vteřinu.</p></li>
-      <li><b>Řeč přes sebe se slije.</b>
-        <p>Když mluví dva najednou, zůstane ten hlasitější. Ruční oprava k tomu patří.</p></li>
-      <li><b>Rozhovory ano, panelové diskuse spíš ne.</b>
-        <p>Dva hlasy sedí. Pět lidí v jedné místnosti sloučilo jednu dvojici.</p></li>
-      <li><b>Jedna nahrávka po druhé.</b>
-        <p>Přetáhnete deset a všech deset se přijme, ale stojí ve frontě a je to vidět.</p></li>
-      <li><b>Archiv není šifrovaný.</b>
-        <p>Je to obyčejný soubor s takovou ochranou, jakou má váš uživatelský účet.</p></li>
-    </ul>
+    <p class="sec-lede">Radši si to přečtěte teď, než na to přijdete později.</p>
+    <div class="faq-list">
+      <details class="faq-item">
+        <summary>Sedí časy slov přesně?</summary>
+        <p>Jsou přibližné. Na klikání a sledování textu stačí; u dlouhé věty
+        s pauzou uprostřed se můžou rozejít asi o vteřinu.</p>
+      </details>
+      <details class="faq-item">
+        <summary>Co když mluví dva přes sebe?</summary>
+        <p>Řeč přes sebe se slije. Zůstane ten hlasitější a ruční oprava k tomu
+        patří.</p>
+      </details>
+      <details class="faq-item">
+        <summary>Zvládne to poradu s pěti lidmi?</summary>
+        <p>Rozhovory ano, panelové diskuse spíš ne. Dva hlasy sedí. Pět lidí
+        v jedné místnosti sloučilo jednu dvojici.</p>
+      </details>
+      <details class="faq-item">
+        <summary>Můžu přepsat víc nahrávek najednou?</summary>
+        <p>Jednu po druhé. Přetáhnete deset a všech deset se přijme, ale stojí ve
+        frontě a je to vidět.</p>
+      </details>
+      <details class="faq-item">
+        <summary>Je archiv šifrovaný?</summary>
+        <p>Není. Je to obyčejný soubor s takovou ochranou, jakou má váš
+        uživatelský účet.</p>
+      </details>
+    </div>
   </section>
-  -->
 
   <section>
     <h2>Než začnete</h2>
@@ -3844,7 +3889,7 @@ footer { padding: 96px 0 72px; }
   <div class="closing">
     <div class="sign"><span id="face"></span></div>
     <h2>Co spolu dnes přepíšeme?</h2>
-    <p>Verze 1.2.15 pro Windows 10 a 11. Autor ji používá každý den.</p>
+    <p>Verze 1.2.20 pro Windows 10 a 11. Autor ji používá každý den.</p>
     <div class="cta">
       <a class="btn" href="https://github.com/znackarna/volocal/releases/latest">Stáhnout pro Windows</a>
     </div>

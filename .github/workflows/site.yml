@@ -1,0 +1,80 @@
+# The presentation page, published from this branch to GitHub Pages.
+#
+# The page is static and has no build step: `docs/site/` is what gets served,
+# minus the three files that are tools rather than the page. It is deployed
+# from `site` and not from `main` because that is where it lives -- see
+# `docs/site.md` on main for why the two were separated.
+#
+# One thing is rewritten on the way out: the version in the hero. The file
+# carries a real number so that opening it locally never shows a placeholder,
+# and this replaces it with the version a reader can actually download, which
+# is the latest release and not whatever `tauri.conf.json` said when this
+# branch last took from main.
+name: Site
+
+on:
+  push:
+    branches: [site]
+    paths:
+      - 'docs/site/**'
+      - '.github/workflows/site.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deployment at a time, and a newer push wins: two pushes a minute apart
+# would otherwise race to publish and the older one could land last.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Collect the page
+        run: |
+          mkdir -p _site
+          cp docs/site/index.html _site/
+          cp docs/site/brand.css docs/site/app-shot.css _site/
+          cp docs/site/brand.js docs/site/chibi.js docs/site/preview.js _site/
+          cp -r docs/site/fonts _site/fonts
+          # `_tokens.html`, `bundle.py` and `scope-app-css.py` stay behind:
+          # they are how the page is worked on, not part of it.
+          touch _site/.nojekyll
+
+      - name: Name the version that can be downloaded
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version="$(gh release view --repo "${{ github.repository }}" --json tagName --jq .tagName | sed 's/^v//')"
+          echo "Latest release: $version"
+          VERSION="$version" python - <<'PY'
+          import os, re, pathlib
+          version = os.environ["VERSION"]
+          page = pathlib.Path("_site/index.html")
+          text = page.read_text(encoding="utf-8")
+          # Two of them -- the hero and the closing. The count is asserted
+          # rather than assumed: if that sentence is ever reworded, this build
+          # fails loudly instead of quietly shipping last month's number.
+          text, found = re.subn(r"Verze \d+\.\d+\.\d+", "Verze " + version, text)
+          if found != 2:
+              raise SystemExit("expected 2 version mentions, found %d" % found)
+          page.write_text(text, encoding="utf-8")
+          PY
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deploy
+        uses: actions/deploy-pages@v4

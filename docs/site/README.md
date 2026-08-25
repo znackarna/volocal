@@ -85,8 +85,9 @@ to the stylesheet; to force a palette, put `data-theme="light"` on `<html>`.
   recovered from a saved copy of a published artifact because of exactly this.
   Committing it locally was offered and left open.
 - **The limits are parked.** *Co nedělá dobře* sits in an HTML comment in
-  `index.html`, bound for a FAQ section. Its copy is the owner's and is where
-  that FAQ starts. The `.minor` rules are still in the stylesheet, waiting.
+  `index.html`, bound for a FAQ section. **Done on 25 August** — it is the
+  `#faq` section, five `<details>` under the heading *Co nedělá dobře*, and the
+  answers are the owner's sentences from that comment word for word.
 - **Recommended hardware in numbers is missing on purpose.** Nothing in this
   repository has measured a memory threshold — the comment beside
   `recommendedQuality` in `SetupWizard.tsx` says so. Figures would have to be
@@ -94,6 +95,27 @@ to the stylesheet; to force a palette, put `data-theme="light"` on `<html>`.
 - **The wordmark's 5 s hold does not happen under `prefers-reduced-motion`**,
   where the mark starts closed. Whether that should become an exception is
   unanswered.
+
+## Publishing
+
+`.github/workflows/site.yml`, on this branch, deploys `docs/site/` to GitHub
+Pages on every push that touches it. There is no build: what is served is these
+files, minus `_tokens.html`, `bundle.py` and `scope-app-css.py`, which are how
+the page is worked on rather than part of it.
+
+One thing is rewritten on the way out. The hero and the closing say *Verze
+X.Y.Z*, and the file carries a real number so that opening it locally never
+shows a placeholder; the workflow replaces it with the tag of the latest
+GitHub release, which is the version a reader can actually download. It
+asserts that it found exactly two mentions, so rewording that sentence fails
+the build instead of quietly shipping an old number.
+
+**It needs Pages switched on once, by hand:** Settings → Pages → Source →
+GitHub Actions. Until that is done the workflow runs and the deploy step fails.
+
+`bundle.py` is unrelated to any of this. It makes one self-contained file for
+handing the page to somebody, and it strips the document skeleton because the
+host it was written for supplies its own.
 
 ## Facts the page asserts, and where they came from
 
