@@ -131,6 +131,8 @@ host it was written for supplies its own.
 | CUDA or Vulkan chosen by the machine; processor build always present | `src-tauri/src/tools.rs`, `download.rs` |
 | Tauri 2, Rust, React, SQLite, whisper.cpp, Silero VAD | `README.cs.md` |
 | the three occasions it reaches the network | `README.cs.md` |
+| a card makes it a rocket | `estimatedMinutes`, `src/SetupWizard.tsx` — an hour of audio is 1 minute on a card against 8 on a processor, and 4 against 35 on the accurate model |
+| it still runs on an older processor | **nothing here measures it.** The processor build is always on disk (`tools.rs`, `download.rs`), so it runs without a card; how old a processor still finishes in a usable time has never been measured, and the note above about recommended hardware is the same rule |
 | automatic update check exists | `settings.about.updateAuto` |
 | word timestamps are more accurate on the larger model | **nothing here measures it** — the owner's, from use, 25 August. Every model gets a `--dtw` preset (`dtw_preset`, `whisper.rs`), and the only alignment ever measured in this repository is large-v3's, in `CLAUDE.md`: 881 words, median offset −0.08 to +0.03 s, with no fast-model run to compare against |
 
