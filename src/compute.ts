@@ -52,3 +52,32 @@ export function computeFellBack(stored: string, check: ToolCheck | null): boolea
   const hasGraphicsDriver = !!(check.nvidia_driver || check.vulkan_driver);
   return !onGraphicsCard && hasGraphicsDriver;
 }
+
+/** Was something picked, and is it not what ran?
+ *
+ *  The one state on the `Výkon` card worth ink: the application contradicting
+ *  an instruction. `auto` instructs nothing and is always honoured; the other
+ *  two are refused whenever `choose_compute` had to substitute.
+ *
+ *  **`answeredFor` is what makes this safe to draw.** `check.compute` answers
+ *  one particular stored setting, and a press changes the setting a full round
+ *  trip before `check_tools` is asked again. Judged against the previous
+ *  answer, every switch between the two cards looks like a refusal — which is
+ *  what the reader saw on 25 August 2026: press `Procesor` on a machine running
+ *  on the graphics card and `sestavení pro něj zatím není stažené` flashed red
+ *  under the cards and vanished. So the answer is only read while it belongs to
+ *  the question on screen; until then there is nothing to say, which is also
+ *  true.
+ */
+export function computeRefused(
+  stored: string,
+  answeredFor: string | null,
+  check: ToolCheck | null
+): boolean {
+  if (!check || answeredFor === null) return false;
+  const choice = computeMode(stored);
+  if (computeMode(answeredFor) !== choice) return false;
+  if (choice === "auto") return false;
+  const onGraphicsCard = check.compute === "cuda" || check.compute === "vulkan";
+  return choice === "gpu" ? !onGraphicsCard : onGraphicsCard;
+}
