@@ -1286,9 +1286,16 @@ section.minor .rows p { margin-top: 4px; font-size: 13px; }
    wrong, and a reader who wants this is looking for it. */
 .faq-list { margin: 26px 0 0; border-top: 1px solid var(--line); }
 .faq-item { border-bottom: 1px solid var(--line); }
+/* `center`, not `baseline`: the chevron has no text in it, so a baseline is
+   somewhere it can only be pushed to, and in a 54 px row it sat low.
+
+   The right padding is 8 px and the left is nothing, which is asymmetric on
+   purpose -- the question keeps the edge the heading and the lede stand on, and
+   the chevron comes in off the end of the rule so it is inside the row rather
+   than balanced on its corner. */
 .faq-item summary {
-  display: flex; align-items: baseline; gap: 12px;
-  padding: 16px 0; cursor: pointer; list-style: none;
+  display: flex; align-items: center; gap: 12px;
+  padding: 16px 8px 16px 0; cursor: pointer; list-style: none;
   font-size: 14px; font-weight: 650; color: var(--text);
 }
 .faq-item summary::-webkit-details-marker { display: none; }
