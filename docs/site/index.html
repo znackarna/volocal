@@ -247,10 +247,15 @@ header.top { padding: 28px 0 0; }
     margin-top: 7px; border: 0; border-top: 1px solid var(--line);
     border-radius: 0; background: none; color: var(--text);
   }
-  /* The highlight keeps the shape the links have, minus the two corners the
-     hairline above it squares off. */
+  /* The highlight is the same 8 px shape the links have -- it was square across
+     the top for a day, on the argument that the hairline above it squares those
+     two corners off, which is not a thing a hairline does. What it needed was
+     not a different shape but somewhere for the tint to stop: `padding-box`
+     keeps it under the border, so the divider stays a divider and the row stays
+     a row. */
   .top-in.has-menu .theme-switch:hover {
-    background: var(--muted); color: var(--text); border-radius: 0 0 8px 8px;
+    background: var(--muted); background-clip: padding-box;
+    color: var(--text); border-radius: 8px;
   }
   .top-in.has-menu .theme-switch svg { width: 18px; height: 18px; order: 2; }
   /* One of the two, never both -- which was the whole point of writing them
