@@ -181,6 +181,45 @@ header.top { padding: 28px 0 0; }
    Room was left here on purpose. The theme switch and, when there is one, the
    language switch belong in this panel; each is one row and one line of CSS. */
 .menu-toggle { display: none; }
+/* The three lines are three elements, not one path with three moves in it,
+   because each of them has somewhere different to go.
+
+   Open, it is the classic: the outer two slide to the middle and cross, the
+   one in between goes. Every rotation is about the line's own centre, which is
+   why `transform-box` is the view box and each line names its own origin --
+   `fill-box` would give a horizontal line a bounding box no pixels tall, and
+   the middle of nothing is not somewhere to turn about.
+
+   `translateY(...) rotate(...)` is read right to left: the line turns about its
+   own point first and is then carried to the middle, which is why both ends of
+   the cross land on 12 and neither overshoots.
+
+   Hovering, shut, the outer two draw in a little. It is a small motion on
+   purpose -- the button answers the pointer without pretending to be a switch
+   it is not yet. The rules for the open state weigh more than the hover ones
+   and stand after them, so a pointer resting on an open button cannot pull the
+   cross apart.
+
+   0.26 s and the page's easing, the same clock as the menu it opens. */
+.menu-toggle .bun {
+  transform-box: view-box;
+  transition: transform .26s cubic-bezier(.4, 0, .2, 1), opacity .16s linear;
+}
+.menu-toggle .bun-top { transform-origin: 12px 6.5px; }
+.menu-toggle .bun-mid { transform-origin: 12px 12px; }
+.menu-toggle .bun-bot { transform-origin: 12px 17.5px; }
+
+.menu-toggle:hover .bun-top,
+.menu-toggle:hover .bun-bot { transform: scaleX(.82); }
+
+.menu-toggle[aria-expanded="true"] .bun-top { transform: translateY(5.5px) rotate(45deg); }
+.menu-toggle[aria-expanded="true"] .bun-mid { opacity: 0; transform: scaleX(.3); }
+.menu-toggle[aria-expanded="true"] .bun-bot { transform: translateY(-5.5px) rotate(-45deg); }
+
+@media (prefers-reduced-motion: reduce) {
+  .menu-toggle .bun { transition: none; }
+}
+
 /* Three lines and nothing round them. The theme switch beside it is a circle
    and this is not, which is deliberate: a hamburger is three lines everywhere
    a reader has ever met one, and a ring around it says *button* to somebody
@@ -204,10 +243,9 @@ header.top { padding: 28px 0 0; }
   .top-in.has-menu .menu-toggle {
     display: grid; place-items: center; width: 34px; height: 34px; padding: 0;
     border: 0; background: none; color: var(--text); cursor: pointer;
-    transition: opacity .22s ease;
   }
-  /* Black already, so there is nowhere to darken to; it steps back instead. */
-  .top-in.has-menu .menu-toggle:hover { opacity: .6; }
+  /* The lines drawing in are the answer to the pointer now, so the button no
+     longer fades as a whole -- two answers to one gesture is one too many. */
   /* Out of the flow, so opening it moves nothing on the page behind it -- the
      same reason the cards under *Co získáte?* are overlays on a desktop.
 
@@ -1397,7 +1435,9 @@ footer { padding: 96px 0 72px; }
               aria-expanded="false" aria-controls="top-nav" aria-label="Nabídka">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
              aria-hidden="true">
-          <path d="M3.5 6.5h17M3.5 12h17M3.5 17.5h17"/>
+          <line class="bun bun-top" x1="3.5" y1="6.5" x2="20.5" y2="6.5"/>
+          <line class="bun bun-mid" x1="3.5" y1="12" x2="20.5" y2="12"/>
+          <line class="bun bun-bot" x1="3.5" y1="17.5" x2="20.5" y2="17.5"/>
         </svg>
       </button>
     </div>
