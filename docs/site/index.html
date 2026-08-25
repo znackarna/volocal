@@ -139,6 +139,57 @@ header.top { padding: 28px 0 0; }
 :root[data-theme="dark"] .theme-switch .theme-sun { display: block; }
 :root[data-theme="dark"] .theme-switch .theme-moon { display: none; }
 
+/* The menu, from the phone breakpoint down. Above it the three places to go
+   stand in the header, which is where a page this short wants them; below it
+   the mark, the download and the controls do not fit a 320 px line, and the two
+   quiet links are the ones that can wait behind a button -- the download keeps
+   the ink, as the rule above it says.
+
+   **The panel is `.top-nav` itself, not a second copy of the links.** One list
+   of places to go, and no way for a phone and a desktop to disagree about what
+   is on it.
+
+   It collapses only under `.has-menu`, which the script adds. Without
+   JavaScript the links stay in the header exactly as they are today: a phone
+   with no script is left with a crowded header rather than with no navigation,
+   which is the right way round.
+
+   Room was left here on purpose. The theme switch and, when there is one, the
+   language switch belong in this panel; each is one row and one line of CSS. */
+.menu-toggle { display: none; }
+.menu-toggle svg { width: 17px; height: 17px; }
+
+@media (max-width: 620px) {
+  .top-in.has-menu { position: relative; flex-wrap: nowrap; }
+  .top-in.has-menu .menu-toggle {
+    display: grid; place-items: center; width: 34px; height: 34px; padding: 0;
+    border: 1px solid var(--line); border-radius: 999px;
+    background: var(--panel); color: var(--text-quiet); cursor: pointer;
+    transition: color .22s ease, border-color .22s ease, background .22s ease;
+  }
+  .top-in.has-menu .menu-toggle:hover { color: var(--text); background: var(--muted); }
+  .top-in.has-menu .menu-toggle[aria-expanded="true"] {
+    color: var(--text); border-color: var(--line-field);
+  }
+  /* Out of the flow, so opening it moves nothing on the page behind it -- the
+     same reason the cards under *Co získáte?* are overlays on a desktop. */
+  .top-in.has-menu .top-nav {
+    position: absolute; top: calc(100% + 14px); right: 0; z-index: 20;
+    display: grid; gap: 2px; min-width: 176px; padding: 8px;
+    background: var(--panel); border-radius: var(--r-card);
+    box-shadow: inset 0 0 0 1px var(--line), var(--shadow);
+  }
+  .top-in.has-menu .top-nav[hidden] { display: none; }
+  /* 44 px, which is the smallest target a finger hits reliably. In the header
+     these are 14 px of text and nothing more, because a pointer is exact. */
+  .top-in.has-menu .top-nav a {
+    display: flex; align-items: center; min-height: 44px; padding: 0 12px;
+    border-radius: 8px; color: var(--text); font-size: 15px;
+  }
+  .top-in.has-menu .top-nav a:hover { background: var(--muted); color: var(--text); }
+}
+@media (prefers-reduced-motion: reduce) { .menu-toggle { transition: none; } }
+
 .hero {
   padding: 104px 0 8px;
   display: grid; grid-template-columns: minmax(0, 1fr) 460px; gap: 52px; align-items: center;
@@ -1190,10 +1241,17 @@ footer { padding: 96px 0 72px; }
     <a id="brand" href="#" aria-label="volocal"></a>
     <div class="top-right">
       <a class="get" href="https://github.com/znackarna/volocal/releases/latest">Stáhnout</a>
-      <nav class="top-nav">
+      <nav class="top-nav" id="top-nav">
         <a href="#firmy">Firmy</a>
         <a href="mailto:jsme@znackarna.cz">Kontakt</a>
       </nav>
+      <button type="button" id="menu-toggle" class="menu-toggle"
+              aria-expanded="false" aria-controls="top-nav" aria-label="Nabídka">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+             stroke-linecap="round" aria-hidden="true">
+          <path d="M4 7h16M4 12h16M4 17h16"/>
+        </svg>
+      </button>
       <button type="button" id="theme" class="theme-switch" aria-pressed="false">
         <svg class="theme-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
              stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -4122,6 +4180,64 @@ footer { padding: 96px 0 72px; }
       watcher.observe(panel);
     }
   });
+
+  /* The header's two quiet links go behind a button from the phone breakpoint
+     down. The panel is the same `<nav>` the header shows on a desktop, so there
+     is one list and it cannot drift; all this does is shut it and give it a
+     button. `has-menu` is added here rather than written into the markup,
+     which is what makes the collapse an enhancement: with no script the links
+     stay in the header. */
+  var menuButton = document.getElementById("menu-toggle");
+  var menuPanel = document.getElementById("top-nav");
+  if (menuButton && menuPanel) {
+    var menuBar = menuButton.closest(".top-in");
+    var phone = window.matchMedia("(max-width: 620px)");
+    menuBar.classList.add("has-menu");
+
+    var openMenu = function (open) {
+      menuButton.setAttribute("aria-expanded", open ? "true" : "false");
+      if (open) menuPanel.removeAttribute("hidden");
+      else menuPanel.setAttribute("hidden", "");
+    };
+
+    /* Above the breakpoint the panel is the header's own row again, so it must
+       be shown and the button must not claim to have anything open. Crossing
+       the breakpoint with the menu open is the case this exists for. */
+    var syncMenu = function () {
+      if (phone.matches) return openMenu(false);
+      menuPanel.removeAttribute("hidden");
+      menuButton.setAttribute("aria-expanded", "false");
+    };
+    syncMenu();
+    phone.addEventListener("change", syncMenu);
+
+    menuButton.addEventListener("click", function () {
+      openMenu(menuButton.getAttribute("aria-expanded") !== "true");
+    });
+
+    var menuIsOpen = function () {
+      return menuButton.getAttribute("aria-expanded") === "true";
+    };
+
+    /* Following a link shuts it. `#firmy` scrolls the page underneath, and a
+       panel still standing over the place it just took you to is a panel
+       nobody asked to keep. */
+    menuPanel.addEventListener("click", function (event) {
+      if (event.target.closest("a")) openMenu(false);
+    });
+
+    document.addEventListener("keydown", function (event) {
+      if (event.key !== "Escape" || !menuIsOpen()) return;
+      openMenu(false);
+      menuButton.focus();
+    });
+
+    document.addEventListener("pointerdown", function (event) {
+      if (!menuIsOpen()) return;
+      if (menuPanel.contains(event.target) || menuButton.contains(event.target)) return;
+      openMenu(false);
+    });
+  }
 
   /* The recorder slide wears the application's header bar, so its mark does
      what a mark in a header does. Still, like the wizard's: a carousel slide
