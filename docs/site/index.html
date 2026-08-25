@@ -149,6 +149,13 @@ header.top { padding: 28px 0 0; }
 .theme-switch .theme-sun { display: none; }
 :root[data-theme="dark"] .theme-switch .theme-sun { display: block; }
 :root[data-theme="dark"] .theme-switch .theme-moon { display: none; }
+/* The switch says where it goes, not where it is -- so does its label. In the
+   header the circle is the whole control and no words are drawn; `aria-label`,
+   which the script rewrites on every change, is what names the button to
+   anything listening, so hiding them costs nothing. They come back as a row in
+   the menu, and which of the two shows is decided there -- one place, keyed on
+   the same stamp as the icons. */
+.theme-switch .theme-label { display: none; }
 
 /* The menu, from the phone breakpoint down. Above it the three places to go
    stand in the header, which is where a page this short wants them; below it
@@ -229,6 +236,30 @@ header.top { padding: 28px 0 0; }
   .top-in.has-menu .top-nav a:hover {
     background: var(--muted); color: var(--text); text-decoration: none;
   }
+
+  /* The theme switch is a row here, not a circle: the corner holds one control
+     on a phone and it is the button that opens this. A hairline over it says
+     the rows above go somewhere and this one changes something -- the same
+     separation the application makes between a list and its settings. */
+  .top-in.has-menu .theme-switch {
+    display: flex; align-items: center; justify-content: space-between;
+    width: 100%; min-height: 44px; padding: 0 12px;
+    margin-top: 7px; border: 0; border-top: 1px solid var(--line);
+    border-radius: 0; background: none; color: var(--text);
+  }
+  /* The highlight keeps the shape the links have, minus the two corners the
+     hairline above it squares off. */
+  .top-in.has-menu .theme-switch:hover {
+    background: var(--muted); color: var(--text); border-radius: 0 0 8px 8px;
+  }
+  .top-in.has-menu .theme-switch svg { width: 18px; height: 18px; order: 2; }
+  /* One of the two, never both -- which was the whole point of writing them
+     out separately, and what the first version of this rule undid by showing
+     every `.theme-label` it could reach. */
+  .top-in.has-menu .theme-switch .theme-label { font-size: 15px; font-weight: 600; }
+  .top-in.has-menu .theme-switch .theme-to-dark { display: block; }
+  :root[data-theme="dark"] .top-in.has-menu .theme-switch .theme-to-dark { display: none; }
+  :root[data-theme="dark"] .top-in.has-menu .theme-switch .theme-to-light { display: block; }
 }
 @media (prefers-reduced-motion: reduce) { .menu-toggle { transition: none; } }
 
@@ -1316,18 +1347,20 @@ footer { padding: 96px 0 72px; }
         <a class="get" href="https://github.com/znackarna/volocal/releases/latest">Stáhnout</a>
         <a href="#firmy">Firmy</a>
         <a href="mailto:jsme@znackarna.cz">Kontakt</a>
+        <button type="button" id="theme" class="theme-switch" aria-pressed="false">
+          <svg class="theme-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="4.2"/>
+            <path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M18.5 5.5l-1.7 1.7M7.2 16.8l-1.7 1.7"/>
+          </svg>
+          <svg class="theme-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M20 14.2A8.2 8.2 0 0 1 9.8 4 8.2 8.2 0 1 0 20 14.2Z"/>
+          </svg>
+          <span class="theme-label theme-to-dark">Tmavý motiv</span>
+          <span class="theme-label theme-to-light">Světlý motiv</span>
+        </button>
       </nav>
-      <button type="button" id="theme" class="theme-switch" aria-pressed="false">
-        <svg class="theme-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
-             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <circle cx="12" cy="12" r="4.2"/>
-          <path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M18.5 5.5l-1.7 1.7M7.2 16.8l-1.7 1.7"/>
-        </svg>
-        <svg class="theme-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
-             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M20 14.2A8.2 8.2 0 0 1 9.8 4 8.2 8.2 0 1 0 20 14.2Z"/>
-        </svg>
-      </button>
       <button type="button" id="menu-toggle" class="menu-toggle"
               aria-expanded="false" aria-controls="top-nav" aria-label="Nabídka">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
