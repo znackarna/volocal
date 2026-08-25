@@ -141,9 +141,15 @@ header.top { padding: 28px 0 0; }
 
 /* The menu, from the phone breakpoint down. Above it the three places to go
    stand in the header, which is where a page this short wants them; below it
-   the mark, the download and the controls do not fit a 320 px line, and the two
-   quiet links are the ones that can wait behind a button -- the download keeps
-   the ink, as the rule above it says.
+   the mark and the controls do not fit a 320 px line and all three go behind
+   the button.
+
+   All three, on the owner's ask, and he was right to ask. This was built on
+   25 August with *Stáhnout* left outside, on the argument that the download
+   keeps the ink -- which is true of the header on a desktop and beside the
+   point on a phone, because the hero's own *Stáhnout pro Windows* is a
+   full-width button two hundred pixels below it. Keeping a second copy of it
+   in the header bought nothing and cost the line it stood on.
 
    **The panel is `.top-nav` itself, not a second copy of the links.** One list
    of places to go, and no way for a phone and a desktop to disagree about what
@@ -1270,8 +1276,8 @@ footer { padding: 96px 0 72px; }
   <div class="wrap top-in">
     <a id="brand" href="#" aria-label="volocal"></a>
     <div class="top-right">
-      <a class="get" href="https://github.com/znackarna/volocal/releases/latest">Stáhnout</a>
       <nav class="top-nav" id="top-nav">
+        <a class="get" href="https://github.com/znackarna/volocal/releases/latest">Stáhnout</a>
         <a href="#firmy">Firmy</a>
         <a href="mailto:jsme@znackarna.cz">Kontakt</a>
       </nav>
