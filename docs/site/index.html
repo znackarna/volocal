@@ -174,20 +174,22 @@ header.top { padding: 28px 0 0; }
    Room was left here on purpose. The theme switch and, when there is one, the
    language switch belong in this panel; each is one row and one line of CSS. */
 .menu-toggle { display: none; }
-.menu-toggle svg { width: 17px; height: 17px; }
+/* Three lines and nothing round them. The theme switch beside it is a circle
+   and this is not, which is deliberate: a hamburger is three lines everywhere
+   a reader has ever met one, and a ring around it says *button* to somebody
+   who did not need telling. 2.4 on a 24 viewBox at 20 px comes out at 2 px,
+   which is the weight the mark's own strokes have. */
+.menu-toggle svg { width: 20px; height: 20px; }
 
 @media (max-width: 620px) {
   .top-in.has-menu { position: relative; flex-wrap: nowrap; }
   .top-in.has-menu .menu-toggle {
     display: grid; place-items: center; width: 34px; height: 34px; padding: 0;
-    border: 1px solid var(--line); border-radius: 999px;
-    background: var(--panel); color: var(--text-quiet); cursor: pointer;
-    transition: color .22s ease, border-color .22s ease, background .22s ease;
+    border: 0; background: none; color: var(--text); cursor: pointer;
+    transition: opacity .22s ease;
   }
-  .top-in.has-menu .menu-toggle:hover { color: var(--text); background: var(--muted); }
-  .top-in.has-menu .menu-toggle[aria-expanded="true"] {
-    color: var(--text); border-color: var(--line-field);
-  }
+  /* Black already, so there is nowhere to darken to; it steps back instead. */
+  .top-in.has-menu .menu-toggle:hover { opacity: .6; }
   /* Out of the flow, so opening it moves nothing on the page behind it -- the
      same reason the cards under *Co získáte?* are overlays on a desktop. */
   .top-in.has-menu .top-nav {
@@ -1299,9 +1301,9 @@ footer { padding: 96px 0 72px; }
       </nav>
       <button type="button" id="menu-toggle" class="menu-toggle"
               aria-expanded="false" aria-controls="top-nav" aria-label="Nabídka">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
              stroke-linecap="round" aria-hidden="true">
-          <path d="M4 7h16M4 12h16M4 17h16"/>
+          <path d="M3.5 6.5h17M3.5 12h17M3.5 17.5h17"/>
         </svg>
       </button>
       <button type="button" id="theme" class="theme-switch" aria-pressed="false">
