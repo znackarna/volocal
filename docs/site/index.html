@@ -783,9 +783,27 @@ main > section > h2 {
 /* The sound sheets take the accent, which is the colour the application gives
    anything to do with playing. */
 .fmt.sound { color: var(--accent-line); }
+/* The name is written on the sheet, so it shrinks with the sheet. The sheet
+   became a share of the card on 21 August and the writing on it did not follow:
+   at 52 px a 10 px name is right, and on a 390 px phone the sheet is 28 px and
+   the name was still 10.
+
+   Sized against the window rather than against the sheet. `cqw` would be the
+   exact way to say *a share of this sheet*, and it was tried here on 25 August:
+   `container-type: inline-size` on either `.fmt` or `.save-formats` collapses
+   the row to zero width, because the sheets are sized in `%` of a container
+   that is then told not to size itself from them. Below the phone breakpoint
+   the card is one column of a known width, so the window is a good enough
+   proxy and it costs nothing.
+
+   1.6vw is 10 px at 620 and 6.2 at 390, which is the 19% of the sheet the name
+   has always been. Above 620 the clamp holds it at 10 and nothing on a desktop
+   moves. */
 .fmt b {
-  position: absolute; left: 0; right: 0; bottom: 6px;
-  text-align: center; font-size: 10px; font-weight: 700;
+  position: absolute; left: 0; right: 0;
+  bottom: clamp(2.5px, 0.9vw, 6px);
+  text-align: center; font-weight: 700;
+  font-size: clamp(5px, 1.6vw, 10px);
   letter-spacing: 0.06em; color: var(--text-quiet);
 }
 /* Sound and subtitle, lit by one sweep. Both copies are the same markup; the
