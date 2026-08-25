@@ -145,10 +145,16 @@ header.top { padding: 28px 0 0; }
 .top-right { display: flex; align-items: center; gap: 18px; }
 /* One control, two drawings: whichever palette is on, the button shows the
    other one — a switch names where it goes, not where it is. */
+/* `font: inherit`, because a `<button>` does not take the page's type the way
+   everything else does -- it takes the operating system's, and the label in the
+   menu came out in Arial beside links in Geist. It is the only button on this
+   page with words in it: the download is an `<a>` dressed as a button and
+   inherits, and every other one is an icon. */
 .theme-switch {
   display: grid; place-items: center; width: 34px; height: 34px; padding: 0;
   border: 1px solid var(--line); border-radius: 999px;
   background: var(--panel); color: var(--text-quiet); cursor: pointer;
+  font: inherit;
   transition: color .22s ease, border-color .22s ease, background .22s ease;
 }
 @media (hover: hover) {
