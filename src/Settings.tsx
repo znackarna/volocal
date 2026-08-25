@@ -16,7 +16,7 @@ import ConfirmationDialog from "./ConfirmationDialog";
 import type { ConfirmationRequest } from "./ConfirmationDialog";
 import CountdownRing from "./CountdownRing";
 import InfoNote from "./InfoNote";
-import { computeMode } from "./compute";
+import { computeMode, computeRefused as computeWasRefused } from "./compute";
 import { LineIcon, ModelMark, type LineIconName } from "./icons";
 import Select from "./Select";
 import { useI18n, type AppLanguage } from "./i18n";
@@ -456,6 +456,14 @@ export default function SettingsScreen({
   const userMessage = useUserMessage();
   const [n, setN] = useState<Settings | null>(null);
   const [check, setCheck] = useState<ToolCheck | null>(null);
+  /** Which `compute` setting the check above is an answer to. A pick is stored
+   *  the instant it is pressed and `check_tools` answers a round trip later, so
+   *  in between the card was holding a new question beside an old answer — and
+   *  read the difference as a refusal. Pressing `Procesor` on a machine running
+   *  on the graphics card flashed `sestavení pro něj zatím není stažené` in red
+   *  and took it back a fraction of a second later. Keeping the question beside
+   *  its answer lets the refusal wait for one that belongs to it. */
+  const [checkedCompute, setCheckedCompute] = useState<string | null>(null);
   const [modules, setModules] = useState<DownloadComponent[]>([]);
   /** Megabytes the tools and models folders take, measured in Rust. Null until
    *  it has been read — the panel is simply not drawn until then, because a `0`
@@ -631,6 +639,14 @@ export default function SettingsScreen({
     requestAnimationFrame(() => document.getElementById(`settings-tab-${tab}`)?.focus());
   }, [activeTab, selectTab]);
 
+  /** Every check is stored together with the settings it answered for. There is
+   *  no path that sets one without the other, which is what keeps the two from
+   *  drifting apart again. */
+  const recordCheck = useCallback((tools: ToolCheck, settings: Settings) => {
+    setCheck(tools);
+    setCheckedCompute(settings.compute);
+  }, []);
+
   const load = useCallback(async () => {
     try {
       const settings = await api.loadSettings();
@@ -677,14 +693,14 @@ export default function SettingsScreen({
           const withModel = { ...settings, model: wanted };
           await api.saveSettings(withModel);
           setN(withModel);
-          setCheck(await api.checkTools());
+          recordCheck(await api.checkTools(), withModel);
         } else {
           setN(settings);
-          setCheck(tools);
+          recordCheck(tools, settings);
         }
       } else {
         setN(settings);
-        setCheck(tools);
+        recordCheck(tools, settings);
       }
       setModules(await api.catalog());
       setDiskUsed(await api.installedMegabytes());
@@ -695,7 +711,7 @@ export default function SettingsScreen({
     } catch (e) {
       onError(userMessage(e));
     }
-  }, [onError, userMessage]);
+  }, [onError, recordCheck, userMessage]);
 
   useEffect(() => {
     load();
@@ -750,14 +766,14 @@ export default function SettingsScreen({
       applyTheme(nove.theme);
       try {
         await api.saveSettings(nove);
-        setCheck(await api.checkTools());
+        recordCheck(await api.checkTools(), nove);
         setSaved(true);
         setTimeout(() => setSaved(false), 1400);
       } catch (e) {
         onError(userMessage(e));
       }
     },
-    [onError, userMessage]
+    [onError, recordCheck, userMessage]
   );
 
   const udelejKopii = useCallback(async () => {
@@ -1001,17 +1017,11 @@ export default function SettingsScreen({
   const hasGraphicsDriver = !!(check?.nvidia_driver || check?.vulkan_driver);
   const computeChoice = computeMode(n.compute);
   const graphicsCardBackend = check?.nvidia_driver ? "cuda" : "vulkan";
-  /** Whether what was asked for is what ran. `auto` asks for nothing in
-   *  particular and is always honoured; the other two are not, and that is the
-   *  one state on this card worth a sentence. `vychozi` — a flat installation
-   *  with one build and no subfolders — counts as the processor, which is what
-   *  a build nobody chose a backend for is. */
-  const computeHonoured =
-    computeChoice === "auto" || (computeChoice === "gpu" ? onGraphicsCard : !onGraphicsCard);
   /** Something was picked and is not what ran. The chosen card goes red for it —
    *  the one case where the card has to contradict the choice drawn on it — and
-   *  the sentence under the cards carries the reason. */
-  const computeRefused = computeChoice !== "auto" && !computeHonoured;
+   *  the sentence under the cards carries the reason. The rule and the reason
+   *  it needs `checkedCompute` are in `compute.ts`. */
+  const computeRefused = computeWasRefused(n.compute, checkedCompute, check);
   /** Which card is highlighted. With the switch on nothing was picked, so it is
    *  what the drivers settled on — the switch's effect made visible, which is
    *  the reason the cards stay on screen while it is on. With the switch off it
