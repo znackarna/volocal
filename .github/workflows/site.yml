@@ -72,7 +72,12 @@ jobs:
           page.write_text(text, encoding="utf-8")
           PY
 
+      # `enablement` turns Pages on the first time this runs, rather than
+      # leaving a workflow that fails until somebody finds the setting. It is
+      # idempotent -- every run after the first sees Pages already on.
       - uses: actions/configure-pages@v5
+        with:
+          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
