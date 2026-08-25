@@ -131,9 +131,16 @@ header.top { padding: 28px 0 0; }
 
    After `.top a.get`, not before: the two selectors weigh the same, so this
    one has to come second to reach the download at all. */
-.top-nav a:hover {
-  color: var(--text);
-  text-decoration: underline; text-underline-offset: 3px;
+/* Every hover in this header is behind `(hover: hover)`. A finger has no
+   hover, so a browser gives the thing it last touched one anyway and leaves it
+   there until something else is touched -- which on a phone meant the menu
+   button stayed drawn in after the menu had shut. Behind this query the state
+   belongs to pointers, which are the only things that can leave it. */
+@media (hover: hover) {
+  .top-nav a:hover {
+    color: var(--text);
+    text-decoration: underline; text-underline-offset: 3px;
+  }
 }
 .top-right { display: flex; align-items: center; gap: 18px; }
 /* One control, two drawings: whichever palette is on, the button shows the
@@ -144,7 +151,9 @@ header.top { padding: 28px 0 0; }
   background: var(--panel); color: var(--text-quiet); cursor: pointer;
   transition: color .22s ease, border-color .22s ease, background .22s ease;
 }
-.theme-switch:hover { color: var(--text); background: var(--muted); }
+@media (hover: hover) {
+  .theme-switch:hover { color: var(--text); background: var(--muted); }
+}
 .theme-switch svg { width: 17px; height: 17px; }
 .theme-switch .theme-sun { display: none; }
 :root[data-theme="dark"] .theme-switch .theme-sun { display: block; }
@@ -209,8 +218,10 @@ header.top { padding: 28px 0 0; }
 .menu-toggle .bun-mid { transform-origin: 12px 12px; }
 .menu-toggle .bun-bot { transform-origin: 12px 17.5px; }
 
-.menu-toggle:hover .bun-top,
-.menu-toggle:hover .bun-bot { transform: scaleX(.82); }
+@media (hover: hover) {
+  .menu-toggle:hover .bun-top,
+  .menu-toggle:hover .bun-bot { transform: scaleX(.82); }
+}
 
 .menu-toggle[aria-expanded="true"] .bun-top { transform: translateY(5.5px) rotate(45deg); }
 .menu-toggle[aria-expanded="true"] .bun-mid { opacity: 0; transform: scaleX(.3); }
@@ -271,8 +282,10 @@ header.top { padding: 28px 0 0; }
   /* A row in a menu lights up; it does not underline. The download brings its
      line from the header and gives it up here, so all three rows behave as
      rows. */
-  .top-in.has-menu .top-nav a:hover {
-    background: var(--muted); color: var(--text); text-decoration: none;
+  @media (hover: hover) {
+    .top-in.has-menu .top-nav a:hover {
+      background: var(--muted); color: var(--text); text-decoration: none;
+    }
   }
 
   /* The theme switch is a row here, not a circle: the corner holds one control
@@ -291,9 +304,11 @@ header.top { padding: 28px 0 0; }
      not a different shape but somewhere for the tint to stop: `padding-box`
      keeps it under the border, so the divider stays a divider and the row stays
      a row. */
-  .top-in.has-menu .theme-switch:hover {
-    background: var(--muted); background-clip: padding-box;
-    color: var(--text); border-radius: 8px;
+  @media (hover: hover) {
+    .top-in.has-menu .theme-switch:hover {
+      background: var(--muted); background-clip: padding-box;
+      color: var(--text); border-radius: 8px;
+    }
   }
   .top-in.has-menu .theme-switch svg { width: 18px; height: 18px; order: 2; }
   /* One of the two, never both -- which was the whole point of writing them
