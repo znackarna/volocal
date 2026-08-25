@@ -110,9 +110,13 @@ GitHub release, which is the version a reader can actually download. It
 asserts that it found exactly two mentions, so rewording that sentence fails
 the build instead of quietly shipping an old number.
 
-The workflow switches Pages on itself the first time it runs
-(`configure-pages` with `enablement: true`), so there is no setting to find.
-Turning it off again is a manual step: Settings → Pages.
+**Pages had to be switched on once, from outside the workflow** — done on
+25 August, `build_type: workflow`. The workflow cannot do it itself:
+`configure-pages` takes an `enablement` flag, and creating a Pages site is an
+admin call that the workflow token is refused. Turning it off again is
+Settings → Pages.
+
+The page is at **https://znackarna.github.io/volocal/**.
 
 `bundle.py` is unrelated to any of this. It makes one self-contained file for
 handing the page to somebody, and it strips the document skeleton because the

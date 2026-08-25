@@ -72,12 +72,12 @@ jobs:
           page.write_text(text, encoding="utf-8")
           PY
 
-      # `enablement` turns Pages on the first time this runs, rather than
-      # leaving a workflow that fails until somebody finds the setting. It is
-      # idempotent -- every run after the first sees Pages already on.
+      # `enablement: true` was tried here and cannot work: creating a Pages
+      # site is an admin call, and the workflow token gets *Resource not
+      # accessible by integration* for it however `permissions` is written.
+      # Pages is switched on once, from outside this workflow; after that this
+      # step only reads the settings.
       - uses: actions/configure-pages@v5
-        with:
-          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
