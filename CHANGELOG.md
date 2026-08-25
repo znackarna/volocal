@@ -11,6 +11,10 @@ altered, not how, not which file. Entries before 1.2.6 are written the old way
 and are left as they are; they are not a model for the next one. The mechanism
 belongs in `docs/history/`, which is what that folder is for.
 
+## 1.2.21 — 26 August 2026
+
+- **Choosing where the transcript computes no longer flashes a warning that was never true.**
+
 ## 1.2.20 — 20 August 2026
 
 - **The save menu opens whole**, instead of being cut off by the dialog it sits in.
