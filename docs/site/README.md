@@ -32,6 +32,14 @@ wants. The page the owner has been reviewing lives at
 `https://claude.ai/code/artifact/7f591636-ecbd-45d9-8f51-8650c111791d` — publish
 to **that URL** rather than making a second one.
 
+**Publish the bundle, never `index.html`.** The host wraps whatever it is given
+in its own `<head>`/`<body>`, so the raw file arrives as a second document
+nested inside the first, with its fonts still pointing at `fonts/` on a disk
+that is not there. The page comes out in a system serif with the layout gone —
+it looks like the stylesheet was lost, and what was lost is the skeleton. Run
+`bundle.py` and publish its output; the file in the repository is for opening
+from disk.
+
 Headless renders are how every visual claim in the history was checked:
 
 ```bash
