@@ -86,7 +86,7 @@ to the stylesheet; to force a palette, put `data-theme="light"` on `<html>`.
   Committing it locally was offered and left open.
 - **The limits are parked.** *Co nedělá dobře* sits in an HTML comment in
   `index.html`, bound for a FAQ section. **Done on 25 August** — it is the
-  `#faq` section, five `<details>` under the heading *Co nedělá dobře*, and the
+  `#faq` section, five `<details>` under the heading *Jaké má limity?*, and the
   answers are the owner's sentences from that comment word for word.
 - **Recommended hardware in numbers is missing on purpose.** Nothing in this
   repository has measured a memory threshold — the comment beside
@@ -132,5 +132,6 @@ host it was written for supplies its own.
 | Tauri 2, Rust, React, SQLite, whisper.cpp, Silero VAD | `README.cs.md` |
 | the three occasions it reaches the network | `README.cs.md` |
 | automatic update check exists | `settings.about.updateAuto` |
+| word timestamps are more accurate on the larger model | **nothing here measures it** — the owner's, from use, 25 August. Every model gets a `--dtw` preset (`dtw_preset`, `whisper.rs`), and the only alignment ever measured in this repository is large-v3's, in `CLAUDE.md`: 881 words, median offset −0.08 to +0.03 s, with no fast-model run to compare against |
 
 If a claim is added, add its source here.
