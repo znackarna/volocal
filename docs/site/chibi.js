@@ -15,6 +15,15 @@
   var scene = document.getElementById("chibi");
   if (!scene) return;
 
+  /* The two words this cartoon says out loud. The page exists in Czech and in
+     English -- one file, two languages -- so they are read off the document
+     rather than written into it. `translate.mjs` cannot reach in here: what is
+     inside a `<script>` is carried through untouched, deliberately. */
+  var english = document.documentElement.lang === "en";
+  var SAYS = english
+    ? { working: "Transcribing…", done: "Done." }
+    : { working: "Přepisuji…", done: "Hotovo." };
+
   var mark = document.getElementById("chibi-mark");
   var words = [].slice.call(scene.querySelectorAll(".chibi-word"));
 
@@ -110,7 +119,7 @@
     mark.classList.remove("working");
     words.forEach(function (w) { w.classList.remove("on"); });
     playhead(0);
-    if (status) status.textContent = "Přepisuji…";
+    if (status) status.textContent = SAYS.working;
 
     at(BEATS.drop, function () { state("dropping"); });
     at(BEATS.work, function () {
@@ -128,7 +137,7 @@
     at(BEATS.finish, function () {
       state("finishing");
       mark.classList.remove("working");
-      if (status) status.textContent = "Hotovo.";
+      if (status) status.textContent = SAYS.done;
       /* Nothing widens the smile here, and that is the correction. The smile
          swings back about the centre of its own arc, and while it is swinging
          it must be the drawn one — 45 degrees each side, the shape

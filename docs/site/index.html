@@ -6,6 +6,14 @@
 <title>Volocal</title>
 <meta name="description" content="Volocal přepisuje mluvené slovo přímo ve vašem počítači. Rozpozná řečníky. Opraví chyby. Zpracuje libovolný zvukový formát, video nebo online stream. Zdarma. Bez ztráty kontroly a soukromí.">
 
+<!-- The same page in two languages, at two addresses. `x-default` is Czech
+     because that is what `/` is; a reader with an English browser is not sent
+     anywhere, they are shown a link. -->
+<link rel="canonical" href="https://znackarna.github.io/volocal/">
+<link rel="alternate" hreflang="cs" href="https://znackarna.github.io/volocal/">
+<link rel="alternate" hreflang="en" href="https://znackarna.github.io/volocal/en/">
+<link rel="alternate" hreflang="x-default" href="https://znackarna.github.io/volocal/">
+
 <!-- What a pasted link shows, and both lines are the owner's: the title is
      the page's headline, the description is his, written for this. The first
      version took clauses from the headline and the lede and joined them with
@@ -1494,6 +1502,11 @@ footer { padding: 96px 0 72px; }
         <a class="get" href="https://github.com/znackarna/volocal/releases/latest">Stáhnout</a>
         <a href="#firmy">Firmy</a>
         <a href="mailto:jsme@znackarna.cz">Kontakt</a>
+        <!-- The way to the other language, and the only thing on the page that
+             `translate.mjs` rewrites by name rather than by sentence: on the
+             English page it points back and says Česky. Relative, so it works
+             from `/` to `/en/` and back without knowing where the site lives. -->
+        <a class="lang-switch" href="en/" hreflang="en" lang="en">English</a>
         <button type="button" id="theme" class="theme-switch" aria-pressed="false">
           <svg class="theme-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
                stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -1569,23 +1582,23 @@ footer { padding: 96px 0 72px; }
 
             <p class="chibi-line">
               <span class="chibi-who" style="background:#2563eb"></span>
-              <span class="chibi-word">Loni</span>
-              <span class="chibi-word">čtyřicet</span>
-              <span class="chibi-word">tisíc</span>
-              <span class="chibi-word">za</span>
-              <span class="chibi-word">přepisy.</span>
+              <span class="chibi-word" data-en="Last year">Loni</span>
+              <span class="chibi-word" data-en="forty">čtyřicet</span>
+              <span class="chibi-word" data-en="thousand">tisíc</span>
+              <span class="chibi-word" data-en="on">za</span>
+              <span class="chibi-word" data-en="transcripts.">přepisy.</span>
             </p>
             <p class="chibi-line">
               <span class="chibi-who" style="background:#c2410c"></span>
-              <span class="chibi-word">Letos</span>
-              <span class="chibi-word">nula.</span>
+              <span class="chibi-word" data-en="This year:">Letos</span>
+              <span class="chibi-word" data-en="zero.">nula.</span>
             </p>
             <p class="chibi-line">
               <span class="chibi-who" style="background:#2563eb"></span>
-              <span class="chibi-word">Děláme</span>
-              <span class="chibi-word">si</span>
-              <span class="chibi-word">je</span>
-              <span class="chibi-word">sami.</span>
+              <span class="chibi-word" data-en="We">Děláme</span>
+              <span class="chibi-word" data-en="do">si</span>
+              <span class="chibi-word" data-en="them">je</span>
+              <span class="chibi-word" data-en="ourselves.">sami.</span>
             </p>
 
           </div>
@@ -1778,15 +1791,15 @@ footer { padding: 96px 0 72px; }
         <div class="segment" style="border-left-color: #2563eb">
           <button class="time-mark">38:52</button>
           <p class="segment-text">
-            <span class="word" data-time="2332.00">Loni</span>
-            <span class="word" data-time="2332.44">jsme</span>
-            <span class="word" data-time="2332.88">za</span>
-            <span class="word" data-time="2333.32">přepisy</span>
-            <span class="word" data-time="2333.76">porad</span>
-            <span class="word" data-time="2334.20">zaplatili</span>
-            <span class="word" data-time="2334.64">skoro</span>
-            <span class="word" data-time="2335.08">čtyřicet</span>
-            <span class="word" data-time="2335.52">tisíc.</span>
+            <span class="word" data-time="2332.00" data-en="Last">Loni</span>
+            <span class="word" data-time="2332.44" data-en="year">jsme</span>
+            <span class="word" data-time="2332.88" data-en="we">za</span>
+            <span class="word" data-time="2333.32" data-en="paid">přepisy</span>
+            <span class="word" data-time="2333.76" data-en="nearly">porad</span>
+            <span class="word" data-time="2334.20" data-en="forty">zaplatili</span>
+            <span class="word" data-time="2334.64" data-en="thousand">skoro</span>
+            <span class="word" data-time="2335.08" data-en="for">čtyřicet</span>
+            <span class="word" data-time="2335.52" data-en="transcripts.">tisíc.</span>
           </p>
         </div>
       </div>
@@ -1795,19 +1808,19 @@ footer { padding: 96px 0 72px; }
         <div class="segment" style="border-left-color: #2563eb">
           <button class="time-mark">39:07</button>
           <p class="segment-text">
-            <span class="word" data-time="2347.00">Letos</span>
-            <span class="word" data-time="2347.44">nula.</span>
-            <span class="word" data-time="2347.88">Děláme</span>
-            <span class="word" data-time="2348.32">si</span>
-            <span class="word" data-time="2348.76">je</span>
-            <span class="word" data-time="2349.20">sami</span>
-            <span class="word" data-time="2349.64">a</span>
-            <span class="word" data-time="2350.08">máme</span>
-            <span class="word" data-time="2350.52">je</span>
-            <span class="word" data-time="2350.96">dřív,</span>
-            <span class="word" data-time="2351.40">než</span>
-            <span class="word" data-time="2351.84">uvařím</span>
-            <span class="word" data-time="2352.28">kafe.</span>
+            <span class="word" data-time="2347.00" data-en="This year:">Letos</span>
+            <span class="word" data-time="2347.44" data-en="zero.">nula.</span>
+            <span class="word" data-time="2347.88" data-en="We">Děláme</span>
+            <span class="word" data-time="2348.32" data-en="do">si</span>
+            <span class="word" data-time="2348.76" data-en="them">je</span>
+            <span class="word" data-time="2349.20" data-en="ourselves">sami</span>
+            <span class="word" data-time="2349.64" data-en="and">a</span>
+            <span class="word" data-time="2350.08" data-en="have">máme</span>
+            <span class="word" data-time="2350.52" data-en="them">je</span>
+            <span class="word" data-time="2350.96" data-en="before">dřív,</span>
+            <span class="word" data-time="2351.40" data-en="the">než</span>
+            <span class="word" data-time="2351.84" data-en="kettle">uvařím</span>
+            <span class="word" data-time="2352.28" data-en="boils.">kafe.</span>
           </p>
         </div>
       </div>
@@ -1817,27 +1830,27 @@ footer { padding: 96px 0 72px; }
         <div class="segment uncertain" style="border-left-color: #c2410c">
           <button class="time-mark">39:19</button>
           <p class="segment-text">
-            <span class="word" data-time="2359.00">Já</span>
-            <span class="word" data-time="2359.44">si</span>
-            <span class="word" data-time="2359.88">přepisuju</span>
-            <span class="word" data-time="2360.32">naše</span>
-            <span class="word" data-time="2360.76">podcasty</span>
-            <span class="word" data-time="2361.20">z</span>
-            <span class="word" data-time="2361.64">YouTube</span>
-            <span class="word" data-time="2362.08">a</span>
-            <span class="word" data-time="2362.52">dělám</span>
-            <span class="word" data-time="2362.96">z</span>
-            <span class="word" data-time="2363.40">nich</span>
-            <span class="word" data-time="2363.84">firemní</span>
-            <span class="word" data-time="2364.28">blogposty.</span>
-            <span class="word" data-time="2364.72">Nahrávám</span>
-            <span class="word" data-time="2365.16">si</span>
-            <span class="word" data-time="2365.60">hlasové</span>
-            <span class="word" data-time="2366.04">poznámky</span>
-            <span class="word" data-time="2366.48">a</span>
-            <span class="word" data-time="2366.92">rovnou</span>
-            <span class="word" data-time="2367.36">je</span>
-            <span class="word" data-time="2367.80">přepisuju.</span>
+            <span class="word" data-time="2359.00" data-en="I">Já</span>
+            <span class="word" data-time="2359.44" data-en="transcribe">si</span>
+            <span class="word" data-time="2359.88" data-en="our">přepisuju</span>
+            <span class="word" data-time="2360.32" data-en="podcasts">naše</span>
+            <span class="word" data-time="2360.76" data-en="from">podcasty</span>
+            <span class="word" data-time="2361.20" data-en="YouTube">z</span>
+            <span class="word" data-time="2361.64" data-en="and">YouTube</span>
+            <span class="word" data-time="2362.08" data-en="turn">a</span>
+            <span class="word" data-time="2362.52" data-en="them">dělám</span>
+            <span class="word" data-time="2362.96" data-en="into">z</span>
+            <span class="word" data-time="2363.40" data-en="company">nich</span>
+            <span class="word" data-time="2363.84" data-en="blog">firemní</span>
+            <span class="word" data-time="2364.28" data-en="posts.">blogposty.</span>
+            <span class="word" data-time="2364.72" data-en="I">Nahrávám</span>
+            <span class="word" data-time="2365.16" data-en="record">si</span>
+            <span class="word" data-time="2365.60" data-en="voice">hlasové</span>
+            <span class="word" data-time="2366.04" data-en="notes">poznámky</span>
+            <span class="word" data-time="2366.48" data-en="and">a</span>
+            <span class="word" data-time="2366.92" data-en="transcribe">rovnou</span>
+            <span class="word" data-time="2367.36" data-en="them">je</span>
+            <span class="word" data-time="2367.80" data-en="right away.">přepisuju.</span>
           </p>
           <div class="segment-actions">
             <button title="Je to správně" aria-label="Označit jako správné">
@@ -1862,22 +1875,22 @@ footer { padding: 96px 0 72px; }
         <div class="segment" style="border-left-color: #15803d">
           <button class="time-mark">39:31</button>
           <p class="segment-text">
-            <span class="word" data-time="2371.00">JSON</span>
-            <span class="word" data-time="2371.44">importuju</span>
-            <span class="word" data-time="2371.88">do</span>
-            <span class="word" data-time="2372.32">firemní</span>
-            <span class="word" data-time="2372.76">knihovny</span>
-            <span class="word" data-time="2373.20">znalostí</span>
-            <span class="word" data-time="2373.64">a</span>
-            <span class="word" data-time="2374.08">jednám</span>
-            <span class="word" data-time="2374.52">se</span>
-            <span class="word" data-time="2374.96">Značkárnou</span>
-            <span class="word" data-time="2375.40">o</span>
-            <span class="word" data-time="2375.84">nasazení</span>
-            <span class="word" data-time="2376.28">na</span>
-            <span class="word" data-time="2376.72">náš</span>
-            <span class="word" data-time="2377.16">privátní</span>
-            <span class="word" data-time="2377.60">server.</span>
+            <span class="word" data-time="2371.00" data-en="I">JSON</span>
+            <span class="word" data-time="2371.44" data-en="import">importuju</span>
+            <span class="word" data-time="2371.88" data-en="the">do</span>
+            <span class="word" data-time="2372.32" data-en="JSON">firemní</span>
+            <span class="word" data-time="2372.76" data-en="into">knihovny</span>
+            <span class="word" data-time="2373.20" data-en="our">znalostí</span>
+            <span class="word" data-time="2373.64" data-en="knowledge">a</span>
+            <span class="word" data-time="2374.08" data-en="base">jednám</span>
+            <span class="word" data-time="2374.52" data-en="and">se</span>
+            <span class="word" data-time="2374.96" data-en="we're">Značkárnou</span>
+            <span class="word" data-time="2375.40" data-en="talking">o</span>
+            <span class="word" data-time="2375.84" data-en="to">nasazení</span>
+            <span class="word" data-time="2376.28" data-en="Značkárna">na</span>
+            <span class="word" data-time="2376.72" data-en="about">náš</span>
+            <span class="word" data-time="2377.16" data-en="a private">privátní</span>
+            <span class="word" data-time="2377.60" data-en="server.">server.</span>
           </p>
         </div>
       </div>
@@ -1887,19 +1900,19 @@ footer { padding: 96px 0 72px; }
         <div class="segment" style="border-left-color: #2563eb">
           <button class="time-mark">39:45</button>
           <p class="segment-text">
-            <span class="word" data-time="2385.00">Dobře.</span>
-            <span class="word" data-time="2385.44">Napíšu</span>
-            <span class="word" data-time="2385.88">to</span>
-            <span class="word" data-time="2386.32">do</span>
-            <span class="word" data-time="2386.76">zápisu</span>
-            <span class="word" data-time="2387.20">a</span>
-            <span class="word" data-time="2387.64">příště</span>
-            <span class="word" data-time="2388.08">ukážu,</span>
-            <span class="word" data-time="2388.52">kolik</span>
-            <span class="word" data-time="2388.96">jsme</span>
-            <span class="word" data-time="2389.40">za</span>
-            <span class="word" data-time="2389.84">rok</span>
-            <span class="word" data-time="2390.28">ušetřili.</span>
+            <span class="word" data-time="2385.00" data-en="Good.">Dobře.</span>
+            <span class="word" data-time="2385.44" data-en="I'll">Napíšu</span>
+            <span class="word" data-time="2385.88" data-en="put">to</span>
+            <span class="word" data-time="2386.32" data-en="that">do</span>
+            <span class="word" data-time="2386.76" data-en="in">zápisu</span>
+            <span class="word" data-time="2387.20" data-en="the">a</span>
+            <span class="word" data-time="2387.64" data-en="minutes">příště</span>
+            <span class="word" data-time="2388.08" data-en="and">ukážu,</span>
+            <span class="word" data-time="2388.52" data-en="next">kolik</span>
+            <span class="word" data-time="2388.96" data-en="time">jsme</span>
+            <span class="word" data-time="2389.40" data-en="show">za</span>
+            <span class="word" data-time="2389.84" data-en="what">rok</span>
+            <span class="word" data-time="2390.28" data-en="we saved this year.">ušetřili.</span>
           </p>
         </div>
       </div>
@@ -2530,15 +2543,15 @@ footer { padding: 96px 0 72px; }
         <div class="segment" style="border-left-color: #2563eb">
           <button class="time-mark">38:52</button>
           <p class="segment-text">
-            <span class="word" data-time="2332.00">Loni</span>
-            <span class="word" data-time="2332.44">jsme</span>
-            <span class="word" data-time="2332.88">za</span>
-            <span class="word" data-time="2333.32">přepisy</span>
-            <span class="word" data-time="2333.76">porad</span>
-            <span class="word" data-time="2334.20">zaplatili</span>
-            <span class="word" data-time="2334.64">skoro</span>
-            <span class="word" data-time="2335.08">čtyřicet</span>
-            <span class="word" data-time="2335.52">tisíc.</span>
+            <span class="word" data-time="2332.00" data-en="Last">Loni</span>
+            <span class="word" data-time="2332.44" data-en="year">jsme</span>
+            <span class="word" data-time="2332.88" data-en="we">za</span>
+            <span class="word" data-time="2333.32" data-en="paid">přepisy</span>
+            <span class="word" data-time="2333.76" data-en="nearly">porad</span>
+            <span class="word" data-time="2334.20" data-en="forty">zaplatili</span>
+            <span class="word" data-time="2334.64" data-en="thousand">skoro</span>
+            <span class="word" data-time="2335.08" data-en="for">čtyřicet</span>
+            <span class="word" data-time="2335.52" data-en="transcripts.">tisíc.</span>
           </p>
         </div>
       </div>
@@ -2547,19 +2560,19 @@ footer { padding: 96px 0 72px; }
         <div class="segment" style="border-left-color: #2563eb">
           <button class="time-mark">39:07</button>
           <p class="segment-text">
-            <span class="word" data-time="2347.00">Letos</span>
-            <span class="word" data-time="2347.44">nula.</span>
-            <span class="word" data-time="2347.88">Děláme</span>
-            <span class="word" data-time="2348.32">si</span>
-            <span class="word" data-time="2348.76">je</span>
-            <span class="word" data-time="2349.20">sami</span>
-            <span class="word" data-time="2349.64">a</span>
-            <span class="word" data-time="2350.08">máme</span>
-            <span class="word" data-time="2350.52">je</span>
-            <span class="word" data-time="2350.96">dřív,</span>
-            <span class="word" data-time="2351.40">než</span>
-            <span class="word" data-time="2351.84">uvařím</span>
-            <span class="word" data-time="2352.28">kafe.</span>
+            <span class="word" data-time="2347.00" data-en="This year:">Letos</span>
+            <span class="word" data-time="2347.44" data-en="zero.">nula.</span>
+            <span class="word" data-time="2347.88" data-en="We">Děláme</span>
+            <span class="word" data-time="2348.32" data-en="do">si</span>
+            <span class="word" data-time="2348.76" data-en="them">je</span>
+            <span class="word" data-time="2349.20" data-en="ourselves">sami</span>
+            <span class="word" data-time="2349.64" data-en="and">a</span>
+            <span class="word" data-time="2350.08" data-en="have">máme</span>
+            <span class="word" data-time="2350.52" data-en="them">je</span>
+            <span class="word" data-time="2350.96" data-en="before">dřív,</span>
+            <span class="word" data-time="2351.40" data-en="the">než</span>
+            <span class="word" data-time="2351.84" data-en="kettle">uvařím</span>
+            <span class="word" data-time="2352.28" data-en="boils.">kafe.</span>
           </p>
         </div>
       </div>
@@ -2569,27 +2582,27 @@ footer { padding: 96px 0 72px; }
         <div class="segment uncertain" style="border-left-color: #c2410c">
           <button class="time-mark">39:19</button>
           <p class="segment-text">
-            <span class="word" data-time="2359.00">Já</span>
-            <span class="word" data-time="2359.44">si</span>
-            <span class="word" data-time="2359.88">přepisuju</span>
-            <span class="word" data-time="2360.32">naše</span>
-            <span class="word" data-time="2360.76">podcasty</span>
-            <span class="word" data-time="2361.20">z</span>
-            <span class="word" data-time="2361.64">YouTube</span>
-            <span class="word" data-time="2362.08">a</span>
-            <span class="word" data-time="2362.52">dělám</span>
-            <span class="word" data-time="2362.96">z</span>
-            <span class="word" data-time="2363.40">nich</span>
-            <span class="word" data-time="2363.84">firemní</span>
-            <span class="word" data-time="2364.28">blogposty.</span>
-            <span class="word" data-time="2364.72">Nahrávám</span>
-            <span class="word" data-time="2365.16">si</span>
-            <span class="word" data-time="2365.60">hlasové</span>
-            <span class="word" data-time="2366.04">poznámky</span>
-            <span class="word" data-time="2366.48">a</span>
-            <span class="word" data-time="2366.92">rovnou</span>
-            <span class="word" data-time="2367.36">je</span>
-            <span class="word" data-time="2367.80">přepisuju.</span>
+            <span class="word" data-time="2359.00" data-en="I">Já</span>
+            <span class="word" data-time="2359.44" data-en="transcribe">si</span>
+            <span class="word" data-time="2359.88" data-en="our">přepisuju</span>
+            <span class="word" data-time="2360.32" data-en="podcasts">naše</span>
+            <span class="word" data-time="2360.76" data-en="from">podcasty</span>
+            <span class="word" data-time="2361.20" data-en="YouTube">z</span>
+            <span class="word" data-time="2361.64" data-en="and">YouTube</span>
+            <span class="word" data-time="2362.08" data-en="turn">a</span>
+            <span class="word" data-time="2362.52" data-en="them">dělám</span>
+            <span class="word" data-time="2362.96" data-en="into">z</span>
+            <span class="word" data-time="2363.40" data-en="company">nich</span>
+            <span class="word" data-time="2363.84" data-en="blog">firemní</span>
+            <span class="word" data-time="2364.28" data-en="posts.">blogposty.</span>
+            <span class="word" data-time="2364.72" data-en="I">Nahrávám</span>
+            <span class="word" data-time="2365.16" data-en="record">si</span>
+            <span class="word" data-time="2365.60" data-en="voice">hlasové</span>
+            <span class="word" data-time="2366.04" data-en="notes">poznámky</span>
+            <span class="word" data-time="2366.48" data-en="and">a</span>
+            <span class="word" data-time="2366.92" data-en="transcribe">rovnou</span>
+            <span class="word" data-time="2367.36" data-en="them">je</span>
+            <span class="word" data-time="2367.80" data-en="right away.">přepisuju.</span>
           </p>
           <div class="segment-actions">
             <button title="Je to správně" aria-label="Označit jako správné">
@@ -2614,22 +2627,22 @@ footer { padding: 96px 0 72px; }
         <div class="segment" style="border-left-color: #15803d">
           <button class="time-mark">39:31</button>
           <p class="segment-text">
-            <span class="word" data-time="2371.00">JSON</span>
-            <span class="word" data-time="2371.44">importuju</span>
-            <span class="word" data-time="2371.88">do</span>
-            <span class="word" data-time="2372.32">firemní</span>
-            <span class="word" data-time="2372.76">knihovny</span>
-            <span class="word" data-time="2373.20">znalostí</span>
-            <span class="word" data-time="2373.64">a</span>
-            <span class="word" data-time="2374.08">jednám</span>
-            <span class="word" data-time="2374.52">se</span>
-            <span class="word" data-time="2374.96">Značkárnou</span>
-            <span class="word" data-time="2375.40">o</span>
-            <span class="word" data-time="2375.84">nasazení</span>
-            <span class="word" data-time="2376.28">na</span>
-            <span class="word" data-time="2376.72">náš</span>
-            <span class="word" data-time="2377.16">privátní</span>
-            <span class="word" data-time="2377.60">server.</span>
+            <span class="word" data-time="2371.00" data-en="I">JSON</span>
+            <span class="word" data-time="2371.44" data-en="import">importuju</span>
+            <span class="word" data-time="2371.88" data-en="the">do</span>
+            <span class="word" data-time="2372.32" data-en="JSON">firemní</span>
+            <span class="word" data-time="2372.76" data-en="into">knihovny</span>
+            <span class="word" data-time="2373.20" data-en="our">znalostí</span>
+            <span class="word" data-time="2373.64" data-en="knowledge">a</span>
+            <span class="word" data-time="2374.08" data-en="base">jednám</span>
+            <span class="word" data-time="2374.52" data-en="and">se</span>
+            <span class="word" data-time="2374.96" data-en="we're">Značkárnou</span>
+            <span class="word" data-time="2375.40" data-en="talking">o</span>
+            <span class="word" data-time="2375.84" data-en="to">nasazení</span>
+            <span class="word" data-time="2376.28" data-en="Značkárna">na</span>
+            <span class="word" data-time="2376.72" data-en="about">náš</span>
+            <span class="word" data-time="2377.16" data-en="a private">privátní</span>
+            <span class="word" data-time="2377.60" data-en="server.">server.</span>
           </p>
         </div>
       </div>
@@ -2639,19 +2652,19 @@ footer { padding: 96px 0 72px; }
         <div class="segment" style="border-left-color: #2563eb">
           <button class="time-mark">39:45</button>
           <p class="segment-text">
-            <span class="word" data-time="2385.00">Dobře.</span>
-            <span class="word" data-time="2385.44">Napíšu</span>
-            <span class="word" data-time="2385.88">to</span>
-            <span class="word" data-time="2386.32">do</span>
-            <span class="word" data-time="2386.76">zápisu</span>
-            <span class="word" data-time="2387.20">a</span>
-            <span class="word" data-time="2387.64">příště</span>
-            <span class="word" data-time="2388.08">ukážu,</span>
-            <span class="word" data-time="2388.52">kolik</span>
-            <span class="word" data-time="2388.96">jsme</span>
-            <span class="word" data-time="2389.40">za</span>
-            <span class="word" data-time="2389.84">rok</span>
-            <span class="word" data-time="2390.28">ušetřili.</span>
+            <span class="word" data-time="2385.00" data-en="Good.">Dobře.</span>
+            <span class="word" data-time="2385.44" data-en="I'll">Napíšu</span>
+            <span class="word" data-time="2385.88" data-en="put">to</span>
+            <span class="word" data-time="2386.32" data-en="that">do</span>
+            <span class="word" data-time="2386.76" data-en="in">zápisu</span>
+            <span class="word" data-time="2387.20" data-en="the">a</span>
+            <span class="word" data-time="2387.64" data-en="minutes">příště</span>
+            <span class="word" data-time="2388.08" data-en="and">ukážu,</span>
+            <span class="word" data-time="2388.52" data-en="next">kolik</span>
+            <span class="word" data-time="2388.96" data-en="time">jsme</span>
+            <span class="word" data-time="2389.40" data-en="show">za</span>
+            <span class="word" data-time="2389.84" data-en="what">rok</span>
+            <span class="word" data-time="2390.28" data-en="we saved this year.">ušetřili.</span>
           </p>
         </div>
       </div>
@@ -3060,15 +3073,15 @@ footer { padding: 96px 0 72px; }
         <div class="segment" style="border-left-color: #2563eb">
           <button class="time-mark">38:52</button>
           <p class="segment-text">
-            <span class="word" data-time="2332.00">Loni</span>
-            <span class="word" data-time="2332.44">jsme</span>
-            <span class="word" data-time="2332.88">za</span>
-            <span class="word" data-time="2333.32">přepisy</span>
-            <span class="word" data-time="2333.76">porad</span>
-            <span class="word" data-time="2334.20">zaplatili</span>
-            <span class="word" data-time="2334.64">skoro</span>
-            <span class="word" data-time="2335.08">čtyřicet</span>
-            <span class="word" data-time="2335.52">tisíc.</span>
+            <span class="word" data-time="2332.00" data-en="Last">Loni</span>
+            <span class="word" data-time="2332.44" data-en="year">jsme</span>
+            <span class="word" data-time="2332.88" data-en="we">za</span>
+            <span class="word" data-time="2333.32" data-en="paid">přepisy</span>
+            <span class="word" data-time="2333.76" data-en="nearly">porad</span>
+            <span class="word" data-time="2334.20" data-en="forty">zaplatili</span>
+            <span class="word" data-time="2334.64" data-en="thousand">skoro</span>
+            <span class="word" data-time="2335.08" data-en="for">čtyřicet</span>
+            <span class="word" data-time="2335.52" data-en="transcripts.">tisíc.</span>
           </p>
         </div>
       </div>
@@ -3077,19 +3090,19 @@ footer { padding: 96px 0 72px; }
         <div class="segment" style="border-left-color: #2563eb">
           <button class="time-mark">39:07</button>
           <p class="segment-text">
-            <span class="word" data-time="2347.00">Letos</span>
-            <span class="word" data-time="2347.44">nula.</span>
-            <span class="word" data-time="2347.88">Děláme</span>
-            <span class="word" data-time="2348.32">si</span>
-            <span class="word" data-time="2348.76">je</span>
-            <span class="word" data-time="2349.20">sami</span>
-            <span class="word" data-time="2349.64">a</span>
-            <span class="word" data-time="2350.08">máme</span>
-            <span class="word" data-time="2350.52">je</span>
-            <span class="word" data-time="2350.96">dřív,</span>
-            <span class="word" data-time="2351.40">než</span>
-            <span class="word" data-time="2351.84">uvařím</span>
-            <span class="word" data-time="2352.28">kafe.</span>
+            <span class="word" data-time="2347.00" data-en="This year:">Letos</span>
+            <span class="word" data-time="2347.44" data-en="zero.">nula.</span>
+            <span class="word" data-time="2347.88" data-en="We">Děláme</span>
+            <span class="word" data-time="2348.32" data-en="do">si</span>
+            <span class="word" data-time="2348.76" data-en="them">je</span>
+            <span class="word" data-time="2349.20" data-en="ourselves">sami</span>
+            <span class="word" data-time="2349.64" data-en="and">a</span>
+            <span class="word" data-time="2350.08" data-en="have">máme</span>
+            <span class="word" data-time="2350.52" data-en="them">je</span>
+            <span class="word" data-time="2350.96" data-en="before">dřív,</span>
+            <span class="word" data-time="2351.40" data-en="the">než</span>
+            <span class="word" data-time="2351.84" data-en="kettle">uvařím</span>
+            <span class="word" data-time="2352.28" data-en="boils.">kafe.</span>
           </p>
         </div>
       </div>
@@ -3099,27 +3112,27 @@ footer { padding: 96px 0 72px; }
         <div class="segment uncertain" style="border-left-color: #c2410c">
           <button class="time-mark">39:19</button>
           <p class="segment-text">
-            <span class="word" data-time="2359.00">Já</span>
-            <span class="word" data-time="2359.44">si</span>
-            <span class="word" data-time="2359.88">přepisuju</span>
-            <span class="word" data-time="2360.32">naše</span>
-            <span class="word" data-time="2360.76">podcasty</span>
-            <span class="word" data-time="2361.20">z</span>
-            <span class="word" data-time="2361.64">YouTube</span>
-            <span class="word" data-time="2362.08">a</span>
-            <span class="word" data-time="2362.52">dělám</span>
-            <span class="word" data-time="2362.96">z</span>
-            <span class="word" data-time="2363.40">nich</span>
-            <span class="word" data-time="2363.84">firemní</span>
-            <span class="word" data-time="2364.28">blogposty.</span>
-            <span class="word" data-time="2364.72">Nahrávám</span>
-            <span class="word" data-time="2365.16">si</span>
-            <span class="word" data-time="2365.60">hlasové</span>
-            <span class="word" data-time="2366.04">poznámky</span>
-            <span class="word" data-time="2366.48">a</span>
-            <span class="word" data-time="2366.92">rovnou</span>
-            <span class="word" data-time="2367.36">je</span>
-            <span class="word" data-time="2367.80">přepisuju.</span>
+            <span class="word" data-time="2359.00" data-en="I">Já</span>
+            <span class="word" data-time="2359.44" data-en="transcribe">si</span>
+            <span class="word" data-time="2359.88" data-en="our">přepisuju</span>
+            <span class="word" data-time="2360.32" data-en="podcasts">naše</span>
+            <span class="word" data-time="2360.76" data-en="from">podcasty</span>
+            <span class="word" data-time="2361.20" data-en="YouTube">z</span>
+            <span class="word" data-time="2361.64" data-en="and">YouTube</span>
+            <span class="word" data-time="2362.08" data-en="turn">a</span>
+            <span class="word" data-time="2362.52" data-en="them">dělám</span>
+            <span class="word" data-time="2362.96" data-en="into">z</span>
+            <span class="word" data-time="2363.40" data-en="company">nich</span>
+            <span class="word" data-time="2363.84" data-en="blog">firemní</span>
+            <span class="word" data-time="2364.28" data-en="posts.">blogposty.</span>
+            <span class="word" data-time="2364.72" data-en="I">Nahrávám</span>
+            <span class="word" data-time="2365.16" data-en="record">si</span>
+            <span class="word" data-time="2365.60" data-en="voice">hlasové</span>
+            <span class="word" data-time="2366.04" data-en="notes">poznámky</span>
+            <span class="word" data-time="2366.48" data-en="and">a</span>
+            <span class="word" data-time="2366.92" data-en="transcribe">rovnou</span>
+            <span class="word" data-time="2367.36" data-en="them">je</span>
+            <span class="word" data-time="2367.80" data-en="right away.">přepisuju.</span>
           </p>
           <div class="segment-actions">
             <button title="Je to správně" aria-label="Označit jako správné">
@@ -3144,22 +3157,22 @@ footer { padding: 96px 0 72px; }
         <div class="segment" style="border-left-color: #15803d">
           <button class="time-mark">39:31</button>
           <p class="segment-text">
-            <span class="word" data-time="2371.00">JSON</span>
-            <span class="word" data-time="2371.44">importuju</span>
-            <span class="word" data-time="2371.88">do</span>
-            <span class="word" data-time="2372.32">firemní</span>
-            <span class="word" data-time="2372.76">knihovny</span>
-            <span class="word" data-time="2373.20">znalostí</span>
-            <span class="word" data-time="2373.64">a</span>
-            <span class="word" data-time="2374.08">jednám</span>
-            <span class="word" data-time="2374.52">se</span>
-            <span class="word" data-time="2374.96">Značkárnou</span>
-            <span class="word" data-time="2375.40">o</span>
-            <span class="word" data-time="2375.84">nasazení</span>
-            <span class="word" data-time="2376.28">na</span>
-            <span class="word" data-time="2376.72">náš</span>
-            <span class="word" data-time="2377.16">privátní</span>
-            <span class="word" data-time="2377.60">server.</span>
+            <span class="word" data-time="2371.00" data-en="I">JSON</span>
+            <span class="word" data-time="2371.44" data-en="import">importuju</span>
+            <span class="word" data-time="2371.88" data-en="the">do</span>
+            <span class="word" data-time="2372.32" data-en="JSON">firemní</span>
+            <span class="word" data-time="2372.76" data-en="into">knihovny</span>
+            <span class="word" data-time="2373.20" data-en="our">znalostí</span>
+            <span class="word" data-time="2373.64" data-en="knowledge">a</span>
+            <span class="word" data-time="2374.08" data-en="base">jednám</span>
+            <span class="word" data-time="2374.52" data-en="and">se</span>
+            <span class="word" data-time="2374.96" data-en="we're">Značkárnou</span>
+            <span class="word" data-time="2375.40" data-en="talking">o</span>
+            <span class="word" data-time="2375.84" data-en="to">nasazení</span>
+            <span class="word" data-time="2376.28" data-en="Značkárna">na</span>
+            <span class="word" data-time="2376.72" data-en="about">náš</span>
+            <span class="word" data-time="2377.16" data-en="a private">privátní</span>
+            <span class="word" data-time="2377.60" data-en="server.">server.</span>
           </p>
         </div>
       </div>
@@ -3169,19 +3182,19 @@ footer { padding: 96px 0 72px; }
         <div class="segment" style="border-left-color: #2563eb">
           <button class="time-mark">39:45</button>
           <p class="segment-text">
-            <span class="word" data-time="2385.00">Dobře.</span>
-            <span class="word" data-time="2385.44">Napíšu</span>
-            <span class="word" data-time="2385.88">to</span>
-            <span class="word" data-time="2386.32">do</span>
-            <span class="word" data-time="2386.76">zápisu</span>
-            <span class="word" data-time="2387.20">a</span>
-            <span class="word" data-time="2387.64">příště</span>
-            <span class="word" data-time="2388.08">ukážu,</span>
-            <span class="word" data-time="2388.52">kolik</span>
-            <span class="word" data-time="2388.96">jsme</span>
-            <span class="word" data-time="2389.40">za</span>
-            <span class="word" data-time="2389.84">rok</span>
-            <span class="word" data-time="2390.28">ušetřili.</span>
+            <span class="word" data-time="2385.00" data-en="Good.">Dobře.</span>
+            <span class="word" data-time="2385.44" data-en="I'll">Napíšu</span>
+            <span class="word" data-time="2385.88" data-en="put">to</span>
+            <span class="word" data-time="2386.32" data-en="that">do</span>
+            <span class="word" data-time="2386.76" data-en="in">zápisu</span>
+            <span class="word" data-time="2387.20" data-en="the">a</span>
+            <span class="word" data-time="2387.64" data-en="minutes">příště</span>
+            <span class="word" data-time="2388.08" data-en="and">ukážu,</span>
+            <span class="word" data-time="2388.52" data-en="next">kolik</span>
+            <span class="word" data-time="2388.96" data-en="time">jsme</span>
+            <span class="word" data-time="2389.40" data-en="show">za</span>
+            <span class="word" data-time="2389.84" data-en="what">rok</span>
+            <span class="word" data-time="2390.28" data-en="we saved this year.">ušetřili.</span>
           </p>
         </div>
       </div>
@@ -3663,11 +3676,11 @@ footer { padding: 96px 0 72px; }
             <div class="segment current">
               <button class="time-mark">39:07</button>
               <p class="segment-text">
-                <span class="word sounded">Letos</span>
-                <span class="word sounded">za</span>
-                <span class="word sounded">přepisy</span>
-                <span class="word">ani</span>
-                <span class="word">korunu.</span>
+                <span class="word sounded" data-en="Not">Letos</span>
+                <span class="word sounded" data-en="a">za</span>
+                <span class="word sounded" data-en="penny">přepisy</span>
+                <span class="word" data-en="on">ani</span>
+                <span class="word" data-en="transcripts this year.">korunu.</span>
               </p>
             </div>
           </div>
@@ -3694,14 +3707,14 @@ footer { padding: 96px 0 72px; }
             <div class="segment">
               <button class="time-mark">12:41</button>
               <p class="segment-text">
-                <span class="word">Podcasty</span>
-                <span class="word">z</span>
-                <span class="word">YouTube</span>
-                <span class="word">dáme</span>
-                <span class="word">na</span>
+                <span class="word" data-en="Podcasts">Podcasty</span>
+                <span class="word" data-en="from">z</span>
+                <span class="word" data-en="YouTube">YouTube</span>
+                <span class="word" data-en="go">dáme</span>
+                <span class="word" data-en="on the">na</span>
                 <span class="fix-word">
-                  <span class="word before">blob.</span>
-                  <span class="word corrected after">blog.</span>
+                  <span class="word before" data-en="blob.">blob.</span>
+                  <span class="word corrected after" data-en="blog.">blog.</span>
                   <span class="fix-caret" aria-hidden="true"></span>
                 </span>
               </p>
@@ -3737,10 +3750,10 @@ footer { padding: 96px 0 72px; }
                 </button>
               </div>
               <p class="segment-text">
-                <span class="word">Hlasovky</span>
-                <span class="word">půjdou</span>
-                <span class="word">rovnou</span>
-                <span class="word">Petrovi.</span>
+                <span class="word" data-en="Voice">Hlasovky</span>
+                <span class="word" data-en="notes">půjdou</span>
+                <span class="word" data-en="go">rovnou</span>
+                <span class="word" data-en="to Petr.">Petrovi.</span>
               </p>
             </div>
           </div>
@@ -4271,7 +4284,12 @@ footer { padding: 96px 0 72px; }
     var button = document.getElementById("theme");
     if (!button) return;
     button.setAttribute("aria-pressed", String(theme === "dark"));
-    button.setAttribute("aria-label", theme === "dark" ? "Přepnout na světlý motiv" : "Přepnout na tmavý motiv");
+    /* Both labels in both languages, read off the document: the translator
+       leaves the inside of a `<script>` alone, so this is where the English
+       page would otherwise still speak Czech to a screen reader. */
+    var toLight = document.documentElement.lang === "en" ? "Switch to the light theme" : "Přepnout na světlý motiv";
+    var toDark = document.documentElement.lang === "en" ? "Switch to the dark theme" : "Přepnout na tmavý motiv";
+    button.setAttribute("aria-label", theme === "dark" ? toLight : toDark);
     button.setAttribute("title", button.getAttribute("aria-label"));
   };
 

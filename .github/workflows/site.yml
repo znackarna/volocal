@@ -58,9 +58,18 @@ jobs:
           cp docs/site/brand.css docs/site/app-shot.css _site/
           cp docs/site/brand.js docs/site/chibi.js docs/site/preview.js _site/
           cp -r docs/site/fonts _site/fonts
-          # `_tokens.html`, `bundle.py` and `scope-app-css.py` stay behind:
-          # they are how the page is worked on, not part of it.
+          # `_tokens.html`, `bundle.py`, `scope-app-css.py`, `translate.mjs` and
+          # `en.json` stay behind: they are how the page is worked on and how the
+          # English one is made, not part of what is served.
           touch _site/.nojekyll
+
+      # The English page is the Czech one with its sentences swapped, so it is
+      # made here rather than kept in the repository -- one page to edit, two to
+      # read. It lands a directory deeper and looks one level up for the
+      # stylesheet, the scripts and the fonts, which is why nothing is copied
+      # into `en/`.
+      - name: Write the English page
+        run: node docs/site/translate.mjs _site/en/index.html
 
       - name: Name the version that can be downloaded
         env:
@@ -72,15 +81,23 @@ jobs:
           VERSION="$version" python - <<'PY'
           import os, re, pathlib
           version = os.environ["VERSION"]
-          page = pathlib.Path("_site/index.html")
-          text = page.read_text(encoding="utf-8")
-          # Two of them -- the hero and the closing. The count is asserted
-          # rather than assumed: if that sentence is ever reworded, this build
-          # fails loudly instead of quietly shipping last month's number.
-          text, found = re.subn(r"Verze \d+\.\d+\.\d+", "Verze " + version, text)
-          if found != 2:
-              raise SystemExit("expected 2 version mentions, found %d" % found)
-          page.write_text(text, encoding="utf-8")
+          # Two of them in each page -- the hero and the closing. The count is
+          # asserted rather than assumed: if either sentence is ever reworded,
+          # this build fails loudly instead of quietly shipping last month's
+          # number. The English page says it in English, and its own count is
+          # checked separately so a half-translated page cannot pass.
+          pages = {
+              "_site/index.html": r"Verze \d+\.\d+\.\d+",
+              "_site/en/index.html": r"Version \d+\.\d+\.\d+",
+          }
+          for path, pattern in pages.items():
+              page = pathlib.Path(path)
+              text = page.read_text(encoding="utf-8")
+              word = pattern.split(" ")[0]
+              text, found = re.subn(pattern, word + " " + version, text)
+              if found != 2:
+                  raise SystemExit("%s: expected 2 version mentions, found %d" % (path, found))
+              page.write_text(text, encoding="utf-8")
           PY
 
       # `enablement: true` was tried here and cannot work: creating a Pages
