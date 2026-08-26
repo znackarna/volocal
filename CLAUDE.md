@@ -4,6 +4,24 @@ Read `ARCHITECTURE.md` before changing cross-layer behavior. New internal
 identifiers and comments use standard English; visible UI copy remains Czech
 and addresses the reader formally (vykání) — `npm run i18n:check` enforces it.
 
+## Two branches, and no others
+
+**Work goes on `dev`. `main` is what is published.** Committed straight to
+`dev` — no branch per change, no pull request per change, nothing in between.
+When the owner has looked at it and says so, `dev` goes to `main`, and that
+merge is the deployment: `site.yml` publishes the page from `main`, and a
+release is tagged there.
+
+So the shape of a piece of work is: commit to `dev`, push, say what changed —
+and wait. **Merging to `main` is his call, never a step in finishing a task.**
+
+`Checks` runs on both branches, so nothing reaches `main` unchecked and the
+first thing anybody hears about a failure is on `dev`, where it costs nothing.
+
+Asked for on 2026-08-26, after an afternoon in which eleven branches were
+opened, checked, merged and deleted for eleven small changes to one page — the
+ceremony had outgrown the work.
+
 ## Mandatory change record
 
 Every code, behavior, data, copy, or UI change is written down before the work

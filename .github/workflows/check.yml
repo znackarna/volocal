@@ -14,7 +14,11 @@ name: Checks
 
 on:
   push:
-    branches: [main]
+    # `dev` is where work lands and `main` is what is published, so the checks
+    # have to run on the branch the work is on -- otherwise the first time
+    # anything is checked is the moment it is being deployed, which is the one
+    # moment nobody wants to hear about it.
+    branches: [main, dev]
     # A release is a tag. The two checking jobs run for it as well, so nothing
     # is tagged that has not been checked.
     tags: ["v*"]
