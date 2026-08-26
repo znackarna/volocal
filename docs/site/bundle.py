@@ -54,6 +54,13 @@ TAG_REST = r'(?:"[^"]*"|[^>"])*'
 
 page = re.sub(r"<meta" + TAG_REST + r">\s*", "", page)
 page = re.sub(r'<link rel="icon"' + TAG_REST + r'>\s*', "", page)
+# The canonical and the two `hreflang` alternates say where this page lives and
+# where its other language is. A bundle lives at neither: it is one file handed
+# to somebody, or a hosted copy for review, and both of those pointing a search
+# engine at the published site is noise at best. They go with the rest of the
+# head.
+page = re.sub(r'<link rel="canonical"' + TAG_REST + r'>\s*', "", page)
+page = re.sub(r'<link rel="alternate"' + TAG_REST + r'>\s*', "", page)
 page = page.replace("</head>\n<body>\n", "")
 page = page.replace("</body>\n</html>\n", "")
 
