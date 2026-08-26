@@ -55,6 +55,11 @@ $documents = @(
   @{ Path = "README.cs.md";  Pattern = '(\*\*Stav: vydáno, )([\d.]+)(\.\*\*)' }
   @{ Path = "NOTICE";        Pattern = '(?m)^(Volocal )([\d.]+)( — )' }
   @{ Path = ".github\ISSUE_TEMPLATE\bug_report.yml"; Pattern = '(placeholder: ")([\d.]+)(")' }
+  # Twice: the hero and the closing. What GitHub Pages serves has this number
+  # rewritten from the latest release, so the file's own copy is what a reader
+  # sees only when the page is opened from disk or handed over as a bundle --
+  # which is exactly when a stale number is least expected.
+  @{ Path = "docs\site\index.html"; Pattern = '(Verze )([\d.]+)( pro Windows)'; Every = $true }
 )
 
 function Current($file) {

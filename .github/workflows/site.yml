@@ -21,6 +21,14 @@ on:
     paths:
       - 'docs/site/**'
       - '.github/workflows/site.yml'
+  # A release changes the page without touching a file in it: the version in
+  # the hero and the closing is read from the latest release below, so a page
+  # deployed before the release keeps offering the version before it. On
+  # 26 August 2026 the site said 1.2.20 for the hours between publishing 1.2.21
+  # and the next edit to `docs/site/`, and the only thing wrong was that nobody
+  # had pushed anything.
+  release:
+    types: [published]
   workflow_dispatch:
 
 permissions:
