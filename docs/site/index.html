@@ -1358,6 +1358,13 @@ figcaption.with-icon { display: flex; align-items: flex-start; gap: 8px; }
   gap: 20px 32px; padding: 26px 30px;
   border: 1px solid var(--line); border-radius: var(--r-large); background: var(--panel);
 }
+/* The button keeps the right edge on whichever line it lands on. `space-between`
+   only spreads a line that has two things on it; once the row wraps, the button
+   is alone on its line and a lone item sits at the start of it -- which is how
+   the button ended up under the sentence and hard left, at every width between
+   a phone and about 800 px. `margin-left: auto` eats the space in front of it
+   either way, so nothing about the unwrapped row changes. */
+.business-panel .btn { margin-left: auto; }
 .business-panel p {
   margin: 0; max-width: 66ch;
   font-family: var(--font-body); font-size: 18px; line-height: 1.5;
