@@ -36,7 +36,7 @@ the time.
 | [2026-08-20](2026-08-20.md) | 13 | Online import, a setup that says why it failed, and the gains section proving itself … |
 | [2026-08-21](2026-08-21.md) | 8 | The gains section on a phone, where it had nothing to show … |
 | [2026-08-25](2026-08-25.md) | 41 | The limits section is asked as a question … |
-| [2026-08-26](2026-08-26.md) | 19 | The cube comes back out of the panel … |
+| [2026-08-26](2026-08-26.md) | 20 | The cube comes back out of the panel … |
 
 ## What each day was about
 

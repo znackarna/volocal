@@ -65,6 +65,14 @@ const HEAD_SWAPS = [
   ['<html lang="cs"', '<html lang="en"'],
   ['rel="canonical" href="https://volocal.app/"',
    'rel="canonical" href="https://volocal.app/en/"'],
+  /* What a pasted link shows. The card was the Czech one on the English page --
+     Czech headline, Czech sentence, and an address pointing at the other
+     language -- because these say the page in a machine's attribute rather than
+     in its text, and the first pass only looked at text. */
+  ['<meta property="og:url" content="https://volocal.app/">',
+   '<meta property="og:url" content="https://volocal.app/en/">'],
+  ['<meta property="og:locale" content="cs_CZ">',
+   '<meta property="og:locale" content="en_US">'],
   ['<a class="lang-switch" href="en/" hreflang="en" lang="en">English</a>',
    '<a class="lang-switch" href="../" hreflang="cs" lang="cs">Česky</a>'],
 ];
@@ -131,9 +139,13 @@ function translateText(chunk, lookup, override) {
 function translateTag(tag, lookup) {
   if (!/^<[a-zA-Z]/.test(tag)) return tag;
   return tag.replace(/([a-zA-Z-]+)="([^"]*)"/g, (whole, name, value) => {
+    /* `content` is a machine's word for everything, so it is translated only
+       where the machine is quoting the page to a person: the description a
+       search engine prints, and the two lines a pasted link shows. */
+    const said = /(?:name|property)="(description|og:title|og:description)"/.test(tag);
     const translatable =
       ATTRIBUTES.includes(name) ||
-      (name === "content" && /name="description"/.test(tag)) ||
+      (name === "content" && said) ||
       (name === "href" && value.startsWith("mailto:"));
     if (!translatable || !hasLetters(value)) return whole;
     const english = lookup(value);
