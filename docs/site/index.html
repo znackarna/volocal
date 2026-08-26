@@ -1310,35 +1310,31 @@ section.minor .rows p { margin-top: 4px; font-size: 13px; }
   transition: transform .26s cubic-bezier(.4, 0, .2, 1);
 }
 .faq-item[open] summary::after { transform: rotate(-135deg); }
-/* The answer slides rather than appearing. A `<details>` has always been a
-   switch -- shut, then instantly open -- because the height it is going to is
-   not a number anybody wrote down, and CSS could not animate to a height it
-   had to work out. `interpolate-size: allow-keywords` lets it, and
-   `::details-content` is the box to say it about; `allow-discrete` carries
-   `content-visibility` across the same 0.26 s instead of flipping it at one
-   end.
+/* The answer slides rather than appearing, and the sliding is done in the
+   script at the foot of this file rather than here.
 
-   Behind `@supports` on purpose. A browser without these three keeps the
-   instant open it has today, which is the behaviour this page shipped with and
-   is not broken -- only abrupt.
+   It was CSS until 26 August 2026: `interpolate-size: allow-keywords` with
+   `::details-content`, behind an `@supports` that let a browser without them
+   keep the instant open. That was the whole fault. Those two are Chromium's
+   and nobody else's yet, so the page animated in Chrome and Edge and jumped in
+   Firefox and Safari -- and the `@supports` meant it did so quietly, on the
+   readers least likely to say anything.
 
-   0.26 s and the page's own easing, the same pair the cards under *Co
-   získáte?* arrive on. The chevron was on 0.18 s and `ease` and is on this
-   now: two clocks on one gesture is how a disclosure comes to feel loose. */
-@supports (interpolate-size: allow-keywords) and (selector(::details-content)) {
-  .faq-item { interpolate-size: allow-keywords; }
-  .faq-item::details-content {
-    height: 0; overflow: hidden; content-visibility: hidden;
-    transition: height .26s cubic-bezier(.4, 0, .2, 1),
-                content-visibility .26s allow-discrete;
-  }
-  .faq-item[open]::details-content { height: auto; content-visibility: visible; }
-}
+   The script measures the two heights and animates between them, which every
+   browser has been able to do for a decade. Without JavaScript the disclosure
+   is still a `<details>`: it opens, it is in the tab order, it just opens at
+   once. That is the same behaviour the `@supports` was falling back to, and now
+   it is the fallback for having no script rather than for using Firefox.
+
+   `.is-closing` carries the chevron: on the way shut the answer is still
+   `[open]` while it collapses, and without this the arrow would turn a quarter
+   of a second after the panel it belongs to. */
+.faq-item.is-animating { overflow: hidden; }
+.faq-item[open].is-closing summary::after { transform: rotate(45deg); }
 .faq-item summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .faq-item p { margin: 0 0 18px; max-width: 62ch; font-size: 13px; color: var(--text-quiet); }
 @media (prefers-reduced-motion: reduce) {
   .faq-item summary::after { transition: none; }
-  .faq-item::details-content { transition: none; }
 }
 
 /* A note about the picture, not a caption for it — so it takes the shape the
@@ -4456,6 +4452,76 @@ footer { padding: 96px 0 72px; }
   if (homeMark && window.volocalFace) {
     volocalFace(homeMark, { height: "17px", reducedMotion: true });
   }
+
+  /* The FAQ opens by measuring, because the CSS that could do it is Chromium's
+     alone. A `<details>` is shut or open with nothing in between, so what is
+     animated is the element's own height: what it is now, and what it is with
+     the answer in it. The answer is left in the flow the whole time -- `open`
+     goes on before the measurement and comes off after the collapse -- and the
+     overflow is hidden only while something is moving.
+
+     Reduced motion never gets here: the browser's own toggle is what it asks
+     for. Neither does a modified click, which is the browser's business. */
+  var faqEase = "cubic-bezier(.4, 0, .2, 1)";
+  var faqMs = 260;
+  [].slice.call(document.querySelectorAll(".faq-item")).forEach(function (item) {
+    var summary = item.querySelector("summary");
+    if (!summary || !item.animate) return;
+    var running = null;
+    var turn = 0;
+
+    summary.addEventListener("click", function (event) {
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      event.preventDefault();
+
+      /* A second click mid-flight turns the panel around from where it got to,
+         rather than queueing a second journey behind the first. */
+      if (running) { running.cancel(); running = null; }
+
+      var from = item.offsetHeight;
+      var closing = item.open;
+      item.classList.add("is-animating");
+      item.classList.toggle("is-closing", closing);
+      if (!item.open) item.open = true;
+
+      /* Shut, the element is its summary; open, it is whatever the answer makes
+         it. Both are read off the page rather than written down here, so a
+         reworded answer needs nothing changed. */
+      var to = closing ? summary.offsetHeight : item.scrollHeight;
+
+      /* `fill: both`, and it is not decoration. Without it the animated height
+         stops applying the instant the run ends, and on the way shut that is
+         one painted frame of the panel back at its full height before `open`
+         comes off -- a flash of the answer as it disappears. The fill holds the
+         last frame until the element is genuinely that tall, and the cancel
+         hands the height back to the stylesheet in the same breath. */
+      running = item.animate(
+        [{ height: from + "px" }, { height: to + "px" }],
+        { duration: faqMs, easing: faqEase, fill: "both" }
+      );
+
+      /* Two ways to the same end, because the whole state of the panel hangs
+         off this running: `open` comes off here, and so does the hidden
+         overflow. A finish event that never arrives -- a tab put to sleep
+         mid-collapse is the ordinary way -- would leave the answer open,
+         clipped, and impossible to shut. The timer is the same journey's
+         length and a little; whichever gets there first does the work, and the
+         token is what keeps a click that has already been overtaken from
+         settling a panel that now belongs to a later one. */
+      var token = ++turn;
+      var settle = function () {
+        if (token !== turn || !running) return;
+        var finished = running;
+        running = null;
+        if (closing) item.open = false;
+        item.classList.remove("is-animating", "is-closing");
+        finished.cancel();
+      };
+      running.onfinish = settle;
+      setTimeout(settle, faqMs + 80);
+    });
+  });
 
   /* Dole se značka jednou napíše perem a pak žije. Čeká, až na ni čtenář
      doscrolluje — napíše se jen jednou a nemá to propásnout. */
