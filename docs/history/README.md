@@ -37,7 +37,7 @@ the time.
 | [2026-08-21](2026-08-21.md) | 8 | The gains section on a phone, where it had nothing to show … |
 | [2026-08-25](2026-08-25.md) | 41 | The limits section is asked as a question … |
 | [2026-08-26](2026-08-26.md) | 1 | 1.2.21, for one line … |
-| [2026-08-26](2026-08-26.md) | 10 | The cube comes back out of the panel … |
+| [2026-08-26](2026-08-26.md) | 11 | The cube comes back out of the panel … |
 
 ## What each day was about
 

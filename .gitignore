@@ -20,6 +20,10 @@ i18n/
 # Delivery archives handed over during a session. Working files, not source.
 _to_delete/
 
+# Scratch files written while working on the repository with the owner.
+# Notes, extracts, anything put here to be read once. Not source.
+tmp/
+
 # Audit and analysis notes written during a session. Internal, not documentation.
 # Both shapes those names actually take: `volocal-analyza-0.9.0.md` and
 # `slozky-analyza.md`. The earlier `*-analyza-*.md` required a hyphen on both

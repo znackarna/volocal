@@ -1,7 +1,13 @@
-# The presentation page, published to GitHub Pages.
+# The presentation page, published to GitHub Pages and to Vercel.
 #
 # The page is static and has no build step: `docs/site/` is what gets served,
 # minus the three files that are tools rather than the page.
+#
+# Two hosts, one build. `_site` is assembled once and both are handed the same
+# bytes -- a second build somewhere else would be a second thing to keep in
+# step, and the page already has one address written into its own head.
+# volocal.app is the home the page names as canonical; Pages goes on serving
+# what it always did and points readers at the same address.
 #
 # It lived on a branch of its own for three days, because a half-finished
 # paragraph in the working tree makes `release.ps1` refuse to publish. That is
@@ -111,3 +117,29 @@ jobs:
           path: _site
       - id: deploy
         uses: actions/deploy-pages@v4
+
+      # And to Vercel, which is what answers on volocal.app.
+      #
+      # Last, deliberately. Pages is where readers are today, so a token that
+      # has expired or an outage at Vercel must not hold up the deploy that is
+      # already working. When this step is the only one left, it moves up.
+      #
+      # `--prod` on every run because this project has no branch to infer from:
+      # nothing connects it to git, the artefact arrives already built, and the
+      # workflow's own triggers are what decide when it goes out.
+      #
+      # The version is pinned for the reason `components.json` gives at length:
+      # a build that fetches "latest" is a build nobody can reproduce. 59.5.0
+      # is what this step was written and verified against.
+      #
+      # One thing that reads as a fault and is not: opening the
+      # `volocal-*.vercel.app` address asks for a Vercel login. Deployment
+      # protection on this team is `all_except_custom_domains`, so the
+      # deployment URLs are private and volocal.app is public -- which is the
+      # way round it should be.
+      - name: Publish to Vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: npx --yes vercel@59.5.0 deploy _site --prod --yes --token="$VERCEL_TOKEN"

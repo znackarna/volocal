@@ -63,8 +63,8 @@ const ASSETS = [
    language. These are not sentences, so they are named rather than looked up. */
 const HEAD_SWAPS = [
   ['<html lang="cs"', '<html lang="en"'],
-  ['rel="canonical" href="https://znackarna.github.io/volocal/"',
-   'rel="canonical" href="https://znackarna.github.io/volocal/en/"'],
+  ['rel="canonical" href="https://volocal.app/"',
+   'rel="canonical" href="https://volocal.app/en/"'],
   ['<a class="lang-switch" href="en/" hreflang="en" lang="en">English</a>',
    '<a class="lang-switch" href="../" hreflang="cs" lang="cs">Česky</a>'],
 ];
