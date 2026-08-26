@@ -4278,6 +4278,64 @@ footer { padding: 96px 0 72px; }
 <script src="preview.js"></script>
 <script src="chibi.js"></script>
 <script>
+/* Jazyk: kdo nemá v prohlížeči češtinu, dostane anglickou verzi rovnou.
+ *
+ * Pravidlo je slovo od slova to, které používá aplikace v `src/i18n.tsx`:
+ * čeština kdekoli v `navigator.languages` znamená češtinu, cokoli jiného
+ * angličtinu. Dvě pravidla pro tutéž otázku by se dřív nebo později rozešla.
+ *
+ * Tři věci, které to nesmí rozbít, a jak:
+ *
+ * `location.replace` místo `href` — česká stránka nezůstane v historii, takže
+ * tlačítko zpět vrátí čtenáře tam, odkud přišel, a ne do dalšího přesměrování.
+ *
+ * Volba se pamatuje. Kdo si v patičce přepne jazyk, řekl tím, co chce; od té
+ * chvíle ho sem nikdo neposílá. Bez toho by se čtenář, který si klikl na
+ * `Česky`, při každém příchodu na `/` odrazil zpátky do angličtiny.
+ *
+ * Běží to jen tam, kde je kam jít. Odkaz v patičce je na webu relativní
+ * (`en/`), ale v jednom staženém souboru ho `bundle.py` přepisuje na plnou
+ * adresu — a podle toho se to pozná: absolutní odkaz znamená kopii, kde
+ * přesměrovávat není kam.
+ *
+ * Kotva se nese s sebou: kdo přišel na `/#firmy`, přistane na `/en/#firmy`.
+ */
+(function () {
+  "use strict";
+  var CHOICE = "volocal-page-language";
+  var link = document.querySelector(".lang-switch");
+  if (!link) return;
+  var target = link.getAttribute("href");
+  var here = document.documentElement.lang;
+
+  var remember = function (language) {
+    try { localStorage.setItem(CHOICE, language); } catch (e) { /* soukromé okno */ }
+  };
+  /* Kliknutí na přepínač je odpověď na otázku, kterou tenhle kód klade. */
+  link.addEventListener("click", function () { remember(here === "cs" ? "en" : "cs"); });
+
+  if (here !== "cs" || target !== "en/") return;
+  /* A z disku vůbec: `en/` je na webu adresář s vlastním `index.html`, ale
+     `file://` na tomtéž místě nabídne výpis složky, nebo nenajde nic. Stránka
+     otevřená ze souboru má zůstat tou stránkou, kterou kdo otevřel. */
+  if (location.protocol !== "http:" && location.protocol !== "https:") return;
+
+  var chosen = null;
+  try { chosen = localStorage.getItem(CHOICE); } catch (e) { chosen = null; }
+  if (chosen) return;
+
+  var languages = navigator.languages || [navigator.language || ""];
+  var czech = Array.prototype.some.call(languages, function (language) {
+    return String(language).toLowerCase().indexOf("cs") === 0;
+  });
+  if (czech) return;
+
+  remember("en");
+  location.replace("en/" + location.hash);
+}());
+</script>
+
+<script>
 (function () {
   "use strict";
   /* Motiv rozhoduje JavaScript a zapisuje `data-theme`, stejně jako aplikace. */
