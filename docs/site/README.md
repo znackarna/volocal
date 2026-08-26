@@ -19,6 +19,8 @@ needs before touching anything.
 | `app-shot.css` | the application's own stylesheet, scoped under `.shot` |
 | `scope-app-css.py` | what generates it. Run it when `src/css/*` changes; never edit the copy |
 | `bundle.py` | builds one self-contained file (fonts inlined) for handing the page to somebody |
+| `translate.mjs` | writes the English page from this one; `--check` is in `npm run docs:check` |
+| `en.json` | every Czech sentence on the page and its English |
 | `fonts/` | Geist and Literata, four woff2 out of `node_modules/@fontsource-variable/` |
 
 ## Looking at it
@@ -31,6 +33,26 @@ The bundle strips the document skeleton, which is the shape a hosted artifact
 wants. The page the owner has been reviewing lives at
 `https://claude.ai/code/artifact/7f591636-ecbd-45d9-8f51-8650c111791d` — publish
 to **that URL** rather than making a second one.
+
+## The English page
+
+`/` is Czech and `/en/` is English, and both come out of this one file. The
+generator swaps every sentence for the English in `en.json` and writes the
+result; the deploy does it, so the repository holds one page rather than two
+that drift.
+
+```powershell
+npm run site:en -- docs/site/en/index.html   # to look at it locally
+npm run docs:check                           # says what has no translation yet
+```
+
+Keys are the Czech sentences themselves, so rewriting one orphans its
+translation — loudly, in `docs:check`, which is the point. Two things are not
+sentences and are handled by name: the words of the invented transcript carry
+their English in `data-en` on their own `<span>` (one key per word would make
+*si* the same word in three different sentences), and what is inside a
+`<script>` is never touched, so the four strings the scripts say out loud read
+`document.documentElement.lang` for themselves.
 
 **Publish the bundle, never `index.html`.** The host wraps whatever it is given
 in its own `<head>`/`<body>`, so the raw file arrives as a second document

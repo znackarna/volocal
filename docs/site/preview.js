@@ -278,7 +278,15 @@
       var dot = document.createElement("button");
       dot.type = "button";
       dot.setAttribute("role", "tab");
-      dot.setAttribute("aria-label", "Pohled " + (i + 1) + " ze " + slides.length);
+      /* Read off the document, because this page is served in two languages
+         from one file and a `<script>` is the one place the translator does
+         not go. */
+      dot.setAttribute(
+        "aria-label",
+        document.documentElement.lang === "en"
+          ? "View " + (i + 1) + " of " + slides.length
+          : "Pohled " + (i + 1) + " ze " + slides.length
+      );
       dot.addEventListener("click", function () { go(i); });
       dotBox.appendChild(dot);
       return dot;
