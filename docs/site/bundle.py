@@ -61,6 +61,16 @@ page = re.sub(r'<link rel="icon"' + TAG_REST + r'>\s*', "", page)
 # head.
 page = re.sub(r'<link rel="canonical"' + TAG_REST + r'>\s*', "", page)
 page = re.sub(r'<link rel="alternate"' + TAG_REST + r'>\s*', "", page)
+
+# The switch in the footer points at `en/`, which is a sibling on the site and
+# nothing at all here: a bundle is one file, and following that link in a
+# handed-over copy or in the hosted review copy lands on *not found*. It is
+# given the published address instead, so the way to the other language works
+# wherever this file ends up.
+page = page.replace(
+    '<a class="lang-switch" href="en/"',
+    '<a class="lang-switch" href="https://znackarna.github.io/volocal/en/"',
+)
 page = page.replace("</head>\n<body>\n", "")
 page = page.replace("</body>\n</html>\n", "")
 
