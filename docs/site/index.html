@@ -715,10 +715,45 @@ main > section > h2 {
   position: absolute; inset: 0; z-index: 40;
   display: flex; align-items: center; justify-content: center;
   background: var(--scrim);
-  /* The 3 px the application puts under its own veil. Without it the window
-     behind stays as sharp as the dialog in front of it and the two planes
-     compete for the same focus. */
-  backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
+}
+/* The 3 px the application puts under its own veil -- but put on the window
+   rather than read back out from behind the veil, and that is the whole of the
+   fix.
+   
+   `backdrop-filter` stood on `.shot-dialog` until 26 August 2026. It has to
+   read the pixels behind it, blur them and paint them back, and the only place
+   on this page where that happens is inside `.preview-stage`: a subtree scaled
+   to the column and deliberately promoted to a layer of its own. There the read
+   comes off a texture rasterised in tiles, each tile blurred from what is
+   inside it and nothing beyond -- so every repaint of part of that region left
+   the seams between tiles standing as straight lines across the window. The
+   pointer resting on a carousel arrow was enough: its background transitions,
+   the region repaints, the lines appear. Firefox and Chromium both, because
+   both rasterise in tiles.
+   
+   A `filter` on the window reads nothing back. It is rasterised once, with the
+   whole window to blur from, and a repaint anywhere else cannot touch it. The
+   edges soften into `.shot`, which is painted in the same ground colour, so the
+   window keeps its frame.
+   
+   Whatever the veil's own parent is, its other children are the window: in one
+   slide the veil is a sibling of `.app`, in another it sits inside it beside
+   `<main>`. Naming `.app` here matched two of the four and left the rest sharp,
+   which is why this asks the veil where it lives instead of assuming. */
+.preview-stage :has(> .shot-dialog) > :not(.shot-dialog) { filter: blur(3px); }
+
+/* The archive's own dissolve strips sample the backdrop as well, and they are
+   in the same scaled layer, so they can seam for the same reason -- and they do
+   it under a list that scrolls, which is where a repaint is guaranteed. They
+   are the application's rules, generated into `app-shot.css`, so they are
+   turned off here rather than edited there: what `::before` carries is a colour
+   fade to the page's ground, which its own comment says holds the effect on its
+   own, and `::after` is nothing but blur, so it simply stops being drawn. A
+   dissolve one shade weaker than the application's is a smaller wrong than a
+   seam. */
+.preview-stage .archive-sticky::before,
+.preview-stage .archive-sticky::after {
+  backdrop-filter: none; -webkit-backdrop-filter: none;
 }
 .preview-stage .shot { position: relative; }
 /* A dialog sizes itself against the viewport, and here the viewport is the page
