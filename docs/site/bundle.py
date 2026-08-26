@@ -66,10 +66,12 @@ page = re.sub(r'<link rel="alternate"' + TAG_REST + r'>\s*', "", page)
 # nothing at all here: a bundle is one file, and following that link in a
 # handed-over copy or in the hosted review copy lands on *not found*. It is
 # given the published address instead, so the way to the other language works
-# wherever this file ends up.
+# wherever this file ends up -- and that address is `volocal.app`, the one the
+# page itself names as canonical, not the host it happens to also be served
+# from.
 page = page.replace(
     '<a class="lang-switch" href="en/"',
-    '<a class="lang-switch" href="https://znackarna.github.io/volocal/en/"',
+    '<a class="lang-switch" href="https://volocal.app/en/"',
 )
 page = page.replace("</head>\n<body>\n", "")
 page = page.replace("</body>\n</html>\n", "")

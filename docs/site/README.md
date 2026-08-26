@@ -108,12 +108,10 @@ to the stylesheet; to force a palette, put `data-theme="light"` on `<html>`.
 
 ## Open, and waiting for a decision
 
-- **Nothing publishes the page.** No Pages workflow, no domain, no link from the
-  readme. It is a file waiting for a decision about where it should live.
-- **`docs/site/` is untracked.** It has never been committed, so there is no
-  undo: one `git clean` and two days are gone. On 19 August a window had to be
-  recovered from a saved copy of a published artifact because of exactly this.
-  Committing it locally was offered and left open.
+- **Where the page lives is decided.** It is committed, `site.yml` publishes it,
+  and it answers on **volocal.app** and on GitHub Pages. The two bullets that
+  stood here said the opposite — nothing publishes it, nothing has committed it
+  — and were true until 24 August. *Publishing* below is the current shape.
 - **The limits are parked.** *Co nedělá dobře* sits in an HTML comment in
   `index.html`, bound for a FAQ section. **Done on 25 August** — it is the
   `#faq` section, five `<details>` under the heading *Jaké má limity?*, and the
@@ -128,10 +126,15 @@ to the stylesheet; to force a palette, put `data-theme="light"` on `<html>`.
 
 ## Publishing
 
-`.github/workflows/site.yml`, on this branch, deploys `docs/site/` to GitHub
-Pages on every push that touches it. There is no build: what is served is these
+`.github/workflows/site.yml` deploys `docs/site/` on every push that touches it,
+and on every published release. There is no build: what is served is these
 files, minus `_tokens.html`, `bundle.py` and `scope-app-css.py`, which are how
 the page is worked on rather than part of it.
+
+**Two hosts, one build.** `_site` is assembled once and handed to both GitHub
+Pages and Vercel, so there is nothing that can disagree about what the page
+says. Vercel is last in the job: Pages is where readers are today, and a
+problem reaching Vercel must not hold up the deploy that is already working.
 
 One thing is rewritten on the way out. The hero and the closing say *Verze
 X.Y.Z*, and the file carries a real number so that opening it locally never
@@ -146,7 +149,21 @@ the build instead of quietly shipping an old number.
 admin call that the workflow token is refused. Turning it off again is
 Settings → Pages.
 
-The page is at **https://znackarna.github.io/volocal/**.
+The page is at **https://volocal.app/**, and English at **/en/**. That is the
+address the page names in its own `canonical`, its three `hreflang` links and
+its `og:url`, and `translate.mjs` carries it across to the English page — six
+places in two files, which is why moving it is a change rather than a setting.
+
+**https://znackarna.github.io/volocal/** still serves the same page and can go
+on doing so. Because both copies name volocal.app as canonical, a search engine
+folds them into one rather than seeing the page twice.
+
+Vercel deploys with a token rather than a git connection: the project is not
+connected to the repository, `_site` arrives already built, and
+`VERCEL_TOKEN`, `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID` are repository secrets.
+Opening the `volocal-*.vercel.app` address asks for a Vercel login and that is
+not a fault — deployment protection is `all_except_custom_domains`, so the
+deployment URLs are private and volocal.app is public.
 
 `bundle.py` is unrelated to any of this. It makes one self-contained file for
 handing the page to somebody, and it strips the document skeleton because the
