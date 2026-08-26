@@ -1,0 +1,13 @@
+# Akce jsou připnuté na commit SHA (uses: ...@<sha> # verze), protože značku
+# jde přepsat a SHA ne. Připnutá akce ale sama nezestárne: bez tohohle souboru
+# by v ní zamrzla i bezpečnostní oprava a nikdo by si toho nevšiml.
+#
+# Dependabot SHA umí posunout sám a v PR napíše, na kterou verzi.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: chore
