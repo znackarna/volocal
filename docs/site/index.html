@@ -1353,11 +1353,18 @@ figcaption.with-icon { display: flex; align-items: flex-start; gap: 8px; }
 /* A landing place for the header link: the section starts 112 px down, and
    the browser is told to stop a little above it rather than on its edge. */
 .business { padding: 112px 0 0; scroll-margin-top: 40px; }
+/* One row for as long as there is a row to be had: the sentence gives way and
+   takes a second line rather than pushing the button off the end. Wrapping put
+   the button on a line of its own while the sentence still had room to spare,
+   which reads as two blocks stacked instead of one offer with a way to answer
+   it. Below 620 px the row goes back to wrapping -- at a phone's width a button
+   beside the text leaves the text about a third of the panel. */
 .business-panel {
-  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+  display: flex; flex-wrap: nowrap; align-items: center; justify-content: space-between;
   gap: 20px 32px; padding: 26px 30px;
   border: 1px solid var(--line); border-radius: var(--r-large); background: var(--panel);
 }
+@media (max-width: 620px) { .business-panel { flex-wrap: wrap; } }
 /* The button keeps the right edge on whichever line it lands on. `space-between`
    only spreads a line that has two things on it; once the row wraps, the button
    is alone on its line and a lone item sits at the start of it -- which is how
@@ -1366,6 +1373,10 @@ figcaption.with-icon { display: flex; align-items: flex-start; gap: 8px; }
    either way, so nothing about the unwrapped row changes. */
 .business-panel .btn { margin-left: auto; }
 .business-panel p {
+  /* A flex item will not shrink below the longest thing in it unless it is told
+     it may; without this the sentence keeps its one-line width and pushes the
+     button out of the panel instead of wrapping. */
+  min-width: 0;
   margin: 0; max-width: 66ch;
   font-family: var(--font-body); font-size: 18px; line-height: 1.5;
   /* One line on a normal screen — 52ch cut it in two and left a stub on the
