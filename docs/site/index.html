@@ -1502,11 +1502,6 @@ footer { padding: 96px 0 72px; }
         <a class="get" href="https://github.com/znackarna/volocal/releases/latest">Stáhnout</a>
         <a href="#firmy">Firmy</a>
         <a href="mailto:jsme@znackarna.cz">Kontakt</a>
-        <!-- The way to the other language, and the only thing on the page that
-             `translate.mjs` rewrites by name rather than by sentence: on the
-             English page it points back and says Česky. Relative, so it works
-             from `/` to `/en/` and back without knowing where the site lives. -->
-        <a class="lang-switch" href="en/" hreflang="en" lang="en">English</a>
         <button type="button" id="theme" class="theme-switch" aria-pressed="false">
           <svg class="theme-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
                stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -4263,6 +4258,18 @@ footer { padding: 96px 0 72px; }
       <a href="https://github.com/znackarna/volocal">GitHub</a>
       <a href="https://github.com/znackarna/volocal/releases">Vydané verze</a>
       <a href="https://github.com/znackarna/volocal/blob/main/SECURITY.md">Bezpečnost</a>
+      <!-- The way to the other language, and the only thing on the page that
+           `translate.mjs` rewrites by name rather than by sentence: on the
+           English page it points back and says Česky. Relative, so it works from
+           `/` to `/en/` and back without knowing where the site lives.
+
+           It stood in the header until 26 August 2026 and was the one item in
+           that row that is not a place on this page: three links about Volocal
+           and then, in the same voice, an instruction about the page itself.
+           Down here it sits with GitHub, the releases and the security policy —
+           the things a reader goes looking for rather than the things being
+           offered. -->
+      <a class="lang-switch" href="en/" hreflang="en" lang="en">English</a>
     </div>
   </div>
 </footer>
