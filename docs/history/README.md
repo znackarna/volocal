@@ -37,7 +37,7 @@ the time.
 | [2026-08-21](2026-08-21.md) | 8 | The gains section on a phone, where it had nothing to show … |
 | [2026-08-25](2026-08-25.md) | 41 | The limits section is asked as a question … |
 | [2026-08-26](2026-08-26.md) | 23 | The cube comes back out of the panel … |
-| [2026-08-27](2026-08-27.md) | 24 | The four times in the wizard were measured all along … |
+| [2026-08-27](2026-08-27.md) | 26 | The four times in the wizard were measured all along … |
 
 ## What each day was about
 

@@ -1,13 +1,15 @@
-# The presentation page, published to GitHub Pages and to Vercel.
+# The presentation page, published to volocal.app.
 #
 # The page is static and has no build step: `docs/site/` is what gets served,
 # minus the three files that are tools rather than the page.
 #
-# Two hosts, one build. `_site` is assembled once and both are handed the same
-# bytes -- a second build somewhere else would be a second thing to keep in
-# step, and the page already has one address written into its own head.
-# volocal.app is the home the page names as canonical; Pages goes on serving
-# what it always did and points readers at the same address.
+# It went to GitHub Pages as well until 27 August 2026, for the three days it
+# took to be sure of Vercel. Pages was switched off at the owner's word once
+# the page had its own address and both copies agreed about which one it was.
+# The steps that fed it are gone rather than disabled -- a deploy nobody
+# watches is worse than no deploy, and `actions/deploy-pages` against a Pages
+# site that no longer exists would have failed the whole job and taken the
+# Vercel step with it.
 #
 # It lived on a branch of its own for three days, because a half-finished
 # paragraph in the working tree makes `release.ps1` refuse to publish. That is
@@ -37,23 +39,21 @@ on:
     types: [published]
   workflow_dispatch:
 
+# `contents: read` is all that is left. `pages: write` and `id-token: write`
+# were what Pages needed to be handed an artefact and to prove who was handing
+# it over; Vercel is authenticated by a token in the secrets instead.
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 # One deployment at a time, and a newer push wins: two pushes a minute apart
 # would otherwise race to publish and the older one could land last.
 concurrency:
-  group: pages
+  group: site
   cancel-in-progress: true
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4.4.0
 
@@ -67,7 +67,9 @@ jobs:
           # `_tokens.html`, `bundle.py`, `scope-app-css.py`, `translate.mjs` and
           # `en.json` stay behind: they are how the page is worked on and how the
           # English one is made, not part of what is served.
-          touch _site/.nojekyll
+          #
+          # `.nojekyll` went with Pages. It told Pages not to run the page
+          # through Jekyll first; it meant nothing anywhere else.
 
       # The English page is the Czech one with its sentences swapped, so it is
       # made here rather than kept in the repository -- one page to edit, two to
@@ -106,23 +108,9 @@ jobs:
               page.write_text(text, encoding="utf-8")
           PY
 
-      # `enablement: true` was tried here and cannot work: creating a Pages
-      # site is an admin call, and the workflow token gets *Resource not
-      # accessible by integration* for it however `permissions` is written.
-      # Pages is switched on once, from outside this workflow; after that this
-      # step only reads the settings.
-      - uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b   # v5.0.0
-      - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa   # v3.0.1
-        with:
-          path: _site
-      - id: deploy
-        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e   # v4.0.5
-
-      # And to Vercel, which is what answers on volocal.app.
-      #
-      # Last, deliberately. Pages is where readers are today, so a token that
-      # has expired or an outage at Vercel must not hold up the deploy that is
-      # already working. When this step is the only one left, it moves up.
+      # Vercel, which is what answers on volocal.app. It stood last in the job
+      # while Pages was still serving readers, so that a Vercel problem could
+      # not hold up the deploy that was already working. It is the deploy now.
       #
       # `--prod` on every run because this project has no branch to infer from:
       # nothing connects it to git, the artefact arrives already built, and the

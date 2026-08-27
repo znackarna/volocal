@@ -109,9 +109,9 @@ to the stylesheet; to force a palette, put `data-theme="light"` on `<html>`.
 ## Open, and waiting for a decision
 
 - **Where the page lives is decided.** It is committed, `site.yml` publishes it,
-  and it answers on **volocal.app** and on GitHub Pages. The two bullets that
-  stood here said the opposite — nothing publishes it, nothing has committed it
-  — and were true until 24 August. *Publishing* below is the current shape.
+  and it answers on **volocal.app**. The two bullets that stood here said the
+  opposite — nothing publishes it, nothing has committed it — and were true
+  until 24 August. *Publishing* below is the current shape.
 - **The limits are parked.** *Co nedělá dobře* sits in an HTML comment in
   `index.html`, bound for a FAQ section. **Done on 25 August** — it is the
   `#faq` section, five `<details>` under the heading *Jaké má limity?*, and the
@@ -131,10 +131,9 @@ and on every published release. There is no build: what is served is these
 files, minus `_tokens.html`, `bundle.py` and `scope-app-css.py`, which are how
 the page is worked on rather than part of it.
 
-**Two hosts, one build.** `_site` is assembled once and handed to both GitHub
-Pages and Vercel, so there is nothing that can disagree about what the page
-says. Vercel is last in the job: Pages is where readers are today, and a
-problem reaching Vercel must not hold up the deploy that is already working.
+`_site` is assembled once and handed to Vercel. It went to GitHub Pages as well
+for three days; Pages was switched off on 27 August, once the page had its own
+address and both copies had been seen agreeing about which one it was.
 
 One thing is rewritten on the way out. The hero and the closing say *Verze
 X.Y.Z*, and the file carries a real number so that opening it locally never
@@ -143,20 +142,17 @@ GitHub release, which is the version a reader can actually download. It
 asserts that it found exactly two mentions, so rewording that sentence fails
 the build instead of quietly shipping an old number.
 
-**Pages had to be switched on once, from outside the workflow** — done on
-25 August, `build_type: workflow`. The workflow cannot do it itself:
-`configure-pages` takes an `enablement` flag, and creating a Pages site is an
-admin call that the workflow token is refused. Turning it off again is
-Settings → Pages.
+**Pages is off and turning it back on is a decision, not a retry.** Switching it
+on is an admin call the workflow token is refused — it was done by hand on
+25 August with `build_type: workflow`, and it would have to be done by hand
+again. The steps that fed it were removed rather than disabled: with Pages gone,
+`actions/deploy-pages` would fail the whole job and take the Vercel step down
+with it.
 
 The page is at **https://volocal.app/**, and English at **/en/**. That is the
 address the page names in its own `canonical`, its three `hreflang` links and
 its `og:url`, and `translate.mjs` carries it across to the English page — six
 places in two files, which is why moving it is a change rather than a setting.
-
-**https://znackarna.github.io/volocal/** still serves the same page and can go
-on doing so. Because both copies name volocal.app as canonical, a search engine
-folds them into one rather than seeing the page twice.
 
 Vercel deploys with a token rather than a git connection: the project is not
 connected to the repository, `_site` arrives already built, and
@@ -164,6 +160,14 @@ connected to the repository, `_site` arrives already built, and
 Opening the `volocal-*.vercel.app` address asks for a Vercel login and that is
 not a fault — deployment protection is `all_except_custom_domains`, so the
 deployment URLs are private and volocal.app is public.
+
+**How many people read it** is counted by Vercel's own Web Analytics, a single
+deferred script at the foot of `index.html`. No cookie and no identifier kept on
+the reader's machine, so the page asks for no consent and says nothing about it;
+the script is served from this domain, so the page makes no request to a third
+party at all. It is at the foot because `bundle.py` strips the head and then
+asserts nothing was left behind in it, and its address is absolute so the
+English page a directory deeper asks for the same one.
 
 `bundle.py` is unrelated to any of this. It makes one self-contained file for
 handing the page to somebody, and it strips the document skeleton because the
