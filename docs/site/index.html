@@ -1426,6 +1426,19 @@ figcaption.with-icon { display: flex; align-items: flex-start; gap: 8px; }
   border: 1px solid var(--line); border-radius: var(--r-large); background: var(--panel);
 }
 @media (max-width: 620px) { .business-panel { flex-wrap: wrap; } }
+/* The mark stands before the sentence, not above it: the panel is one row and a
+   drawing on its own line would make it two. The pair travels together when the
+   row wraps, so the button never ends up between the mark and its sentence.
+
+   It was here on 26 August, came out the same evening at his word, and is back
+   at his word this morning. What changed in between is the sentence beside it,
+   which is now two lines on every screen -- 44 px of drawing against two lines
+   of 18 px type is a smaller mark relative to its neighbour than it was against
+   one, and that reads as calmer rather than as smaller. */
+.business-offer { display: flex; align-items: center; gap: 18px; flex: 1 1 420px; min-width: 0; }
+/* Height, not width: the cube is 0.866 as wide as it is tall, and it is the
+   line of type beside it that decides how big it should read. */
+.business-mark { flex: 0 0 auto; display: block; height: 44px; width: auto; }
 /* The button keeps the right edge on whichever line it lands on. `space-between`
    only spreads a line that has two things on it; once the row wraps, the button
    is alone on its line and a lone item sits at the start of it -- which is how
@@ -4270,7 +4283,26 @@ footer.wrap { padding-top: 0; padding-bottom: 96px; }
 
   <section class="business" id="firmy">
     <div class="business-panel">
-      <p>Potřebujete víc? Propojte data a znalosti napříč firmou díky AI-ready ekosystému na míru.</p>
+      <div class="business-offer">
+        <!-- The owner's mark, pasted from his export exactly as it comes out:
+             the group is in it twice and that is his file, not a fault to
+             tidy. An earlier version of this block dropped the duplicate and
+             so uncovered a triangle the upper copy was deliberately hiding —
+             paste the export whole and change nothing. -->
+        <svg class="business-mark" viewBox="0 0 660 762" fill="none"
+             xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <rect width="380.65" height="380.65" transform="matrix(0.866025 -0.5 0 1 329.653 380.65)" fill="#7AC942"/>
+          <rect width="186.375" height="186.375" rx="93.1877" transform="matrix(0.866025 -0.5 0 1 413.776 429.219)" fill="white"/>
+          <rect width="380.65" height="380.65" transform="matrix(0.866025 0.5 -0.866025 0.5 329.653 0)" fill="#007AFF"/>
+          <rect width="167.26" height="167.26" transform="matrix(0.866025 0.5 -0.866025 0.5 329.653 106.695)" fill="white"/>
+          <rect width="380.65" height="380.65" transform="matrix(0.866025 0.5 0 1 0.000488281 190.325)" fill="#FF1C26"/>
+          <rect width="380.65" height="380.65" transform="matrix(0.866025 -0.5 0 1 329.653 380.65)" fill="#7AC942"/>
+          <rect width="186.375" height="186.375" rx="93.1877" transform="matrix(0.866025 -0.5 0 1 413.776 429.219)" fill="white"/>
+          <rect width="380.65" height="380.65" transform="matrix(0.866025 0.5 -0.866025 0.5 329.653 0)" fill="#007AFF"/>
+          <rect width="167.26" height="167.26" transform="matrix(0.866025 0.5 -0.866025 0.5 329.653 106.695)" fill="white"/>
+        </svg>
+        <p>Potřebujete víc? Propojte značku, data a znalosti napříč firmou díky AI-ready ekosystému na míru.</p>
+      </div>
       <a class="btn quiet" href="mailto:jsme@znackarna.cz?subject=Volocal%20ve%20firm%C4%9B">Ozvěte se</a>
     </div>
   </section>
