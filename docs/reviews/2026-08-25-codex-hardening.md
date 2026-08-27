@@ -1,3 +1,16 @@
+# Codex — hardening report and implementation brief, 25 August 2026
+
+Written by Codex about this repository at version 1.2.20 and handed over by
+the owner on 25 August. Kept verbatim below, opening line included, because
+the assessment written against it refers to its item numbers.
+
+This is an outside observation, not a decision taken here — see
+`docs/history/2026-08-25.md` and `2026-08-26.md` for what was decided, and
+note that the two disagree in places. Item 7 contradicts the entry of
+19 August about `estimatedMinutes`; both are left standing.
+
+---
+
 Jasně. Níže je hotové zadání, které můžeš celé vložit Claudeovi. Je napsané tak, aby opravoval konkrétní slabiny, nerozvolnil design systém a nerozjel zbytečný přepis projektu.
 Volocal — hardening report and implementation brief
 Date: 25 August 2026
@@ -314,6 +327,3 @@ Return a concise report containing:
 7. anything deliberately left unchanged and why.
 
 Do not publish a release. Do not alter the product’s visual direction. Do not hide unresolved uncertainty behind stronger documentation wording.
-
-
-Tady je doporučení od codexu. Jak bys je jako proifesionální architek SW zhodnotil?
