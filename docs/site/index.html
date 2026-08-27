@@ -1445,8 +1445,13 @@ figcaption.with-icon { display: flex; align-items: flex-start; gap: 8px; }
    one, and that reads as calmer rather than as smaller. */
 .business-offer { display: flex; align-items: center; gap: 18px; flex: 1 1 420px; min-width: 0; }
 /* Height, not width: the cube is 0.866 as wide as it is tall, and it is the
-   line of type beside it that decides how big it should read. */
-.business-mark { flex: 0 0 auto; display: block; height: 44px; width: auto; }
+   type beside it that decides how big it should read. 52 px at his ask on
+   27 August, once the shapes started moving: the sentence next to it is two
+   lines of 18 px, about 58 px of text, and at 44 the drawing sat well under
+   that -- fine for a still mark, quiet enough that a moving one had to be
+   looked for. 52 stops just short of the text block, so the mark reads as its
+   equal and still does not out-shout the sentence. */
+.business-mark { flex: 0 0 auto; display: block; height: 52px; width: auto; }
 /* The mark runs the sequence he settled on in the prototype: a shape in the
    colour of its own face -- so invisible against it -- sinks along that face's
    normal, swaps to white at the bottom of the hole and rises back out. Then the
