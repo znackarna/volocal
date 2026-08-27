@@ -1454,7 +1454,18 @@ figcaption.with-icon { display: flex; align-items: flex-start; gap: 8px; }
 .closing p { margin: 16px auto 0; max-width: 46ch; color: var(--text-quiet); font-size: 15px; }
 .closing .cta { justify-content: center; }
 
-footer { padding: 96px 0 72px; }
+/* 104 below, which is the hero's own 104 under the header: the page opens with
+   that much air over its first line and now closes with the same under its last.
+   Before this it ended on the window's edge -- a page that stops rather than
+   ends.
+
+   **`footer.wrap`, not `footer`.** The rule that stood here said `footer` alone
+   and never applied: `.wrap` carries the page's gutters and a class outranks a
+   type, so `padding: 96px 0 72px` was overridden in full, horizontal padding and
+   all, from the day the page was written. What has been holding the air above
+   the footer all along is the closing section's own 96 below itself. The header
+   escaped the same fate by being written `header.top`. */
+footer.wrap { padding-top: 96px; padding-bottom: 104px; }
 .foot-line {
   border-top: 1px solid var(--line); padding-top: 32px;
   display: flex; flex-wrap: wrap; gap: 18px 48px; align-items: flex-start;
@@ -1462,18 +1473,22 @@ footer { padding: 96px 0 72px; }
 }
 /* The mark and the sentence stand on one line: the sentence names whose mark
    that is, so a line break between them made the reader carry the name down to
-   it. `baseline` rather than `center` -- the drawing is 12 px tall against a
-   13.5 px line, and centring two things of nearly the same height puts neither
-   of them where the eye reads. */
-.foot-line .foot-text { max-width: 62ch; display: flex; align-items: baseline; gap: 10px; }
+   it.
+
+   `center`, and `baseline` was the mistake it replaces. A baseline puts the
+   drawing's floor on the text's baseline, which leaves the letters riding above
+   the shapes -- the owner read it as the text flying upward, which is exactly
+   what it was. The drawing is 12 px in a 20 px line box, so centring the two
+   boxes is also what centres them to the eye. */
+.foot-line .foot-text { max-width: 62ch; display: flex; align-items: center; gap: 10px; }
 .foot-line p { margin: 0; }
 .foot-links { display: flex; flex-wrap: wrap; gap: 6px 24px; margin-left: auto; }
 .foot-links a { text-decoration: none; }
 .foot-links a:hover { color: var(--text); text-decoration: underline; text-underline-offset: 2px; }
-/* No margin under it any more: it is beside the sentence, not above it. The
-   3 px lift is the drawing's own -- its shapes sit on the box's floor and the
-   text's baseline is a little higher. */
-.znackarna { display: inline-block; position: relative; top: 3px; flex: 0 0 auto; }
+/* No margin under it any more, and no lift either: it is centred against the
+   line beside it, so anything nudging it is a second opinion about the same
+   thing. */
+.znackarna { display: block; flex: 0 0 auto; }
 .znackarna svg { display: block; height: 12px; width: auto; }
 
 @media (max-width: 1040px) {
