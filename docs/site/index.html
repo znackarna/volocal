@@ -1625,6 +1625,17 @@ footer.wrap { padding-top: 0; padding-bottom: 96px; }
 .foot-links { display: flex; flex-wrap: wrap; gap: 6px 24px; margin-left: auto; }
 .foot-links a { text-decoration: none; }
 .foot-links a:hover { color: var(--text); text-decoration: underline; text-underline-offset: 2px; }
+/* The one link inside a sentence answers the pointer the same way its
+   neighbours do: the colour goes to `--text`. Asked for on 27 August -- it had
+   been the only link in the footer that did nothing at all when you reached it.
+
+   Its resting state stays different, and that difference is the point. A link
+   in a row of links is found by being in that row, so it can drop its
+   underline; a link inside a sentence has only the underline to say it is one,
+   and taking it away would hide it in the text. Same answer, different
+   resting state, for the reason each of them is read. */
+.foot-line p a { text-underline-offset: 2px; }
+.foot-line p a:hover { color: var(--text); }
 /* No margin under it any more, and no lift either: it is centred against the
    line beside it, so anything nudging it is a second opinion about the same
    thing. */
