@@ -105,6 +105,53 @@ Set-Location $root
 function Step($text) { Write-Host "`n=== $text" -ForegroundColor Cyan }
 function Fail($text) { Write-Host "`n$text" -ForegroundColor Red; exit 1 }
 
+<#
+  The tree has to be the commit it says it is, and it has to be asked before
+  anything is built rather than after.
+
+  **Asking afterwards is not a guard.** The build takes what is on disk at that
+  moment; stash the uncommitted part and the tree is clean and still at the same
+  commit, so a later check passes over an installer nobody can account for. The
+  version in the file name and the commit in built-from.txt both agree with it,
+  because both were true - of a tree that no longer exists.
+
+  It also cost twenty minutes on 26 August in the ordinary direction: the build
+  rewrites Cargo.lock with the new version, that file was still uncommitted when
+  the second pass ran, and committing it moved HEAD away from the installer.
+
+  `git status --porcelain` already reports all three states this must refuse -
+  staged, modified in the working tree, untracked - and reports no ignored file,
+  so what .gitignore covers is allowed by construction. What it did not do is
+  say which files, which is the difference between a stop and a useful one.
+#>
+function Assert-CleanTree {
+  $dirty = @(git status --porcelain)
+  if ($LASTEXITCODE) { Fail "git status failed - is this a repository?" }
+  if (-not $dirty) { return }
+
+  $staged  = @($dirty | Where-Object { $_[0] -ne " " -and $_[0] -ne "?" })
+  $changed = @($dirty | Where-Object { $_[1] -ne " " -and $_[1] -ne "?" })
+  $new     = @($dirty | Where-Object { $_.StartsWith("??") })
+
+  $lines = @()
+  if ($staged.Count)  { $lines += "  staged but not committed:"; $lines += ($staged  | ForEach-Object { "    " + $_.Substring(3) }) }
+  if ($changed.Count) { $lines += "  changed and not committed:"; $lines += ($changed | ForEach-Object { "    " + $_.Substring(3) }) }
+  if ($new.Count)     { $lines += "  not in the repository at all:"; $lines += ($new     | ForEach-Object { "    " + $_.Substring(3) }) }
+
+  Fail @"
+The working tree is not the commit it stands on.
+
+$($lines -join "`n")
+
+An installer built from this cannot be traced to anything - and stashing these
+afterwards would leave a clean tree at the same commit, which is a release that
+passes every check and contains code nobody can point at.
+
+Commit them, or stash them now and build from what is left. Files .gitignore
+covers are not counted here.
+"@
+}
+
 # Everything that happened since the last release, laid out to write the two
 # note texts from. Nothing here decides what is worth mentioning.
 function Show-Material {
@@ -199,6 +246,22 @@ if ($Material) {
 }
 
 if (-not $Publish) {
+  # First, and before the twenty minutes: what is about to be built has to be
+  # something that can be pointed at afterwards.
+  if ($SkipChecks) {
+    Write-Host @"
+
+-SkipChecks: building without asking whether the tree is committed.
+
+Whatever is on disk goes into this installer, and nothing later can work out
+what that was.
+"@ -ForegroundColor Yellow
+  } else {
+    Step "The tree"
+    Assert-CleanTree
+    Write-Host "clean at $((git rev-parse --short HEAD).Trim())" -ForegroundColor Green
+  }
+
   if (-not $SkipChecks) {
     Step "Checks"
     # The same commands CONTRIBUTING lists, plus the release-only dictionary
@@ -273,15 +336,10 @@ second pass, over the file as it will be downloaded.
 if (-not $SkipChecks) {
   Step "What is being published"
 
-  $dirty = (git status --porcelain)
-  if ($dirty) {
-    Fail @"
-The working tree has changes that are not committed.
-
-The installer was built from what was on disk at that moment, and this pass
-cannot tell which of these edits it contains. Commit or stash, and build again.
-"@
-  }
+  # The same guard the first pass ran, for the case where something landed
+  # between the two - and it is the same function, because two spellings of one
+  # rule is how the passes come to disagree about what clean means.
+  Assert-CleanTree
 
   node scripts/i18n.mjs check --strict
   if ($LASTEXITCODE) { Fail "The dictionary is not ready for a release." }

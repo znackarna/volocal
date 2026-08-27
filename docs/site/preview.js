@@ -18,15 +18,23 @@
     document.querySelectorAll(".preview-viewport")
   );
 
-  /* The stage's own size comes from the stylesheet, and `offsetWidth` reports
-     it unchanged by the transform, so this reads it back rather than carrying
-     a second copy of the numbers. */
+  /* `zoom`, not `transform: scale()`. A transform scales a finished picture and
+     Firefox scales it as a picture: the arcs come out heavier than the straight
+     edges beside them. `zoom` scales used values, so the window is laid out at
+     the size it is shown at and every edge is drawn -- the whole story is on
+     `.preview-stage` in `index.html`.
+
+     The stage's own size still comes from the stylesheet: `offsetWidth` reports
+     the unzoomed 1180 whatever the zoom is, so this reads it back rather than
+     carrying a second copy of the number. The viewport's height is in the
+     parent's pixels, which is where the zoom has already been applied, so it
+     is the drawn height times the factor. */
   function fit() {
     viewports.forEach(function (viewport) {
       var stage = viewport.firstElementChild;
       var k = viewport.clientWidth / stage.offsetWidth;
       var height = stage.offsetHeight;
-      stage.style.transform = "scale(" + k + ")";
+      stage.style.zoom = String(k);
       viewport.style.height = Math.round(height * k) + "px";
     });
   }

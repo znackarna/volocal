@@ -637,23 +637,37 @@ main > section > h2 {
   fill: none; stroke: currentColor; stroke-width: 1.1; stroke-linecap: round;
 }
 .preview-viewport { position: relative; width: 100%; overflow: hidden; }
-/* `will-change` is not a hint here, it is the fix. The window is drawn at
-   1180 px and scaled to the column, and without the stage on a layer of its own
-   Chrome rasterises it at 1:1 and then resamples the texture down. A straight
-   1 px edge survives that; a curve does not -- the resampling piles coverage
-   into the arc, so every pill and every rounded corner came out with a heavier
-   stroke than the flat edges beside it. Promoted, the content is rasterised at
-   the scale it is shown at and the stroke is even the whole way round.
+/* The window is drawn at 1180 px and shown smaller, and **how** it is made
+   smaller is the whole of this note.
 
-   Measured rather than reasoned: the same three buttons under `scale(0.9458)`
-   with and without this, at device scale 1, magnified. The claim is only about
-   a scaled subtree; nothing else on the page is scaled.
+   It was `transform: scale()` with `will-change: transform` until 27 August
+   2026. A transform scales a picture: the subtree is rasterised once and the
+   result is resampled down, which a straight 1 px edge survives and a curve does
+   not -- the resampling piles coverage into the arc, so every pill and every
+   rounded corner came out heavier than the flat edges beside it. `will-change`
+   fixed that in Chrome, which re-rasterises a promoted layer at the scale it is
+   composited at. It was measured there, at device scale 1, and it was true
+   there.
 
-   And it is honest as a hint as well -- `fit()` in `preview.js` rewrites this
-   transform on every resize and once more when the fonts land. */
+   **Firefox does the opposite with the same rule**: a promoted layer is
+   rasterised once and its texture is scaled, so the fix was the cause. The page
+   was clean in Chrome and heavy-armed in Firefox for as long as both existed,
+   which is the worst shape a defect can have -- invisible to whoever built it.
+
+   `zoom` is not a picture. It scales used values, so the window is laid out at
+   the size it is shown at and every edge is drawn rather than resampled. There
+   is no texture and nothing to promote, which is why `will-change` went with the
+   transform: a layer would only give the compositor something to scale again.
+
+   Shown to the owner as three windows side by side in Firefox at the page's own
+   0.92 -- `transform` with the hint, `transform` without it, and `zoom`. Only
+   the third was clean.
+
+   `fit()` in `preview.js` writes this on every resize and once more when the
+   fonts land; under `zoom`, `offsetWidth` still reports the unzoomed 1180, so
+   the measurement it makes is unchanged. */
 .preview-stage {
-  width: 1180px; height: 744px; transform-origin: 0 0;
-  will-change: transform;
+  width: 1180px; height: 744px;
 }
 .preview-stage .shot { width: 1180px; height: 744px; display: flex; }
 .preview-stage .shot .app { flex: 1; min-width: 0; }
