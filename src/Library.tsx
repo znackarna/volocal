@@ -857,8 +857,18 @@ export default function Library({
       {/* Folders sit under the transcripts, at Jakub's ask: what was worked on
           recently keeps the top of the list, and the drawers are below it.
           They step aside entirely while searching or filtering by date, where
-          the question is about recordings and not about where they are kept. */}
-      {foldersVisible && !open && (folders.length > 0 || recordings.length > 0) && (
+          the question is about recordings and not about where they are kept.
+
+          **An empty archive gets them too.** `folders.length > 0 ||
+          recordings.length > 0` stood here from 0.9.0 with nothing saying why,
+          and it took `Nová složka` off the screen with the block — which is
+          the only way in the application to make a folder that is not made for
+          a recording already in hand. Nothing could be created, so nothing
+          ever satisfied the condition. Small, because one recording lifts it
+          and a folder with nothing to put in it helps nobody; kept out anyway,
+          because a condition no one could explain is worse than the line of
+          text it saves. */}
+      {foldersVisible && !open && (
         <div className="folder-block">
           <div className="folder-block-head">
             {/* The same icon-in-a-circle the sidebar's section headings use,
