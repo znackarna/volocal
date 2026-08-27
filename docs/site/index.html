@@ -1447,6 +1447,113 @@ figcaption.with-icon { display: flex; align-items: flex-start; gap: 8px; }
 /* Height, not width: the cube is 0.866 as wide as it is tall, and it is the
    line of type beside it that decides how big it should read. */
 .business-mark { flex: 0 0 auto; display: block; height: 44px; width: auto; }
+/* The mark runs the sequence he settled on in the prototype: a shape in the
+   colour of its own face -- so invisible against it -- sinks along that face's
+   normal, swaps to white at the bottom of the hole and rises back out. Then the
+   second, then the third, and then the same thing backwards, which leaves the
+   cube bare for the next round. Dovnitr jde stena, ven vyleze znacka.
+
+   It is axonometric, so nothing scales: depth is a translation along a face
+   normal -- blue straight down, red up and right, green up and left, which are
+   the normals of those three faces and not a choice. The inside of each hole is
+   clipped by its own mouth, so what passes the rim is hidden by the face, and
+   the band that stays behind between rim and shape is the wall of the hole. It
+   costs nothing to draw because it is what is left over.
+
+   Times are his, found on the slider in the prototype: 8.34 s a round, half a
+   second down or up, 0.215 s at the bottom where the colour changes. The
+   percentages below are those milliseconds over the round.
+
+   His export shows wherever this cannot run -- an old browser, or a reader who
+   asked for less motion -- so the mark is never worse than it was. */
+.business-mark .mark-motion { display: none; }
+.business-mark .walls { filter: brightness(0.45); opacity: 0; }
+.business-mark .piece { transform-box: fill-box; transform-origin: center; }
+@media (prefers-reduced-motion: no-preference) {
+  .business-mark .mark-flat { display: none; }
+  .business-mark .mark-motion { display: block; }
+  .business-mark .s-circle .piece {
+    animation: mark-travel-circle 8.34s cubic-bezier(.45, 0, .25, 1) infinite both,
+               mark-ink-circle 8.34s linear infinite both;
+  }
+  .business-mark .s-circle .walls { animation: mark-hole-circle 8.34s linear infinite both; }
+  .business-mark .s-square .piece {
+    animation: mark-travel-square 8.34s cubic-bezier(.45, 0, .25, 1) infinite both,
+               mark-ink-square 8.34s linear infinite both;
+  }
+  .business-mark .s-square .walls { animation: mark-hole-square 8.34s linear infinite both; }
+  .business-mark .s-triangle .piece {
+    animation: mark-travel-triangle 8.34s cubic-bezier(.45, 0, .25, 1) infinite both,
+               mark-ink-triangle 8.34s linear infinite both;
+  }
+  .business-mark .s-triangle .walls { animation: mark-hole-triangle 8.34s linear infinite both; }
+}
+@keyframes mark-travel-circle {
+  0%, 3.597% { transform: none; }
+  9.592%, 12.170% { transform: translate(-54px, -31px); }
+  18.165%, 77.578% { transform: none; }
+  83.573%, 86.151% { transform: translate(-54px, -31px); }
+  92.146%, 100% { transform: none; }
+}
+@keyframes mark-ink-circle {
+  0%, 3.597% { fill: #7AC942; }
+  9.592% { fill: #5f9d33; }
+  10.881%, 77.578% { fill: #ffffff; }
+  83.573% { fill: #cccccc; }
+  84.862%, 86.151% { fill: #5f9d33; }
+  92.146%, 100% { fill: #7AC942; }
+}
+@keyframes mark-hole-circle {
+  0%, 2.638% { opacity: 0; }
+  4.317%, 16.727% { opacity: 1; }
+  19.125%, 76.619% { opacity: 0; }
+  78.297%, 90.707% { opacity: 1; }
+  93.106%, 100% { opacity: 0; }
+}
+@keyframes mark-travel-square {
+  0%, 17.146% { transform: none; }
+  23.141%, 25.719% { transform: translate(0px, 62px); }
+  31.715%, 63.909% { transform: none; }
+  69.904%, 72.482% { transform: translate(0px, 62px); }
+  78.477%, 100% { transform: none; }
+}
+@keyframes mark-ink-square {
+  0%, 17.146% { fill: #007AFF; }
+  23.141% { fill: #005fc7; }
+  24.430%, 63.909% { fill: #ffffff; }
+  69.904% { fill: #cccccc; }
+  71.193%, 72.482% { fill: #005fc7; }
+  78.477%, 100% { fill: #007AFF; }
+}
+@keyframes mark-hole-square {
+  0%, 16.187% { opacity: 0; }
+  17.866%, 30.276% { opacity: 1; }
+  32.674%, 62.950% { opacity: 0; }
+  64.628%, 77.038% { opacity: 1; }
+  79.436%, 100% { opacity: 0; }
+}
+@keyframes mark-travel-triangle {
+  0%, 30.815% { transform: none; }
+  36.811%, 39.388% { transform: translate(54px, -31px); }
+  45.384%, 50.360% { transform: none; }
+  56.355%, 58.933% { transform: translate(54px, -31px); }
+  64.928%, 100% { transform: none; }
+}
+@keyframes mark-ink-triangle {
+  0%, 30.815% { fill: #FF1C26; }
+  36.811% { fill: #c7161e; }
+  38.100%, 50.360% { fill: #ffffff; }
+  56.355% { fill: #cccccc; }
+  57.644%, 58.933% { fill: #c7161e; }
+  64.928%, 100% { fill: #FF1C26; }
+}
+@keyframes mark-hole-triangle {
+  0%, 29.856% { opacity: 0; }
+  31.535%, 43.945% { opacity: 1; }
+  46.343%, 49.400% { opacity: 0; }
+  51.079%, 63.489% { opacity: 1; }
+  65.887%, 100% { opacity: 0; }
+}
 /* The button keeps the right edge on whichever line it lands on. `space-between`
    only spreads a line that has two things on it; once the row wraps, the button
    is alone on its line and a lone item sits at the start of it -- which is how
@@ -4292,22 +4399,55 @@ footer.wrap { padding-top: 0; padding-bottom: 96px; }
   <section class="business" id="firmy">
     <div class="business-panel">
       <div class="business-offer">
-        <!-- The owner's mark, pasted from his export exactly as it comes out:
-             the group is in it twice and that is his file, not a fault to
-             tidy. An earlier version of this block dropped the duplicate and
-             so uncovered a triangle the upper copy was deliberately hiding —
-             paste the export whole and change nothing. -->
+        <!-- Two drawings of the same mark. The first is his export, pasted
+             exactly as it comes out: the group is in it twice and that is his
+             file, not a fault to tidy. An earlier version of this block dropped
+             the duplicate and so uncovered a triangle the upper copy was
+             deliberately hiding -- paste the export whole and change nothing.
+             It is what shows wherever the animation cannot run.
+
+             The second is the same drawing taken apart, because a shape can
+             only move if it is its own element. It takes the first one's place
+             wherever motion is welcome. Each shape carries no fill: the colour
+             comes from the group the keyframes animate, and an attribute here
+             would outrank it. -->
         <svg class="business-mark" viewBox="0 0 660 762" fill="none"
              xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-          <rect width="380.65" height="380.65" transform="matrix(0.866025 -0.5 0 1 329.653 380.65)" fill="#7AC942"/>
-          <rect width="186.375" height="186.375" rx="93.1877" transform="matrix(0.866025 -0.5 0 1 413.776 429.219)" fill="white"/>
-          <rect width="380.65" height="380.65" transform="matrix(0.866025 0.5 -0.866025 0.5 329.653 0)" fill="#007AFF"/>
-          <rect width="167.26" height="167.26" transform="matrix(0.866025 0.5 -0.866025 0.5 329.653 106.695)" fill="white"/>
-          <rect width="380.65" height="380.65" transform="matrix(0.866025 0.5 0 1 0.000488281 190.325)" fill="#FF1C26"/>
-          <rect width="380.65" height="380.65" transform="matrix(0.866025 -0.5 0 1 329.653 380.65)" fill="#7AC942"/>
-          <rect width="186.375" height="186.375" rx="93.1877" transform="matrix(0.866025 -0.5 0 1 413.776 429.219)" fill="white"/>
-          <rect width="380.65" height="380.65" transform="matrix(0.866025 0.5 -0.866025 0.5 329.653 0)" fill="#007AFF"/>
-          <rect width="167.26" height="167.26" transform="matrix(0.866025 0.5 -0.866025 0.5 329.653 106.695)" fill="white"/>
+          <defs>
+            <!-- The mouth of each hole. Everything inside the hole is clipped by
+                 it, so what passes the rim is hidden by the face. -->
+            <clipPath id="mark-mouth-circle"><rect width="186.375" height="186.375" rx="93.1877" transform="matrix(0.866025 -0.5 0 1 413.776 429.219)"/></clipPath>
+            <clipPath id="mark-mouth-square"><rect width="167.26" height="167.26" transform="matrix(0.866025 0.5 -0.866025 0.5 329.653 106.695)"/></clipPath>
+            <clipPath id="mark-mouth-triangle"><path d="M254.779 617.635L74.8743 513.767L165.282 386.188L254.779 617.635Z"/></clipPath>
+          </defs>
+          <g class="mark-flat">
+            <rect width="380.65" height="380.65" transform="matrix(0.866025 -0.5 0 1 329.653 380.65)" fill="#7AC942"/>
+            <rect width="186.375" height="186.375" rx="93.1877" transform="matrix(0.866025 -0.5 0 1 413.776 429.219)" fill="white"/>
+            <rect width="380.65" height="380.65" transform="matrix(0.866025 0.5 -0.866025 0.5 329.653 0)" fill="#007AFF"/>
+            <rect width="167.26" height="167.26" transform="matrix(0.866025 0.5 -0.866025 0.5 329.653 106.695)" fill="white"/>
+            <rect width="380.65" height="380.65" transform="matrix(0.866025 0.5 0 1 0.000488281 190.325)" fill="#FF1C26"/>
+            <rect width="380.65" height="380.65" transform="matrix(0.866025 -0.5 0 1 329.653 380.65)" fill="#7AC942"/>
+            <rect width="186.375" height="186.375" rx="93.1877" transform="matrix(0.866025 -0.5 0 1 413.776 429.219)" fill="white"/>
+            <rect width="380.65" height="380.65" transform="matrix(0.866025 0.5 -0.866025 0.5 329.653 0)" fill="#007AFF"/>
+            <rect width="167.26" height="167.26" transform="matrix(0.866025 0.5 -0.866025 0.5 329.653 106.695)" fill="white"/>
+            </g>
+          <g class="mark-motion">
+            <rect width="380.65" height="380.65" transform="matrix(0.866025 -0.5 0 1 329.653 380.65)" fill="#7AC942"/>
+            <rect width="380.65" height="380.65" transform="matrix(0.866025 0.5 -0.866025 0.5 329.653 0)" fill="#007AFF"/>
+            <rect width="380.65" height="380.65" transform="matrix(0.866025 0.5 0 1 0.000488281 190.325)" fill="#FF1C26"/>
+            <g class="shape s-circle" clip-path="url(#mark-mouth-circle)">
+              <g class="walls"><rect width="186.375" height="186.375" rx="93.1877" transform="matrix(0.866025 -0.5 0 1 413.776 429.219)" fill="#7AC942"/></g>
+              <g class="piece"><rect width="186.375" height="186.375" rx="93.1877" transform="matrix(0.866025 -0.5 0 1 413.776 429.219)"/></g>
+            </g>
+            <g class="shape s-square" clip-path="url(#mark-mouth-square)">
+              <g class="walls"><rect width="167.26" height="167.26" transform="matrix(0.866025 0.5 -0.866025 0.5 329.653 106.695)" fill="#007AFF"/></g>
+              <g class="piece"><rect width="167.26" height="167.26" transform="matrix(0.866025 0.5 -0.866025 0.5 329.653 106.695)"/></g>
+            </g>
+            <g class="shape s-triangle" clip-path="url(#mark-mouth-triangle)">
+              <g class="walls"><path d="M254.779 617.635L74.8743 513.767L165.282 386.188L254.779 617.635Z" fill="#FF1C26"/></g>
+              <g class="piece"><path d="M254.779 617.635L74.8743 513.767L165.282 386.188L254.779 617.635Z"/></g>
+            </g>
+          </g>
         </svg>
         <p>Potřebujete víc? Propojte značku, data a znalosti napříč firmou díky AI-ready ekosystému na míru.</p>
       </div>
