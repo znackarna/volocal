@@ -2,12 +2,18 @@
 # jde přepsat a SHA ne. Připnutá akce ale sama nezestárne: bez tohohle souboru
 # by v ní zamrzla i bezpečnostní oprava a nikdo by si toho nevšiml.
 #
-# Dependabot SHA umí posunout sám a v PR napíše, na kterou verzi.
+# Všechno v jednom PR, jednou měsíčně. Bez `groups` zakládá Dependabot větev
+# na každou akci zvlášť — 26. 8. 2026 jich takhle naráz přibylo pět a v seznamu
+# větví z toho byl nepořádek. Seskupené je to jedna větev, ať jich čeká kolik chce.
 version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: weekly
+      interval: monthly
+    groups:
+      github-actions:
+        patterns:
+          - "*"
     commit-message:
       prefix: chore
