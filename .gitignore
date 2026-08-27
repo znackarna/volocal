@@ -58,3 +58,9 @@ prenosna.txt
 *.local
 .DS_Store
 Thumbs.db
+
+# Claude Code's own working directory: the permission file and any worktree it
+# opens here. Both were already ignored on this machine and neither rule was in
+# the repository - one lived in the user's global ignore file, the other in
+# .git/info/exclude, and a fresh clone has neither.
+.claude/
