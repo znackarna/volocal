@@ -668,6 +668,10 @@ main > section > h2 {
    the measurement it makes is unchanged. */
 .preview-stage {
   width: 1180px; height: 744px;
+  /* Only for the fallback in `fit()`: a browser without `zoom` is given the
+     transform, and a transform needs to grow from the corner the window sits
+     in. Nothing else reads this. */
+  transform-origin: 0 0;
 }
 .preview-stage .shot { width: 1180px; height: 744px; display: flex; }
 .preview-stage .shot .app { flex: 1; min-width: 0; }

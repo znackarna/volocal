@@ -29,12 +29,21 @@
      carrying a second copy of the number. The viewport's height is in the
      parent's pixels, which is where the zoom has already been applied, so it
      is the drawn height times the factor. */
+  /* Firefox learned `zoom` in 126, in May 2024. A browser older than that would
+     ignore the property and show a 1180 px window cropped by a narrower frame --
+     a worse fault than the one this fixes, and a silent one. So the transform
+     stays as the fallback for exactly those browsers, where it also behaves
+     correctly: the resampling this replaces is what Chrome and Firefox do to a
+     *promoted* layer, and nothing here is promoted any more. */
+  var canZoom = window.CSS && CSS.supports && CSS.supports("zoom", "0.5");
+
   function fit() {
     viewports.forEach(function (viewport) {
       var stage = viewport.firstElementChild;
       var k = viewport.clientWidth / stage.offsetWidth;
       var height = stage.offsetHeight;
-      stage.style.zoom = String(k);
+      if (canZoom) stage.style.zoom = String(k);
+      else stage.style.transform = "scale(" + k + ")";
       viewport.style.height = Math.round(height * k) + "px";
     });
   }
