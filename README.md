@@ -109,7 +109,7 @@ npm run tauri build   # installer lands in src-tauri\target\release\bundle\nsis\
 Before handing work over:
 
 ```powershell
-npm run build     # i18n:check, then tsc --noEmit, then the Vite build
+npm run build     # i18n:check and docs:check, then tsc --noEmit, then the Vite build
 npm run test      # the interface and the transcript text
 cargo fmt --all --manifest-path src-tauri/Cargo.toml -- --check
 cargo test --manifest-path src-tauri/Cargo.toml

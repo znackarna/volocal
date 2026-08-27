@@ -109,7 +109,7 @@ Výsledkem je `Volocal_1.2.21_x64-setup.exe`.
 Před odevzdáním práce:
 
 ```powershell
-npm run build     # i18n:check, pak tsc --noEmit, pak build přes Vite
+npm run build     # i18n:check a docs:check, pak tsc --noEmit, pak build přes Vite
 npm run test      # rozhraní a text přepisu
 cargo fmt --all --manifest-path src-tauri/Cargo.toml -- --check
 cargo test --manifest-path src-tauri/Cargo.toml
