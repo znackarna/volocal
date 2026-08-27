@@ -1424,8 +1424,144 @@ figcaption.with-icon { display: flex; align-items: flex-start; gap: 8px; }
   display: flex; flex-wrap: nowrap; align-items: center; justify-content: space-between;
   gap: 20px 32px; padding: 26px 30px;
   border: 1px solid var(--line); border-radius: var(--r-large); background: var(--panel);
+  /* The same answer under the pointer as the cards under *Co získáte?*, which is
+     the application's own: the line goes to `--line-field` and the card takes
+     `--shadow`, over the application's 0.22 s. Nothing lifts and nothing moves.
+     It is a white card among white cards and was the only one that did not
+     answer at all. */
+  transition: border-color var(--hover-duration) var(--hover-ease),
+    box-shadow var(--hover-duration) var(--hover-ease);
 }
+.business-panel:hover { border-color: var(--line-field); box-shadow: var(--shadow); }
 @media (max-width: 620px) { .business-panel { flex-wrap: wrap; } }
+/* The mark stands before the sentence, not above it: the panel is one row and a
+   drawing on its own line would make it two. The pair travels together when the
+   row wraps, so the button never ends up between the mark and its sentence.
+
+   It was here on 26 August, came out the same evening at his word, and is back
+   at his word this morning. What changed in between is the sentence beside it,
+   which is now two lines on every screen -- 44 px of drawing against two lines
+   of 18 px type is a smaller mark relative to its neighbour than it was against
+   one, and that reads as calmer rather than as smaller. */
+.business-offer { display: flex; align-items: center; gap: 18px; flex: 1 1 420px; min-width: 0; }
+/* Height, not width: the cube is 0.866 as wide as it is tall, and it is the
+   type beside it that decides how big it should read. 52 px at his ask on
+   27 August, once the shapes started moving: the sentence next to it is two
+   lines of 18 px, about 58 px of text, and at 44 the drawing sat well under
+   that -- fine for a still mark, quiet enough that a moving one had to be
+   looked for. 52 stops just short of the text block, so the mark reads as its
+   equal and still does not out-shout the sentence. */
+.business-mark { flex: 0 0 auto; display: block; height: 52px; width: auto; }
+/* The mark runs the sequence he settled on in the prototype: a shape in the
+   colour of its own face -- so invisible against it -- sinks along that face's
+   normal, swaps to white at the bottom of the hole and rises back out. Then the
+   second, then the third, and then the same thing backwards, which leaves the
+   cube bare for the next round. Dovnitr jde stena, ven vyleze znacka.
+
+   It is axonometric, so nothing scales: depth is a translation along a face
+   normal -- blue straight down, red up and right, green up and left, which are
+   the normals of those three faces and not a choice. The inside of each hole is
+   clipped by its own mouth, so what passes the rim is hidden by the face, and
+   the band that stays behind between rim and shape is the wall of the hole. It
+   costs nothing to draw because it is what is left over.
+
+   Times are his, found on the slider in the prototype: 8.84 s a round, half a
+   second down or up, 0.215 s at the bottom where the colour changes, and a
+   0.915 s stand with all three shapes white before the whole thing turns round
+   -- half a second longer than it first was, at his ask, because the turn was
+   arriving while the third shape was still settling. The percentages below are
+   those milliseconds over the round.
+
+   His export shows wherever this cannot run -- an old browser, or a reader who
+   asked for less motion -- so the mark is never worse than it was. */
+.business-mark .mark-motion { display: none; }
+.business-mark .walls { filter: brightness(0.45); opacity: 0; }
+.business-mark .piece { transform-box: fill-box; transform-origin: center; }
+@media (prefers-reduced-motion: no-preference) {
+  .business-mark .mark-flat { display: none; }
+  .business-mark .mark-motion { display: block; }
+  .business-mark .s-circle .piece {
+    animation: mark-travel-circle 8.84s cubic-bezier(.45, 0, .25, 1) infinite both,
+               mark-ink-circle 8.84s linear infinite both;
+  }
+  .business-mark .s-circle .walls { animation: mark-hole-circle 8.84s linear infinite both; }
+  .business-mark .s-square .piece {
+    animation: mark-travel-square 8.84s cubic-bezier(.45, 0, .25, 1) infinite both,
+               mark-ink-square 8.84s linear infinite both;
+  }
+  .business-mark .s-square .walls { animation: mark-hole-square 8.84s linear infinite both; }
+  .business-mark .s-triangle .piece {
+    animation: mark-travel-triangle 8.84s cubic-bezier(.45, 0, .25, 1) infinite both,
+               mark-ink-triangle 8.84s linear infinite both;
+  }
+  .business-mark .s-triangle .walls { animation: mark-hole-triangle 8.84s linear infinite both; }
+}
+@keyframes mark-travel-circle {
+  0%, 3.394% { transform: none; }
+  9.050%, 11.482% { transform: translate(-54px, -31px); }
+  17.138%, 78.846% { transform: none; }
+  84.502%, 86.934% { transform: translate(-54px, -31px); }
+  92.590%, 100% { transform: none; }
+}
+@keyframes mark-ink-circle {
+  0%, 3.394% { fill: #7AC942; }
+  9.050% { fill: #5f9d33; }
+  10.266%, 78.846% { fill: #ffffff; }
+  84.502% { fill: #cccccc; }
+  85.718%, 86.934% { fill: #5f9d33; }
+  92.590%, 100% { fill: #7AC942; }
+}
+@keyframes mark-hole-circle {
+  0%, 2.489% { opacity: 0; }
+  4.072%, 15.781% { opacity: 1; }
+  18.043%, 77.941% { opacity: 0; }
+  79.525%, 91.233% { opacity: 1; }
+  93.495%, 100% { opacity: 0; }
+}
+@keyframes mark-travel-square {
+  0%, 16.176% { transform: none; }
+  21.833%, 24.265% { transform: translate(0px, 62px); }
+  29.921%, 65.950% { transform: none; }
+  71.606%, 74.038% { transform: translate(0px, 62px); }
+  79.695%, 100% { transform: none; }
+}
+@keyframes mark-ink-square {
+  0%, 16.176% { fill: #007AFF; }
+  21.833% { fill: #005fc7; }
+  23.049%, 65.950% { fill: #ffffff; }
+  71.606% { fill: #cccccc; }
+  72.822%, 74.038% { fill: #005fc7; }
+  79.695%, 100% { fill: #007AFF; }
+}
+@keyframes mark-hole-square {
+  0%, 15.271% { opacity: 0; }
+  16.855%, 28.563% { opacity: 1; }
+  30.826%, 65.045% { opacity: 0; }
+  66.629%, 78.337% { opacity: 1; }
+  80.600%, 100% { opacity: 0; }
+}
+@keyframes mark-travel-triangle {
+  0%, 29.072% { transform: none; }
+  34.729%, 37.161% { transform: translate(54px, -31px); }
+  42.817%, 53.167% { transform: none; }
+  58.824%, 61.256% { transform: translate(54px, -31px); }
+  66.912%, 100% { transform: none; }
+}
+@keyframes mark-ink-triangle {
+  0%, 29.072% { fill: #FF1C26; }
+  34.729% { fill: #c7161e; }
+  35.945%, 53.167% { fill: #ffffff; }
+  58.824% { fill: #cccccc; }
+  60.040%, 61.256% { fill: #c7161e; }
+  66.912%, 100% { fill: #FF1C26; }
+}
+@keyframes mark-hole-triangle {
+  0%, 28.167% { opacity: 0; }
+  29.751%, 41.459% { opacity: 1; }
+  43.722%, 52.262% { opacity: 0; }
+  53.846%, 65.554% { opacity: 1; }
+  67.817%, 100% { opacity: 0; }
+}
 /* The button keeps the right edge on whichever line it lands on. `space-between`
    only spreads a line that has two things on it; once the row wraps, the button
    is alone on its line and a lone item sits at the start of it -- which is how
@@ -1454,18 +1590,45 @@ figcaption.with-icon { display: flex; align-items: flex-start; gap: 8px; }
 .closing p { margin: 16px auto 0; max-width: 46ch; color: var(--text-quiet); font-size: 15px; }
 .closing .cta { justify-content: center; }
 
-footer { padding: 96px 0 72px; }
+/* The same air under the footer as over it: 96, which is what the closing
+   section already puts there. Before this the page ended on the window's edge --
+   a page that stops rather than ends.
+
+   **`footer.wrap`, not `footer`.** The rule that stood here said `footer` alone
+   and never applied: `.wrap` carries the page's gutters and a class outranks a
+   type, so `padding: 96px 0 72px` was overridden in full, horizontal padding and
+   all, from the day the page was written. The header escaped the same fate by
+   being written `header.top`.
+
+   Which is why the top is zero rather than 96. Naming the class made *both*
+   halves of that dead rule live at once, and the space above the hairline went
+   from 96 to 192 in the same edit that fixed the bottom -- a change nobody asked
+   for, arriving inside one that somebody did. The closing section's own 96 is
+   the air above the footer, as it has always been. */
+footer.wrap { padding-top: 0; padding-bottom: 96px; }
 .foot-line {
   border-top: 1px solid var(--line); padding-top: 32px;
   display: flex; flex-wrap: wrap; gap: 18px 48px; align-items: flex-start;
   font-size: 13.5px; color: var(--text-quiet);
 }
-.foot-line .foot-text { max-width: 62ch; }
-.foot-line p { margin: 0 0 8px; }
+/* The mark and the sentence stand on one line: the sentence names whose mark
+   that is, so a line break between them made the reader carry the name down to
+   it.
+
+   `center`, and `baseline` was the mistake it replaces. A baseline puts the
+   drawing's floor on the text's baseline, which leaves the letters riding above
+   the shapes -- the owner read it as the text flying upward, which is exactly
+   what it was. The drawing is 12 px in a 20 px line box, so centring the two
+   boxes is also what centres them to the eye. */
+.foot-line .foot-text { max-width: 62ch; display: flex; align-items: center; gap: 10px; }
+.foot-line p { margin: 0; }
 .foot-links { display: flex; flex-wrap: wrap; gap: 6px 24px; margin-left: auto; }
 .foot-links a { text-decoration: none; }
 .foot-links a:hover { color: var(--text); text-decoration: underline; text-underline-offset: 2px; }
-.znackarna { display: inline-block; margin-bottom: 12px; }
+/* No margin under it any more, and no lift either: it is centred against the
+   line beside it, so anything nudging it is a second opinion about the same
+   thing. */
+.znackarna { display: block; flex: 0 0 auto; }
 .znackarna svg { display: block; height: 12px; width: auto; }
 
 @media (max-width: 1040px) {
@@ -4243,7 +4406,59 @@ footer { padding: 96px 0 72px; }
 
   <section class="business" id="firmy">
     <div class="business-panel">
-      <p>Potřebujete silnější nástroje? Propojíme lidi, obsah a design napříč firmou.</p>
+      <div class="business-offer">
+        <!-- Two drawings of the same mark. The first is his export, pasted
+             exactly as it comes out: the group is in it twice and that is his
+             file, not a fault to tidy. An earlier version of this block dropped
+             the duplicate and so uncovered a triangle the upper copy was
+             deliberately hiding -- paste the export whole and change nothing.
+             It is what shows wherever the animation cannot run.
+
+             The second is the same drawing taken apart, because a shape can
+             only move if it is its own element. It takes the first one's place
+             wherever motion is welcome. Each shape carries no fill: the colour
+             comes from the group the keyframes animate, and an attribute here
+             would outrank it. -->
+        <svg class="business-mark" viewBox="0 0 660 762" fill="none"
+             xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <defs>
+            <!-- The mouth of each hole. Everything inside the hole is clipped by
+                 it, so what passes the rim is hidden by the face. -->
+            <clipPath id="mark-mouth-circle"><rect width="186.375" height="186.375" rx="93.1877" transform="matrix(0.866025 -0.5 0 1 413.776 429.219)"/></clipPath>
+            <clipPath id="mark-mouth-square"><rect width="167.26" height="167.26" transform="matrix(0.866025 0.5 -0.866025 0.5 329.653 106.695)"/></clipPath>
+            <clipPath id="mark-mouth-triangle"><path d="M254.779 617.635L74.8743 513.767L165.282 386.188L254.779 617.635Z"/></clipPath>
+          </defs>
+          <g class="mark-flat">
+            <rect width="380.65" height="380.65" transform="matrix(0.866025 -0.5 0 1 329.653 380.65)" fill="#7AC942"/>
+            <rect width="186.375" height="186.375" rx="93.1877" transform="matrix(0.866025 -0.5 0 1 413.776 429.219)" fill="white"/>
+            <rect width="380.65" height="380.65" transform="matrix(0.866025 0.5 -0.866025 0.5 329.653 0)" fill="#007AFF"/>
+            <rect width="167.26" height="167.26" transform="matrix(0.866025 0.5 -0.866025 0.5 329.653 106.695)" fill="white"/>
+            <rect width="380.65" height="380.65" transform="matrix(0.866025 0.5 0 1 0.000488281 190.325)" fill="#FF1C26"/>
+            <rect width="380.65" height="380.65" transform="matrix(0.866025 -0.5 0 1 329.653 380.65)" fill="#7AC942"/>
+            <rect width="186.375" height="186.375" rx="93.1877" transform="matrix(0.866025 -0.5 0 1 413.776 429.219)" fill="white"/>
+            <rect width="380.65" height="380.65" transform="matrix(0.866025 0.5 -0.866025 0.5 329.653 0)" fill="#007AFF"/>
+            <rect width="167.26" height="167.26" transform="matrix(0.866025 0.5 -0.866025 0.5 329.653 106.695)" fill="white"/>
+            </g>
+          <g class="mark-motion">
+            <rect width="380.65" height="380.65" transform="matrix(0.866025 -0.5 0 1 329.653 380.65)" fill="#7AC942"/>
+            <rect width="380.65" height="380.65" transform="matrix(0.866025 0.5 -0.866025 0.5 329.653 0)" fill="#007AFF"/>
+            <rect width="380.65" height="380.65" transform="matrix(0.866025 0.5 0 1 0.000488281 190.325)" fill="#FF1C26"/>
+            <g class="shape s-circle" clip-path="url(#mark-mouth-circle)">
+              <g class="walls"><rect width="186.375" height="186.375" rx="93.1877" transform="matrix(0.866025 -0.5 0 1 413.776 429.219)" fill="#7AC942"/></g>
+              <g class="piece"><rect width="186.375" height="186.375" rx="93.1877" transform="matrix(0.866025 -0.5 0 1 413.776 429.219)"/></g>
+            </g>
+            <g class="shape s-square" clip-path="url(#mark-mouth-square)">
+              <g class="walls"><rect width="167.26" height="167.26" transform="matrix(0.866025 0.5 -0.866025 0.5 329.653 106.695)" fill="#007AFF"/></g>
+              <g class="piece"><rect width="167.26" height="167.26" transform="matrix(0.866025 0.5 -0.866025 0.5 329.653 106.695)"/></g>
+            </g>
+            <g class="shape s-triangle" clip-path="url(#mark-mouth-triangle)">
+              <g class="walls"><path d="M254.779 617.635L74.8743 513.767L165.282 386.188L254.779 617.635Z" fill="#FF1C26"/></g>
+              <g class="piece"><path d="M254.779 617.635L74.8743 513.767L165.282 386.188L254.779 617.635Z"/></g>
+            </g>
+          </g>
+        </svg>
+        <p>Potřebujete víc? Propojte své lidi, data a znalosti napříč firmou díky AI-ready ekosystému na míru.</p>
+      </div>
       <a class="btn quiet" href="mailto:jsme@znackarna.cz?subject=Volocal%20ve%20firm%C4%9B">Ozvěte se</a>
     </div>
   </section>
@@ -4269,8 +4484,7 @@ footer { padding: 96px 0 72px; }
         <path d="M50.7702 1.89426C52.903 3.1567 54.5945 4.86591 55.8459 7.01948C57.0961 9.17304 57.7219 11.5141 57.7219 14.039C57.7219 16.565 57.0961 18.8988 55.8459 21.039C54.5945 23.1791 52.903 24.875 50.7702 26.124C48.6375 27.3743 46.319 27.9988 43.8174 27.9988C41.3157 27.9988 39.0045 27.3743 36.885 26.124C34.7643 24.875 33.0861 23.1791 31.8479 21.039C30.6097 18.8988 29.9912 16.565 29.9912 14.039C29.9912 11.5129 30.6097 9.17304 31.8479 7.01948C33.0861 4.86591 34.7643 3.1567 36.885 1.89426C39.0057 0.631826 41.3169 0 43.8186 0C46.3202 0 48.6375 0.631826 50.7702 1.89426Z" fill="#7AC942"/>
       </svg>
     </span>
-    <p>Volocal pro vás tvoří <a href="https://znackarna.cz">Značkárna</a>. Pokud něco nesedí nebo máte nápad, napište na
-      <a href="mailto:jsme@znackarna.cz">jsme@znackarna.cz</a>.</p>
+    <p>Volocal pro vás tvoří <a href="https://znackarna.cz">značkárna</a>.</p>
     </div>
     <div class="foot-links">
       <a href="https://github.com/znackarna/volocal">GitHub</a>

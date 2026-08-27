@@ -253,16 +253,14 @@
   "Instalátor není podepsaný. Uvidíte hlášku Windows ochránil váš počítač.\n        Zvolte Další informace &rarr; Přesto spustit.": "The installer is not signed. You will see Windows protected your PC. Choose More info &rarr; Run anyway.",
   "3. Průvodce stáhne modely.": "3. The wizard downloads the models.",
   "Stáhne se 700 MB až 1,7 GB podle toho, co si vyberete. Pak přetáhnete nahrávku\n        do okna a zbytek udělá Volocal za vás.": "That is 700 MB to 1.7 GB, depending on what you choose. Then you drop a recording into the window and Volocal does the rest.",
-  "Potřebujete silnější nástroje? Propojíme lidi, obsah a design napříč firmou.": "Need stronger tools? We connect people, content and design company-wide.",
   "mailto:jsme@znackarna.cz?subject=Volocal%20ve%20firm%C4%9B": "mailto:jsme@znackarna.cz?subject=Volocal%20in%20the%20company",
   "Ozvěte se": "Get in touch",
   "Verze {version} pro Windows 10 a 11. Autor ji používá každý den.": "Version {version} for Windows 10 and 11. The author uses it every day.",
   "Volocal pro vás tvoří": "Volocal is made for you by",
-  "Značkárna": "Značkárna",
-  ". Pokud něco nesedí nebo máte nápad, napište na": ". If something is off, or you have an idea, write to",
-  "jsme@znackarna.cz": "jsme@znackarna.cz",
   "GitHub": "GitHub",
   "Vydané verze": "Releases",
   "Bezpečnost": "Security",
-  "Zapněte počítač. Vypněte předplatné.": "Computer on. Subscription off."
+  "Zapněte počítač. Vypněte předplatné.": "Computer on. Subscription off.",
+  "značkárna": "značkárna",
+  "Potřebujete víc? Propojte své lidi, data a znalosti napříč firmou díky AI-ready ekosystému na míru.": "Ready for more? Connect your people, data and knowledge with an AI-ready ecosystem of tools."
 }
