@@ -1454,18 +1454,22 @@ figcaption.with-icon { display: flex; align-items: flex-start; gap: 8px; }
 .closing p { margin: 16px auto 0; max-width: 46ch; color: var(--text-quiet); font-size: 15px; }
 .closing .cta { justify-content: center; }
 
-/* 104 below, which is the hero's own 104 under the header: the page opens with
-   that much air over its first line and now closes with the same under its last.
-   Before this it ended on the window's edge -- a page that stops rather than
-   ends.
+/* The same air under the footer as over it: 96, which is what the closing
+   section already puts there. Before this the page ended on the window's edge --
+   a page that stops rather than ends.
 
    **`footer.wrap`, not `footer`.** The rule that stood here said `footer` alone
    and never applied: `.wrap` carries the page's gutters and a class outranks a
    type, so `padding: 96px 0 72px` was overridden in full, horizontal padding and
-   all, from the day the page was written. What has been holding the air above
-   the footer all along is the closing section's own 96 below itself. The header
-   escaped the same fate by being written `header.top`. */
-footer.wrap { padding-top: 96px; padding-bottom: 104px; }
+   all, from the day the page was written. The header escaped the same fate by
+   being written `header.top`.
+
+   Which is why the top is zero rather than 96. Naming the class made *both*
+   halves of that dead rule live at once, and the space above the hairline went
+   from 96 to 192 in the same edit that fixed the bottom -- a change nobody asked
+   for, arriving inside one that somebody did. The closing section's own 96 is
+   the air above the footer, as it has always been. */
+footer.wrap { padding-top: 0; padding-bottom: 96px; }
 .foot-line {
   border-top: 1px solid var(--line); padding-top: 32px;
   display: flex; flex-wrap: wrap; gap: 18px 48px; align-items: flex-start;
