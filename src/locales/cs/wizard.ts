@@ -154,7 +154,7 @@ export const csWizardContext: Partial<Record<keyof typeof csWizard, string>> = {
     "pozornosti, než kolik to rozhodnutí unese.",
   "wizard.quality.changeableNote":
     "Poznámka pod kartami, dvě věty a obě jsou tam schválně. První: časy na " +
-    "kartách nikdo neměřil, jsou to odhady a na každém počítači vyjdou jinak. " +
+    "kartách jsou změřené na jednom počítači a na jiném vyjdou jinak. " +
     "Druhá: volba není nevratná, ale na už hotové přepisy nesáhne.",
   "wizard.download.reviewText":
     "Věta pod nadpisem prvního stavu stahovacího kroku. Neopakuje počet ani " +

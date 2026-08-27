@@ -175,28 +175,29 @@ const EDITOR_RUNTIME_COMPONENTS = ["editor-cpu"];
  *  here — the phrase around it needs the active language's plural rules and is
  *  assembled by `useFormats`.
  *
- *  **These four numbers have never been measured, and the screen now says so.**
- *  The original comment claimed a Radeon RX 9070 and no entry in
- *  `docs/history/` ever took, checked or contradicted them; they are the oldest
- *  figures in the interface. That was tolerable while the screen said nothing
- *  about the machine. It stopped being tolerable the moment the sentence above
- *  the cards began naming this computer's graphics card and its memory, because
- *  a page that demonstrates it has read the hardware is a page whose numbers
- *  read as having been read off it too.
+ *  **These four numbers are measurements, and the machine they came from is
+ *  recorded here so that nobody demotes them again.** The owner said so on
+ *  27 August 2026: a Ryzen 7 9700X with a Radeon 9070, one hour of audio. The
+ *  card is AMD, so the graphics figures are the Vulkan build rather than CUDA.
  *
- *  Two ways out were available and one was taken. **Not taken: deriving them
- *  from what was detected** — memory is now known, and a formula over it would
- *  have turned four honest guesses into a fabricated model with a number for
- *  every machine and evidence for none. **Taken: saying it in the copy.**
- *  `wizard.quality.changeableNote` opens with *Časy jsou hrubý odhad, ne
- *  měření*, which is the plainest true thing available, and the reason line on
- *  the recommended card avoids a ratio for the same reason.
+ *  **The comment that stood here said they had never been measured.** It said
+ *  so because the original note claimed a Radeon RX 9070 and nothing in
+ *  `docs/history/` corroborated it — and a missing record was read as a missing
+ *  measurement. It is not the same thing. Two sessions and an outside review
+ *  went on to repeat the mistake back as a finding, which is what an unchecked
+ *  comment costs: it outlives everyone who knew better.
  *
- *  Settling them is still one command away: `benchmark_compute` is the
- *  application's own timer and could answer this in twenty seconds a backend.
- *  It cannot run *here* — it needs an installed model and a recording, and a
- *  first run has neither — so the measurement belongs on a machine that has
- *  been through this screen, not on the screen itself. */
+ *  What is genuinely unknown is narrower and is left standing rather than
+ *  guessed at: which model files, and whether the run was a release build.
+ *  `benchmark_compute` is the application's own timer and would settle both in
+ *  twenty seconds a backend, on a machine that has an installed model and a
+ *  recording — which a first run has neither of, so not here.
+ *
+ *  One machine is still one machine. `wizard.quality.changeableNote` says
+ *  *Časy jsou přibližné*, which stays true of a real measurement read on
+ *  somebody else's computer, and no number here is derived from the hardware
+ *  this screen has detected: a formula over the memory it now knows would give
+ *  every machine a figure and none of them evidence. */
 function estimatedMinutes(quality: Quality, usesGpu: boolean): number {
   const t: Record<Quality, [number, number]> = {
     fastest: [1, 8],
