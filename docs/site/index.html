@@ -1465,9 +1465,12 @@ figcaption.with-icon { display: flex; align-items: flex-start; gap: 8px; }
    the band that stays behind between rim and shape is the wall of the hole. It
    costs nothing to draw because it is what is left over.
 
-   Times are his, found on the slider in the prototype: 8.34 s a round, half a
-   second down or up, 0.215 s at the bottom where the colour changes. The
-   percentages below are those milliseconds over the round.
+   Times are his, found on the slider in the prototype: 8.84 s a round, half a
+   second down or up, 0.215 s at the bottom where the colour changes, and a
+   0.915 s stand with all three shapes white before the whole thing turns round
+   -- half a second longer than it first was, at his ask, because the turn was
+   arriving while the third shape was still settling. The percentages below are
+   those milliseconds over the round.
 
    His export shows wherever this cannot run -- an old browser, or a reader who
    asked for less motion -- so the mark is never worse than it was. */
@@ -1478,86 +1481,86 @@ figcaption.with-icon { display: flex; align-items: flex-start; gap: 8px; }
   .business-mark .mark-flat { display: none; }
   .business-mark .mark-motion { display: block; }
   .business-mark .s-circle .piece {
-    animation: mark-travel-circle 8.34s cubic-bezier(.45, 0, .25, 1) infinite both,
-               mark-ink-circle 8.34s linear infinite both;
+    animation: mark-travel-circle 8.84s cubic-bezier(.45, 0, .25, 1) infinite both,
+               mark-ink-circle 8.84s linear infinite both;
   }
-  .business-mark .s-circle .walls { animation: mark-hole-circle 8.34s linear infinite both; }
+  .business-mark .s-circle .walls { animation: mark-hole-circle 8.84s linear infinite both; }
   .business-mark .s-square .piece {
-    animation: mark-travel-square 8.34s cubic-bezier(.45, 0, .25, 1) infinite both,
-               mark-ink-square 8.34s linear infinite both;
+    animation: mark-travel-square 8.84s cubic-bezier(.45, 0, .25, 1) infinite both,
+               mark-ink-square 8.84s linear infinite both;
   }
-  .business-mark .s-square .walls { animation: mark-hole-square 8.34s linear infinite both; }
+  .business-mark .s-square .walls { animation: mark-hole-square 8.84s linear infinite both; }
   .business-mark .s-triangle .piece {
-    animation: mark-travel-triangle 8.34s cubic-bezier(.45, 0, .25, 1) infinite both,
-               mark-ink-triangle 8.34s linear infinite both;
+    animation: mark-travel-triangle 8.84s cubic-bezier(.45, 0, .25, 1) infinite both,
+               mark-ink-triangle 8.84s linear infinite both;
   }
-  .business-mark .s-triangle .walls { animation: mark-hole-triangle 8.34s linear infinite both; }
+  .business-mark .s-triangle .walls { animation: mark-hole-triangle 8.84s linear infinite both; }
 }
 @keyframes mark-travel-circle {
-  0%, 3.597% { transform: none; }
-  9.592%, 12.170% { transform: translate(-54px, -31px); }
-  18.165%, 77.578% { transform: none; }
-  83.573%, 86.151% { transform: translate(-54px, -31px); }
-  92.146%, 100% { transform: none; }
+  0%, 3.394% { transform: none; }
+  9.050%, 11.482% { transform: translate(-54px, -31px); }
+  17.138%, 78.846% { transform: none; }
+  84.502%, 86.934% { transform: translate(-54px, -31px); }
+  92.590%, 100% { transform: none; }
 }
 @keyframes mark-ink-circle {
-  0%, 3.597% { fill: #7AC942; }
-  9.592% { fill: #5f9d33; }
-  10.881%, 77.578% { fill: #ffffff; }
-  83.573% { fill: #cccccc; }
-  84.862%, 86.151% { fill: #5f9d33; }
-  92.146%, 100% { fill: #7AC942; }
+  0%, 3.394% { fill: #7AC942; }
+  9.050% { fill: #5f9d33; }
+  10.266%, 78.846% { fill: #ffffff; }
+  84.502% { fill: #cccccc; }
+  85.718%, 86.934% { fill: #5f9d33; }
+  92.590%, 100% { fill: #7AC942; }
 }
 @keyframes mark-hole-circle {
-  0%, 2.638% { opacity: 0; }
-  4.317%, 16.727% { opacity: 1; }
-  19.125%, 76.619% { opacity: 0; }
-  78.297%, 90.707% { opacity: 1; }
-  93.106%, 100% { opacity: 0; }
+  0%, 2.489% { opacity: 0; }
+  4.072%, 15.781% { opacity: 1; }
+  18.043%, 77.941% { opacity: 0; }
+  79.525%, 91.233% { opacity: 1; }
+  93.495%, 100% { opacity: 0; }
 }
 @keyframes mark-travel-square {
-  0%, 17.146% { transform: none; }
-  23.141%, 25.719% { transform: translate(0px, 62px); }
-  31.715%, 63.909% { transform: none; }
-  69.904%, 72.482% { transform: translate(0px, 62px); }
-  78.477%, 100% { transform: none; }
+  0%, 16.176% { transform: none; }
+  21.833%, 24.265% { transform: translate(0px, 62px); }
+  29.921%, 65.950% { transform: none; }
+  71.606%, 74.038% { transform: translate(0px, 62px); }
+  79.695%, 100% { transform: none; }
 }
 @keyframes mark-ink-square {
-  0%, 17.146% { fill: #007AFF; }
-  23.141% { fill: #005fc7; }
-  24.430%, 63.909% { fill: #ffffff; }
-  69.904% { fill: #cccccc; }
-  71.193%, 72.482% { fill: #005fc7; }
-  78.477%, 100% { fill: #007AFF; }
+  0%, 16.176% { fill: #007AFF; }
+  21.833% { fill: #005fc7; }
+  23.049%, 65.950% { fill: #ffffff; }
+  71.606% { fill: #cccccc; }
+  72.822%, 74.038% { fill: #005fc7; }
+  79.695%, 100% { fill: #007AFF; }
 }
 @keyframes mark-hole-square {
-  0%, 16.187% { opacity: 0; }
-  17.866%, 30.276% { opacity: 1; }
-  32.674%, 62.950% { opacity: 0; }
-  64.628%, 77.038% { opacity: 1; }
-  79.436%, 100% { opacity: 0; }
+  0%, 15.271% { opacity: 0; }
+  16.855%, 28.563% { opacity: 1; }
+  30.826%, 65.045% { opacity: 0; }
+  66.629%, 78.337% { opacity: 1; }
+  80.600%, 100% { opacity: 0; }
 }
 @keyframes mark-travel-triangle {
-  0%, 30.815% { transform: none; }
-  36.811%, 39.388% { transform: translate(54px, -31px); }
-  45.384%, 50.360% { transform: none; }
-  56.355%, 58.933% { transform: translate(54px, -31px); }
-  64.928%, 100% { transform: none; }
+  0%, 29.072% { transform: none; }
+  34.729%, 37.161% { transform: translate(54px, -31px); }
+  42.817%, 53.167% { transform: none; }
+  58.824%, 61.256% { transform: translate(54px, -31px); }
+  66.912%, 100% { transform: none; }
 }
 @keyframes mark-ink-triangle {
-  0%, 30.815% { fill: #FF1C26; }
-  36.811% { fill: #c7161e; }
-  38.100%, 50.360% { fill: #ffffff; }
-  56.355% { fill: #cccccc; }
-  57.644%, 58.933% { fill: #c7161e; }
-  64.928%, 100% { fill: #FF1C26; }
+  0%, 29.072% { fill: #FF1C26; }
+  34.729% { fill: #c7161e; }
+  35.945%, 53.167% { fill: #ffffff; }
+  58.824% { fill: #cccccc; }
+  60.040%, 61.256% { fill: #c7161e; }
+  66.912%, 100% { fill: #FF1C26; }
 }
 @keyframes mark-hole-triangle {
-  0%, 29.856% { opacity: 0; }
-  31.535%, 43.945% { opacity: 1; }
-  46.343%, 49.400% { opacity: 0; }
-  51.079%, 63.489% { opacity: 1; }
-  65.887%, 100% { opacity: 0; }
+  0%, 28.167% { opacity: 0; }
+  29.751%, 41.459% { opacity: 1; }
+  43.722%, 52.262% { opacity: 0; }
+  53.846%, 65.554% { opacity: 1; }
+  67.817%, 100% { opacity: 0; }
 }
 /* The button keeps the right edge on whichever line it lands on. `space-between`
    only spreads a line that has two things on it; once the row wraps, the button
