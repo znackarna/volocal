@@ -73,6 +73,15 @@ page = page.replace(
     '<a class="lang-switch" href="en/"',
     '<a class="lang-switch" href="https://volocal.app/en/"',
 )
+# The reader-counting script goes. It is served by the host the site runs on,
+# so anywhere else it is a request for a file that is not there -- and a copy
+# handed to somebody, or the hosted review copy, is not the site and has no
+# business reporting readers to it. The count is asserted so that renaming or
+# moving the tag fails here rather than shipping a dead request in every bundle.
+page, found = re.subn(r'<script defer src="/_vercel/[^"]*"></script>\s*', "", page)
+if found != 1:
+    raise SystemExit("expected 1 counting script to remove, found %d" % found)
+
 page = page.replace("</head>\n<body>\n", "")
 page = page.replace("</body>\n</html>\n", "")
 

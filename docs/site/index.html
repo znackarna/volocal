@@ -4921,5 +4921,19 @@ footer.wrap { padding-top: 0; padding-bottom: 96px; }
 }());
 </script>
 
+<!-- How many people read this, and what they came from. Vercel's own counting:
+     no cookie, no identifier kept on the reader's machine, and the script is
+     served from this domain rather than somebody else's, so the page makes no
+     request to a third party at all. That last part is why it is this and not
+     one of the others.
+
+     At the foot rather than in the head, and not by preference: `bundle.py`
+     strips the head and then asserts that nothing was left between the title
+     and the first stylesheet. A script up there fails that check.
+
+     The address is absolute so the English page, which is a directory deeper,
+     asks for the same one. -->
+<script defer src="/_vercel/insights/script.js"></script>
+
 </body>
 </html>
