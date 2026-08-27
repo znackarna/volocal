@@ -1424,7 +1424,15 @@ figcaption.with-icon { display: flex; align-items: flex-start; gap: 8px; }
   display: flex; flex-wrap: nowrap; align-items: center; justify-content: space-between;
   gap: 20px 32px; padding: 26px 30px;
   border: 1px solid var(--line); border-radius: var(--r-large); background: var(--panel);
+  /* The same answer under the pointer as the cards under *Co získáte?*, which is
+     the application's own: the line goes to `--line-field` and the card takes
+     `--shadow`, over the application's 0.22 s. Nothing lifts and nothing moves.
+     It is a white card among white cards and was the only one that did not
+     answer at all. */
+  transition: border-color var(--hover-duration) var(--hover-ease),
+    box-shadow var(--hover-duration) var(--hover-ease);
 }
+.business-panel:hover { border-color: var(--line-field); box-shadow: var(--shadow); }
 @media (max-width: 620px) { .business-panel { flex-wrap: wrap; } }
 /* The mark stands before the sentence, not above it: the panel is one row and a
    drawing on its own line would make it two. The pair travels together when the
