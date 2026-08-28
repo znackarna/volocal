@@ -73,6 +73,44 @@ macro_rules! note {
 /// short enough to stay a message rather than an attachment.
 const REPORT_LINES: usize = 60;
 
+/// Sends a panic to the log as well as to stderr, which in a released build
+/// leads nowhere.
+///
+/// **The one event most worth having was the one not being kept.** Every
+/// `note!` in this program describes something that went wrong and was handled;
+/// a panic is the case where nothing was, and until this hook it left no trace
+/// at all outside `tauri dev`. Somebody reporting that Volocal "just closed"
+/// had a log with nothing in it around the moment it closed.
+///
+/// The default hook still runs afterwards, so `tauri dev` prints exactly what
+/// it printed before and a debugger sees what it saw.
+///
+/// The payload is read as it comes: `panic!` with a formatted string leaves a
+/// `String`, a bare literal leaves a `&str`, and anything else leaves a type
+/// this cannot name — which is worth saying rather than dropping the line.
+pub fn catch_panics() {
+    let previous = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        let payload = info.payload();
+        let said = payload
+            .downcast_ref::<&str>()
+            .map(|s| (*s).to_string())
+            .or_else(|| payload.downcast_ref::<String>().cloned())
+            .unwrap_or_else(|| "a payload of some other type".to_string());
+        let where_at = info
+            .location()
+            .map(|l| format!("{}:{}", l.file(), l.line()))
+            .unwrap_or_else(|| "an unknown place".to_string());
+        // The thread, because a panic in a worker leaves the window standing
+        // and a panic on the main thread does not - and the person reporting it
+        // describes two different faults.
+        let thread = std::thread::current();
+        let who = thread.name().unwrap_or("unnamed").to_string();
+        write(format_args!("panic on thread {who} at {where_at}: {said}"));
+        previous(info);
+    }));
+}
+
 /// The tail of the log file, oldest first, or nothing if there is no file yet.
 pub fn recent_lines() -> Vec<String> {
     let Some(path) = FILE.get() else {
@@ -108,4 +146,44 @@ pub fn write_problem_report(text: &str) -> Option<PathBuf> {
     let path = FILE.get()?.with_file_name("volocal-problem.txt");
     std::fs::write(&path, text).ok()?;
     Some(path)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The hook has to survive a panic that is caught, which is the only way to
+    /// raise one in a test without ending it. `FILE` is a `OnceLock` set once
+    /// per process, so this is the single test that may set it and the whole
+    /// journey is checked in one go: install, panic, and read the file back.
+    #[test]
+    fn a_panic_reaches_the_log_file() {
+        // The same `std::env::temp_dir()` the other tests here use, rather than
+        // a new dependency for one folder.
+        let folder = std::env::temp_dir().join("volocal-panic-log");
+        let _ = std::fs::remove_dir_all(&folder);
+        std::fs::create_dir_all(&folder).unwrap();
+        // `set_file` takes the archive and writes beside it.
+        set_file(&folder.join("whisp.db"));
+        catch_panics();
+
+        let raised = std::panic::catch_unwind(|| panic!("a wheel came off"));
+        assert!(raised.is_err(), "the panic has to have happened");
+
+        let written = std::fs::read_to_string(file_path().unwrap()).unwrap();
+        assert!(
+            written.contains("a wheel came off"),
+            "the log has to carry what was said: {written}"
+        );
+        assert!(
+            written.contains("diagnostics.rs"),
+            "and where it was said: {written}"
+        );
+        // The thread is in there because a panic in a worker leaves the window
+        // standing and one on the main thread does not.
+        assert!(
+            written.contains("panic on thread"),
+            "and by whom: {written}"
+        );
+    }
 }

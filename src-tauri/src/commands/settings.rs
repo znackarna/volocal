@@ -48,6 +48,41 @@ pub fn log_directory() -> Option<String> {
     crate::diagnostics::file_path().map(|path| path.to_string_lossy().to_string())
 }
 
+/// A crash in the window, written into the same log as everything else.
+///
+/// **The text already existed and only ever reached the screen.**
+/// `ErrorBoundary` assembles the message, the stack and React's component
+/// stack, shows them to whoever is sitting there, and that was the end of it —
+/// so a report saying "it went white" arrived with a log that had nothing in it
+/// at the moment it went white. Half of this application is in the window, and
+/// none of its failures were being kept.
+///
+/// Best-effort by design: the window is already broken when this is called and
+/// nothing here may make that worse, so it returns nothing and cannot fail.
+#[tauri::command]
+pub fn note_crash(message: String, stack: String) {
+    // Trimmed, because a component stack can run to hundreds of lines and the
+    // log is capped - one crash must not push out everything that led to it.
+    // The top of a stack is the part that says where, so the top is what stays.
+    const MOST: usize = 4000;
+    let mut text = if stack.is_empty() {
+        message
+    } else {
+        format!(
+            "{message}
+{stack}"
+        )
+    };
+    if text.len() > MOST {
+        text.truncate(MOST);
+        text.push_str(
+            "
+... (the rest is cut)",
+        );
+    }
+    crate::note!("window crashed: {text}");
+}
+
 /// Everything worth knowing when something has gone wrong, as one block of text.
 ///
 /// Written because of an evening spent guessing. Speech detection came up

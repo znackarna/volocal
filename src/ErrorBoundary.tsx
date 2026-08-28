@@ -1,5 +1,6 @@
 import { Component } from "react";
 import type { ErrorInfo, ReactNode } from "react";
+import { api } from "./api";
 import { useI18n } from "./i18n";
 
 /** What the boundary caught, in a shape that can be read and sent on. The
@@ -107,8 +108,18 @@ export default class ErrorBoundary extends Component<{ children: ReactNode }, { 
   componentDidCatch(error: unknown, info: ErrorInfo) {
     // The stack is only offered here, not to `getDerivedStateFromError`, so the
     // state written above is refined once it arrives.
-    this.setState({ crash: describe(error, info) });
+    const crash = describe(error, info);
+    this.setState({ crash });
     console.error(error);
+    /* And into the log beside the archive, which is the file somebody is asked
+       for. This text was assembled and only ever shown on screen, so a report
+       of the window going white arrived with a log that said nothing about the
+       moment it went white — half the application failing and none of it kept.
+
+       Nothing is awaited and every failure is swallowed: the window is already
+       broken, the backend may be the reason it is, and a boundary that throws
+       while handling a throw takes the crash screen down with it. */
+    void api.noteCrash(crash.message, crash.stack).catch(() => {});
   }
 
   render() {

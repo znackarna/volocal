@@ -475,6 +475,12 @@ fn take_the_only_instance() -> bool {
 }
 
 fn main() {
+    // First of all, so that a panic anywhere below is written down rather than
+    // going to a stderr that a released build has nowhere to send. The file it
+    // writes to is not known yet — `set_file` comes with the archive — but the
+    // hook reads it at the moment it fires, and everything that can panic
+    // before then can also be seen in `tauri dev`.
+    diagnostics::catch_panics();
     // Before anything is started, so that everything started after it is
     // covered — including whatever a failure below might spawn.
     #[cfg(windows)]
@@ -528,6 +534,7 @@ fn main() {
             commands::settings::check_tools,
             commands::settings::diagnostic_report,
             commands::settings::log_directory,
+            commands::settings::note_crash,
             commands::library::list_recordings,
             commands::library::add_recording,
             commands::library::scan_watch_folder,

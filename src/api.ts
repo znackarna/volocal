@@ -25,6 +25,11 @@ export const api = {
   diagnosticReport: () => invoke<string>("diagnostic_report"),
   /** The log file itself, for the times the report is not enough. */
   logFile: () => invoke<string | null>("log_directory"),
+  /** A crash in the window, into the same log as everything else. The one
+   *  call in here nobody may await for a result: the window is already broken
+   *  when it fires. */
+  noteCrash: (message: string, stack: string) =>
+    invoke<void>("note_crash", { message, stack }),
 
   listRecordings: () => invoke<Recording[]>("list_recordings"),
   addRecording: (path: string) => invoke<Recording>("add_recording", { path }),
