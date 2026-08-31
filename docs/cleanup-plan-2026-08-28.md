@@ -14,16 +14,14 @@ speculative `note!` logging. Do not touch the visual system.
 
 ## A. Records
 
-- [ ] **Shorten the per-day paragraphs in `docs/history/README.md`.** The
-  2026-08-25 paragraph alone runs to thousands of words — it retells the day
-  instead of pointing at it. The index's job is one or two sentences per day
-  plus the link; the detail already lives in the day files, which must not be
-  touched. Get the owner's yes before trimming: the paragraphs are old entries
-  in spirit, and the no-rewrite rule is his. Found on 31 August while doing the
-  item below: 20 and 21 August have **two paragraphs each**, and unlike the
-  duplicated table rows these are not near-copies but different halves of the
-  same day, so one cannot simply be dropped. That pair is the place to start if
-  he says yes.
+- [x] **Shorten the per-day paragraphs in `docs/history/README.md`.** Done on
+  31 August, at his word and on his condition: every paragraph was first
+  compared against its day file, and anything the file did not hold was carried
+  into it before the cutting. 117 606 characters became 10 747 — two sentences
+  and the link for each of twenty-seven days. Four passages were rescued into
+  14, 21 and 26 August; four others turned out to be misattributions and were
+  written nowhere, because a wrong record costs more than a lost sentence. The
+  three days that had two paragraphs were merged rather than halved.
 - [x] **Verify the index row counts.** Done on 31 August. Eight of twenty-seven
   days were wrong: four counts left from before the day was over, 19 and 20
   August with two rows each from two sessions that never saw one another, and
