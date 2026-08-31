@@ -87,6 +87,27 @@ fn step(code: &str) -> UserMessage {
     UserMessage::new(code)
 }
 
+/// Says that a fetch started here is over.
+///
+/// **`install_component` announces a component, never a run.** `download:progress`
+/// carries a `complete` phase for the file that landed, and the window
+/// deliberately does not take the bubble down on it — in a bundle that phase
+/// arrives between files and clearing there would flicker the bubble off and on.
+/// What ends a run is `download:complete`, and `install_bundle` is the only
+/// caller that ever sent it.
+///
+/// So a component fetched from here — yt-dlp or the JavaScript runtime, on the
+/// first online import — reached 100 % and nothing ever said the run was over.
+/// The owner met it on 31 August: `Stahuji JavaScript pro online zdroje 100 %`
+/// stayed on screen until he pressed the cross.
+///
+/// The list is what did not land, and here it is always empty: this is only
+/// reached where `install_component` returned `Ok`. `SetupWizard` ignores a run
+/// it did not start, so an empty list cannot conclude somebody else's walk.
+fn fetch_is_over(app: &AppHandle) {
+    let _ = app.emit("download:complete", Vec::<String>::new());
+}
+
 fn validate_url(input: &str) -> Reported<String> {
     let parsed = reqwest::Url::parse(input.trim())
         .map_err(|error| UserMessage::new("online_import.invalid_url").detail(error))?;
@@ -153,10 +174,13 @@ pub fn import(
             2,
             step("online_import.preparing_downloader"),
         );
-        download::install_component(app, settings, DOWNLOADER_COMPONENT, cancellation.clone())
-            .map_err(|error| {
-                UserMessage::new("online_import.downloader_setup_failed").detail(error)
-            })?;
+        let fetched =
+            download::install_component(app, settings, DOWNLOADER_COMPONENT, cancellation.clone());
+        // Whether it landed or not, the fetch this screen started is over.
+        fetch_is_over(app);
+        fetched.map_err(|error| {
+            UserMessage::new("online_import.downloader_setup_failed").detail(error)
+        })?;
     }
     if cancellation.load(Ordering::Relaxed) {
         emit_progress(app, "cancelled", 0, step("online_import.cancelled"));
@@ -169,10 +193,13 @@ pub fn import(
             4,
             step("online_import.preparing_javascript"),
         );
-        download::install_component(app, settings, JAVASCRIPT_COMPONENT, cancellation.clone())
-            .map_err(|error| {
-                UserMessage::new("online_import.javascript_setup_failed").detail(error)
-            })?;
+        let fetched =
+            download::install_component(app, settings, JAVASCRIPT_COMPONENT, cancellation.clone());
+        // Whether it landed or not, the fetch this screen started is over.
+        fetch_is_over(app);
+        fetched.map_err(|error| {
+            UserMessage::new("online_import.javascript_setup_failed").detail(error)
+        })?;
     }
     if cancellation.load(Ordering::Relaxed) {
         emit_progress(app, "cancelled", 0, step("online_import.cancelled"));
