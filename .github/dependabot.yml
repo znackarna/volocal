@@ -9,6 +9,18 @@ version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
+    # Onto `dev`, because that is where work goes. Without this, Dependabot
+    # opens against the default branch — `main` — which is the published branch
+    # and the one nobody commits to. PR #214 sat there for four days for that
+    # reason, and by the time it was read, half of it bumped steps `dev` had
+    # already deleted.
+    #
+    # The cost, stated so it is not discovered later: with `target-branch` set,
+    # GitHub raises security updates only against the default branch, so an
+    # advisory on an action will not arrive on its own. The monthly run picks it
+    # up within the month, which for four pinned GitHub actions is the trade
+    # worth making.
+    target-branch: dev
     schedule:
       interval: monthly
     groups:

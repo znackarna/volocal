@@ -38,7 +38,7 @@ the time.
 | [2026-08-26](2026-08-26.md) | 23 | The cube comes back out of the panel … |
 | [2026-08-27](2026-08-27.md) | 26 | The four times in the wizard were measured all along … |
 | [2026-08-28](2026-08-28.md) | 2 | The two failures worth logging were the two not being logged … |
-| [2026-08-31](2026-08-31.md) | 2 | The three pieces of ballast, and what each one turned out to be … |
+| [2026-08-31](2026-08-31.md) | 3 | The three pieces of ballast, and what each one turned out to be … |
 
 ## What each day was about
 
