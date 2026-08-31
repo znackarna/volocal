@@ -27,16 +27,27 @@ speculative `note!` logging. Do not touch the visual system.
 
 ## B. Repository ballast
 
-- [ ] **Settle the two stranded branches.** `prepinac-v-bundlu` carries two
-  commits not on `main` (a bundle language switch and English-page fallback);
-  `site-on-vercel` carries one. Show the owner the diffs and let him say merge
-  or delete — do not decide alone, and do not leave them standing again.
-- [ ] **Dependabot PR #214** (six GitHub Actions bumps) is open. Review the
-  pinned SHAs and hand the merge decision to the owner.
-- [ ] **`docs/site/volocal-page.html`** sits untracked in the working tree,
-  origin unknown to this session. Ask the owner what it is; commit it where it
-  belongs or remove it. Do not silently `git add -A` it into an unrelated
-  commit (that nearly happened on 28 August).
+- [x] **`site-on-vercel`** — nothing to settle. Its commit `2d4b96c` is an
+  ancestor of `main`; the branch was merged and deleted before 31 August.
+- [ ] **`prepinac-v-bundlu`** — looked at on 31 August (`docs/history/2026-08-31.md`).
+  It is behind `dev`, not ahead of it: both commits were redone on `dev`, the
+  script is identical line for line, both history entries are in place, and the
+  branch's one real difference is a bundle language switch pointing at
+  `znackarna.github.io`, dead since Pages was switched off. Nothing to save.
+  **Deleting it is the owner's call.**
+- [ ] **Dependabot PR #214** — reviewed on 31 August. All six SHAs resolve to
+  the tags their comments claim. Three of them (`configure-pages`,
+  `upload-pages-artifact`, `deploy-pages`) bump steps `dev` has already deleted.
+  `checkout` v7's breaking change touches `pull_request_target` and
+  `workflow_run`, neither used here. `upload-pages-artifact` v5 stops including
+  dotfiles, which would drop `_site/.nojekyll` if merged into `main` while Pages
+  steps are still there. **Merge, close, or take the three live bumps onto `dev`
+  by hand — the owner's call**, and with it whether
+  `.github/dependabot.yml` gains `target-branch: dev`, which is why these pull
+  requests keep arriving on the wrong branch.
+- [x] **`docs/site/volocal-page.html`** — it is `bundle.py`'s default output,
+  never tracked, rebuilt on every hand-over. Added to `.gitignore`; the file
+  stays on disk.
 
 ## C. Known latent faults — fix on touch, not on a sweep
 
