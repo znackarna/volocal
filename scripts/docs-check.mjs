@@ -230,11 +230,74 @@ for (const [english, czech] of [["SECURITY.md", "SECURITY.cs.md"], ["README.md",
   }
 }
 
-// ---------------------------------------------------------------- the verdict
-
 /** 1 dokument, 2 dokumenty, 5 dokumentů. A count of one is the case a bare
  *  plural gets wrong. */
 const plural = (count, one, few, many) => `${count} ${count === 1 ? one : count < 5 ? few : many}`;
+const records = (count) => plural(count, "záznam", "záznamy", "záznamů");
+
+// --------------------------------------------- the change log against itself
+
+/** `docs/history/README.md` is an index, and an index that disagrees with what
+ *  it indexes is worse than none: the count is what somebody reads to decide
+ *  whether a day is worth opening.
+ *
+ *  It had drifted on eight of twenty-seven days by 31 August, and the shape of
+ *  the drift says how: two sessions writing the same week both added a row, so
+ *  19 and 20 August had two rows each with different counts, 24 August had none
+ *  at all, and four more had a number from before the day was finished.
+ *
+ *  Counting `### ` outside code fences, because a heading in an example is not
+ *  an entry. */
+const historyDirectory = join(root, "docs", "history");
+const days = readdirSync(historyDirectory)
+  .filter((name) => /^\d{4}-\d{2}-\d{2}\.md$/.test(name))
+  .sort();
+
+const entriesIn = (text) => {
+  let fenced = false;
+  let count = 0;
+  for (const line of text.split("\n")) {
+    if (line.startsWith("```")) fenced = !fenced;
+    else if (!fenced && line.startsWith("### ")) count += 1;
+  }
+  return count;
+};
+
+const index = read("docs", "history", "README.md");
+const rows = new Map();
+const twice = [];
+for (const [, day, claimed] of index.matchAll(/^\| \[(\d{4}-\d{2}-\d{2})\]\([^)]*\) \| (\d+) \|/gm)) {
+  if (rows.has(day)) twice.push(day);
+  else rows.set(day, Number(claimed));
+}
+
+for (const day of twice) {
+  fail("docs/history/README.md", `má na ${day} víc než jeden řádek`, "dva sešly z různých sezení — nech jeden");
+}
+
+for (const name of days) {
+  const day = name.slice(0, -3);
+  const real = entriesIn(read("docs", "history", name));
+  if (!rows.has(day)) {
+    fail("docs/history/README.md", `nemá řádek na ${day}`, `${name} přitom existuje a má ${records(real)}`);
+  } else if (rows.get(day) !== real) {
+    fail("docs/history/README.md", `říká o ${day}, že má ${records(rows.get(day))}`, `${name} jich má ${real}`);
+  }
+}
+
+for (const day of rows.keys()) {
+  if (!days.includes(`${day}.md`)) {
+    fail("docs/history/README.md", `odkazuje na ${day}`, `docs/history/${day}.md tu není`);
+  }
+}
+
+const listed = [...rows.keys()];
+const ordered = [...listed].sort();
+if (listed.join() !== ordered.join()) {
+  fail("docs/history/README.md", "nemá dny v pořadí", "řádky se při souběžném zápisu zamíchaly — seřaď je podle data");
+}
+
+// ---------------------------------------------------------------- the verdict
 
 if (problems.length === 0) {
   console.log(

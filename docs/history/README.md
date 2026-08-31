@@ -22,24 +22,23 @@ the time.
 | [2026-08-08](2026-08-08.md) | 10 | The unnamed interjections get a list of their own … |
 | [2026-08-09](2026-08-09.md) | 4 | The audio the application makes has a folder of its own … |
 | [2026-08-10](2026-08-10.md) | 23 | The change log leaves CLAUDE.md … |
-| [2026-08-11](2026-08-11.md) | 12 | Volocal 1.0.0, and a signing key that is worth something |
+| [2026-08-11](2026-08-11.md) | 26 | Volocal 1.0.0, and a signing key that is worth something |
 | [2026-08-12](2026-08-12.md) | 33 | The code speaks English, and five releases go out … |
 | [2026-08-13](2026-08-13.md) | 40 | A backup taken twice in one second is one backup … |
-| [2026-08-14](2026-08-14.md) | 40 | Settings regrouped, then cut to seven one-word tabs … |
+| [2026-08-14](2026-08-14.md) | 52 | Settings regrouped, then cut to seven one-word tabs … |
 | [2026-08-15](2026-08-15.md) | 4 | The empty dictionary is a row to write in … |
-| [2026-08-16](2026-08-16.md) | 20 | The cube leaves and the name closes to its own middle … |
-| [2026-08-17](2026-08-17.md) | 36 | The mark turns on its side, then the whole application is surveyed … |
+| [2026-08-16](2026-08-16.md) | 19 | The cube leaves and the name closes to its own middle … |
+| [2026-08-17](2026-08-17.md) | 29 | The mark turns on its side, then the whole application is surveyed … |
 | [2026-08-18](2026-08-18.md) | 16 | A presentation page: invented, rebuilt from the application, cut to a column, and the live windows returned as figures … |
 | [2026-08-19](2026-08-19.md) | 5 | The one live preview becomes five, driven by hand … |
-| [2026-08-20](2026-08-20.md) | 14 | Online import fixed at the chunk that returns 403, and the link it came from is now kept … |
-| [2026-08-19](2026-08-19.md) | 5 | The page's one window becomes a carousel of five … |
-| [2026-08-20](2026-08-20.md) | 13 | Online import, a setup that says why it failed, and the gains section proving itself … |
-| [2026-08-21](2026-08-21.md) | 8 | The gains section on a phone, where it had nothing to show … |
+| [2026-08-20](2026-08-20.md) | 16 | Online import fixed at the chunk that returns 403, and the link it came from is now kept … |
+| [2026-08-21](2026-08-21.md) | 10 | The gains section on a phone, where it had nothing to show … |
+| [2026-08-24](2026-08-24.md) | 1 | The page comes back into the repository … |
 | [2026-08-25](2026-08-25.md) | 41 | The limits section is asked as a question … |
 | [2026-08-26](2026-08-26.md) | 23 | The cube comes back out of the panel … |
 | [2026-08-27](2026-08-27.md) | 26 | The four times in the wizard were measured all along … |
 | [2026-08-28](2026-08-28.md) | 2 | The two failures worth logging were the two not being logged … |
-| [2026-08-31](2026-08-31.md) | 1 | The three pieces of ballast, and what each one turned out to be … |
+| [2026-08-31](2026-08-31.md) | 2 | The three pieces of ballast, and what each one turned out to be … |
 
 ## What each day was about
 
@@ -100,4 +99,4 @@ the time.
 
 **[2026-08-28](2026-08-28.md)** — Asked whether the log can find a fault, and the answer was mostly no: thirty-seven of sixty-eight `note!` calls are in `main.rs`, so the record is dense around startup and the archive and thin everywhere else. The gap that mattered was not thinness but two classes of failure leaving no trace at all — a Rust panic, which had no hook and went to a stderr a released build cannot see, and a crash in the window, whose text `ErrorBoundary` already assembled and only ever showed on screen. Both faults the owner found himself this week are in React and would have left the log silent. The hook goes in as the first statement of `main` and names the thread; `note_crash` takes the boundary’s own text, capped from the top so one crash cannot push out what led to it, unawaited and swallowing every failure so a throw while handling a throw cannot take the crash screen down. Tested on both sides, and the thinness itself deliberately left alone. And the day ends with `docs/cleanup-plan-2026-08-28.md` — the tidy-up list for the next session, written as a file because the last plan of its kind lived only in a session transcript; it carries the three latent state pairs found in `Detail.tsx`, the parked guards, and the decisions that are the owner's to make.
 
-**[2026-08-31](2026-08-31.md)** — Point B of the tidy-up plan, looked into: the untracked `volocal-page.html` is `bundle.py`'s own output and goes into `.gitignore`, `site-on-vercel` had already been merged and deleted, and `prepinac-v-bundlu` turns out to be behind `dev` with a dead github.io address as its only difference. Dependabot's six pins all check out against their tags, but three of them touch Pages steps that `dev` has already removed, and the config has no `target-branch`, which is why its pull requests keep landing on `main`.
+**[2026-08-31](2026-08-31.md)** — Point B of the tidy-up plan, looked into: the untracked `volocal-page.html` is `bundle.py`'s own output and goes into `.gitignore`, `site-on-vercel` had already been merged and deleted, and `prepinac-v-bundlu` turns out to be behind `dev` with a dead github.io address as its only difference. Dependabot's six pins all check out against their tags, but three of them touch Pages steps that `dev` has already removed, and the config has no `target-branch`, which is why its pull requests keep landing on `main`. And point A2: this index disagreed with the files it indexes on eight of twenty-seven days — four counts left from before the day was over, two days with a row each from two sessions that never saw one another, and 24 August with no row at all. Repaired, and `docs-check.mjs` now refuses an index that has drifted.
