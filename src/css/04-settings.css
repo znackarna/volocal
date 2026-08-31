@@ -1220,6 +1220,16 @@ button.mic-play:disabled { cursor: default; opacity: 0.6; }
   background: var(--danger);
 }
 .mic-start:disabled .mic-start-dot { opacity: 0.5; }
+/* The stop mark, answering the record dot: same 10 px and the same place, so
+   the two buttons read as one pair. A rounded square rather than a circle
+   because that is what a transport's stop is everywhere, and `currentColor`
+   rather than red — red is destructive here, and stopping a take destroys
+   nothing. 2 px of radius, enough to lose the hard corner at 10 px without
+   reading as a circle. */
+.mic-stop-square {
+  width: 10px; height: 10px; flex: 0 0 auto; border-radius: 2px;
+  background: currentColor;
+}
 
 .add-recording-note {
   display: flex; align-items: flex-start; gap: 8px;

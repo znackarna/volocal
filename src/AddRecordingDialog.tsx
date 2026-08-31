@@ -681,7 +681,12 @@ function MicrophoneView({
             <button className="button quiet" onClick={onClose}>
               {t("dialogs.addRecording.micMinimize")}
             </button>
-            <button className="button primary" onClick={recorder.stop}>
+            {/* The square answers the dot. The button that starts a take wears
+                the record mark, so the one that ends it wears the mark every
+                transport in the world uses for stop — same 10 px, same place,
+                and grey rather than red because stopping destroys nothing. */}
+            <button className="button primary mic-start" onClick={recorder.stop}>
+              <span className="mic-stop-square" aria-hidden />
               {t("dialogs.addRecording.micStop")}
             </button>
           </>
