@@ -19,11 +19,17 @@ speculative `note!` logging. Do not touch the visual system.
   instead of pointing at it. The index's job is one or two sentences per day
   plus the link; the detail already lives in the day files, which must not be
   touched. Get the owner's yes before trimming: the paragraphs are old entries
-  in spirit, and the no-rewrite rule is his.
-- [ ] **Verify the index row counts.** Each `| N |` in the table should equal
-  the number of `### ` headings in its day file; several drifted this week when
-  two sessions wrote at once. A five-line script check beats doing it by eye —
-  consider adding it to `scripts/docs-check.mjs` so it stays true.
+  in spirit, and the no-rewrite rule is his. Found on 31 August while doing the
+  item below: 20 and 21 August have **two paragraphs each**, and unlike the
+  duplicated table rows these are not near-copies but different halves of the
+  same day, so one cannot simply be dropped. That pair is the place to start if
+  he says yes.
+- [x] **Verify the index row counts.** Done on 31 August. Eight of twenty-seven
+  days were wrong: four counts left from before the day was over, 19 and 20
+  August with two rows each from two sessions that never saw one another, and
+  24 August with no row at all. `scripts/docs-check.mjs` now enforces one row
+  per day file, the count, no row without a file, and date order — and
+  `npm run build` already runs it.
 
 ## B. Repository ballast
 
