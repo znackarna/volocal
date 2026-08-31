@@ -66,6 +66,10 @@ export const csDialogs = {
   "dialogs.addRecording.micPreparing": "Připravuji mikrofon…",
   "dialogs.addRecording.micDenied":
     "Mikrofon se nepodařilo otevřít. Zkontrolujte oprávnění v nastavení systému.",
+  "dialogs.addRecording.micNoDevice":
+    "Nenašel se žádný mikrofon. Připojte ho a zkuste to znovu.",
+  "dialogs.addRecording.micBusy":
+    "Mikrofon právě používá jiná aplikace. Zavřete ji a zkuste to znovu.",
   "dialogs.addRecording.micReady": "Mikrofon je připravený.",
   "dialogs.addRecording.micRecording": "Nahrává se…",
   "dialogs.addRecording.micSuspended": "Záznam čeká, dokud hraje zvuk.",
@@ -168,6 +172,12 @@ export const csDialogsContext: Partial<Record<keyof typeof csDialogs, string>> =
     "Stav, než systém povolí mikrofon. Může u něj viset dialog oprávnění.",
   "dialogs.addRecording.micDenied":
     "Stav po odmítnutí mikrofonu systémem nebo uživatelem.",
+  "dialogs.addRecording.micNoDevice":
+    "Stav, když k počítači není připojený žádný mikrofon. Do 31. srpna 2026 " +
+    "sem padala věta o oprávnění — jenže povolení si aplikace schvaluje sama, " +
+    "takže tenhle člověk posílal hledat chybu tam, kde žádná není.",
+  "dialogs.addRecording.micBusy":
+    "Stav, když mikrofon drží jiný program. Táž oprava jako u předchozí věty.",
   "dialogs.addRecording.micReady": "Stav před spuštěním: mikrofon je otevřený, nic se nenahrává.",
   "dialogs.addRecording.micRecording": "Stav během nahrávání, vedle běží časomíra.",
   "dialogs.addRecording.micStopped": "Stav po zastavení, časomíra ukazuje délku záznamu.",

@@ -44,6 +44,8 @@ export const enDialogs: Partial<Record<keyof typeof csDialogs, string>> = {
   "dialogs.addRecording.micIntro": "The take is saved as a recording. Nothing leaves the computer.",
   "dialogs.addRecording.micPreparing": "Preparing the microphone…",
   "dialogs.addRecording.micDenied": "The microphone couldn’t be opened. Check the permission in the system settings.",
+  "dialogs.addRecording.micNoDevice": "No microphone was found. Connect one and try again.",
+  "dialogs.addRecording.micBusy": "Another application is using the microphone. Close it and try again.",
   "dialogs.addRecording.micReady": "The microphone is ready.",
   "dialogs.addRecording.micRecording": "Recording…",
   "dialogs.addRecording.micSuspended": "Recording waits while audio plays.",

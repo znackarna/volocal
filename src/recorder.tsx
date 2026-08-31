@@ -39,10 +39,24 @@ export type RecorderPhase =
   | "idle"
   | "preparing"
   | "denied"
+  /* **Three reasons, because the application answers the permission itself.**
+     `allow_microphone` in `main.rs` says yes to WebView2 before anybody is
+     asked, so nothing reaching the failure path is a person having refused —
+     which is what `denied` used to be read as, and what its sentence still
+     advises about. What is left is Windows blocking it in Privacy (`denied`),
+     no input device at all, and one held by another application. Three states
+     because they are three different things to do about it. */
+  | "no-device"
+  | "device-busy"
   | "ready"
   | "recording"
   | "preview"
   | "saving";
+
+export interface MicrophoneDevice {
+  id: string;
+  label: string;
+}
 
 interface RecorderValue {
   phase: RecorderPhase;
@@ -57,6 +71,15 @@ interface RecorderValue {
    *  peaks while nothing is playing — the transport bar under a transcript
    *  reads the stored envelope exactly this way. */
   takeWaveform: () => StoredWaveform;
+  /** The input devices, once the microphone has been opened — labels are
+   *  empty until permission is granted, so the list is only useful from
+   *  `ready` onward. Empty while nothing is open. */
+  devices: MicrophoneDevice[];
+  /** Which one is being recorded from; empty until one is open. */
+  deviceId: string;
+  /** Record from another one. Re-opens the microphone, so it is only
+   *  available while nothing is being recorded. */
+  chooseDevice: (id: string) => void;
   /** Ask for the microphone. No-op unless idle or previously denied. */
   openMicrophone: () => void;
   /** Let the microphone go. Only meaningful before a take exists. */
@@ -106,6 +129,11 @@ export function RecorderProvider({ children }: { children: ReactNode }) {
   const elapsedBase = useRef(0);
   const begun = useRef(0);
 
+  const [devices, setDevices] = useState<MicrophoneDevice[]>([]);
+  const [deviceId, setDeviceId] = useState("");
+  /** Read inside `openMicrophone`, which is registered once. */
+  const deviceIdRef = useRef("");
+
   const stream = useRef<MediaStream | null>(null);
   const capture = useRef<MediaRecorder | null>(null);
   const chunks = useRef<Blob[]>([]);
@@ -147,18 +175,50 @@ export function RecorderProvider({ children }: { children: ReactNode }) {
     setPhase("idle");
   }, []);
 
-  const openMicrophone = useCallback(() => {
-    if (phaseRef.current !== "idle" && phaseRef.current !== "denied") return;
+  /** Why the microphone could not be opened, in the browser's own words.
+   *
+   *  `NotFoundError` is no input device, `NotReadableError` one another
+   *  application is holding, and everything else — `NotAllowedError` included —
+   *  is Windows refusing in its Privacy settings, since `allow_microphone` in
+   *  `main.rs` answers WebView2's own permission before anybody is asked. So
+   *  nothing reaching here is a person having refused. All three were one state
+   *  with one sentence about permissions, and two thirds of the people who met
+   *  it were sent to check something that was not the matter. */
+  const openMicrophone = useCallback((wanted?: string) => {
+    const opening = wanted ?? deviceIdRef.current;
+    if (
+      !wanted &&
+      !["idle", "denied", "no-device", "device-busy"].includes(phaseRef.current)
+    ) {
+      return;
+    }
     setPhase("preparing");
     navigator.mediaDevices
-      .getUserMedia({ audio: true })
-      .then((media) => {
+      .getUserMedia(opening ? { audio: { deviceId: { exact: opening } } } : { audio: true })
+      .then(async (media) => {
         // The view that asked may be gone by the time the prompt is answered.
         if (phaseRef.current !== "preparing") {
           media.getTracks().forEach((track) => track.stop());
           return;
         }
         stream.current = media;
+        /* **Asked only now.** Before permission the labels come back empty, so
+           a list gathered earlier would offer rows nobody could tell apart.
+           The failure is swallowed: not knowing what else is connected is no
+           reason to refuse a microphone that is already open. */
+        try {
+          const all = await navigator.mediaDevices.enumerateDevices();
+          setDevices(
+            all
+              .filter((d) => d.kind === "audioinput")
+              .map((d) => ({ id: d.deviceId, label: d.label }))
+          );
+        } catch {
+          setDevices([]);
+        }
+        const settled = media.getAudioTracks()[0]?.getSettings().deviceId ?? opening ?? "";
+        deviceIdRef.current = settled;
+        setDeviceId(settled);
         const context = new AudioContext();
         /* getUserMedia resolves outside any user gesture, and a context born
            there starts suspended — the analyser would read eternal silence
@@ -183,10 +243,37 @@ export function RecorderProvider({ children }: { children: ReactNode }) {
         analyser.current = analyse;
         setPhase("ready");
       })
-      .catch(() => {
-        if (phaseRef.current === "preparing") setPhase("denied");
+      .catch((error: unknown) => {
+        const name = error instanceof Error ? error.name : String(error);
+        void api.noteCrash(`microphone refused to open: ${name}`, "").catch(() => {});
+        if (phaseRef.current !== "preparing") return;
+        setPhase(
+          name === "NotFoundError" || name === "OverconstrainedError"
+            ? "no-device"
+            : name === "NotReadableError" || name === "AbortError"
+              ? "device-busy"
+              : "denied"
+        );
       });
   }, []);
+
+  /** Record from another device. `releaseMicrophone` would take the phase back
+   *  to `idle`, so the current stream is let go by hand and the new id passed
+   *  straight in. */
+  const chooseDevice = useCallback(
+    (id: string) => {
+      if (phaseRef.current !== "ready") return;
+      stream.current?.getTracks().forEach((track) => track.stop());
+      stream.current = null;
+      void audioContext.current?.close();
+      audioContext.current = null;
+      analyser.current = null;
+      deviceIdRef.current = id;
+      setDeviceId(id);
+      openMicrophone(id);
+    },
+    [openMicrophone]
+  );
 
   const start = useCallback(() => {
     const media = stream.current;
@@ -349,7 +436,10 @@ export function RecorderProvider({ children }: { children: ReactNode }) {
         equalizerPointsPerSecond: TAKE_POINTS_PER_SECOND,
         equalizerBandCount: TAKE_BANDS,
       }),
-      openMicrophone,
+      devices,
+      deviceId,
+      chooseDevice,
+      openMicrophone: () => openMicrophone(),
       releaseMicrophone,
       start,
       stop,
@@ -362,6 +452,9 @@ export function RecorderProvider({ children }: { children: ReactNode }) {
       phase,
       suspended,
       seconds,
+      devices,
+      deviceId,
+      chooseDevice,
       openMicrophone,
       releaseMicrophone,
       start,

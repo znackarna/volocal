@@ -5,8 +5,10 @@ import { api } from "./api";
 import { equalizerAtTime, handleRatio, Waveform } from "./player";
 import { LineIcon } from "./icons";
 import { recorderTime, useRecorder, useSpectrum } from "./recorder";
+import type { RecorderPhase } from "./recorder";
 import { useDialog } from "./useDialog";
 import { useI18n } from "./i18n";
+import type { TranslationKey } from "./i18n";
 import { useProgressMessage, useUserMessage } from "./messages";
 import type { DownloadProgress, Recording, UserMessage } from "./types";
 
@@ -30,6 +32,51 @@ interface OnlineImportProgress {
   phase: OnlineImportPhase;
   percent: number;
   message: string;
+}
+
+/** What the one line under the microphone mark says.
+ *
+ *  **A name where the sentence said nothing.** `Mikrofon je připravený` repeated
+ *  what the strip beside it already shows; the same line carrying
+ *  `Sluchátka Jabra` says that and which one. Only while resting — once a take
+ *  is running, what changed is the state, and that is what the line is for.
+ *
+ *  A device whose driver gives no label keeps the old sentence rather than
+ *  showing an empty line.
+ *
+ *  **Three failures, not one.** `allow_microphone` in `main.rs` answers
+ *  WebView2's permission before anybody is asked, so nothing here is a person
+ *  having refused. What is left is Windows blocking it in Privacy, no device at
+ *  all, and one held by another application — and until 31 August 2026 all
+ *  three said *check the permission in the system settings*, which is the wrong
+ *  errand for two of them.
+ *
+ *  A function rather than a ternary in the markup so that it can be tested: the
+ *  same lesson as `model_to_record` the same day, where a test of the half next
+ *  door passed with the fault put back.
+ */
+export function micStatus(
+  phase: RecorderPhase,
+  suspended: boolean,
+  deviceLabel: string,
+  t: (key: TranslationKey) => string
+): string {
+  if (phase === "preparing" || phase === "idle") return t("dialogs.addRecording.micPreparing");
+  if (phase === "denied") return t("dialogs.addRecording.micDenied");
+  if (phase === "no-device") return t("dialogs.addRecording.micNoDevice");
+  if (phase === "device-busy") return t("dialogs.addRecording.micBusy");
+  if (phase === "recording") {
+    return suspended
+      ? t("dialogs.addRecording.micSuspended")
+      : t("dialogs.addRecording.micRecording");
+  }
+  if (phase === "preview" || phase === "saving") return t("dialogs.addRecording.micStopped");
+  return deviceLabel || t("dialogs.addRecording.micReady");
+}
+
+/** Whether the line is drawn as a failure. The three that are. */
+export function micFailed(phase: RecorderPhase): boolean {
+  return phase === "denied" || phase === "no-device" || phase === "device-busy";
 }
 
 export default function AddRecordingDialog({
@@ -519,18 +566,8 @@ function MicrophoneView({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onBack, onClose]);
 
-  const status =
-    phase === "preparing" || phase === "idle"
-      ? t("dialogs.addRecording.micPreparing")
-      : phase === "denied"
-        ? t("dialogs.addRecording.micDenied")
-        : phase === "recording"
-          ? recorder.suspended
-            ? t("dialogs.addRecording.micSuspended")
-            : t("dialogs.addRecording.micRecording")
-          : phase === "preview" || phase === "saving"
-            ? t("dialogs.addRecording.micStopped")
-            : t("dialogs.addRecording.micReady");
+  const openDevice = recorder.devices.find((d) => d.id === recorder.deviceId);
+  const status = micStatus(phase, recorder.suspended, openDevice?.label ?? "", t);
 
   return (
     <>
@@ -579,7 +616,9 @@ function MicrophoneView({
           </span>
         )}
         <div className="mic-readout">
-          <span className={phase === "denied" ? "mic-status failed" : "mic-status"}>
+          <span
+            className={micFailed(phase) ? "mic-status failed" : "mic-status"}
+          >
             {status}
           </span>
           {(phase === "recording" || phase === "preview" || phase === "saving") && (
