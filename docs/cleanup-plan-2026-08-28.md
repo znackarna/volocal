@@ -53,7 +53,21 @@ speculative `note!` logging. Do not touch the visual system.
   never tracked, rebuilt on every hand-over. Added to `.gitignore`; the file
   stays on disk.
 
-## C. Known latent faults — fix on touch, not on a sweep
+## C. Known latent faults — read against the screen on 31 August, none of them is one
+
+**All four were checked and all four draw correctly today** (see
+`docs/history/2026-08-31.md`). The states can move apart; every combination
+they reach already renders something sensible, and the AI pair is corrected
+every second by a poll of the real backend status. Nothing was changed in any
+of them, because rearranging four working mechanisms to make a shape look safer
+is how a working screen acquires a fault.
+
+What was missing was the test. `src/detail/screen.test.tsx` now mounts the
+whole screen and pins the five behaviours; disabling the summary empty state
+fails two of them. The boxes below stay unticked because the *shape* is still
+worth unifying if one of these files is opened for another reason — but none of
+them is a repair waiting to happen.
+
 
 Recorded here because the list existed only in a conversation. All three are in
 `src/Detail.tsx` (3,507 lines, 53 `useState`, no test renders it whole). The
