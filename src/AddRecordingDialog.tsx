@@ -692,7 +692,26 @@ function MicrophoneView({
           </>
         ) : phase === "preview" || phase === "saving" ? (
           <>
-            <button className="button quiet" onClick={recorder.discard}
+            {/* **And out.** Discarding used to leave the microphone armed in
+                this same dialog, so somebody who had just said they did not
+                want the take was answered with an offer to make another — and
+                then had to press `Zrušit` twice, since that button steps back
+                to the source cards rather than closing. The owner met it on
+                31 August, stopping a take from the minimised pill.
+
+                `Zahodit` means throw this away and be done. Wanting another
+                take right afterwards costs two presses to reopen, which is the
+                right way round: it is the rarer intent and the deliberate one.
+
+                `releaseMicrophone` rather than `discard`: it throws the take
+                away exactly as `discard` does — same `discardTake`, so no
+                rescue is left behind — and also lets the device go, which
+                closing the window should do anyway. */}
+            <button className="button quiet"
+                    onClick={() => {
+                      recorder.releaseMicrophone();
+                      onClose();
+                    }}
                     disabled={phase === "saving"}>
               {t("dialogs.addRecording.micDiscard")}
             </button>
