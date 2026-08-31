@@ -11,6 +11,13 @@ altered, not how, not which file. Entries before 1.2.6 are written the old way
 and are left as they are; they are not a model for the next one. The mechanism
 belongs in `docs/history/`, which is what that folder is for.
 
+## 1.2.22 — 31 August 2026
+
+- **A recording says which model actually made it**, instead of the one that was asked for.
+- **The microphone says which one is in use**, and what to do when it cannot be opened.
+- **A folder can be created in an empty archive.**
+- **The notice about a download closes itself** when the download is finished.
+
 ## 1.2.21 — 26 August 2026
 
 - **Choosing where the transcript computes no longer flashes a warning that was never true.**
