@@ -17,6 +17,7 @@ belongs in `docs/history/`, which is what that folder is for.
 - **The microphone says which one is in use**, and what to do when it cannot be opened.
 - **A folder can be created in an empty archive.**
 - **The notice about a download closes itself** when the download is finished.
+- **Throwing a recording away closes the dialog**, instead of leaving you two more steps from where you wanted to be.
 
 ## 1.2.21 — 26 August 2026
 
