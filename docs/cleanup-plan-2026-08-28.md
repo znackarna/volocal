@@ -40,17 +40,17 @@ speculative `note!` logging. Do not touch the visual system.
   script is identical line for line, both history entries are in place, and the
   branch's one real difference is a bundle language switch pointing at
   `znackarna.github.io`, dead since Pages was switched off. Nothing to save.
-  **Deleting it is the owner's call.**
-- [ ] **Dependabot PR #214** — reviewed on 31 August. All six SHAs resolve to
-  the tags their comments claim. Three of them (`configure-pages`,
-  `upload-pages-artifact`, `deploy-pages`) bump steps `dev` has already deleted.
-  `checkout` v7's breaking change touches `pull_request_target` and
-  `workflow_run`, neither used here. `upload-pages-artifact` v5 stops including
-  dotfiles, which would drop `_site/.nojekyll` if merged into `main` while Pages
-  steps are still there. **Merge, close, or take the three live bumps onto `dev`
-  by hand — the owner's call**, and with it whether
-  `.github/dependabot.yml` gains `target-branch: dev`, which is why these pull
-  requests keep arriving on the wrong branch.
+  **Still standing only because deleting it was refused by this session's
+  permissions**, not because anything in it is wanted. One command:
+  `git push origin --delete prepinac-v-bundlu`. The two commits stay reachable
+  as `e03acbf` and `35f5f4e` if anybody ever wants to read them.
+- [x] **Dependabot PR #214** — closed on 31 August, superseded by `dev`. The
+  three bumps that still apply (`checkout` 7.0.1, `setup-node` 7.0.0,
+  `upload-artifact` 7.0.1) were taken onto `dev` by hand in `837cfa2`, each SHA
+  resolved from the action's own tag rather than copied. The other three bump
+  Pages steps that left `site.yml` on the 27th. `.github/dependabot.yml` now
+  sets `target-branch: dev`, which is why they kept arriving on the wrong
+  branch; `Checks` passed on `dev` with the new versions.
 - [x] **`docs/site/volocal-page.html`** — it is `bundle.py`'s default output,
   never tracked, rebuilt on every hand-over. Added to `.gitignore`; the file
   stays on disk.
