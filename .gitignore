@@ -48,6 +48,11 @@ prenosna.txt
 # Scratch bundle used to render the real components in a browser during review.
 .harness/
 
+# What `docs/site/bundle.py` writes when it is run with no argument. The page
+# in one file, built from `index.html`, which is the source. Rebuilt whenever
+# the page is handed over, so a committed copy would be stale the same day.
+docs/site/volocal-page.html
+
 # Editors and local environment.
 .vscode/
 .idea/

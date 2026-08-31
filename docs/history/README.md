@@ -39,6 +39,7 @@ the time.
 | [2026-08-26](2026-08-26.md) | 23 | The cube comes back out of the panel … |
 | [2026-08-27](2026-08-27.md) | 26 | The four times in the wizard were measured all along … |
 | [2026-08-28](2026-08-28.md) | 2 | The two failures worth logging were the two not being logged … |
+| [2026-08-31](2026-08-31.md) | 1 | The three pieces of ballast, and what each one turned out to be … |
 
 ## What each day was about
 
@@ -98,3 +99,5 @@ the time.
 
 
 **[2026-08-28](2026-08-28.md)** — Asked whether the log can find a fault, and the answer was mostly no: thirty-seven of sixty-eight `note!` calls are in `main.rs`, so the record is dense around startup and the archive and thin everywhere else. The gap that mattered was not thinness but two classes of failure leaving no trace at all — a Rust panic, which had no hook and went to a stderr a released build cannot see, and a crash in the window, whose text `ErrorBoundary` already assembled and only ever showed on screen. Both faults the owner found himself this week are in React and would have left the log silent. The hook goes in as the first statement of `main` and names the thread; `note_crash` takes the boundary’s own text, capped from the top so one crash cannot push out what led to it, unawaited and swallowing every failure so a throw while handling a throw cannot take the crash screen down. Tested on both sides, and the thinness itself deliberately left alone. And the day ends with `docs/cleanup-plan-2026-08-28.md` — the tidy-up list for the next session, written as a file because the last plan of its kind lived only in a session transcript; it carries the three latent state pairs found in `Detail.tsx`, the parked guards, and the decisions that are the owner's to make.
+
+**[2026-08-31](2026-08-31.md)** — Point B of the tidy-up plan, looked into: the untracked `volocal-page.html` is `bundle.py`'s own output and goes into `.gitignore`, `site-on-vercel` had already been merged and deleted, and `prepinac-v-bundlu` turns out to be behind `dev` with a dead github.io address as its only difference. Dependabot's six pins all check out against their tags, but three of them touch Pages steps that `dev` has already removed, and the config has no `target-branch`, which is why its pull requests keep landing on `main`.
