@@ -11,11 +11,18 @@ import "@fontsource-variable/source-serif-4/wght.css";
 
 import App from "./App";
 import ErrorBoundary from "./ErrorBoundary";
+import { keepUncaughtErrors } from "./crashlog";
 import { applyTheme, rememberedTheme } from "./types";
 import { I18nProvider } from "./i18n";
 import { PlayerProvider } from "./player";
 import { RecorderProvider } from "./recorder";
 import "./styles.css";
+
+// Before anything else, so that a throw while the tree is being set up is
+// written down too. `ErrorBoundary` catches a throw during render; this catches
+// the quiet kind React does not route to it — one inside an event handler,
+// which is how a button comes to do nothing at all.
+keepUncaughtErrors();
 
 // Right-click would otherwise open the rendering engine's own menu — Back,
 // Reload, Inspect — which makes no sense inside the app. It stays available

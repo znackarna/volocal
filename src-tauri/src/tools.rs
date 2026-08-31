@@ -1735,6 +1735,38 @@ mod needed_tests {
         );
     }
 
+    /// **The reported state of 31 August, and what the recording must record.**
+    /// An uninstall keeps the archive, so the settings survived naming
+    /// `large-v3` while the reinstalled copy had only the fast model on disk.
+    /// The transcription ran on the fast one — correctly, it has to run — and
+    /// the card over it said `Přesný`, because the wish was written down
+    /// instead of the answer.
+    ///
+    /// This pins the value `transcription::run` now stores: the id `check`
+    /// resolved, which is a model that exists, and never `settings.model`.
+    #[test]
+    fn the_answer_and_not_the_wish_is_what_a_recording_can_be_labelled_with() {
+        let settings = bare_machine("resolve-stale-wish", "large-v3");
+        std::fs::write(
+            std::path::Path::new(&settings.models_directory).join("ggml-large-v3-turbo-q5_0.bin"),
+            b"a file with the right name",
+        )
+        .expect("model");
+
+        let found = check(&settings);
+
+        assert_eq!(
+            found.model_whisper_id.as_deref(),
+            Some("large-v3-turbo-q5_0"),
+            "the wish names a model that is not here, so the one that is answers"
+        );
+        assert_ne!(
+            found.model_whisper_id.as_deref(),
+            Some(settings.model.as_str()),
+            "and the two differ, which is the whole case being pinned"
+        );
+    }
+
     /// The setting still wins where it can be honoured, which is the whole
     /// point of it. A machine holding both models transcribes with the chosen
     /// one and not with whichever the fallback would have reached first.

@@ -190,7 +190,20 @@ export function RecorderProvider({ children }: { children: ReactNode }) {
 
   const start = useCallback(() => {
     const media = stream.current;
-    if (!media || phaseRef.current !== "ready") return;
+    /* **Says why, rather than doing nothing.** Both of these are ordinary — the
+       microphone not open yet, a take already running — and both used to leave
+       a pressed button with no answer, which is indistinguishable from the
+       application being broken. The line goes to the log beside the archive;
+       there is nothing here worth interrupting somebody with. */
+    if (!media || phaseRef.current !== "ready") {
+      void api
+        .noteCrash(
+          `recording refused to start: stream ${media ? "open" : "absent"}, phase ${phaseRef.current}`,
+          ""
+        )
+        .catch(() => {});
+      return;
+    }
     equalizer.current = [];
     // Opus in WebM is what Chromium records natively; the backend converts,
     // so the container only has to be something ffmpeg reads.

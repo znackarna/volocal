@@ -414,6 +414,30 @@ fn run_diarization(
     Ok(key.len())
 }
 
+/// What a recording says it was made with.
+///
+/// **The answer, never the wish.** `settings.model` is what was asked for;
+/// `check.model_whisper_id` is the file that will actually be handed to
+/// `whisper-cli`, and the two part company whenever the wish names a model that
+/// is not on the disk — `resolve_transcription_model` then falls back to
+/// whatever is, deliberately, because a transcription has to run.
+///
+/// The owner met the difference on 31 August. An uninstall keeps the archive,
+/// so a settings record naming `large-v3` outlived the installation that wrote
+/// it; the reinstalled copy held only the fast model, transcribed with it
+/// correctly, and the card over the result said `Přesný`.
+///
+/// The wish is left alone in the settings — this only corrects the recording's
+/// own note of what produced it. The fallback is unreachable in practice, a
+/// missing model being an issue that stops the run before this line; it is here
+/// because nothing in the type says so.
+fn model_to_record(check: &tools::ToolCheck, settings: &crate::db::Settings) -> String {
+    check
+        .model_whisper_id
+        .clone()
+        .unwrap_or_else(|| settings.model.clone())
+}
+
 fn run(
     app: &AppHandle,
     db_path: &Path,
@@ -434,12 +458,29 @@ fn run(
     let dictionary = db::dictionary(&connection)?;
 
     db::set_status(&connection, recording_id, db::status::TRANSCRIBING, None)?;
-    db::set_model(&connection, recording_id, &settings.model)?;
 
     let check = tools::check(&settings);
     if let Some(issue) = check.issues.first() {
         return Err(issue.clone());
     }
+    /* **What ran, not what was asked for.** `settings.model` is a wish;
+    `resolve_transcription_model` answers it with a file that exists, falling
+    back to whatever is on the disk when the wish is not there — deliberately,
+    because a transcription has to run. Recording the wish meant the card
+    could say `Přesný` over a transcript the fast model wrote, and the owner
+    met exactly that on 31 August: a settings record surviving an uninstall
+    named a model his reinstalled copy no longer had.
+
+    The wish stays untouched in the settings; only the recording's own note
+    of what produced it is corrected. `model_whisper_id` is always `Some`
+    here, because a missing model is an issue and the line above returns on
+    it — but nothing in the type says so, so the wish is the fallback rather
+    than a panic. */
+    db::set_model(
+        &connection,
+        recording_id,
+        &model_to_record(&check, &settings),
+    )?;
     stop_if_cancelled(task, recording_id)?;
 
     // --------------------------------------------------------- preparation
@@ -1001,5 +1042,41 @@ mod onset_tests {
             (found - 0.75).abs() <= TOLERANCE,
             "expected the onset within a frame of 0.75 s, got {found}"
         );
+    }
+
+    /// **The fault of 31 August, at the line that caused it.** An uninstall
+    /// keeps the archive, so a settings record naming `large-v3` outlived the
+    /// installation that wrote it. The reinstalled copy had only the fast model,
+    /// ran on it — correctly — and the card over the transcript said `Přesný`.
+    ///
+    /// Pinned here rather than in `tools.rs`, where a test of the resolving
+    /// alone passes with this line put back the way it was. What has to hold is
+    /// the choice this file makes about what to write down.
+    #[test]
+    fn a_recording_records_the_model_that_ran_not_the_one_that_was_wished_for() {
+        let settings = crate::db::Settings {
+            model: "large-v3".into(),
+            ..Default::default()
+        };
+        let check = tools::ToolCheck {
+            model_whisper_id: Some("large-v3-turbo-q5_0".into()),
+            ..Default::default()
+        };
+
+        assert_eq!(model_to_record(&check, &settings), "large-v3-turbo-q5_0");
+    }
+
+    /// With nothing resolved there is nothing better to say than what was asked
+    /// for. Unreachable through `run`, which stops on a missing model before
+    /// this — kept because the type allows it.
+    #[test]
+    fn with_no_model_resolved_the_wish_is_all_there_is() {
+        let settings = crate::db::Settings {
+            model: "large-v3".into(),
+            ..Default::default()
+        };
+        let check = tools::ToolCheck::default();
+
+        assert_eq!(model_to_record(&check, &settings), "large-v3");
     }
 }
