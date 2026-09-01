@@ -238,6 +238,27 @@ export const csDetail = {
   "detail.dictionary.savedApplied.other":
     "„{from}“ → „{to}“ je ve slovníku. Opraveno i na {count} dalších místech.",
 
+  // Jazyk, který v nahrávce zazněl a v přepisu chybí. Objeví se jen tehdy,
+  // když ho vzorkování opravdu našlo — u jednojazyčné nahrávky nikdy.
+  "detail.secondLanguage.missing":
+    "V nahrávce se mluví také {language} a v přepisu to chybí.",
+  "detail.secondLanguage.fill": "Doplnit",
+  "detail.secondLanguage.filling": "Doplňuji…",
+  "detail.secondLanguage.no": "Nechat být",
+  "detail.secondLanguage.added.one": "Doplnili jsme jeden chybějící úsek.",
+  "detail.secondLanguage.added.few": "Doplnili jsme {count} chybějící úseky.",
+  "detail.secondLanguage.added.many": "Doplnili jsme {count} chybějících úseků.",
+  "detail.secondLanguage.added.other": "Doplnili jsme {count} chybějících úseků.",
+
+  // Jména jazyků ve větě „mluví se také anglicky“, tedy příslovce.
+  "detail.language.en": "anglicky",
+  "detail.language.de": "německy",
+  "detail.language.sk": "slovensky",
+  "detail.language.pl": "polsky",
+  "detail.language.uk": "ukrajinsky",
+  "detail.language.ru": "rusky",
+  "detail.language.cs": "česky",
+
   "detail.segment.wordHint": "Kliknutí přesune přehrávání, dvojklik otevře úpravu textu",
   "detail.segment.editedHint": "Ručně upraveno",
 } as const;

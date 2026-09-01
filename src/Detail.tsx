@@ -43,6 +43,8 @@ import type { SidebarOpenSections, SidebarSectionName } from "./detail/sidebar";
 import { transcriptKey } from "./detail/keys";
 import { TranscriptSearch } from "./detail/TranscriptSearch";
 import { TranscriptTips } from "./detail/TranscriptTips";
+import { SecondLanguageBar } from "./detail/SecondLanguageBar";
+import { useSecondLanguage } from "./detail/useSecondLanguage";
 import { DetailProgress } from "./detail/DetailProgress";
 import { DetailHeader } from "./detail/DetailHeader";
 import { NotesSection } from "./detail/NotesSection";
@@ -253,6 +255,11 @@ export default function Detail({
      the cursor between them — lives in `useTranscriptSearch`; what stays here
      is the keyboard, which belongs to the screen. */
   const search = useTranscriptSearch(segments);
+
+  /* A language the recording holds and the transcript does not. It draws
+     nothing at all unless a sweep found one, which on an ordinary recording is
+     never. `load` is handed in because filling rewrites every block. */
+  const secondLanguage = useSecondLanguage({ recordingId: id, onError, reload: load });
 
   const exportRecording = useCallback(
     async (format: string) => {
@@ -717,6 +724,11 @@ export default function Detail({
           )}
         />
       )}
+
+      {/* Above the shortcuts, because it is news about this transcript rather
+          than help with reading it — and it is the one thing on this screen
+          that says the text in front of the reader is incomplete. */}
+      <SecondLanguageBar offer={secondLanguage} />
 
       {/* Only over a transcript: the shortcuts are about reading one. */}
       {segments.length > 0 && <TranscriptTips />}

@@ -194,6 +194,10 @@ export const api = {
   aiEditStatus: () =>
     Promise.resolve({ document: null, outputs: [], custom: [], running: false, progress: null }),
   fileExists: () => Promise.resolve(true),
+  /* Asked by the transcript screen the moment it opens. Nothing found is the
+     ordinary answer, and it is the only one these tests want: the shell's own
+     behaviour has nothing to do with what language a recording is in. */
+  secondLanguage: () => Promise.resolve(null),
 };
 
 /** Call from inside `vi.mock("../api", ...)`. */

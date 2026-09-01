@@ -204,6 +204,27 @@
 }
 .shortcuts-hide:hover { background: hsl(var(--ds-foreground) / 0.1); color: var(--text); }
 
+/* A language the transcript is missing.
+   Sits above the shortcuts strip and takes the same 7/18 padding and the same
+   bottom rule, so the two read as one band when both are up. What it does not
+   share is the quiet colour: this one is news, and news the reader is meant to
+   act on, so it carries the accent line the strip deliberately does not. */
+.second-language {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 9px 18px; border-bottom: 1px solid var(--line);
+  background: hsl(var(--ds-accent) / 0.07);
+  border-left: 3px solid var(--accent);
+  font-size: 13px; color: var(--text);
+}
+.second-language-text { flex: 1; min-width: 220px; }
+/* The finished state is not an offer and must not look like one: the work is
+   done, so the accent comes off and only the count remains. */
+.second-language.done {
+  background: var(--subtle); border-left-color: var(--line);
+  color: var(--text-quiet);
+}
+.second-language.done > span { flex: 1; min-width: 220px; }
+
 /* The strip used to borrow the sidebar's small-caps rule and then undo every
    part of it with `!important`. It has its own settings now; only the label
    is in small caps, as headings are everywhere else. */

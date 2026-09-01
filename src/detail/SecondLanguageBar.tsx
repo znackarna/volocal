@@ -1,0 +1,72 @@
+/**
+ * The one line that says a language is missing from this transcript.
+ *
+ * It appears only when a sweep found one and the reader has not answered, which
+ * on almost every recording is never. That is deliberate: a feature that shows
+ * nothing on an ordinary recording costs its reader no attention at all.
+ *
+ * One question, one button. The reader is not asked which language, or which
+ * part, or how — the sweep already knows, and a question somebody cannot answer
+ * from what is in front of them is not a question worth asking.
+ */
+import { useI18n } from "../i18n";
+import { LineIcon } from "../icons";
+import type { SecondLanguageOffer } from "./useSecondLanguage";
+
+/** The languages a recording is likely to hold beside Czech, named rather than
+ *  shown as a code. A code with no name here is shown as it is, which is worse
+ *  but never wrong. */
+const NAMES: Record<string, string> = {
+  // i18n-ignore: language names come from the dictionary through `tDynamic`
+  en: "detail.language.en",
+  de: "detail.language.de",
+  sk: "detail.language.sk",
+  pl: "detail.language.pl",
+  uk: "detail.language.uk",
+  ru: "detail.language.ru",
+  cs: "detail.language.cs",
+};
+
+export function SecondLanguageBar({ offer }: { offer: SecondLanguageOffer }) {
+  const { t, tDynamic, tPlural } = useI18n();
+  const { state, actions } = offer;
+
+  if (state.added !== null) {
+    return (
+      <div className="second-language done" role="status">
+        <LineIcon name="review" />
+        <span>{tPlural("detail.secondLanguage.added", state.added)}</span>
+        <button className="button quiet" onClick={actions.clearCount}>
+          {t("common.close")}
+        </button>
+      </div>
+    );
+  }
+
+  if (!state.offered || !state.found) return null;
+
+  const language = NAMES[state.found.language]
+    ? tDynamic(NAMES[state.found.language], state.found.language)
+    : state.found.language.toUpperCase();
+
+  return (
+    <div className="second-language">
+      <LineIcon name="transcription" />
+      <span className="second-language-text">
+        {t("detail.secondLanguage.missing", { language })}
+      </span>
+      <button className="button" onClick={() => void actions.fill()} disabled={state.filling}>
+        {state.filling
+          ? t("detail.secondLanguage.filling")
+          : t("detail.secondLanguage.fill")}
+      </button>
+      <button
+        className="button quiet"
+        onClick={() => void actions.refuse()}
+        disabled={state.filling}
+      >
+        {t("detail.secondLanguage.no")}
+      </button>
+    </div>
+  );
+}
