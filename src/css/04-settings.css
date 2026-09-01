@@ -180,9 +180,16 @@
   margin: 0; font-size: 19px; line-height: 1.25; font-weight: 700;
   letter-spacing: -0.018em;
 }
+/* `anywhere` and not `break-all`, and the difference is the whole rule.
+   `break-all` breaks between any two letters at the end of every line, whether
+   or not the word would have fitted on the next one — which is how
+   `Volocal.exe` came to be printed as `Vo` and `local.exe`. `anywhere` breaks
+   inside a word only when the word cannot fit on a line by itself, so the file
+   name moves down whole and the long install path, which fits nowhere, still
+   breaks rather than running out of its card. */
 .settings code {
   font-size: 12px; background: var(--muted); padding: 2px 7px;
-  border-radius: var(--r-small); word-break: break-all;
+  border-radius: var(--r-small); overflow-wrap: anywhere;
 }
 
 .settings-section-description {
