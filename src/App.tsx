@@ -8,14 +8,12 @@ import { MiniPlayer, usePlayer } from "./player";
 import { MiniRecorder } from "./recorder";
 import Library from "./Library";
 import ConfirmationDialog from "./ConfirmationDialog";
-import CountdownRing from "./CountdownRing";
 import NameDialog from "./NameDialog";
 import Tooltips from "./Tooltips";
 import AddRecordingDialog from "./AddRecordingDialog";
 import SpeakerCountDialog from "./SpeakerCountDialog";
 import RecordingMetadataIcon from "./RecordingMetadataIcon";
 import ProgressBubble from "./ProgressBubble";
-import type { CSSProperties } from "react";
 import type { RecordingMetadataKind } from "./RecordingMetadataIcon";
 import { Wordmark } from "./Brand";
 /* Imported plainly rather than behind `await import(...)`. Deferring it looked
@@ -27,6 +25,9 @@ import { Wordmark } from "./Brand";
 import { check as checkForUpdate } from "@tauri-apps/plugin-updater";
 import type { ConfirmationRequest } from "./ConfirmationDialog";
 import { formatTime, applyFonts, applyTheme, fileName, noteUpdateCheck } from "./types";
+import { useNotices } from "./app/useNotices";
+import { useWatchFolder } from "./app/useWatchFolder";
+import { NoticeBar } from "./app/NoticeBar";
 import { rememberSpeakerNames } from "./speakerNames";
 import { computeFellBack } from "./compute";
 import { useI18n } from "./i18n";
@@ -167,8 +168,6 @@ function FooterStatusItem({
 /** How long the notice bar stays before it leaves on its own. The countdown
  *  ring in the bar is handed the same number, so the picture and the timer
  *  cannot disagree. */
-const NOTICE_LIFE = { info: 5000, error: 9000 } as const;
-
 /** The order the pipeline goes through. Used only to spot a report that
  *  arrives out of turn. */
 const PHASE_ORDER = [
@@ -263,10 +262,6 @@ export default function App() {
    *  files chosen by hand, this one to files that arrive without anybody
    *  looking at the screen. */
   const [watchAuto, setWatchAuto] = useState(false);
-  /* The scan effect is created once and cannot see later state, so the switch
-     and the handler reach it through refs. */
-  const watchAutoRef = useRef(false);
-  const autoTranscribeRef = useRef<((files: WatchFolderCandidate[]) => void) | null>(null);
   /** Recordings waiting for that answer before they start. */
   /** Recordings whose speakers are being separated right now. The screens
    *  cannot tell from the progress alone, because the first event arrives a
@@ -286,8 +281,6 @@ export default function App() {
      gives it rather than by its id. */
   const [catalogItems, setCatalogItems] = useState<DownloadComponent[]>([]);
   const [liveSegments, setLiveSegments] = useState<Record<string, LiveSegment[]>>({});
-  const [watchCandidates, setWatchCandidates] = useState<WatchFolderCandidate[]>([]);
-  const [watchDecisionRunning, setWatchDecisionRunning] = useState(false);
   const [check, setCheck] = useState<ToolCheck | null>(null);
   const [dragging, setDragging] = useState(false);
   /**
@@ -298,57 +291,13 @@ export default function App() {
    * was added to the dictionary is not a warning, and shouting it in red made
    * a routine action feel like a fault.
    */
-  const [notice, setNotice] = useState<{
-    text: string;
-    kind: "info" | "error";
-    /** A way on, for the rare notice that names something the reader may want
-     *  to go and do. Without it a bar can only describe a place and hope the
-     *  reader finds it — which is what the update notice did, in prose, at a
-     *  tab that has since been renamed. */
-    action?: { label: string; run: () => void };
-  } | null>(null);
-  const [noticeClosing, setNoticeClosing] = useState(false);
+  const notices = useNotices();
+  const reportError = notices.actions.error;
+  const reportInfo = notices.actions.info;
 
   // Rust sends a code, not a sentence; these turn one into the other.
   const userMessage = useUserMessage();
   const progressMessage = useProgressMessage();
-  const reportError = useCallback((text: string) => {
-    setNoticeClosing(false);
-    setNotice({ text, kind: "error" });
-  }, []);
-  const reportInfo = useCallback(
-    (text: string, action?: { label: string; run: () => void }) => {
-      setNoticeClosing(false);
-      setNotice({ text, kind: "info", action });
-    },
-    []
-  );
-
-  // A notice that stays until it is dismissed becomes furniture. Give it long
-  // enough to be read twice and then let it go on its own; the Close button
-  // remains for anyone who has already read it.
-  //
-  // Errors linger longer than confirmations — a confirmation only says that
-  // what you asked for happened, an error asks you to do something about it.
-  //
-  // A notice carrying an action does not leave on its own, and neither does it
-  // draw the ring: the ring exists to say *this will go, and this soon*, and a
-  // button that walks away while it is being read is worse than no button. One
-  // press decides it — the way on, or Close.
-  useEffect(() => {
-    if (!notice) return;
-    if (notice.action && !noticeClosing) return;
-    const delay = noticeClosing ? 280 : NOTICE_LIFE[notice.kind];
-    const timer = setTimeout(() => {
-      if (noticeClosing) {
-        setNotice(null);
-        setNoticeClosing(false);
-      } else {
-        setNoticeClosing(true);
-      }
-    }, delay);
-    return () => clearTimeout(timer);
-  }, [notice, noticeClosing]);
   const [query, setQuery] = useState<ConfirmationRequest | null>(null);
   const [addRecordingOpen, setAddRecordingOpen] = useState(false);
 
@@ -356,9 +305,6 @@ export default function App() {
   // fit them to their eyes rather than the other way round.
   const automaticRef = useRef(automatic);
   automaticRef.current = automatic;
-  const watchScanRunning = useRef(false);
-  const watchDecisionRunningRef = useRef(false);
-  const lastWatchError = useRef("");
 
   const [archiveSetup, setArchiveSetup] = useState({ model: "", watchFolder: "" });
   /* Which view the add dialog opens on. The mini recorder reopens it straight
@@ -665,51 +611,6 @@ export default function App() {
     }, 60_000);
     return () => window.clearInterval(id);
   }, [loadToolCheck]);
-
-  // The watch folder deliberately uses a modest poll instead of a permanent
-  // operating-system watcher. It keeps the feature portable and, together
-  // with the backend's two-scan stability check, never opens a file midway
-  // through a copy.
-  useEffect(() => {
-    let alive = true;
-    const scan = async () => {
-      if (watchScanRunning.current || watchDecisionRunningRef.current) return;
-      watchScanRunning.current = true;
-      try {
-        const found = await api.scanWatchFolder();
-        if (!alive || watchDecisionRunningRef.current) return;
-        lastWatchError.current = "";
-        /* Transcribing right away is the point of the switch: the files
-           arrive while nobody is looking at the screen, so a question in the
-           Archive would only keep them waiting. */
-        if (found.length > 0 && watchAutoRef.current && autoTranscribeRef.current) {
-          autoTranscribeRef.current(found);
-          return;
-        }
-        /* The scan answers every five seconds, almost always with the same
-           thing — usually with nothing at all. A fresh array is a new
-           reference, and storing it re-rendered the whole application twelve
-           times a minute for a list that had not changed. */
-        setWatchCandidates((current) => (sameCandidates(current, found) ? current : found));
-      } catch (error) {
-        const message = userMessage(error);
-        if (alive && lastWatchError.current !== message) {
-          lastWatchError.current = message;
-          reportError(message);
-        }
-      } finally {
-        watchScanRunning.current = false;
-      }
-    };
-
-    const initial = window.setTimeout(scan, 1200);
-    const interval = window.setInterval(scan, 5000);
-    return () => {
-      alive = false;
-      window.clearTimeout(initial);
-      window.clearInterval(interval);
-    };
-  }, [reportError, userMessage]);
 
   useEffect(() => {
     loadAppearance();
@@ -1250,95 +1151,14 @@ export default function App() {
   const blockingIssues = useMemo(() => check?.issues ?? [], [check]);
   const player = usePlayer();
 
-  const transcribeWatchCandidates = useCallback(async (candidates: WatchFolderCandidate[]) => {
-    if (candidates.length === 0 || watchDecisionRunningRef.current) return;
-    watchDecisionRunningRef.current = true;
-    setWatchDecisionRunning(true);
-    try {
-      const added = await api.importWatchFolderFiles(candidates);
-      // One question for the whole batch: they came out of the same folder and
-      // are almost always the same kind of recording.
-      await beginTranscription(added.map((recording) => recording.id));
-      const handled = new Set(candidates.map((candidate) => `${candidate.path}:${candidate.fingerprint}`));
-      setWatchCandidates((current) => current.filter(
-        (candidate) => !handled.has(`${candidate.path}:${candidate.fingerprint}`)
-      ));
-      await loadRecordings();
-      reportInfo(tPlural("app.watchFolder.transcribing", added.length));
-    } catch (error) {
-      reportError(userMessage(error));
-    } finally {
-      watchDecisionRunningRef.current = false;
-      setWatchDecisionRunning(false);
-    }
-  }, [loadRecordings, reportError, reportInfo, tPlural, userMessage]);
-
-  /** The same import, without the questions. Started by the watched folder
-   *  itself, so it uses the stored number of speakers instead of asking — an
-   *  automatic import that opens a modal is not automatic. */
-  const autoTranscribeWatchCandidates = useCallback(
-    async (candidates: WatchFolderCandidate[]) => {
-      if (candidates.length === 0 || watchDecisionRunningRef.current) return;
-      watchDecisionRunningRef.current = true;
-      setWatchDecisionRunning(true);
-      try {
-        const added = await api.importWatchFolderFiles(candidates);
-        await runTranscription(added.map((recording) => recording.id), undefined, null);
-        setWatchCandidates([]);
-        await loadRecordings();
-        reportInfo(tPlural("app.watchFolder.transcribing", added.length));
-      } catch (error) {
-        reportError(userMessage(error));
-      } finally {
-        watchDecisionRunningRef.current = false;
-        setWatchDecisionRunning(false);
-      }
-    },
-    [loadRecordings, reportError, reportInfo, runTranscription, tPlural, userMessage]
-  );
-
-  useEffect(() => {
-    watchAutoRef.current = watchAuto;
-    autoTranscribeRef.current = autoTranscribeWatchCandidates;
-  }, [watchAuto, autoTranscribeWatchCandidates]);
-
-  const addWatchCandidates = useCallback(async (candidates: WatchFolderCandidate[]) => {
-    if (candidates.length === 0 || watchDecisionRunningRef.current) return;
-    watchDecisionRunningRef.current = true;
-    setWatchDecisionRunning(true);
-    try {
-      const added = await api.importWatchFolderFiles(candidates);
-      const handled = new Set(candidates.map((candidate) => `${candidate.path}:${candidate.fingerprint}`));
-      setWatchCandidates((current) => current.filter(
-        (candidate) => !handled.has(`${candidate.path}:${candidate.fingerprint}`)
-      ));
-      await loadRecordings();
-      reportInfo(tPlural("app.watchFolder.added", added.length));
-    } catch (error) {
-      reportError(userMessage(error));
-    } finally {
-      watchDecisionRunningRef.current = false;
-      setWatchDecisionRunning(false);
-    }
-  }, [loadRecordings, reportError, reportInfo, tPlural, userMessage]);
-
-  const ignoreWatchCandidates = useCallback(async (candidates: WatchFolderCandidate[]) => {
-    if (candidates.length === 0 || watchDecisionRunningRef.current) return;
-    watchDecisionRunningRef.current = true;
-    setWatchDecisionRunning(true);
-    try {
-      await api.ignoreWatchFolderFiles(candidates);
-      const handled = new Set(candidates.map((candidate) => `${candidate.path}:${candidate.fingerprint}`));
-      setWatchCandidates((current) => current.filter(
-        (candidate) => !handled.has(`${candidate.path}:${candidate.fingerprint}`)
-      ));
-    } catch (error) {
-      reportError(userMessage(error));
-    } finally {
-      watchDecisionRunningRef.current = false;
-      setWatchDecisionRunning(false);
-    }
-  }, [reportError, userMessage]);
+  const watch = useWatchFolder({
+    automatic: watchAuto,
+    beginTranscription,
+    runTranscription,
+    reload: loadRecordings,
+    onError: reportError,
+    onInfo: reportInfo,
+  });
 
   const archiveFooterStatus = useMemo(() => {
     const completed = recordings.filter((recording) => recording.status === "done");
@@ -1515,37 +1335,7 @@ export default function App() {
       </header>
       )}
 
-      {notice && (
-        <div
-          className={`notice ${notice.kind}${noticeClosing ? " leaving" : ""}`}
-          role={notice.kind === "error" ? "alert" : "status"}
-          /* The ring empties over exactly the time the timer above waits, so
-             the number lives here and the stylesheet only draws it. */
-          style={{ "--notice-life": `${NOTICE_LIFE[notice.kind]}ms` } as CSSProperties}
-        >
-          {/* The ring empties over the seconds the bar has left, so it is
-              visible that it will go on its own — and how soon. A bar that
-              waits does not draw it: an emptying ring over a bar that is not
-              leaving is a promise about the wrong thing. */}
-          {!notice.action && <CountdownRing className="notice-countdown" size={16} />}
-          <span>{notice.text}</span>
-          {/* The way on before the way out, and the strong one of the two.
-              Reading order is the order of the two answers: here is the thing,
-              go to it, or not now. */}
-          {notice.action && (
-            <button
-              className="notice-action"
-              onClick={() => {
-                notice.action?.run();
-                setNoticeClosing(true);
-              }}
-            >
-              {notice.action.label}
-            </button>
-          )}
-          <button onClick={() => setNoticeClosing(true)}>{t("common.close")}</button>
-        </div>
-      )}
+      <NoticeBar notices={notices} />
 
       {screen === "library" && (
         <Library
@@ -1555,11 +1345,11 @@ export default function App() {
           liveSegments={liveSegments}
           issues={blockingIssues}
           fetching={!!downloading}
-          watchCandidates={watchCandidates}
-          watchDecisionRunning={watchDecisionRunning}
-          onTranscribeWatchCandidates={transcribeWatchCandidates}
-          onIgnoreWatchCandidates={ignoreWatchCandidates}
-          onAddWatchCandidates={addWatchCandidates}
+          watchCandidates={watch.state.candidates}
+          watchDecisionRunning={watch.state.deciding}
+          onTranscribeWatchCandidates={watch.actions.transcribe}
+          onIgnoreWatchCandidates={watch.actions.ignore}
+          onAddWatchCandidates={watch.actions.add}
           onOpen={openRecording}
           onExportAudio={exportAudio}
           folders={folders}
