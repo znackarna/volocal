@@ -115,8 +115,17 @@ export function useTranscriptSearch(segments: Segment[]): TranscriptSearch {
   const next = useCallback(() => goTo(at + 1), [at, goTo]);
   const previous = useCallback(() => goTo(at - 1), [at, goTo]);
 
-  return {
-    state: {
+  /* Both halves are memoised, and that is not tidiness.
+   *
+   * The transcript screen's keyboard handler lists this hook among its
+   * dependencies, and the screen re-renders on every tick of the clock — eight
+   * times a second while audio plays. A fresh object each render would tear the
+   * window's keydown listener down and put it back on every one of them. Before
+   * this hook existed the same effect listed `finding`, `findAt` and two stable
+   * callbacks, and re-armed only when the search actually changed; these two
+   * memos are what keeps that true. */
+  const state = useMemo(
+    () => ({
       open,
       query,
       at: hits.length === 0 ? 0 : at + 1,
@@ -125,7 +134,14 @@ export function useTranscriptSearch(segments: Segment[]): TranscriptSearch {
       needle: hits.length > 0 ? needle : undefined,
       hitId: hits[at],
       field,
-    },
-    actions: { open: raise, close, toggle, write: setQuery, next, previous },
-  };
+    }),
+    [at, hits, needle, open, query]
+  );
+
+  const actions = useMemo(
+    () => ({ open: raise, close, toggle, write: setQuery, next, previous }),
+    [close, next, previous, raise, toggle]
+  );
+
+  return useMemo(() => ({ state, actions }), [actions, state]);
 }
