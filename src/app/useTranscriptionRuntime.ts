@@ -13,6 +13,14 @@
  * nothing and the listener is left hanging — events would then be handled
  * twice.
  *
+ * **The listeners are armed once, and everything they need arrives through a
+ * ref.** The shell re-renders often — a progress event, a notice, a folder
+ * opening — and an effect that listed its callbacks among its dependencies
+ * would unsubscribe all seven and re-subscribe them asynchronously on each of
+ * those renders, leaving a window in which a backend event has nowhere to
+ * land. The ref is written on every render, so a handler armed at mount still
+ * calls the current callback.
+ *
  * **A run is over for a recording whichever kind it was.** Both terminal
  * events clear the job state. Without that the diarizing flag never comes
  * down: the transcript screen keeps a bubble frozen at 100 %, hides the
@@ -20,7 +28,7 @@
  * is running — leaves the recording unplayable until the application is
  * restarted.
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { useProgressMessage, useUserMessage } from "../messages";
 import type {
@@ -115,6 +123,11 @@ export function useTranscriptionRuntime({
   const userMessage = useUserMessage();
   const progressMessage = useProgressMessage();
 
+  /* Everything the handlers reach for, kept current without being a reason to
+     re-arm them. See the note at the top. */
+  const latest = useRef({ reload, reloadToolCheck, onError, userMessage, progressMessage });
+  latest.current = { reload, reloadToolCheck, onError, userMessage, progressMessage };
+
   const [progress, setProgress] = useState<Record<string, TranscriptionProgress>>({});
   const [aiProgress, setAiProgress] = useState<Record<string, AiEditProgress>>({});
   const [liveSegments, setLiveSegments] = useState<Record<string, LiveSegment[]>>({});
@@ -183,7 +196,7 @@ export function useTranscriptionRuntime({
     add(
       listen<string>("transcription:complete", (u) => {
         finishJob(u.payload);
-        reload();
+        latest.current.reload();
       })
     );
 
@@ -198,7 +211,8 @@ export function useTranscriptionRuntime({
           delete updated[next.recording_id];
           return updated;
         });
-        if (next.phase === "error") onError(progressMessage(next.description));
+        if (next.phase === "error")
+          latest.current.onError(latest.current.progressMessage(next.description));
       })
     );
 
@@ -242,15 +256,15 @@ export function useTranscriptionRuntime({
            `resolve_transcription_model` in `tools.rs` asks the disk instead,
            every time anything is checked. There is no note to keep in step, so
            there is no note to go stale. */
-        reloadToolCheck();
+        latest.current.reloadToolCheck();
       })
     );
 
     add(
       listen<[string, UserMessage]>("transcription:error", (u) => {
         finishJob(u.payload[0]);
-        onError(userMessage(u.payload[1]));
-        reload();
+        latest.current.onError(latest.current.userMessage(u.payload[1]));
+        latest.current.reload();
       })
     );
 
@@ -258,7 +272,9 @@ export function useTranscriptionRuntime({
       alive = false;
       unlisten.forEach((f) => f());
     };
-  }, [onError, progressMessage, reload, reloadToolCheck, userMessage]);
+    // Armed once. Everything that changes is read through `latest`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return {
     state: { progress, aiProgress, liveSegments, diarizingIds, downloading },
