@@ -42,7 +42,6 @@ import {
 import { useFormats } from "./formats";
 import { forgetSpeakerName, returnSpeakerName, useSpeakerNamePool } from "./speakerNames";
 import { useProgressiveList } from "./progressiveList";
-import ProgressBubble from "./ProgressBubble";
 /* The transcript screen's own parts. They were all in this file until it had
    grown to 3 688 lines; each of these is a piece somebody reads on its own. */
 import {
@@ -80,6 +79,8 @@ import {
 } from "./detail/notes";
 import { transcriptKey } from "./detail/keys";
 import { TranscriptSearch } from "./detail/TranscriptSearch";
+import { TranscriptTips } from "./detail/TranscriptTips";
+import { DetailProgress } from "./detail/DetailProgress";
 import { useTranscriptSearch } from "./detail/useTranscriptSearch";
 import { MENU_ICONS, TranscriptContextMenu } from "./detail/TranscriptContextMenu";
 import type { TranscriptMenuItem } from "./detail/TranscriptContextMenu";
@@ -499,13 +500,6 @@ export default function Detail({
    *
    *  Kept in `localStorage` beside the panel's own preference rather than in the
    *  database: it is a habit of this machine, not of the archive. */
-  const [tipsVisible, setTipsVisible] = useState(
-    () => localStorage.getItem("rychle-tipy") !== "skryte"
-  );
-  const hideTips = useCallback(() => {
-    localStorage.setItem("rychle-tipy", "skryte");
-    setTipsVisible(false);
-  }, []);
   // The panel is remembered between recordings: whoever closes it wants quiet.
   const [panelOpen, setPanelOpen] = useState(
     () => localStorage.getItem("panel") !== "zavreny"
@@ -2117,38 +2111,15 @@ export default function Detail({
         </div>
       </div>
 
-      {running || diarizing ? (
-        <ProgressBubble
-          variant="transcription"
-          description={
-            progress
-              ? progressMessage(progress.description)
-              : diarizing
-                ? t("detail.progress.diarizing")
-                : t("detail.progress.transcribing")
-          }
-          percent={progress?.percent ?? 0}
-          /* Recognising speakers can be stopped too. It used to have no way
-             out at all, and on a long recording it is the slowest thing this
-             application does. */
-          onCancel={() => void cancelTranscription()}
-          cancelLabel={
-            diarizing
-              ? t("detail.progress.cancelDiarization")
-              : t("detail.progress.cancelTranscription")
-          }
-        />
-      ) : aiRunning ? (
-        <ProgressBubble
-          variant="language"
-          description={
-            aiProgress ? progressMessage(aiProgress.description) : t("detail.progress.editing")
-          }
-          percent={aiProgress?.percent ?? 0}
-          onCancel={() => void api.cancelAiEdit(id)}
-          cancelLabel={t("detail.progress.cancelAi")}
-        />
-      ) : null}
+      <DetailProgress
+        running={running}
+        diarizing={diarizing}
+        progress={progress}
+        aiRunning={aiRunning}
+        aiProgress={aiProgress}
+        onCancelTranscription={() => void cancelTranscription()}
+        onCancelAi={() => void api.cancelAiEdit(id)}
+      />
 
       {status === "new" && !sourceMissing ? (
         /* The strip only states the situation. The call to action stands in
@@ -2233,34 +2204,8 @@ export default function Detail({
         />
       )}
 
-      {/* Nobody discovers the shortcuts otherwise, and Tab is the most useful
-          thing this screen does. */}
-      {segments.length > 0 && tipsVisible && (
-        <div className="shortcuts">
-          <span className="shortcuts-title">{t("detail.tips.title")}</span>
-          {/* A shortcut is a key and what it does, not a sentence: the key name
-              sits in <kbd> and the action beside it. */}
-          <span><kbd>{t("detail.tips.spaceKey")}</kbd> {t("detail.tips.spaceAction")}</span>
-          <span><kbd>{t("detail.tips.clickKey")}</kbd> {t("detail.tips.clickAction")}</span>
-          <span>
-            <kbd>{t("detail.tips.doubleClickKey")}</kbd> {t("detail.tips.doubleClickAction")}
-          </span>
-          <span className="shortcut-emphasis">
-            <kbd>{t("detail.tips.tabKey")}</kbd> {t("detail.tips.tabAction")}
-          </span>
-          <button
-            className="shortcuts-hide"
-            onClick={hideTips}
-            aria-label={t("detail.tips.hide")}
-            title={t("detail.tips.hideHint")}
-          >
-            <svg width="12" height="12" viewBox="0 0 14 14" aria-hidden>
-              <path d="M3 3l8 8M11 3l-8 8" stroke="currentColor"
-                    strokeWidth="1.7" strokeLinecap="round" />
-            </svg>
-          </button>
-        </div>
-      )}
+      {/* Only over a transcript: the shortcuts are about reading one. */}
+      {segments.length > 0 && <TranscriptTips />}
 
       {/* Over the reading column, not in the header — that bar already
           overflows at 1180 px with both pills up — and not permanently, since
