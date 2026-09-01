@@ -23,7 +23,7 @@ import { RecorderProvider } from "../recorder";
 import { enCommon } from "../locales/en/common";
 import { enDetail } from "../locales/en/detail";
 import type { AiOutput } from "../types";
-import { RECORDING_ID, aiDocument, aiEditStatus, forgetDetail, listeners, resetApi } from "./fixtures";
+import { RECORDING_ID, aiDocument, aiEditStatus, forgetDetail, listeners, resetApi } from "./screen.fixtures";
 
 /** The English wording of a key, which is what a query looks for. Czech is the
  *  source language, but the tests read in the language they are written in. */

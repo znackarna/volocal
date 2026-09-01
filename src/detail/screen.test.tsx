@@ -20,16 +20,16 @@
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { act, cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
-import { RECORDING_ID, aiEditStatus, installBrowserStubs, listeners, summaryFor } from "./fixtures";
+import { RECORDING_ID, aiEditStatus, installBrowserStubs, listeners, summaryFor } from "./screen.fixtures";
 
-vi.mock("@tauri-apps/api/event", async () => (await import("./fixtures")).eventMock());
+vi.mock("@tauri-apps/api/event", async () => (await import("./screen.fixtures")).eventMock());
 vi.mock("@tauri-apps/plugin-dialog", () => ({ open: vi.fn(), save: vi.fn() }));
 vi.mock("@tauri-apps/plugin-opener", () => ({ openUrl: vi.fn(), revealItemInDir: vi.fn() }));
-vi.mock("../api", async () => (await import("./fixtures")).apiMock());
+vi.mock("../api", async () => (await import("./screen.fixtures")).apiMock());
 
 installBrowserStubs();
 
-import { finishAiRun, notes, resetScreen, say, show, transcriptShown } from "./harness";
+import { finishAiRun, notes, resetScreen, say, show, transcriptShown } from "./screen.harness";
 
 beforeEach(resetScreen);
 afterEach(cleanup);
