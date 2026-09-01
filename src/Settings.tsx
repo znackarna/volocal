@@ -307,20 +307,14 @@ export default function SettingsScreen({
   const [diskUsed, setDiskUsed] = useState<number | null>(null);
   const [saved, setSaved] = useState(false);
   const [machine, setMachine] = useState("");
-  const [copying, setCopying] = useState(false);
-  const [copiedFile, setCopiedFile] = useState("");
-  const [copyComplete, setCopyComplete] = useState<number | null>(null);
-  /** A transcription model picked before it was on the disk. Mirrors
-   *  `localStorage[MODEL_WANTED]`, which is where it actually lives — see
-   *  `load`, which is the only thing that turns it into `settings.model`. */
-  /** Whether this is the first read since the screen opened. A stale intent is
-   *  only recognisable there — later reads happen *during* a download. */
-  const firstLook = useRef(true);
   /** Read through a ref rather than a dependency: `load` is what the mount
    *  effect runs, and rebuilding it every time a download starts or stops
    *  would reload this whole screen on each of them. */
   const fetchingNow = useRef(fetching);
   fetchingNow.current = fetching;
+  /** Whether this is the first read since the screen opened. A stale intent is
+   *  only recognisable there — later reads happen *during* a download. */
+  const firstLook = useRef(true);
   const [modelWanted, setModelWanted] = useState(() => localStorage.getItem(MODEL_WANTED) ?? "");
   const dictionary = useDictionary({ onError });
 
@@ -480,29 +474,6 @@ export default function SettingsScreen({
     },
     [onError, recordCheck, userMessage]
   );
-
-  const udelejKopii = useCallback(async () => {
-    const destination = await open({
-      directory: true,
-      title: t("settings.portable.copyDestination"),
-    });
-    if (typeof destination !== "string") return;
-
-    setCopying(true);
-    setCopyComplete(null);
-    const unlisten = await listen<string>("copy:file", (u) =>
-      setCopiedFile(u.payload)
-    );
-    try {
-      setCopyComplete(await api.createPortableCopy(destination));
-    } catch (e) {
-      onError(userMessage(e));
-    } finally {
-      unlisten();
-      setCopying(false);
-      setCopiedFile("");
-    }
-  }, [onError, t, userMessage]);
 
   const selectDirectory = useCallback(
     async (
