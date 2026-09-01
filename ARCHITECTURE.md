@@ -6,7 +6,17 @@ and a Rust backend.
 ## Source layout
 
 - `src/` contains the React UI, shared TypeScript types, playback code, and the
-  typed Tauri API wrapper.
+  typed Tauri API wrapper. Each of the three screens is a folder beside its own
+  file, and the file composes what is in the folder:
+  - `src/Detail.tsx` with `src/detail/` — one transcript. Searching it,
+    correcting it, its notes, its speakers, its playback, and in
+    `src/detail/ai/` everything the language model makes from it.
+  - `src/Settings.tsx` with `src/settings/` — one component per tab, plus the
+    dictionary, which is the one tab with data of its own.
+  - `src/App.tsx` with `src/app/` — the window itself: which screen is open,
+    the backend's event streams, the watched folder, the folders, the notices.
+  A file named `use…` holds state and the things that can be done to it; the
+  rest draws. `CLAUDE.md` says which of the two anything new becomes.
 - `src-tauri/src/main.rs` owns application state, the window and the Windows
   lifecycle. It defines no commands itself.
 - `src-tauri/src/commands/` is where the Tauri commands live, one module per
