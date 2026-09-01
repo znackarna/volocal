@@ -1,5 +1,4 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { open, save } from "@tauri-apps/plugin-dialog";
 
@@ -27,6 +26,7 @@ import type { ConfirmationRequest } from "./ConfirmationDialog";
 import { formatTime, applyFonts, applyTheme, fileName, noteUpdateCheck } from "./types";
 import { useNotices } from "./app/useNotices";
 import { useWatchFolder } from "./app/useWatchFolder";
+import { useTranscriptionRuntime } from "./app/useTranscriptionRuntime";
 import { NoticeBar } from "./app/NoticeBar";
 import { rememberSpeakerNames } from "./speakerNames";
 import { computeFellBack } from "./compute";
@@ -36,14 +36,10 @@ import { useProgressMessage, useUserMessage } from "./messages";
 import { useLabels } from "./labels";
 import { useFormats } from "./formats";
 import type {
-  AiEditProgress,
   DownloadComponent,
-  DownloadProgress,
   ToolCheck,
-  UserMessage,
   Recording,
   TranscriptionProgress,
-  LiveSegment,
   WatchFolderCandidate,
   Folder,
 } from "./types";
@@ -263,24 +259,15 @@ export default function App() {
    *  looking at the screen. */
   const [watchAuto, setWatchAuto] = useState(false);
   /** Recordings waiting for that answer before they start. */
-  /** Recordings whose speakers are being separated right now. The screens
-   *  cannot tell from the progress alone, because the first event arrives a
-   *  moment after the run is asked for. */
-  const [diarizingIds, setDiarizingIds] = useState<string[]>([]);
   const [pendingTranscription, setPendingTranscription] =
     useState<{ ids: string[]; language?: string; diarizeOnly?: boolean } | null>(null);
 
   const [recordings, setRecordings] = useState<Recording[]>([]);
-  const [progress, setProgress] = useState<Record<string, TranscriptionProgress>>({});
-  const [aiProgress, setAiProgress] = useState<Record<string, AiEditProgress>>({});
-  /* A download outlives the screen that started it, so the application holds
-     it rather than the wizard. Without this, walking out of Settings hid the
-     work and the obvious next move was to start it again. */
-  const [downloading, setDownloading] = useState<DownloadProgress | null>(null);
+
+
   /* Only so the bubble can say which component, by the name the catalogue
      gives it rather than by its id. */
   const [catalogItems, setCatalogItems] = useState<DownloadComponent[]>([]);
-  const [liveSegments, setLiveSegments] = useState<Record<string, LiveSegment[]>>({});
   const [check, setCheck] = useState<ToolCheck | null>(null);
   const [dragging, setDragging] = useState(false);
   /**
@@ -298,6 +285,16 @@ export default function App() {
   // Rust sends a code, not a sentence; these turn one into the other.
   const userMessage = useUserMessage();
   const progressMessage = useProgressMessage();
+
+  /* A download outlives the screen that started it, so the application holds
+     it rather than the wizard — and so does everything else the backend
+     reports while it works. */
+  const runtime = useTranscriptionRuntime({
+    reload: () => void loadRecordings(),
+    reloadToolCheck: () => void loadToolCheck(),
+    onError: reportError,
+  });
+  const { progress, aiProgress, liveSegments, diarizingIds, downloading } = runtime.state;
   const [query, setQuery] = useState<ConfirmationRequest | null>(null);
   const [addRecordingOpen, setAddRecordingOpen] = useState(false);
 
@@ -406,20 +403,7 @@ export default function App() {
       // A finished run leaves `complete` behind for this recording. The screens
       // read that as "the work is over" the moment a new one starts, so the
       // stale entry goes before the first event of the new run arrives.
-      setProgress((current) => {
-        const next = { ...current };
-        for (const id of ids) delete next[id];
-        return next;
-      });
-      // The live tail of the previous run is stale for the same reason, and it
-      // is worse than stale: the screens render it while the new run reports
-      // two percent, so a re-transcription opens with the old text.
-      setLiveSegments((current) => {
-        const next = { ...current };
-        for (const id of ids) delete next[id];
-        return next;
-      });
-      if (diarizeOnly) setDiarizingIds((current) => [...new Set([...current, ...ids])]);
+      runtime.actions.startingRun(ids, diarizeOnly);
       let started = true;
       try {
         for (const id of ids) {
@@ -429,7 +413,7 @@ export default function App() {
         }
       } catch (e) {
         started = false;
-        if (diarizeOnly) setDiarizingIds((current) => current.filter((x) => !ids.includes(x)));
+        if (diarizeOnly) runtime.actions.runRefused(ids);
         reportError(userMessage(e));
       }
       await loadRecordings();
@@ -663,145 +647,6 @@ export default function App() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadRecordings, loadToolCheck]);
-
-  // -------------------------------------------------- transcription events
-  useEffect(() => {
-    // `listen` returns a promise. If the component unmounts before it
-    // resolves, a naive cleanup unsubscribes nothing and the listener is left
-    // hanging — events would then be handled twice. Hence the alive guard.
-    let liveSegments = true;
-    const unlisten: Array<() => void> = [];
-    const add = (p: Promise<() => void>) =>
-      p.then((f) => (liveSegments ? unlisten.push(f) : f()));
-
-    add(
-      listen<TranscriptionProgress>("transcription:status", (u) => {
-        setProgress((p) => {
-          const previous = p[u.payload.recording_id];
-          if (!keepsMovingForward(previous, u.payload)) return p;
-          return { ...p, [u.payload.recording_id]: u.payload };
-        });
-      })
-    );
-
-    add(
-      listen<LiveSegment>("transcription:segment", (u) => {
-        const s = u.payload;
-        setLiveSegments((z) => {
-          const existing = z[s.recording_id] ?? [];
-          // Guard against the same event arriving twice. Identical text at
-          // the same time is a duplicate, not something said twice.
-          const last = existing[existing.length - 1];
-          if (last && last.text === s.text && last.start === s.start) {
-            return z;
-          }
-          // keep only the tail: a few lines are all the library can show
-          return { ...z, [s.recording_id]: [...existing, s].slice(-40) };
-        });
-      })
-    );
-
-    /* A run is over for that recording whichever kind it was, so both terminal
-       events clear the job state the screens read. Without this the diarizing
-       flag never comes down: the detail keeps a bubble frozen at 100 %, hides
-       the recording's own actions, and — because the player is rendered only
-       when nothing is running — leaves the recording unplayable until the
-       application is restarted. The backend has always sent the id; this
-       listener used to throw it away. */
-    const finishJob = (id: string) => {
-      if (!id) return;
-      setDiarizingIds((current) => current.filter((x) => x !== id));
-      setLiveSegments((current) => {
-        if (!(id in current)) return current;
-        const next = { ...current };
-        delete next[id];
-        return next;
-      });
-    };
-
-    add(
-      listen<string>("transcription:complete", (u) => {
-        finishJob(u.payload);
-        loadRecordings();
-      })
-    );
-
-    add(
-      listen<AiEditProgress>("ai-edit:progress", (u) => {
-        const next = u.payload;
-        const terminal = ["complete", "error", "cancelled"].includes(next.phase);
-        setAiProgress((current) => {
-          if (!terminal) return { ...current, [next.recording_id]: next };
-          if (!(next.recording_id in current)) return current;
-          const updated = { ...current };
-          delete updated[next.recording_id];
-          return updated;
-        });
-        if (next.phase === "error") reportError(progressMessage(next.description));
-      })
-    );
-
-    add(
-      listen<DownloadProgress>("download:progress", (u) => {
-        const next = u.payload;
-        /* `complete` here is one component of the bundle finishing, not the
-           bundle — only `download:complete` says that. Keeping the last
-           component up until then is what stops the bubble flickering off and
-           on between files.
-
-           `waiting` is the one that must not take the bubble: it arrives for
-           every component put in the queue, including the ones behind the one
-           being fetched, and the bubble would have named the last of them at
-           0 % while another was at 40. It is the row in the listing that says
-           a queued component is queued; here the bubble goes on reporting what
-           is actually moving. */
-        if (next.phase === "waiting") return;
-        /* **Cleared only by the component it is naming.** Stopping a queued row
-           while another one downloads used to take the bubble down with it, and
-           during an `extracting` phase there are no further ticks to bring it
-           back — so the one thing still working reported nothing until it
-           finished. */
-        if (["error", "cancelled"].includes(next.phase)) {
-          setDownloading((current) => (current && current.id !== next.id ? current : null));
-          return;
-        }
-        setDownloading(next);
-      })
-    );
-
-    add(
-      listen<string[]>("download:complete", async (u) => {
-        setDownloading(null);
-        /* **Nothing writes the chosen model here any more, and nothing
-           needs to.** What stood here read a `localStorage` record and wrote
-           `settings.model` when the component was absent from this run's list
-           of failures - which is not the same question as *did the file
-           arrive*. A component that was never part of the run is absent from
-           that list too, so an unrelated download finishing could write a
-           model that had never landed; a record left by a run interrupted at
-           the window closing survived a restart and waited to do exactly that.
-
-           `resolve_transcription_model` in `tools.rs` asks the disk instead,
-           every time anything is checked. Choosing a quality records the
-           choice; the model that arrives is found because it is there. There
-           is no note to keep in step, so there is no note to go stale. */
-        loadToolCheck();
-      })
-    );
-
-    add(
-      listen<[string, UserMessage]>("transcription:error", (u) => {
-        finishJob(u.payload[0]);
-        reportError(userMessage(u.payload[1]));
-        loadRecordings();
-      })
-    );
-
-    return () => {
-      liveSegments = false;
-      unlisten.forEach((f) => f());
-    };
-  }, [loadRecordings, progressMessage, reportError, userMessage]);
 
   // ------------------------------------------------------ dragging files in
   /** Where the person stands in the archive, for the handlers created above
@@ -1699,7 +1544,7 @@ export default function App() {
              doing more than it says. */
           onCancel={() => {
             void api.cancelComponent(downloading.id);
-            setDownloading(null);
+            runtime.actions.clearDownload();
           }}
           cancelLabel={t("app.download.cancel")}
         />
