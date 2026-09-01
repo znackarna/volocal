@@ -120,6 +120,10 @@ export interface AiWorkspace {
     discard: () => Promise<void>;
     /** Back to the choice, starting from the way this document was made. */
     regenerate: () => void;
+    /** Opens the choice on a named mode. The reading window's empty state uses
+     *  it: there is no document there to take a mode from, and setting the mode
+     *  without opening the dialog leaves a button that does nothing. */
+    openConfiguration: (mode: "faithful" | "clean") => void;
     copyPreview: () => Promise<void>;
     savePreview: (format: "txt" | "md") => Promise<void>;
     /** The improved transcript to disk, from the header's export menu — which
@@ -368,6 +372,11 @@ export function useAiWorkspace({
   const cancel = useCallback(() => {
     void api.cancelAiEdit(recordingId);
   }, [recordingId]);
+
+  const openConfiguration = useCallback((chosen: "faithful" | "clean") => {
+    setMode(chosen);
+    setDialog("configure");
+  }, []);
 
   const regenerate = useCallback(() => {
     setMode((current) => (document?.mode === "clean" ? "clean" : document ? "faithful" : current));
@@ -739,6 +748,7 @@ export function useAiWorkspace({
       cancel,
       discard,
       regenerate,
+      openConfiguration,
       copyPreview,
       savePreview,
       saveImproved,

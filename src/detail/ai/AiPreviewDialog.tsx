@@ -281,10 +281,7 @@ export function AiPreviewDialog({ ai }: { ai: AiWorkspace }) {
                 : "detail.preview.emptyDerived")}
             </p>
             <button className="button primary"
-                    onClick={() => {
-                      actions.chooseMode("faithful");
-                      actions.chooseMode(state.document?.mode === "clean" ? "clean" : "faithful");
-                    }}>
+                    onClick={() => actions.openConfiguration("faithful")}>
               {t("detail.ai.startEdit")}
             </button>
           </div>

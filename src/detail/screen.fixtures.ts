@@ -13,6 +13,7 @@
  */
 import { vi } from "vitest";
 import type {
+  AiCustomDocument,
   AiDocument,
   AiOutput,
   Detail as DetailData,
@@ -225,6 +226,22 @@ export function summaryFor(variant: string): AiOutput {
     model: "editor",
     text: `Souhrn (${variant}).`,
     updated_at: "2026-08-31T09:06:00Z",
+  };
+}
+
+/** Something made from the reader's own instruction, with no enhanced
+ *  transcript beside it. That pair is the one the reading window's empty state
+ *  is reached by: the window opens because this exists, and its first three
+ *  tabs have nothing behind them. */
+export function customDocument(prompt = "Vypiš úkoly."): AiCustomDocument {
+  return {
+    recording_id: RECORDING_ID,
+    prompt,
+    source_hash: "h1",
+    model: "editor",
+    text: "Úkol jedna.",
+    updated_at: "2026-08-31T09:07:00Z",
+    stale: false,
   };
 }
 
