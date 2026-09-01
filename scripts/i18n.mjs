@@ -244,8 +244,15 @@ const NOT_A_SENTENCE = /^[^\p{L}]*$/u;
  *  and by nobody else, and the ones that check Czech text handling — stripping
  *  diacritics so `reknu` finds `řeknu` — have to *be* Czech to mean anything.
  *  Putting them in the dictionary would offer them for translation, which is
- *  the opposite of what they are for. */
-const isTest = (name) => /\.test\.tsx?$/.test(name);
+ *  the opposite of what they are for.
+ *
+ *  `.fixtures.` and `.harness.` are the same thing one file further out: the
+ *  sample recording a test renders and the setup that mounts the screen for
+ *  it. They cannot be named `.test.` because a `vi.mock` factory has to be
+ *  able to import them, and nothing ships them. A Czech transcript in a
+ *  fixture is the point of the fixture — an English one would test the
+ *  handling of text this product never sees. */
+const isTest = (name) => /\.(test|fixtures|harness)\.tsx?$/.test(name);
 
 function sourceFiles() {
   const files = [];

@@ -1,5 +1,4 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { open, save } from "@tauri-apps/plugin-dialog";
 
@@ -7,16 +6,8 @@ import { api } from "./api";
 import { MiniPlayer, usePlayer } from "./player";
 import { MiniRecorder } from "./recorder";
 import Library from "./Library";
-import ConfirmationDialog from "./ConfirmationDialog";
-import CountdownRing from "./CountdownRing";
-import NameDialog from "./NameDialog";
-import Tooltips from "./Tooltips";
 import AddRecordingDialog from "./AddRecordingDialog";
-import SpeakerCountDialog from "./SpeakerCountDialog";
-import RecordingMetadataIcon from "./RecordingMetadataIcon";
 import ProgressBubble from "./ProgressBubble";
-import type { CSSProperties } from "react";
-import type { RecordingMetadataKind } from "./RecordingMetadataIcon";
 import { Wordmark } from "./Brand";
 /* Imported plainly rather than behind `await import(...)`. Deferring it looked
    like it kept the updater out of the bundle until somebody turned the check
@@ -26,7 +17,14 @@ import { Wordmark } from "./Brand";
    and the two have nothing to do with each other. */
 import { check as checkForUpdate } from "@tauri-apps/plugin-updater";
 import type { ConfirmationRequest } from "./ConfirmationDialog";
-import { formatTime, applyFonts, applyTheme, fileName, noteUpdateCheck } from "./types";
+import { applyFonts, applyTheme, fileName, noteUpdateCheck } from "./types";
+import { useNotices } from "./app/useNotices";
+import { useWatchFolder } from "./app/useWatchFolder";
+import { useTranscriptionRuntime } from "./app/useTranscriptionRuntime";
+import { useFolderManagement } from "./app/useFolderManagement";
+import { AppFooter } from "./app/AppFooter";
+import { AppDialogs } from "./app/AppDialogs";
+import { NoticeBar } from "./app/NoticeBar";
 import { rememberSpeakerNames } from "./speakerNames";
 import { computeFellBack } from "./compute";
 import { useI18n } from "./i18n";
@@ -35,14 +33,10 @@ import { useProgressMessage, useUserMessage } from "./messages";
 import { useLabels } from "./labels";
 import { useFormats } from "./formats";
 import type {
-  AiEditProgress,
   DownloadComponent,
-  DownloadProgress,
   ToolCheck,
-  UserMessage,
   Recording,
   TranscriptionProgress,
-  LiveSegment,
   WatchFolderCandidate,
   Folder,
 } from "./types";
@@ -131,44 +125,10 @@ function sameCandidates(a: WatchFolderCandidate[], b: WatchFolderCandidate[]): b
   );
 }
 
-/** The last part of a path, whichever separator the system uses. */
-function folderName(path: string): string {
-  const parts = path.split(/[\\/]/).filter(Boolean);
-  return parts[parts.length - 1] ?? path;
-}
-
-function FooterStatusItem({
-  kind,
-  value,
-  label,
-  detail,
-}: {
-  kind: RecordingMetadataKind;
-  value: string;
-  label: string;
-  /** Shown in the tooltip after the label, where the visible value is a
-   *  shortened form of something longer. */
-  detail?: string;
-}) {
-  const { t } = useI18n();
-
-  return (
-    <span
-      className="app-status-item"
-      aria-label={t("app.shell.statusItem", { label, value: detail ?? value })}
-      title={detail ? `${label}: ${detail}` : label}
-    >
-      <RecordingMetadataIcon kind={kind} />
-      <span>{value}</span>
-    </span>
-  );
-}
 
 /** How long the notice bar stays before it leaves on its own. The countdown
  *  ring in the bar is handed the same number, so the picture and the timer
  *  cannot disagree. */
-const NOTICE_LIFE = { info: 5000, error: 9000 } as const;
-
 /** The order the pipeline goes through. Used only to spot a report that
  *  arrives out of turn. */
 const PHASE_ORDER = [
@@ -263,31 +223,16 @@ export default function App() {
    *  files chosen by hand, this one to files that arrive without anybody
    *  looking at the screen. */
   const [watchAuto, setWatchAuto] = useState(false);
-  /* The scan effect is created once and cannot see later state, so the switch
-     and the handler reach it through refs. */
-  const watchAutoRef = useRef(false);
-  const autoTranscribeRef = useRef<((files: WatchFolderCandidate[]) => void) | null>(null);
   /** Recordings waiting for that answer before they start. */
-  /** Recordings whose speakers are being separated right now. The screens
-   *  cannot tell from the progress alone, because the first event arrives a
-   *  moment after the run is asked for. */
-  const [diarizingIds, setDiarizingIds] = useState<string[]>([]);
   const [pendingTranscription, setPendingTranscription] =
     useState<{ ids: string[]; language?: string; diarizeOnly?: boolean } | null>(null);
 
   const [recordings, setRecordings] = useState<Recording[]>([]);
-  const [progress, setProgress] = useState<Record<string, TranscriptionProgress>>({});
-  const [aiProgress, setAiProgress] = useState<Record<string, AiEditProgress>>({});
-  /* A download outlives the screen that started it, so the application holds
-     it rather than the wizard. Without this, walking out of Settings hid the
-     work and the obvious next move was to start it again. */
-  const [downloading, setDownloading] = useState<DownloadProgress | null>(null);
+
+
   /* Only so the bubble can say which component, by the name the catalogue
      gives it rather than by its id. */
   const [catalogItems, setCatalogItems] = useState<DownloadComponent[]>([]);
-  const [liveSegments, setLiveSegments] = useState<Record<string, LiveSegment[]>>({});
-  const [watchCandidates, setWatchCandidates] = useState<WatchFolderCandidate[]>([]);
-  const [watchDecisionRunning, setWatchDecisionRunning] = useState(false);
   const [check, setCheck] = useState<ToolCheck | null>(null);
   const [dragging, setDragging] = useState(false);
   /**
@@ -298,57 +243,23 @@ export default function App() {
    * was added to the dictionary is not a warning, and shouting it in red made
    * a routine action feel like a fault.
    */
-  const [notice, setNotice] = useState<{
-    text: string;
-    kind: "info" | "error";
-    /** A way on, for the rare notice that names something the reader may want
-     *  to go and do. Without it a bar can only describe a place and hope the
-     *  reader finds it — which is what the update notice did, in prose, at a
-     *  tab that has since been renamed. */
-    action?: { label: string; run: () => void };
-  } | null>(null);
-  const [noticeClosing, setNoticeClosing] = useState(false);
+  const notices = useNotices();
+  const reportError = notices.actions.error;
+  const reportInfo = notices.actions.info;
 
   // Rust sends a code, not a sentence; these turn one into the other.
   const userMessage = useUserMessage();
   const progressMessage = useProgressMessage();
-  const reportError = useCallback((text: string) => {
-    setNoticeClosing(false);
-    setNotice({ text, kind: "error" });
-  }, []);
-  const reportInfo = useCallback(
-    (text: string, action?: { label: string; run: () => void }) => {
-      setNoticeClosing(false);
-      setNotice({ text, kind: "info", action });
-    },
-    []
-  );
 
-  // A notice that stays until it is dismissed becomes furniture. Give it long
-  // enough to be read twice and then let it go on its own; the Close button
-  // remains for anyone who has already read it.
-  //
-  // Errors linger longer than confirmations — a confirmation only says that
-  // what you asked for happened, an error asks you to do something about it.
-  //
-  // A notice carrying an action does not leave on its own, and neither does it
-  // draw the ring: the ring exists to say *this will go, and this soon*, and a
-  // button that walks away while it is being read is worse than no button. One
-  // press decides it — the way on, or Close.
-  useEffect(() => {
-    if (!notice) return;
-    if (notice.action && !noticeClosing) return;
-    const delay = noticeClosing ? 280 : NOTICE_LIFE[notice.kind];
-    const timer = setTimeout(() => {
-      if (noticeClosing) {
-        setNotice(null);
-        setNoticeClosing(false);
-      } else {
-        setNoticeClosing(true);
-      }
-    }, delay);
-    return () => clearTimeout(timer);
-  }, [notice, noticeClosing]);
+  /* A download outlives the screen that started it, so the application holds
+     it rather than the wizard — and so does everything else the backend
+     reports while it works. */
+  const runtime = useTranscriptionRuntime({
+    reload: () => void loadRecordings(),
+    reloadToolCheck: () => void loadToolCheck(),
+    onError: reportError,
+  });
+  const { progress, aiProgress, liveSegments, diarizingIds, downloading } = runtime.state;
   const [query, setQuery] = useState<ConfirmationRequest | null>(null);
   const [addRecordingOpen, setAddRecordingOpen] = useState(false);
 
@@ -356,9 +267,6 @@ export default function App() {
   // fit them to their eyes rather than the other way round.
   const automaticRef = useRef(automatic);
   automaticRef.current = automatic;
-  const watchScanRunning = useRef(false);
-  const watchDecisionRunningRef = useRef(false);
-  const lastWatchError = useRef("");
 
   const [archiveSetup, setArchiveSetup] = useState({ model: "", watchFolder: "" });
   /* Which view the add dialog opens on. The mini recorder reopens it straight
@@ -460,20 +368,7 @@ export default function App() {
       // A finished run leaves `complete` behind for this recording. The screens
       // read that as "the work is over" the moment a new one starts, so the
       // stale entry goes before the first event of the new run arrives.
-      setProgress((current) => {
-        const next = { ...current };
-        for (const id of ids) delete next[id];
-        return next;
-      });
-      // The live tail of the previous run is stale for the same reason, and it
-      // is worse than stale: the screens render it while the new run reports
-      // two percent, so a re-transcription opens with the old text.
-      setLiveSegments((current) => {
-        const next = { ...current };
-        for (const id of ids) delete next[id];
-        return next;
-      });
-      if (diarizeOnly) setDiarizingIds((current) => [...new Set([...current, ...ids])]);
+      runtime.actions.startingRun(ids, diarizeOnly);
       let started = true;
       try {
         for (const id of ids) {
@@ -483,7 +378,7 @@ export default function App() {
         }
       } catch (e) {
         started = false;
-        if (diarizeOnly) setDiarizingIds((current) => current.filter((x) => !ids.includes(x)));
+        if (diarizeOnly) runtime.actions.runRefused(ids);
         reportError(userMessage(e));
       }
       await loadRecordings();
@@ -666,51 +561,6 @@ export default function App() {
     return () => window.clearInterval(id);
   }, [loadToolCheck]);
 
-  // The watch folder deliberately uses a modest poll instead of a permanent
-  // operating-system watcher. It keeps the feature portable and, together
-  // with the backend's two-scan stability check, never opens a file midway
-  // through a copy.
-  useEffect(() => {
-    let alive = true;
-    const scan = async () => {
-      if (watchScanRunning.current || watchDecisionRunningRef.current) return;
-      watchScanRunning.current = true;
-      try {
-        const found = await api.scanWatchFolder();
-        if (!alive || watchDecisionRunningRef.current) return;
-        lastWatchError.current = "";
-        /* Transcribing right away is the point of the switch: the files
-           arrive while nobody is looking at the screen, so a question in the
-           Archive would only keep them waiting. */
-        if (found.length > 0 && watchAutoRef.current && autoTranscribeRef.current) {
-          autoTranscribeRef.current(found);
-          return;
-        }
-        /* The scan answers every five seconds, almost always with the same
-           thing — usually with nothing at all. A fresh array is a new
-           reference, and storing it re-rendered the whole application twelve
-           times a minute for a list that had not changed. */
-        setWatchCandidates((current) => (sameCandidates(current, found) ? current : found));
-      } catch (error) {
-        const message = userMessage(error);
-        if (alive && lastWatchError.current !== message) {
-          lastWatchError.current = message;
-          reportError(message);
-        }
-      } finally {
-        watchScanRunning.current = false;
-      }
-    };
-
-    const initial = window.setTimeout(scan, 1200);
-    const interval = window.setInterval(scan, 5000);
-    return () => {
-      alive = false;
-      window.clearTimeout(initial);
-      window.clearInterval(interval);
-    };
-  }, [reportError, userMessage]);
-
   useEffect(() => {
     loadAppearance();
     loadRecordings();
@@ -762,145 +612,6 @@ export default function App() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadRecordings, loadToolCheck]);
-
-  // -------------------------------------------------- transcription events
-  useEffect(() => {
-    // `listen` returns a promise. If the component unmounts before it
-    // resolves, a naive cleanup unsubscribes nothing and the listener is left
-    // hanging — events would then be handled twice. Hence the alive guard.
-    let liveSegments = true;
-    const unlisten: Array<() => void> = [];
-    const add = (p: Promise<() => void>) =>
-      p.then((f) => (liveSegments ? unlisten.push(f) : f()));
-
-    add(
-      listen<TranscriptionProgress>("transcription:status", (u) => {
-        setProgress((p) => {
-          const previous = p[u.payload.recording_id];
-          if (!keepsMovingForward(previous, u.payload)) return p;
-          return { ...p, [u.payload.recording_id]: u.payload };
-        });
-      })
-    );
-
-    add(
-      listen<LiveSegment>("transcription:segment", (u) => {
-        const s = u.payload;
-        setLiveSegments((z) => {
-          const existing = z[s.recording_id] ?? [];
-          // Guard against the same event arriving twice. Identical text at
-          // the same time is a duplicate, not something said twice.
-          const last = existing[existing.length - 1];
-          if (last && last.text === s.text && last.start === s.start) {
-            return z;
-          }
-          // keep only the tail: a few lines are all the library can show
-          return { ...z, [s.recording_id]: [...existing, s].slice(-40) };
-        });
-      })
-    );
-
-    /* A run is over for that recording whichever kind it was, so both terminal
-       events clear the job state the screens read. Without this the diarizing
-       flag never comes down: the detail keeps a bubble frozen at 100 %, hides
-       the recording's own actions, and — because the player is rendered only
-       when nothing is running — leaves the recording unplayable until the
-       application is restarted. The backend has always sent the id; this
-       listener used to throw it away. */
-    const finishJob = (id: string) => {
-      if (!id) return;
-      setDiarizingIds((current) => current.filter((x) => x !== id));
-      setLiveSegments((current) => {
-        if (!(id in current)) return current;
-        const next = { ...current };
-        delete next[id];
-        return next;
-      });
-    };
-
-    add(
-      listen<string>("transcription:complete", (u) => {
-        finishJob(u.payload);
-        loadRecordings();
-      })
-    );
-
-    add(
-      listen<AiEditProgress>("ai-edit:progress", (u) => {
-        const next = u.payload;
-        const terminal = ["complete", "error", "cancelled"].includes(next.phase);
-        setAiProgress((current) => {
-          if (!terminal) return { ...current, [next.recording_id]: next };
-          if (!(next.recording_id in current)) return current;
-          const updated = { ...current };
-          delete updated[next.recording_id];
-          return updated;
-        });
-        if (next.phase === "error") reportError(progressMessage(next.description));
-      })
-    );
-
-    add(
-      listen<DownloadProgress>("download:progress", (u) => {
-        const next = u.payload;
-        /* `complete` here is one component of the bundle finishing, not the
-           bundle — only `download:complete` says that. Keeping the last
-           component up until then is what stops the bubble flickering off and
-           on between files.
-
-           `waiting` is the one that must not take the bubble: it arrives for
-           every component put in the queue, including the ones behind the one
-           being fetched, and the bubble would have named the last of them at
-           0 % while another was at 40. It is the row in the listing that says
-           a queued component is queued; here the bubble goes on reporting what
-           is actually moving. */
-        if (next.phase === "waiting") return;
-        /* **Cleared only by the component it is naming.** Stopping a queued row
-           while another one downloads used to take the bubble down with it, and
-           during an `extracting` phase there are no further ticks to bring it
-           back — so the one thing still working reported nothing until it
-           finished. */
-        if (["error", "cancelled"].includes(next.phase)) {
-          setDownloading((current) => (current && current.id !== next.id ? current : null));
-          return;
-        }
-        setDownloading(next);
-      })
-    );
-
-    add(
-      listen<string[]>("download:complete", async (u) => {
-        setDownloading(null);
-        /* **Nothing writes the chosen model here any more, and nothing
-           needs to.** What stood here read a `localStorage` record and wrote
-           `settings.model` when the component was absent from this run's list
-           of failures - which is not the same question as *did the file
-           arrive*. A component that was never part of the run is absent from
-           that list too, so an unrelated download finishing could write a
-           model that had never landed; a record left by a run interrupted at
-           the window closing survived a restart and waited to do exactly that.
-
-           `resolve_transcription_model` in `tools.rs` asks the disk instead,
-           every time anything is checked. Choosing a quality records the
-           choice; the model that arrives is found because it is there. There
-           is no note to keep in step, so there is no note to go stale. */
-        loadToolCheck();
-      })
-    );
-
-    add(
-      listen<[string, UserMessage]>("transcription:error", (u) => {
-        finishJob(u.payload[0]);
-        reportError(userMessage(u.payload[1]));
-        loadRecordings();
-      })
-    );
-
-    return () => {
-      liveSegments = false;
-      unlisten.forEach((f) => f());
-    };
-  }, [loadRecordings, progressMessage, reportError, userMessage]);
 
   // ------------------------------------------------------ dragging files in
   /** Where the person stands in the archive, for the handlers created above
@@ -1038,83 +749,22 @@ export default function App() {
      not a place to send anyone digging — so the archive offers to hand the
      file over. One implementation for both screens; Library and Detail only
      say which recording. */
-  /* Folders. The archive shows one level at a time, so `openFolder` is where
-     the person stands; a recording moved out of sight of that level is the
-     point of the feature rather than a surprise. */
-  const [folders, setFolders] = useState<Folder[]>([]);
-  const [openFolder, setOpenFolder] = useState<string | null>(null);
+  const foldersModel = useFolderManagement({
+    reloadRecordings: loadRecordings,
+    onError: reportError,
+  });
+  const folders = foldersModel.state.folders;
+  const openFolder = foldersModel.state.open;
+  const folderDialog = foldersModel.state.dialog;
   useEffect(() => {
     openFolderRef.current = openFolder;
   }, [openFolder]);
-  const [folderDialog, setFolderDialog] = useState<
-    { mode: "create"; forRecording: string | null } | { mode: "rename"; folder: Folder } | null
-  >(null);
 
-  const loadFolders = useCallback(async () => {
-    try {
-      setFolders(await api.folders());
-    } catch (error) {
-      reportError(userMessage(error));
-    }
-  }, [reportError, userMessage]);
-
-  useEffect(() => {
-    void loadFolders();
-  }, [loadFolders]);
-
-  const submitFolderDialog = useCallback(
-    async (name: string) => {
-      const request = folderDialog;
-      setFolderDialog(null);
-      if (!request) return;
-      try {
-        if (request.mode === "rename") {
-          await api.renameFolder(request.folder.id, name);
-        } else {
-          const created = await api.createFolder(name);
-          // Created from a recording's own menu: it goes straight in, which
-          // is what the person was doing when they reached for a new folder.
-          if (request.forRecording) {
-            await api.moveToFolder([request.forRecording], created.id);
-            await loadRecordings();
-          }
-        }
-        await loadFolders();
-      } catch (error) {
-        reportError(userMessage(error));
-      }
-    },
-    [folderDialog, loadFolders, loadRecordings, reportError, userMessage]
-  );
-
-  const moveToFolder = useCallback(
-    async (id: string, folder: string | null) => {
-      try {
-        await api.moveToFolder([id], folder);
-        await loadRecordings();
-        await loadFolders();
-      } catch (error) {
-        reportError(userMessage(error));
-      }
-    },
-    [loadFolders, loadRecordings, reportError, userMessage]
-  );
-
+  /** Two answers, not one: an empty folder is a plain confirmation, a full one
+   *  asks whether its transcripts go with it. The destructive button is the one
+   *  that destroys; keeping them is the quiet way out. */
   const askAboutFolder = useCallback(
     (folder: Folder) => {
-      const remove = async (contents: boolean) => {
-        try {
-          await api.deleteFolder(folder.id, contents);
-          setOpenFolder((current) => (current === folder.id ? null : current));
-          await loadRecordings();
-          await loadFolders();
-        } catch (error) {
-          reportError(userMessage(error));
-        }
-      };
-      /* Two answers, not one: an empty folder is a plain confirmation, a full
-         one asks whether its transcripts go with it. The destructive button
-         is the one that destroys; keeping them is the quiet way out. */
       setQuery({
         title: t("dialogs.folder.deleteTitle", { name: folder.name }),
         text: folder.recording_count === 0
@@ -1124,13 +774,18 @@ export default function App() {
           ? t("common.delete")
           : t("dialogs.folder.deleteAll"),
         destructive: true,
-        action: () => void remove(folder.recording_count > 0),
+        action: () => void foldersModel.actions.remove(folder, folder.recording_count > 0),
         ...(folder.recording_count > 0
-          ? { alternative: { label: t("dialogs.folder.deleteKeep"), action: () => void remove(false) } }
+          ? {
+              alternative: {
+                label: t("dialogs.folder.deleteKeep"),
+                action: () => void foldersModel.actions.remove(folder, false),
+              },
+            }
           : {}),
       });
     },
-    [loadFolders, loadRecordings, reportError, t, tPlural, userMessage]
+    [foldersModel.actions, t, tPlural]
   );
 
   const exportAudio = useCallback(
@@ -1219,7 +874,7 @@ export default function App() {
       setScreen(place.screen);
       setSelectedId(place.recording);
       setSeekTime(null);
-      setOpenFolder(place.folder);
+      foldersModel.actions.show(place.folder);
       if (place.screen === "library") loadRecordings();
     },
     [loadRecordings]
@@ -1250,121 +905,14 @@ export default function App() {
   const blockingIssues = useMemo(() => check?.issues ?? [], [check]);
   const player = usePlayer();
 
-  const transcribeWatchCandidates = useCallback(async (candidates: WatchFolderCandidate[]) => {
-    if (candidates.length === 0 || watchDecisionRunningRef.current) return;
-    watchDecisionRunningRef.current = true;
-    setWatchDecisionRunning(true);
-    try {
-      const added = await api.importWatchFolderFiles(candidates);
-      // One question for the whole batch: they came out of the same folder and
-      // are almost always the same kind of recording.
-      await beginTranscription(added.map((recording) => recording.id));
-      const handled = new Set(candidates.map((candidate) => `${candidate.path}:${candidate.fingerprint}`));
-      setWatchCandidates((current) => current.filter(
-        (candidate) => !handled.has(`${candidate.path}:${candidate.fingerprint}`)
-      ));
-      await loadRecordings();
-      reportInfo(tPlural("app.watchFolder.transcribing", added.length));
-    } catch (error) {
-      reportError(userMessage(error));
-    } finally {
-      watchDecisionRunningRef.current = false;
-      setWatchDecisionRunning(false);
-    }
-  }, [loadRecordings, reportError, reportInfo, tPlural, userMessage]);
-
-  /** The same import, without the questions. Started by the watched folder
-   *  itself, so it uses the stored number of speakers instead of asking — an
-   *  automatic import that opens a modal is not automatic. */
-  const autoTranscribeWatchCandidates = useCallback(
-    async (candidates: WatchFolderCandidate[]) => {
-      if (candidates.length === 0 || watchDecisionRunningRef.current) return;
-      watchDecisionRunningRef.current = true;
-      setWatchDecisionRunning(true);
-      try {
-        const added = await api.importWatchFolderFiles(candidates);
-        await runTranscription(added.map((recording) => recording.id), undefined, null);
-        setWatchCandidates([]);
-        await loadRecordings();
-        reportInfo(tPlural("app.watchFolder.transcribing", added.length));
-      } catch (error) {
-        reportError(userMessage(error));
-      } finally {
-        watchDecisionRunningRef.current = false;
-        setWatchDecisionRunning(false);
-      }
-    },
-    [loadRecordings, reportError, reportInfo, runTranscription, tPlural, userMessage]
-  );
-
-  useEffect(() => {
-    watchAutoRef.current = watchAuto;
-    autoTranscribeRef.current = autoTranscribeWatchCandidates;
-  }, [watchAuto, autoTranscribeWatchCandidates]);
-
-  const addWatchCandidates = useCallback(async (candidates: WatchFolderCandidate[]) => {
-    if (candidates.length === 0 || watchDecisionRunningRef.current) return;
-    watchDecisionRunningRef.current = true;
-    setWatchDecisionRunning(true);
-    try {
-      const added = await api.importWatchFolderFiles(candidates);
-      const handled = new Set(candidates.map((candidate) => `${candidate.path}:${candidate.fingerprint}`));
-      setWatchCandidates((current) => current.filter(
-        (candidate) => !handled.has(`${candidate.path}:${candidate.fingerprint}`)
-      ));
-      await loadRecordings();
-      reportInfo(tPlural("app.watchFolder.added", added.length));
-    } catch (error) {
-      reportError(userMessage(error));
-    } finally {
-      watchDecisionRunningRef.current = false;
-      setWatchDecisionRunning(false);
-    }
-  }, [loadRecordings, reportError, reportInfo, tPlural, userMessage]);
-
-  const ignoreWatchCandidates = useCallback(async (candidates: WatchFolderCandidate[]) => {
-    if (candidates.length === 0 || watchDecisionRunningRef.current) return;
-    watchDecisionRunningRef.current = true;
-    setWatchDecisionRunning(true);
-    try {
-      await api.ignoreWatchFolderFiles(candidates);
-      const handled = new Set(candidates.map((candidate) => `${candidate.path}:${candidate.fingerprint}`));
-      setWatchCandidates((current) => current.filter(
-        (candidate) => !handled.has(`${candidate.path}:${candidate.fingerprint}`)
-      ));
-    } catch (error) {
-      reportError(userMessage(error));
-    } finally {
-      watchDecisionRunningRef.current = false;
-      setWatchDecisionRunning(false);
-    }
-  }, [reportError, userMessage]);
-
-  const archiveFooterStatus = useMemo(() => {
-    const completed = recordings.filter((recording) => recording.status === "done");
-    const duration = completed.reduce((sum, recording) => sum + recording.duration, 0);
-    return {
-      transcripts: formats.transcriptCount(completed.length),
-      duration: formats.archiveDuration(duration),
-    };
-  }, [formats, recordings]);
-
-  const detailFooterStatus = useMemo(() => {
-    const recording = recordings.find((item) => item.id === selectedId);
-    if (!recording) return null;
-    return {
-      duration: recording.duration > 0 ? formatTime(recording.duration) : null,
-      language: recording.language ? labels.languageCapitalized(recording.language) : null,
-      segments: recording.status === "done" ? formats.segmentCount(recording.segment_count) : null,
-      /* `Uloženo` used to be a constant, lit for every detail — including a
-         recording with no transcript at all, where there is nothing saved to
-         speak of. It is a statement about a stored document, so it appears
-         where one exists. There is no unsaved state to report: every edit is
-         written as it is made, which is what makes this a fact rather than a
-         progress indicator. */
-      saved: recording.status === "done",
-    };
-  }, [formats, labels, recordings, selectedId]);
+  const watch = useWatchFolder({
+    automatic: watchAuto,
+    beginTranscription,
+    runTranscription,
+    reload: loadRecordings,
+    onError: reportError,
+    onInfo: reportInfo,
+  });
 
   const leaveWizard = useCallback(() => {
     setMissingModule(null);
@@ -1442,7 +990,7 @@ export default function App() {
                  to live in the breadcrumb, which meant two different places to
                  look for one idea. */
               if (screen === "library") {
-                setOpenFolder(null);
+                foldersModel.actions.show(null);
                 return;
               }
               loadToolCheck();
@@ -1515,37 +1063,7 @@ export default function App() {
       </header>
       )}
 
-      {notice && (
-        <div
-          className={`notice ${notice.kind}${noticeClosing ? " leaving" : ""}`}
-          role={notice.kind === "error" ? "alert" : "status"}
-          /* The ring empties over exactly the time the timer above waits, so
-             the number lives here and the stylesheet only draws it. */
-          style={{ "--notice-life": `${NOTICE_LIFE[notice.kind]}ms` } as CSSProperties}
-        >
-          {/* The ring empties over the seconds the bar has left, so it is
-              visible that it will go on its own — and how soon. A bar that
-              waits does not draw it: an emptying ring over a bar that is not
-              leaving is a promise about the wrong thing. */}
-          {!notice.action && <CountdownRing className="notice-countdown" size={16} />}
-          <span>{notice.text}</span>
-          {/* The way on before the way out, and the strong one of the two.
-              Reading order is the order of the two answers: here is the thing,
-              go to it, or not now. */}
-          {notice.action && (
-            <button
-              className="notice-action"
-              onClick={() => {
-                notice.action?.run();
-                setNoticeClosing(true);
-              }}
-            >
-              {notice.action.label}
-            </button>
-          )}
-          <button onClick={() => setNoticeClosing(true)}>{t("common.close")}</button>
-        </div>
-      )}
+      <NoticeBar notices={notices} />
 
       {screen === "library" && (
         <Library
@@ -1555,21 +1073,21 @@ export default function App() {
           liveSegments={liveSegments}
           issues={blockingIssues}
           fetching={!!downloading}
-          watchCandidates={watchCandidates}
-          watchDecisionRunning={watchDecisionRunning}
-          onTranscribeWatchCandidates={transcribeWatchCandidates}
-          onIgnoreWatchCandidates={ignoreWatchCandidates}
-          onAddWatchCandidates={addWatchCandidates}
+          watchCandidates={watch.state.candidates}
+          watchDecisionRunning={watch.state.deciding}
+          onTranscribeWatchCandidates={watch.actions.transcribe}
+          onIgnoreWatchCandidates={watch.actions.ignore}
+          onAddWatchCandidates={watch.actions.add}
           onOpen={openRecording}
           onExportAudio={exportAudio}
           folders={folders}
           openFolder={openFolder}
-          onOpenFolder={setOpenFolder}
-          onCreateFolder={() => setFolderDialog({ mode: "create", forRecording: null })}
-          onRenameFolder={(folder) => setFolderDialog({ mode: "rename", folder })}
+          onOpenFolder={foldersModel.actions.show}
+          onCreateFolder={() => foldersModel.actions.beginCreate(null)}
+          onRenameFolder={(folder) => foldersModel.actions.beginRename(folder)}
           onDeleteFolder={askAboutFolder}
-          onMoveToFolder={(id, folder) => void moveToFolder(id, folder)}
-          onCreateFolderFor={(id) => setFolderDialog({ mode: "create", forRecording: id })}
+          onMoveToFolder={(id, folder) => void foldersModel.actions.move(id, folder)}
+          onCreateFolderFor={(id) => foldersModel.actions.beginCreate(id)}
           onDelete={(id) => {
             const n = recordings.find((x) => x.id === id);
             setQuery({
@@ -1660,9 +1178,9 @@ export default function App() {
             onOpenRecording={openRecording}
             onExportAudio={() => void exportAudio(selectedId)}
             folders={folders}
-            onMoveToFolder={(folder) => void moveToFolder(selectedId, folder)}
+            onMoveToFolder={(folder) => void foldersModel.actions.move(selectedId, folder)}
             onCreateFolderFor={() =>
-              setFolderDialog({ mode: "create", forRecording: selectedId })
+              foldersModel.actions.beginCreate(selectedId)
             }
             onSettings={() => {
               setScreen("settings");
@@ -1729,80 +1247,12 @@ export default function App() {
       )}
 
       {(screen === "library" || screen === "detail") && (
-        <footer className="app-status-footer" aria-label={t("app.shell.statusBar")}>
-          {screen === "library" ? (
-            <div className="app-status-footer-group">
-              <FooterStatusItem
-                kind="segments"
-                value={archiveFooterStatus.transcripts}
-                label={t("app.shell.transcriptCount")}
-              />
-              <FooterStatusItem
-                kind="duration"
-                value={archiveFooterStatus.duration}
-                label={t("app.shell.totalDuration")}
-              />
-            </div>
-          ) : (
-            <div className="app-status-footer-group">
-              {detailFooterStatus?.saved && (
-                <FooterStatusItem
-                  kind="saved"
-                  value={t("common.saved")}
-                  label={t("app.shell.documentState")}
-                />
-              )}
-            </div>
-          )}
-          {screen === "library" && (archiveSetup.watchFolder || archiveSetup.model) && (
-            <div className="app-status-footer-group">
-              {archiveSetup.watchFolder && (
-                <FooterStatusItem
-                  kind="folder"
-                  /* The folder's own name, not its path. A status strip 30 px
-                     tall cannot hold `C:\Users\…` and the name is what the
-                     reader recognises; the whole path is in the tooltip. */
-                  value={folderName(archiveSetup.watchFolder)}
-                  label={t("app.shell.watchFolder")}
-                  detail={archiveSetup.watchFolder}
-                />
-              )}
-              {archiveSetup.model && (
-                <FooterStatusItem
-                  kind="model"
-                  value={labels.model(archiveSetup.model)}
-                  label={t("app.shell.model")}
-                />
-              )}
-            </div>
-          )}
-
-          {screen === "detail" && detailFooterStatus && (
-            <div className="app-status-footer-group">
-              {detailFooterStatus.duration && (
-                <FooterStatusItem
-                  kind="duration"
-                  value={detailFooterStatus.duration}
-                  label={t("app.shell.recordingDuration")}
-                />
-              )}
-              {detailFooterStatus.language && (
-                <FooterStatusItem
-                  kind="language"
-                  value={detailFooterStatus.language}
-                  label={t("app.shell.language")}
-                />
-              )}
-              {detailFooterStatus.segments && (
-                <FooterStatusItem
-                  kind="segments"
-                  value={detailFooterStatus.segments}
-                  label={t("app.shell.segmentCount")}
-                />
-              )}
-            </div>
-          )}
-        </footer>
+        <AppFooter
+          screen={screen}
+          recordings={recordings}
+          selectedId={selectedId}
+          archiveSetup={archiveSetup}
+        />
       )}
 
       {/* The first run, over whatever is behind it — which is the archive,
@@ -1872,22 +1322,6 @@ export default function App() {
         />
       )}
 
-      <NameDialog
-        open={folderDialog !== null}
-        title={t(
-          folderDialog?.mode === "rename"
-            ? "dialogs.folder.renameTitle"
-            : "dialogs.folder.createTitle"
-        )}
-        text={t("dialogs.folder.text")}
-        label={t("dialogs.folder.label")}
-        placeholder={t("dialogs.folder.placeholder")}
-        submitLabel={t(folderDialog?.mode === "rename" ? "common.save" : "dialogs.folder.create")}
-        initialName={folderDialog?.mode === "rename" ? folderDialog.folder.name : ""}
-        onClose={() => setFolderDialog(null)}
-        onSubmit={(name) => void submitFolderDialog(name)}
-      />
-
       {/* Not on the wizard: that screen lists every component with its own
           progress, and a bubble repeating one of them would be noise. */}
       {downloading && screen !== "wizard" && (
@@ -1909,52 +1343,30 @@ export default function App() {
              doing more than it says. */
           onCancel={() => {
             void api.cancelComponent(downloading.id);
-            setDownloading(null);
+            runtime.actions.clearDownload();
           }}
           cancelLabel={t("app.download.cancel")}
         />
       )}
 
-      <ConfirmationDialog
+      <AppDialogs
+        folders={foldersModel}
         query={query}
-        onClose={() => setQuery(null)}
+        onCloseQuery={() => setQuery(null)}
         onError={reportError}
+        pendingTranscription={pendingTranscription}
+        suggestedSpeakers={speakerSetup.count}
+        onCancelSpeakers={() => setPendingTranscription(null)}
+        onAnswerSpeakers={(speakerCount, names) => {
+          const pending = pendingTranscription;
+          if (!pending) return;
+          setPendingTranscription(null);
+          rememberSpeakerNames(pending.ids, names);
+          void runTranscription(pending.ids, pending.language, speakerCount, pending.diarizeOnly);
+        }}
+        dragging={dragging}
+        automatic={automatic}
       />
-
-      {pendingTranscription && (
-        <SpeakerCountDialog
-          recordingCount={pendingTranscription.ids.length}
-          suggested={speakerSetup.count}
-          onCancel={() => setPendingTranscription(null)}
-          onConfirm={(speakerCount, names) => {
-            const pending = pendingTranscription;
-            setPendingTranscription(null);
-            rememberSpeakerNames(pending.ids, names);
-            void runTranscription(
-              pending.ids,
-              pending.language,
-              speakerCount,
-              pending.diarizeOnly
-            );
-          }}
-        />
-      )}
-
-      {/* Last in the tree, so its own stacking context sits above everything
-          the application draws. */}
-      <Tooltips />
-
-      {dragging && (
-        <div className="drag-overlay">
-          <div className="overlay-content">
-            <div className="overlay-icon">↓</div>
-            {/* What is about to happen, not what usually happens. With
-                automatic transcription off the file only lands in the archive,
-                and promising a transcript there was a plain untruth. */}
-            <p>{t(automatic ? "app.dropZone.hint" : "app.dropZone.hintManual")}</p>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
