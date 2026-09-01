@@ -83,6 +83,41 @@ describe("a language the transcript is missing", () => {
     expect(container.textContent).not.toContain(say("detail.secondLanguage.fill"));
   });
 
+  /** **The defect this was written for.** The sweep is the last thing a run
+   *  does, so its answer lands after the screen has already asked once and been
+   *  told nothing. A reader who sits and watches a transcription finish would
+   *  otherwise have to leave the transcript and come back to be told that half
+   *  of it is missing. */
+  test("comes up when a run finishes under the open screen", async () => {
+    const { container, handItAgain } = show({
+      progress: {
+        recording_id: RECORDING_ID,
+        phase: "transcription",
+        percent: 40,
+        description: { code: "transcription.running", params: {}, detail: "" },
+      },
+    });
+    await transcriptShown(container);
+    expect(container.textContent).not.toContain(say("detail.secondLanguage.fill"));
+
+    // The run ends, and only now does the backend have an answer.
+    secondLanguage.mockResolvedValue(offered());
+    await act(async () => {
+      handItAgain({
+        progress: {
+          recording_id: RECORDING_ID,
+          phase: "complete",
+          percent: 100,
+          description: { code: "transcription.complete", params: {}, detail: "" },
+        },
+      });
+    });
+
+    await waitFor(() =>
+      expect(container.textContent).toContain(say("detail.secondLanguage.fill"))
+    );
+  });
+
   /** Filling rewrites every block, including the ones whose text did not
    *  change, because their order did. A screen still drawing the transcript it
    *  had before would be showing the old one. */

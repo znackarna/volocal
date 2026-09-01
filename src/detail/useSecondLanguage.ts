@@ -35,7 +35,16 @@ export interface SecondLanguageOffer {
     added: number | null;
   };
   actions: {
-    /** Asks again, for a transcript made before any of this existed. */
+    /** Reads the answer again without doing any work.
+     *
+     *  **A run that finishes under the open screen would otherwise say
+     *  nothing.** The sweep happens at the very end of a transcription, so the
+     *  answer arrives after this screen has already asked once and been told
+     *  nothing. Without this the reader would have to leave the transcript and
+     *  come back to be told half of it was missing. */
+    reread: () => Promise<void>;
+    /** Asks again from the audio, for a transcript made before any of this
+     *  existed. Costs as long as decoding the recording. */
     look: () => Promise<void>;
     fill: () => Promise<void>;
     refuse: () => Promise<void>;
@@ -78,6 +87,14 @@ export function useSecondLanguage({
     return () => {
       alive = false;
     };
+  }, [recordingId]);
+
+  const reread = useCallback(async () => {
+    try {
+      setFound(await api.secondLanguage(recordingId));
+    } catch {
+      /* Being unable to ask is not something to interrupt a reader with. */
+    }
   }, [recordingId]);
 
   const look = useCallback(async () => {
@@ -130,6 +147,6 @@ export function useSecondLanguage({
       filling,
       added,
     },
-    actions: { look, fill, refuse, clearCount },
+    actions: { reread, look, fill, refuse, clearCount },
   };
 }
