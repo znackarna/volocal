@@ -11,6 +11,10 @@ altered, not how, not which file. Entries before 1.2.6 are written the old way
 and are left as they are; they are not a model for the next one. The mechanism
 belongs in `docs/history/`, which is what that folder is for.
 
+## 1.2.24 — 1 September 2026
+
+- **A file name in the settings no longer breaks in the middle of the word.**
+
 ## 1.2.23 — 31 August 2026
 
 - **Throwing a recording away closes the dialog**, instead of leaving you two more steps from where you wanted to be.
