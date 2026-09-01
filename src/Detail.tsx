@@ -305,10 +305,19 @@ export default function Detail({
     );
   };
 
+  /* Tab steps to the next uncertain place after the one being read, so it needs
+     the clock — but it must not *depend* on it. The keyboard effect below lists
+     this callback, and the clock ticks eight times a second while audio plays;
+     a dependency here would tear the window's keydown listener down and put it
+     back on every one of those ticks. The ref is written on every render, so
+     the step is always taken from where playback actually stands. */
+  const now = useRef(time);
+  now.current = time;
   const goToNextUncertain = useCallback(() => {
-    if (editing.state.uncertain.length === 0) return;
-    goTo(editing.state.uncertain.find((s) => s.start > time + 0.05) ?? editing.state.uncertain[0]);
-  }, [editing.state.uncertain, time, goTo]);
+    const uncertain = editing.state.uncertain;
+    if (uncertain.length === 0) return;
+    goTo(uncertain.find((s) => s.start > now.current + 0.05) ?? uncertain[0]);
+  }, [editing.state.uncertain, goTo]);
 
 
   /** Plays from a moment and brings the transcript with it. The position
