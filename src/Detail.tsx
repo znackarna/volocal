@@ -40,7 +40,6 @@ import {
   statusClass,
 } from "./types";
 import { useFormats } from "./formats";
-import { forgetSpeakerName, returnSpeakerName, useSpeakerNamePool } from "./speakerNames";
 import { useProgressiveList } from "./progressiveList";
 /* The transcript screen's own parts. They were all in this file until it had
    grown to 3 688 lines; each of these is a piece somebody reads on its own. */
@@ -76,6 +75,8 @@ import { TranscriptTips } from "./detail/TranscriptTips";
 import { DetailProgress } from "./detail/DetailProgress";
 import { NotesSection } from "./detail/NotesSection";
 import { useRecordingNotes } from "./detail/useRecordingNotes";
+import { SpeakersSection } from "./detail/SpeakersSection";
+import { useSpeakerManagement } from "./detail/useSpeakerManagement";
 import { useTranscriptSearch } from "./detail/useTranscriptSearch";
 import { MENU_ICONS, TranscriptContextMenu } from "./detail/TranscriptContextMenu";
 import type { TranscriptMenuItem } from "./detail/TranscriptContextMenu";
@@ -197,7 +198,6 @@ export default function Detail({
   const [error, setError] = useState<string | null>(null);
   const [language, setLanguage] = useState("");
   const [segments, setSegments] = useState<Segment[]>([]);
-  const [speakers, setSpeakers] = useState<Speaker[]>([]);
   const [dictionary, setDictionary] = useState<DictionaryEntry[]>([]);
   const [aiDocument, setAiDocument] = useState<AiDocument | null>(null);
   const [aiOutputs, setAiOutputs] = useState<AiOutput[]>([]);
@@ -409,57 +409,6 @@ export default function Detail({
     }
   }, []);
 
-  /** Where each speaker can be heard, longest stretch first.
-   *
-   *  Deciding whether a speaker is real means listening to them, and the
-   *  longest continuous stretch is the clearest sample there is. Adjacent
-   *  segments are joined across gaps under 0.6 s so one sentence broken into
-   *  blocks does not count as several short samples.
-   */
-  const speakerSamples = useMemo(() => {
-    const by = new Map<string, { start: number; end: number }[]>();
-    for (const segment of segments) {
-      if (!segment.speakers) continue;
-      const list = by.get(segment.speakers) ?? [];
-      const last = list[list.length - 1];
-      if (last && segment.start - last.end < 0.6) last.end = segment.end;
-      else list.push({ start: segment.start, end: segment.end });
-      by.set(segment.speakers, list);
-    }
-    for (const list of by.values()) {
-      list.sort((a, b) => b.end - b.start - (a.end - a.start));
-    }
-    return by;
-  }, [segments]);
-
-  /** Share of the spoken time, so a cluster holding two seconds is obvious. */
-  const speakerShare = useMemo(() => {
-    const seconds = new Map<string, number>();
-    let total = 0;
-    for (const segment of segments) {
-      if (!segment.speakers) continue;
-      const length = Math.max(0, segment.end - segment.start);
-      seconds.set(segment.speakers, (seconds.get(segment.speakers) ?? 0) + length);
-      total += length;
-    }
-    const share = new Map<string, number>();
-    for (const [key, value] of seconds) share.set(key, total > 0 ? value / total : 0);
-    return share;
-  }, [segments]);
-
-  /** Repeated clicks walk through that speaker's stretches, longest first. */
-  const nextSample = useRef<Record<string, number>>({});
-  const playSpeaker = useCallback(
-    (key: string) => {
-      const list = speakerSamples.get(key);
-      if (!list || list.length === 0) return;
-      const index = (nextSample.current[key] ?? 0) % list.length;
-      nextSample.current[key] = index + 1;
-      playFrom(list[index].start);
-    },
-    [speakerSamples, playFrom]
-  );
-
   const togglePlayback = useCallback(() => {
     const s = current.current;
     if (s.isCurrentRecording) s.player.togglePlayback();
@@ -530,7 +479,7 @@ export default function Detail({
       setError(d.recording.error ? userMessage(d.recording.error) : null);
       setLanguage(d.recording.language);
       setSegments(d.segments);
-      setSpeakers(d.speakers);
+      speakers.actions.receive(d.speakers);
       notes.actions.receive(d.notes);
       setDictionary(dictionaryEntries);
       setSourceMissing(!exists);
@@ -742,11 +691,6 @@ export default function Detail({
 
      Only when somebody has been recognised at all: before that every block is
      unassigned and a list of all of them says nothing. */
-  const unassignedSegments = useMemo(
-    () => (speakers.length > 0 ? segments.filter((s) => !s.speakers) : []),
-    [segments, speakers]
-  );
-
   /* What this recording was corrected on, in transcript order.
      Only segments whose original is known. A row here is `před → po`; one that
      cannot say what changed is not a correction, it is a paragraph — and a list
@@ -831,6 +775,24 @@ export default function Detail({
     reveal: revealNotes,
     onError,
     reload: load,
+  });
+
+  /** Opens the speakers section, for a voice made from the transcript. */
+  const revealSpeakers = useCallback(() => {
+    setOpenSections((s) => ({ ...s, speakers: true }));
+  }, []);
+
+  const speakers = useSpeakerManagement({
+    recordingId: id,
+    segments,
+    updateSegments: setSegments,
+    playFrom,
+    onError,
+    markAiStale: () =>
+      setAiDocument((document) => (document ? { ...document, stale: true } : null)),
+    reveal: revealSpeakers,
+    reload: load,
+    progressPhase: progress?.phase,
   });
 
   const toggleSection = useCallback((name: SidebarSectionName) => {
@@ -1087,238 +1049,7 @@ export default function Detail({
     }
   }, [dictionarySuggestion, id, load, onError, onInfo, t, tPlural, userMessage]);
 
-  // -------------------------------------------------------------- speakers
-  const speakerByKey = useMemo(() => {
-    const m = new Map<string, Speaker>();
-    speakers.forEach((x) => m.set(x.key, x));
-    return m;
-  }, [speakers]);
-
-  // -------------------------------------------------- correcting a speaker
-  //
-  // The machine gets a block wrong now and then, and until this existed there
-  // was nothing to do about it: naming can join two groups that are one person,
-  // but nothing could move a single block. On a five-person recording that is
-  // the difference between a transcript you fix in a minute and one you cannot
-  // fix at all.
-
-  /** The nearest block above or below that somebody else is speaking. */
-  const neighbourVoice = useCallback(
-    (segment: Segment, step: -1 | 1) => {
-      const at = segments.findIndex((s) => s.id === segment.id);
-      if (at < 0) return null;
-      for (let i = at + step; i >= 0 && i < segments.length; i += step) {
-        const key = segments[i].speakers;
-        if (key && key !== segment.speakers) {
-          return { key, name: speakerByKey.get(key)?.name ?? key };
-        }
-      }
-      return null;
-    },
-    [segments, speakerByKey]
-  );
-
-  const giveToVoice = useCallback(
-    async (segment: Segment, key: string) => {
-      setSegments((p) =>
-        p.map((x) => (x.id === segment.id ? { ...x, speakers: key } : x))
-      );
-      try {
-        await api.setSegmentSpeaker(segment.id, key);
-      } catch (e) {
-        onError(userMessage(e));
-      }
-    },
-    [onError, userMessage]
-  );
-
-  /// A passage that belongs to somebody the machine never found. The panel has
-  /// always been able to join two groups that are one person; this is the
-  /// direction it was missing.
-  const giveToNewVoice = useCallback(
-    async (segment: Segment) => {
-      try {
-        const voice = await api.addSpeaker(id);
-        setSpeakers((p) => [...p, voice]);
-        setSegments((p) =>
-          p.map((x) => (x.id === segment.id ? { ...x, speakers: voice.key } : x))
-        );
-        await api.setSegmentSpeaker(segment.id, voice.key);
-        // Open the panel on it: the name it was given is a placeholder, and
-        // renaming it is the next thing anybody will want to do.
-        setOpenSections((s) => ({ ...s, speakers: true }));
-      } catch (e) {
-        onError(userMessage(e));
-      }
-    },
-    [id, onError, userMessage]
-  );
-
-
-  /** The row whose name field should take the keyboard as soon as it is drawn.
-   *  A ref rather than state: the field is focused when it appears, and that is
-   *  not something anything else has to be re-rendered for. */
-  const focusNewName = useRef<string | null>(null);
-
-  /** A person the reader knows is in the recording, before any passage has been
-   *  handed to them.
-   *
-   *  The transcript's menu can also make one, but only while giving it a block.
-   *  Somebody who writes down the participants first and assigns afterwards had
-   *  no way in at all, and neither had anybody whose recording was never
-   *  diarized. */
-  const addVoice = useCallback(async () => {
-    try {
-      const voice = await api.addSpeaker(id);
-      setSpeakers((p) => [...p, voice]);
-      // The stored name is a placeholder; selecting it means the first thing
-      // typed replaces it rather than being appended to "Mluvčí 3".
-      focusNewName.current = voice.key;
-    } catch (e) {
-      onError(userMessage(e));
-    }
-  }, [id, onError, userMessage]);
-
-  /** Taking a person off the list.
-   *
-   *  Their passages stay exactly where they are and lose only the name, so the
-   *  panel's list of unnamed places is where they turn up — nothing has to be
-   *  found again. The improved document goes stale for the same reason a rename
-   *  makes it stale: the names are in it. */
-  const removeVoice = useCallback(
-    async (speaker: Speaker) => {
-      try {
-        await api.deleteSpeaker(id, speaker.key);
-        setSpeakers((p) => p.filter((m) => m.key !== speaker.key));
-        setSegments((p) =>
-          p.map((x) => (x.speakers === speaker.key ? { ...x, speakers: null } : x))
-        );
-        setAiDocument((document) => (document ? { ...document, stale: true } : null));
-      } catch (e) {
-        onError(userMessage(e));
-      }
-    },
-    [id, onError, userMessage]
-  );
-
-  /** What is in the field. Typing is not a decision, so it goes no further
-   *  than the screen. */
-  /* The names typed before the run, still waiting for a voice. They appear
-     under whichever row is being named, never under all of them at once: with
-     five voices and five names that would be twenty-five buttons, and only one
-     of them is ever the answer to the question in front of you.
-
-     Declared here rather than beside the naming state below, because
-     `commitName` puts a name back on it. */
-  const [namePool, setNamePool] = useSpeakerNamePool(id, progress?.phase);
-
   const drawnBlocks = useProgressiveList(segments.length);
-
-  const renameLocally = useCallback((key: string, name: string) => {
-    setSpeakers((s) => s.map((m) => (m.key === key ? { ...m, name } : m)));
-  }, []);
-
-  /** What the name was when the field was entered, so that leaving it without
-   *  changing anything writes nothing. */
-  const nameAtFocus = useRef("");
-
-  /** Saving is what leaving the field means.
-   *
-   *  It used to save on every keystroke: writing "Pavel" was five IPC calls,
-   *  five database writes, and five times marking the improved document stale.
-   *  The dictionary in Settings has always saved on blur; this now matches it.
-   *  Merging by name comes after the save, so the name the merge is judged on
-   *  is the one that was stored. */
-  const commitName = useCallback(
-    async (key: string, name: string) => {
-      if (name === nameAtFocus.current) return;
-      const before = nameAtFocus.current.trim();
-      nameAtFocus.current = name;
-      /* Emptying the field is the exact opposite of taking a name off the
-         shortlist, so it goes back on. `forgetSpeakerName` removed it when it
-         landed on this voice — right, because it was in the archive then and
-         offering it again would be offering the same answer twice. Clearing it
-         ends that, and the name is waiting again rather than gone.
-
-         Only emptying, not changing. A name replaced by another was wrong for
-         this voice and may be wrong everywhere; a name deleted is one somebody
-         has decided does not belong here yet, which is what the list is for. */
-      const typed = name.trim();
-      if (!typed && before) {
-        returnSpeakerName(id, before);
-        setNamePool((pool) => (pool.includes(before) ? pool : [...pool, before]));
-      }
-      /* And the other half of the same rule, so the list means one thing: a
-         name is on it when it is not on a voice. Pressing it in the list has
-         always taken it off; typing the same thing by hand did not, and after
-         the line above that became easy to reach — clear the field, watch the
-         name come back, type it again, and it would be offered while it was
-         already in use. */
-      if (typed) {
-        forgetSpeakerName(id, typed);
-        setNamePool((pool) => pool.filter((n) => n !== typed));
-      }
-      setAiDocument((document) => (document ? { ...document, stale: true } : null));
-      try {
-        await api.renameSpeaker(id, key, name);
-      } catch (e) {
-        onError(userMessage(e));
-      }
-    },
-    [id, onError, userMessage]
-  );
-
-  const [naming, setNaming] = useState<string | null>(null);
-
-  const takeName = useCallback(
-    async (key: string, name: string) => {
-      renameLocally(key, name);
-      await commitName(key, name);
-      /* `commitName` does this too, and both are idempotent. It is still here
-         because it does it only when it has something to write: press a name
-         the voice already carries and the write is skipped, and the list would
-         keep offering it. Cheaper to say it twice than to depend on that. */
-      forgetSpeakerName(id, name);
-      setNamePool((pool) => pool.filter((n) => n !== name));
-      setNaming(null);
-    },
-    [commitName, id, renameLocally]
-  );
-
-  const merge = useCallback(
-    async (z: string, toKey: string) => {
-      try {
-        await api.mergeSpeakers(id, z, toKey);
-        await load();
-      } catch (e) {
-        onError(userMessage(e));
-      }
-    },
-    [id, load, onError, userMessage]
-  );
-
-  /** Two speakers given the same name are one person.
-   *
-   *  Merging used to be a menu of keys — `Mluvčí 3` into `Mluvčí 6` — which
-   *  asks the reader to remember which number was whom. Naming is the step
-   *  they were going to take anyway, so it carries the merge: type the name
-   *  you already typed on another row and the two become one.
-   *
-   *  Runs when the field is left, never mid-typing, or `Pa` would merge into
-   *  `Pavel` on the way to `Paul`.
-   */
-  const mergeByName = useCallback(
-    (key: string, typed: string) => {
-      const name = typed.trim();
-      if (!name) return;
-      const twin = speakers.find(
-        (other) =>
-          other.key !== key && other.name.trim().toLocaleLowerCase() === name.toLocaleLowerCase()
-      );
-      if (twin) void merge(key, twin.key);
-    },
-    [speakers, merge]
-  );
 
   const togglePanel = useCallback(() => {
     setPanelOpen((o) => {
@@ -2112,7 +1843,7 @@ export default function Detail({
           {segments.slice(0, drawnBlocks).map((s, i) => {
             const previous = segments[i - 1];
             const newSpeakers = s.speakers !== (previous?.speakers ?? null);
-            const m = s.speakers ? speakerByKey.get(s.speakers) : undefined;
+            const m = s.speakers ? speakers.state.byKey.get(s.speakers) : undefined;
             return (
               <div key={s.id}>
                 {newSpeakers && m && (
@@ -2168,161 +1899,44 @@ export default function Detail({
           {/* One page, three lists. Each section keeps its own open state, so
               a reader who never names speakers can fold that section away and
               still see notes and uncertain places at the same time. */}
-          <SidebarSection
-            icon="speakers"
-            title={t("detail.speakers.heading")}
-            count={speakers.length}
+          <SpeakersSection
+            speakers={speakers}
             open={openSections.speakers}
             onToggle={() => toggleSection("speakers")}
-            action={
-              /* Both actions on the heading's own line, rather than one of them
-                 taking a row of its own under the list: the panel is a column of
-                 three sections and every row spent here is one the reader has to
-                 scroll past to reach the other two. */
-              <div className="speaker-actions">
-                {/* "Přidat", like the notes section's own, and second: this is
-                    the way out of a corner — a recording nobody diarized, or a
-                    person the clustering folded into somebody else — not the
-                    ordinary way in. The tooltip says what is being added; the
-                    word alone is unambiguous inside a card called Mluvčí. */}
-                <button
-                  type="button"
-                  className="sidebar-text-action speaker-add"
-                  title={t("detail.speakers.addTitle")}
-                  onClick={() => void addVoice()}
-                >
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
-                    <path d="M12 5v14 M5 12h14" stroke="currentColor" strokeWidth="1.7"
-                          strokeLinecap="round" />
-                  </svg>
-                  {t("detail.speakers.add")}
-                </button>
-                <button className="sidebar-text-action" onClick={diarizeSpeakers}
-                        disabled={speakersBusy}>
-                  <LineIcon name="speakers" size={15} />
-                  {diarizing
-                    ? t("detail.speakers.diarizing")
-                    : speakers.length > 0
-                      ? t("detail.speakers.diarizeAgain")
-                      : t("detail.speakers.diarize")}
-                </button>
-              </div>
-            }
-          >
-            {speakers.length > 0 ? (
-              <>
-                <ul className="speaker-list">
-                  {speakers.map((speaker) => (
-                    <li key={speaker.key}>
-                      <button
-                        type="button"
-                        className="speaker-sample"
-                        style={{ background: speaker.color }}
-                        title={t("detail.speakers.playSample")}
-                        aria-label={t("detail.speakers.playSample")}
-                        onClick={() => playSpeaker(speaker.key)}
-                      >
-                        <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden>
-                          <path d="M2.5 1.5 L8.5 5 L2.5 8.5 Z" fill="currentColor" />
-                        </svg>
-                      </button>
-                      <input
-                        ref={(field) => {
-                          if (!field || focusNewName.current !== speaker.key) return;
-                          focusNewName.current = null;
-                          field.focus();
-                          field.select();
-                        }}
-                        value={speaker.name}
-                        aria-label={t("detail.speakers.nameLabel")}
-                        onChange={(event) => renameLocally(speaker.key, event.target.value)}
-                        onFocus={(event) => {
-                          nameAtFocus.current = event.target.value;
-                          setNaming(speaker.key);
-                        }}
-                        onBlur={async (event) => {
-                          const typed = event.target.value;
-                          setNaming((k) => (k === speaker.key ? null : k));
-                          await commitName(speaker.key, typed);
-                          mergeByName(speaker.key, typed);
-                        }}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter") event.currentTarget.blur();
-                        }}
-                        spellCheck={false}
-                      />
-                      <span className="speaker-share">
-                        {Math.round((speakerShare.get(speaker.key) ?? 0) * 100)} %
-                      </span>
-                      <button
-                        type="button"
-                        className="speaker-remove"
-                        title={t("detail.speakers.remove")}
-                        aria-label={t("detail.speakers.remove")}
-                        onClick={() => {
-                          // Asked about only when there is something to lose.
-                          // A person just added by a slip of the hand holds a
-                          // placeholder name and nothing else, and a dialog
-                          // about that would be in the way.
-                          if (!segments.some((s) => s.speakers === speaker.key)) {
-                            void removeVoice(speaker);
-                            return;
-                          }
-                          setConfirmation({
-                            title: t("detail.speakers.removeTitle"),
-                            text: t("detail.speakers.removeText", { name: speaker.name }),
-                            confirm: t("detail.speakers.removeConfirm"),
-                            destructive: true,
-                            action: () => removeVoice(speaker),
-                          });
-                        }}
-                      >
-                        <LineIcon name="remove" size={15} />
-                      </button>
-                      {naming === speaker.key && namePool.length > 0 && (
-                        <div className="speaker-name-chips">
-                          {namePool.map((name) => (
-                            <button
-                              key={name}
-                              className="voice-choice"
-                              style={{ color: speaker.color, borderColor: speaker.color }}
-                              /* Keeps the field focused, so the chips are still
-                                 mounted when the click lands. */
-                              onMouseDown={(event) => event.preventDefault()}
-                              onClick={() => void takeName(speaker.key, name)}
-                            >
-                              {name}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-                {speakers.length > 1 && (
-                  <div className="speaker-hint">
-                    <InfoNote>{t("detail.speakers.nameHint")}</InfoNote>
-                  </div>
-                )}
-              </>
-            ) : (
-              <SidebarEmpty>{t("detail.speakers.empty")}</SidebarEmpty>
-            )}
-          </SidebarSection>
+            onDiarize={diarizeSpeakers}
+            busy={speakersBusy}
+            diarizing={diarizing}
+            onConfirmRemove={(speaker) => {
+              // Asked about only when there is something to lose. A person just
+              // added by a slip of the hand holds a placeholder name and
+              // nothing else, and a dialog about that would be in the way.
+              if (!segments.some((s) => s.speakers === speaker.key)) {
+                void speakers.actions.removeVoice(speaker);
+                return;
+              }
+              setConfirmation({
+                title: t("detail.speakers.removeTitle"),
+                text: t("detail.speakers.removeText", { name: speaker.name }),
+                confirm: t("detail.speakers.removeConfirm"),
+                destructive: true,
+                action: () => speakers.actions.removeVoice(speaker),
+              });
+            }}
+          />
 
           {/* Only where there is something to do. An empty list of a thing the
               reader has never heard of is worse than no section at all. */}
-          {unassignedSegments.length > 0 && (
+          {speakers.state.unassigned.length > 0 && (
             <SidebarSection
               icon="unnamed"
               title={t("detail.unassigned.heading")}
-              count={unassignedSegments.length}
+              count={speakers.state.unassigned.length}
               open={openSections.unassigned}
               onToggle={() => toggleSection("unassigned")}
             >
               <p className="sidebar-empty">{t("detail.unassigned.hint")}</p>
               <ul className="unassigned">
-                {unassignedSegments.map((s) => {
+                {speakers.state.unassigned.map((s) => {
                   /* Only the two neighbours, not every voice in the recording.
                      A gap between two blocks of one person is already filled
                      by the backend, so what is left lies between two different
@@ -2330,8 +1944,8 @@ export default function Detail({
                      all five under all thirty rows would be 150 buttons, and
                      none of the other 148 is a plausible answer. Somebody who
                      needs a third voice has the transcript's own menu. */
-                  const above = neighbourVoice(s, -1);
-                  const below = neighbourVoice(s, 1);
+                  const above = speakers.actions.neighbourVoice(s, -1);
+                  const below = speakers.actions.neighbourVoice(s, 1);
                   const choices = below && below.key !== above?.key
                     ? [above, below]
                     : [above];
@@ -2353,10 +1967,10 @@ export default function Detail({
                               key={voice.key}
                               className="voice-choice"
                               style={{
-                                color: speakerByKey.get(voice.key)?.color,
-                                borderColor: speakerByKey.get(voice.key)?.color,
+                                color: speakers.state.byKey.get(voice.key)?.color,
+                                borderColor: speakers.state.byKey.get(voice.key)?.color,
                               }}
-                              onClick={() => void giveToVoice(s, voice.key)}
+                              onClick={() => void speakers.actions.giveToVoice(s, voice.key)}
                             >
                               {voice.name}
                             </button>
@@ -2527,18 +2141,18 @@ export default function Detail({
               label: t("detail.menu.toSpeaker"),
               icon: MENU_ICONS.speaker,
               children: [
-                ...speakers
+                ...speakers.state.speakers
                   .filter((m) => m.key !== transcriptMenu.segment.speakers)
                   .map((m) => ({
                     label: m.name,
                     icon: MENU_ICONS.speaker,
                     color: m.color,
-                    action: () => void giveToVoice(transcriptMenu.segment, m.key),
+                    action: () => void speakers.actions.giveToVoice(transcriptMenu.segment, m.key),
                   })),
                 {
                   label: t("detail.menu.newSpeaker"),
                   icon: MENU_ICONS.newVoice,
-                  action: () => void giveToNewVoice(transcriptMenu.segment),
+                  action: () => void speakers.actions.giveToNewVoice(transcriptMenu.segment),
                 },
               ],
             },
