@@ -11,9 +11,7 @@ import NameDialog from "./NameDialog";
 import Tooltips from "./Tooltips";
 import AddRecordingDialog from "./AddRecordingDialog";
 import SpeakerCountDialog from "./SpeakerCountDialog";
-import RecordingMetadataIcon from "./RecordingMetadataIcon";
 import ProgressBubble from "./ProgressBubble";
-import type { RecordingMetadataKind } from "./RecordingMetadataIcon";
 import { Wordmark } from "./Brand";
 /* Imported plainly rather than behind `await import(...)`. Deferring it looked
    like it kept the updater out of the bundle until somebody turned the check
@@ -23,10 +21,12 @@ import { Wordmark } from "./Brand";
    and the two have nothing to do with each other. */
 import { check as checkForUpdate } from "@tauri-apps/plugin-updater";
 import type { ConfirmationRequest } from "./ConfirmationDialog";
-import { formatTime, applyFonts, applyTheme, fileName, noteUpdateCheck } from "./types";
+import { applyFonts, applyTheme, fileName, noteUpdateCheck } from "./types";
 import { useNotices } from "./app/useNotices";
 import { useWatchFolder } from "./app/useWatchFolder";
 import { useTranscriptionRuntime } from "./app/useTranscriptionRuntime";
+import { useFolderManagement } from "./app/useFolderManagement";
+import { AppFooter } from "./app/AppFooter";
 import { NoticeBar } from "./app/NoticeBar";
 import { rememberSpeakerNames } from "./speakerNames";
 import { computeFellBack } from "./compute";
@@ -128,38 +128,6 @@ function sameCandidates(a: WatchFolderCandidate[], b: WatchFolderCandidate[]): b
   );
 }
 
-/** The last part of a path, whichever separator the system uses. */
-function folderName(path: string): string {
-  const parts = path.split(/[\\/]/).filter(Boolean);
-  return parts[parts.length - 1] ?? path;
-}
-
-function FooterStatusItem({
-  kind,
-  value,
-  label,
-  detail,
-}: {
-  kind: RecordingMetadataKind;
-  value: string;
-  label: string;
-  /** Shown in the tooltip after the label, where the visible value is a
-   *  shortened form of something longer. */
-  detail?: string;
-}) {
-  const { t } = useI18n();
-
-  return (
-    <span
-      className="app-status-item"
-      aria-label={t("app.shell.statusItem", { label, value: detail ?? value })}
-      title={detail ? `${label}: ${detail}` : label}
-    >
-      <RecordingMetadataIcon kind={kind} />
-      <span>{value}</span>
-    </span>
-  );
-}
 
 /** How long the notice bar stays before it leaves on its own. The countdown
  *  ring in the bar is handed the same number, so the picture and the timer
@@ -784,83 +752,22 @@ export default function App() {
      not a place to send anyone digging — so the archive offers to hand the
      file over. One implementation for both screens; Library and Detail only
      say which recording. */
-  /* Folders. The archive shows one level at a time, so `openFolder` is where
-     the person stands; a recording moved out of sight of that level is the
-     point of the feature rather than a surprise. */
-  const [folders, setFolders] = useState<Folder[]>([]);
-  const [openFolder, setOpenFolder] = useState<string | null>(null);
+  const foldersModel = useFolderManagement({
+    reloadRecordings: loadRecordings,
+    onError: reportError,
+  });
+  const folders = foldersModel.state.folders;
+  const openFolder = foldersModel.state.open;
+  const folderDialog = foldersModel.state.dialog;
   useEffect(() => {
     openFolderRef.current = openFolder;
   }, [openFolder]);
-  const [folderDialog, setFolderDialog] = useState<
-    { mode: "create"; forRecording: string | null } | { mode: "rename"; folder: Folder } | null
-  >(null);
 
-  const loadFolders = useCallback(async () => {
-    try {
-      setFolders(await api.folders());
-    } catch (error) {
-      reportError(userMessage(error));
-    }
-  }, [reportError, userMessage]);
-
-  useEffect(() => {
-    void loadFolders();
-  }, [loadFolders]);
-
-  const submitFolderDialog = useCallback(
-    async (name: string) => {
-      const request = folderDialog;
-      setFolderDialog(null);
-      if (!request) return;
-      try {
-        if (request.mode === "rename") {
-          await api.renameFolder(request.folder.id, name);
-        } else {
-          const created = await api.createFolder(name);
-          // Created from a recording's own menu: it goes straight in, which
-          // is what the person was doing when they reached for a new folder.
-          if (request.forRecording) {
-            await api.moveToFolder([request.forRecording], created.id);
-            await loadRecordings();
-          }
-        }
-        await loadFolders();
-      } catch (error) {
-        reportError(userMessage(error));
-      }
-    },
-    [folderDialog, loadFolders, loadRecordings, reportError, userMessage]
-  );
-
-  const moveToFolder = useCallback(
-    async (id: string, folder: string | null) => {
-      try {
-        await api.moveToFolder([id], folder);
-        await loadRecordings();
-        await loadFolders();
-      } catch (error) {
-        reportError(userMessage(error));
-      }
-    },
-    [loadFolders, loadRecordings, reportError, userMessage]
-  );
-
+  /** Two answers, not one: an empty folder is a plain confirmation, a full one
+   *  asks whether its transcripts go with it. The destructive button is the one
+   *  that destroys; keeping them is the quiet way out. */
   const askAboutFolder = useCallback(
     (folder: Folder) => {
-      const remove = async (contents: boolean) => {
-        try {
-          await api.deleteFolder(folder.id, contents);
-          setOpenFolder((current) => (current === folder.id ? null : current));
-          await loadRecordings();
-          await loadFolders();
-        } catch (error) {
-          reportError(userMessage(error));
-        }
-      };
-      /* Two answers, not one: an empty folder is a plain confirmation, a full
-         one asks whether its transcripts go with it. The destructive button
-         is the one that destroys; keeping them is the quiet way out. */
       setQuery({
         title: t("dialogs.folder.deleteTitle", { name: folder.name }),
         text: folder.recording_count === 0
@@ -870,13 +777,18 @@ export default function App() {
           ? t("common.delete")
           : t("dialogs.folder.deleteAll"),
         destructive: true,
-        action: () => void remove(folder.recording_count > 0),
+        action: () => void foldersModel.actions.remove(folder, folder.recording_count > 0),
         ...(folder.recording_count > 0
-          ? { alternative: { label: t("dialogs.folder.deleteKeep"), action: () => void remove(false) } }
+          ? {
+              alternative: {
+                label: t("dialogs.folder.deleteKeep"),
+                action: () => void foldersModel.actions.remove(folder, false),
+              },
+            }
           : {}),
       });
     },
-    [loadFolders, loadRecordings, reportError, t, tPlural, userMessage]
+    [foldersModel.actions, t, tPlural]
   );
 
   const exportAudio = useCallback(
@@ -965,7 +877,7 @@ export default function App() {
       setScreen(place.screen);
       setSelectedId(place.recording);
       setSeekTime(null);
-      setOpenFolder(place.folder);
+      foldersModel.actions.show(place.folder);
       if (place.screen === "library") loadRecordings();
     },
     [loadRecordings]
@@ -1004,32 +916,6 @@ export default function App() {
     onError: reportError,
     onInfo: reportInfo,
   });
-
-  const archiveFooterStatus = useMemo(() => {
-    const completed = recordings.filter((recording) => recording.status === "done");
-    const duration = completed.reduce((sum, recording) => sum + recording.duration, 0);
-    return {
-      transcripts: formats.transcriptCount(completed.length),
-      duration: formats.archiveDuration(duration),
-    };
-  }, [formats, recordings]);
-
-  const detailFooterStatus = useMemo(() => {
-    const recording = recordings.find((item) => item.id === selectedId);
-    if (!recording) return null;
-    return {
-      duration: recording.duration > 0 ? formatTime(recording.duration) : null,
-      language: recording.language ? labels.languageCapitalized(recording.language) : null,
-      segments: recording.status === "done" ? formats.segmentCount(recording.segment_count) : null,
-      /* `Uloženo` used to be a constant, lit for every detail — including a
-         recording with no transcript at all, where there is nothing saved to
-         speak of. It is a statement about a stored document, so it appears
-         where one exists. There is no unsaved state to report: every edit is
-         written as it is made, which is what makes this a fact rather than a
-         progress indicator. */
-      saved: recording.status === "done",
-    };
-  }, [formats, labels, recordings, selectedId]);
 
   const leaveWizard = useCallback(() => {
     setMissingModule(null);
@@ -1107,7 +993,7 @@ export default function App() {
                  to live in the breadcrumb, which meant two different places to
                  look for one idea. */
               if (screen === "library") {
-                setOpenFolder(null);
+                foldersModel.actions.show(null);
                 return;
               }
               loadToolCheck();
@@ -1199,12 +1085,12 @@ export default function App() {
           onExportAudio={exportAudio}
           folders={folders}
           openFolder={openFolder}
-          onOpenFolder={setOpenFolder}
-          onCreateFolder={() => setFolderDialog({ mode: "create", forRecording: null })}
-          onRenameFolder={(folder) => setFolderDialog({ mode: "rename", folder })}
+          onOpenFolder={foldersModel.actions.show}
+          onCreateFolder={() => foldersModel.actions.beginCreate(null)}
+          onRenameFolder={(folder) => foldersModel.actions.beginRename(folder)}
           onDeleteFolder={askAboutFolder}
-          onMoveToFolder={(id, folder) => void moveToFolder(id, folder)}
-          onCreateFolderFor={(id) => setFolderDialog({ mode: "create", forRecording: id })}
+          onMoveToFolder={(id, folder) => void foldersModel.actions.move(id, folder)}
+          onCreateFolderFor={(id) => foldersModel.actions.beginCreate(id)}
           onDelete={(id) => {
             const n = recordings.find((x) => x.id === id);
             setQuery({
@@ -1295,9 +1181,9 @@ export default function App() {
             onOpenRecording={openRecording}
             onExportAudio={() => void exportAudio(selectedId)}
             folders={folders}
-            onMoveToFolder={(folder) => void moveToFolder(selectedId, folder)}
+            onMoveToFolder={(folder) => void foldersModel.actions.move(selectedId, folder)}
             onCreateFolderFor={() =>
-              setFolderDialog({ mode: "create", forRecording: selectedId })
+              foldersModel.actions.beginCreate(selectedId)
             }
             onSettings={() => {
               setScreen("settings");
@@ -1364,80 +1250,12 @@ export default function App() {
       )}
 
       {(screen === "library" || screen === "detail") && (
-        <footer className="app-status-footer" aria-label={t("app.shell.statusBar")}>
-          {screen === "library" ? (
-            <div className="app-status-footer-group">
-              <FooterStatusItem
-                kind="segments"
-                value={archiveFooterStatus.transcripts}
-                label={t("app.shell.transcriptCount")}
-              />
-              <FooterStatusItem
-                kind="duration"
-                value={archiveFooterStatus.duration}
-                label={t("app.shell.totalDuration")}
-              />
-            </div>
-          ) : (
-            <div className="app-status-footer-group">
-              {detailFooterStatus?.saved && (
-                <FooterStatusItem
-                  kind="saved"
-                  value={t("common.saved")}
-                  label={t("app.shell.documentState")}
-                />
-              )}
-            </div>
-          )}
-          {screen === "library" && (archiveSetup.watchFolder || archiveSetup.model) && (
-            <div className="app-status-footer-group">
-              {archiveSetup.watchFolder && (
-                <FooterStatusItem
-                  kind="folder"
-                  /* The folder's own name, not its path. A status strip 30 px
-                     tall cannot hold `C:\Users\…` and the name is what the
-                     reader recognises; the whole path is in the tooltip. */
-                  value={folderName(archiveSetup.watchFolder)}
-                  label={t("app.shell.watchFolder")}
-                  detail={archiveSetup.watchFolder}
-                />
-              )}
-              {archiveSetup.model && (
-                <FooterStatusItem
-                  kind="model"
-                  value={labels.model(archiveSetup.model)}
-                  label={t("app.shell.model")}
-                />
-              )}
-            </div>
-          )}
-
-          {screen === "detail" && detailFooterStatus && (
-            <div className="app-status-footer-group">
-              {detailFooterStatus.duration && (
-                <FooterStatusItem
-                  kind="duration"
-                  value={detailFooterStatus.duration}
-                  label={t("app.shell.recordingDuration")}
-                />
-              )}
-              {detailFooterStatus.language && (
-                <FooterStatusItem
-                  kind="language"
-                  value={detailFooterStatus.language}
-                  label={t("app.shell.language")}
-                />
-              )}
-              {detailFooterStatus.segments && (
-                <FooterStatusItem
-                  kind="segments"
-                  value={detailFooterStatus.segments}
-                  label={t("app.shell.segmentCount")}
-                />
-              )}
-            </div>
-          )}
-        </footer>
+        <AppFooter
+          screen={screen}
+          recordings={recordings}
+          selectedId={selectedId}
+          archiveSetup={archiveSetup}
+        />
       )}
 
       {/* The first run, over whatever is behind it — which is the archive,
@@ -1519,8 +1337,8 @@ export default function App() {
         placeholder={t("dialogs.folder.placeholder")}
         submitLabel={t(folderDialog?.mode === "rename" ? "common.save" : "dialogs.folder.create")}
         initialName={folderDialog?.mode === "rename" ? folderDialog.folder.name : ""}
-        onClose={() => setFolderDialog(null)}
-        onSubmit={(name) => void submitFolderDialog(name)}
+        onClose={foldersModel.actions.closeDialog}
+        onSubmit={(name) => void foldersModel.actions.submit(name)}
       />
 
       {/* Not on the wizard: that screen lists every component with its own
