@@ -70,17 +70,12 @@ import {
   readOpenSections,
 } from "./detail/sidebar";
 import type { SidebarOpenSections, SidebarSectionName } from "./detail/sidebar";
-import {
-  StickyTime,
-  byNoteOrder,
-  fitNoteTextarea,
-  noteTimeIsValid,
-  parseNoteTime,
-} from "./detail/notes";
 import { transcriptKey } from "./detail/keys";
 import { TranscriptSearch } from "./detail/TranscriptSearch";
 import { TranscriptTips } from "./detail/TranscriptTips";
 import { DetailProgress } from "./detail/DetailProgress";
+import { NotesSection } from "./detail/NotesSection";
+import { useRecordingNotes } from "./detail/useRecordingNotes";
 import { useTranscriptSearch } from "./detail/useTranscriptSearch";
 import { MENU_ICONS, TranscriptContextMenu } from "./detail/TranscriptContextMenu";
 import type { TranscriptMenuItem } from "./detail/TranscriptContextMenu";
@@ -204,15 +199,6 @@ export default function Detail({
   const [segments, setSegments] = useState<Segment[]>([]);
   const [speakers, setSpeakers] = useState<Speaker[]>([]);
   const [dictionary, setDictionary] = useState<DictionaryEntry[]>([]);
-  const [notes, setNotes] = useState<RecordingNote[]>([]);
-  const [openSections, setOpenSections] = useState<SidebarOpenSections>(readOpenSections);
-  const [addingNote, setAddingNote] = useState(false);
-  /** Where the note being written should sit, or nowhere. */
-  const [noteDraftTime, setNoteDraftTime] = useState<number | null>(null);
-  /** Only one sticky is open at a time; a wall of open editors is unreadable. */
-  const [openNoteId, setOpenNoteId] = useState<string | null>(null);
-  const [noteDraft, setNoteDraft] = useState("");
-  const [noteTimeDrafts, setNoteTimeDrafts] = useState<Record<string, string>>({});
   const [aiDocument, setAiDocument] = useState<AiDocument | null>(null);
   const [aiOutputs, setAiOutputs] = useState<AiOutput[]>([]);
   /** Everything this recording has been asked for in somebody's own words,
@@ -501,6 +487,7 @@ export default function Detail({
    *  Kept in `localStorage` beside the panel's own preference rather than in the
    *  database: it is a habit of this machine, not of the archive. */
   // The panel is remembered between recordings: whoever closes it wants quiet.
+  const [openSections, setOpenSections] = useState<SidebarOpenSections>(readOpenSections);
   const [panelOpen, setPanelOpen] = useState(
     () => localStorage.getItem("panel") !== "zavreny"
   );
@@ -544,7 +531,7 @@ export default function Detail({
       setLanguage(d.recording.language);
       setSegments(d.segments);
       setSpeakers(d.speakers);
-      setNotes(d.notes);
+      notes.actions.receive(d.notes);
       setDictionary(dictionaryEntries);
       setSourceMissing(!exists);
       setAiDocument(aiStatus.document);
@@ -807,69 +794,25 @@ export default function Detail({
     goTo(uncertainSegments.find((s) => s.start > time + 0.05) ?? uncertainSegments[0]);
   }, [uncertainSegments, time, goTo]);
 
-  const goToNote = useCallback((noteTime: number) => {
-    // The transcript follows to the note's place, but the position played is
-    // the note's own — not the start of the segment that happens to contain it.
-    const exact = segments.find((segment) => segment.start <= noteTime && noteTime < segment.end);
-    const previous = [...segments].reverse().find((segment) => segment.start <= noteTime);
+  /** Plays from a moment and brings the transcript with it. The position
+   *  played is the one asked for, not the start of the block that happens to
+   *  contain it. Given to the notes, which is the only thing that asks. */
+  const goToMoment = useCallback((moment: number) => {
+    const exact = segments.find((segment) => segment.start <= moment && moment < segment.end);
+    const previous = [...segments].reverse().find((segment) => segment.start <= moment);
     const target = exact ?? previous;
     if (target) {
       document
         .getElementById(`segment-${target.id}`)
         ?.scrollIntoView({ behavior: "smooth", block: "center" });
     }
-    playFrom(noteTime);
+    playFrom(moment);
   }, [playFrom, segments]);
 
-  /* A clamped note unrolls on hover, and CSS can only ease between two lengths
-     it knows. The full height of wrapped text is not one of them, so it is
-     measured here — `scrollHeight` reports the whole text even while the clamp
-     is showing three lines of it — and handed to the stylesheet. The sidebar
-     can be resized and a note can be rewritten, so it is measured again
-     whenever either changes. */
-  const notesListRef = useRef<HTMLUListElement | null>(null);
-  useLayoutEffect(() => {
-    const list = notesListRef.current;
-    if (!list) return;
-    const measure = () => {
-      list.querySelectorAll<HTMLElement>(".sticky-text").forEach((text) => {
-        const full = `${text.scrollHeight}px`;
-        // Only on change: the observer watches the list this may resize.
-        if (text.style.getPropertyValue("--sticky-full") !== full) {
-          text.style.setProperty("--sticky-full", full);
-        }
-      });
-    };
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(list);
-    return () => observer.disconnect();
-  }, [notes, openNoteId, addingNote, openSections.notes]);
-
-  const toggleSection = useCallback((name: SidebarSectionName) => {
-    setOpenSections((current) => {
-      const next = { ...current, [name]: !current[name] };
-      localStorage.setItem("sidebar-sections", JSON.stringify(next));
-      return next;
-    });
-  }, []);
-
-  const beginNote = useCallback(() => {
-    // A new note starts loose. Most remarks are about the recording, not about
-    // one second of it, and pinning is one click away when it is not.
-    setNoteDraft("");
-    setNoteDraftTime(null);
-    setOpenNoteId(null);
-    setAddingNote(true);
-  }, []);
-
-  /** A note about this exact moment, written from the transcript rather than
-   *  from the sidebar: the note arrives pinned, and the panel opens on it. */
-  const beginNoteAt = useCallback((time: number) => {
-    setNoteDraft("");
-    setNoteDraftTime(time);
-    setOpenNoteId(null);
-    setAddingNote(true);
+  /** Opens the notes section and the panel, so a note begun from the transcript
+   *  arrives somewhere the reader can see it. Both are the screen's state, so
+   *  the notes ask for it rather than reaching in. */
+  const revealNotes = useCallback(() => {
     setOpenSections((current) => {
       const next = { ...current, notes: true };
       localStorage.setItem("sidebar-sections", JSON.stringify(next));
@@ -881,88 +824,22 @@ export default function Detail({
     });
   }, []);
 
-  const cancelNote = useCallback(() => {
-    setAddingNote(false);
-    setNoteDraft("");
-    setNoteDraftTime(null);
-  }, []);
+  const notes = useRecordingNotes({
+    recordingId: id,
+    duration,
+    seekTo: goToMoment,
+    reveal: revealNotes,
+    onError,
+    reload: load,
+  });
 
-  const addNote = useCallback(async () => {
-    const text = noteDraft.trim();
-    if (!text) return;
-    try {
-      const note = await api.addRecordingNote(id, noteDraftTime, text);
-      setNotes((current) => [...current, note].sort(byNoteOrder));
-      setAddingNote(false);
-      setNoteDraft("");
-      setNoteDraftTime(null);
-    } catch (error) {
-      onError(userMessage(error));
-    }
-  }, [id, noteDraft, noteDraftTime, onError, userMessage]);
-
-  /** Pins a saved note to a moment, or takes it off the timeline entirely. */
-  const setNoteTime = useCallback(async (note: RecordingNote, next: number | null) => {
-    const updated = { ...note, time: next };
-    setNotes((current) => current
-      .map((item) => item.id === note.id ? updated : item)
-      .sort(byNoteOrder));
-    try {
-      await api.updateRecordingNote(updated.id, updated.time, updated.text, updated.done);
-    } catch (error) {
-      onError(userMessage(error));
-      await load();
-    }
-  }, [load, onError, userMessage]);
-
-  const saveNote = useCallback(async (note: RecordingNote) => {
-    const text = note.text.trim();
-    if (!text) {
-      await load();
-      return;
-    }
-    try {
-      await api.updateRecordingNote(note.id, note.time, text, note.done);
-      setNotes((current) => current.map((item) =>
-        item.id === note.id ? { ...item, text } : item
-      ));
-    } catch (error) {
-      onError(userMessage(error));
-      await load();
-    }
-  }, [load, onError, userMessage]);
-
-
-  const saveNoteTime = useCallback(async (note: RecordingNote, value: string) => {
-    const parsedTime = parseNoteTime(value);
-    setNoteTimeDrafts((current) => {
-      const next = { ...current };
-      delete next[note.id];
+  const toggleSection = useCallback((name: SidebarSectionName) => {
+    setOpenSections((current) => {
+      const next = { ...current, [name]: !current[name] };
+      localStorage.setItem("sidebar-sections", JSON.stringify(next));
       return next;
     });
-    if (parsedTime === null || (duration > 0 && parsedTime > duration)) return;
-
-    const updated = { ...note, time: parsedTime };
-    setNotes((current) => current
-      .map((item) => item.id === note.id ? updated : item)
-      .sort(byNoteOrder));
-    try {
-      await api.updateRecordingNote(updated.id, updated.time, updated.text, updated.done);
-    } catch (error) {
-      onError(userMessage(error));
-      await load();
-    }
-  }, [duration, load, onError, userMessage]);
-
-  const deleteNote = useCallback(async (note: RecordingNote) => {
-    setNotes((current) => current.filter((item) => item.id !== note.id));
-    try {
-      await api.deleteRecordingNote(note.id);
-    } catch (error) {
-      onError(userMessage(error));
-      setNotes((current) => [...current, note].sort(byNoteOrder));
-    }
-  }, [onError, userMessage]);
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -2589,184 +2466,22 @@ export default function Detail({
             )}
           </SidebarSection>
 
-          <SidebarSection
-            icon="note"
-            title={t("detail.notes.heading")}
-            count={notes.length}
+          <NotesSection
+            notes={notes}
             open={openSections.notes}
             onToggle={() => toggleSection("notes")}
-            action={
-              <button className="sidebar-text-action" onClick={beginNote} disabled={addingNote}>
-                {/* Drawn on the icon family's own 24 grid with its 1.6 stroke,
-                    not on the header button's 15 grid. A plus is a full-bleed
-                    geometric shape: at the header's proportions — arms across
-                    11 of 15, a stroke a tenth of the box — it outweighed the
-                    speakers glyph beside it, which spends its box on detail.
-                    Same grid, same stroke, same optical weight. */}
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-                     stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"
-                     aria-hidden>
-                  <path d="M12 6v12M6 12h12" />
-                </svg>
-                {t("detail.notes.add")}
-              </button>
+            playbackTime={time}
+            duration={duration}
+            onConfirmDelete={(note) =>
+              setConfirmation({
+                title: t("detail.notes.deleteTitle"),
+                text: note.text.trim(),
+                confirm: t("common.delete"),
+                destructive: true,
+                action: () => notes.actions.remove(note),
+              })
             }
-          >
-            {(addingNote || notes.length > 0) && (
-              <ul className="stickies" ref={notesListRef}>
-                {addingNote && (
-                  <li
-                    className="sticky open"
-                    /* Leaving an empty composer closes it. Text already
-                       written is never thrown away by looking elsewhere. */
-                    onBlur={(event) => {
-                      if (event.currentTarget.contains(event.relatedTarget)) return;
-                      if (!noteDraft.trim()) cancelNote();
-                    }}
-                  >
-                    <div className="sticky-body">
-                      <textarea
-                        className="sticky-editor"
-                        value={noteDraft}
-                        autoFocus
-                        rows={3}
-                        ref={fitNoteTextarea}
-                        placeholder={t("detail.notes.placeholder")}
-                        onChange={(event) => {
-                          setNoteDraft(event.target.value);
-                          fitNoteTextarea(event.currentTarget);
-                        }}
-                        onKeyDown={(event) => {
-                          if (event.key === "Escape") cancelNote();
-                          if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
-                            event.preventDefault();
-                            void addNote();
-                          }
-                        }}
-                      />
-                      <div className="sticky-tools">
-                        <StickyTime
-                          time={noteDraftTime}
-                          playbackTime={time}
-                          open
-                          pinDisabled={!noteDraft.trim()}
-                          onPin={() => setNoteDraftTime(time)}
-                          onUnpin={() => setNoteDraftTime(null)}
-                        />
-                        <button
-                          className="sticky-confirm"
-                          onClick={() => void addNote()}
-                          disabled={!noteDraft.trim()}
-                        >
-                          {t("common.save")}
-                        </button>
-                      </div>
-                    </div>
-                  </li>
-                )}
-
-                {notes.map((note) => {
-                  const open = openNoteId === note.id;
-                  return (
-                    <li
-                      key={note.id}
-                      className={`sticky ${open ? "open" : ""}`}
-                      /* An open note closes when attention moves elsewhere.
-                         Moving between its own controls is not leaving. */
-                      onBlur={(event) => {
-                        if (event.currentTarget.contains(event.relatedTarget)) return;
-                        if (open) setOpenNoteId(null);
-                      }}
-                    >
-                      <div className="sticky-body">
-                        {open ? (
-                          <textarea
-                            className="sticky-editor"
-                            value={note.text}
-                            autoFocus
-                            rows={1}
-                            ref={fitNoteTextarea}
-                            onChange={(event) => {
-                              setNotes((current) => current.map((item) =>
-                                item.id === note.id
-                                  ? { ...item, text: event.target.value }
-                                  : item
-                              ));
-                              fitNoteTextarea(event.currentTarget);
-                            }}
-                            onKeyDown={(event) => {
-                              if (event.key === "Escape" ||
-                                  (event.key === "Enter" && (event.ctrlKey || event.metaKey))) {
-                                event.preventDefault();
-                                event.currentTarget.blur();
-                              }
-                            }}
-                            onBlur={() => void saveNote(note)}
-                          />
-                        ) : (
-                          /* The whole closed note opens it, so the text is a
-                             button rather than a paragraph with a handler. */
-                          <button
-                            className="sticky-text"
-                            onClick={() => setOpenNoteId(note.id)}
-                            title={t("detail.notes.openTitle")}
-                          >
-                            {note.text}
-                          </button>
-                        )}
-
-                        {(open || note.time !== null) && (
-                          <div className="sticky-tools">
-                            <StickyTime
-                              time={note.time}
-                              playbackTime={time}
-                              open={open}
-                              onSeek={note.time !== null ? () => goToNote(note.time!) : undefined}
-                              onPin={() => void setNoteTime(note, time)}
-                              onUnpin={() => void setNoteTime(note, null)}
-                              draft={noteTimeDrafts[note.id]}
-                              invalid={noteTimeDrafts[note.id] !== undefined &&
-                                !noteTimeIsValid(noteTimeDrafts[note.id], duration)}
-                              onDraftChange={(value) => setNoteTimeDrafts((current) => ({
-                                ...current, [note.id]: value,
-                              }))}
-                              onDraftCommit={(value) => void saveNoteTime(note, value)}
-                            />
-                            {open && (
-                              <button
-                                className="sticky-danger"
-                                /* The one place in the application where text
-                                   a person wrote themselves went on a single
-                                   click. Deleting a folder asks and offers two
-                                   answers, removing a recording asks, a re-run
-                                   asks — and all three destroy something that
-                                   can be produced again. A note cannot. */
-                                onClick={() =>
-                                  setConfirmation({
-                                    title: t("detail.notes.deleteTitle"),
-                                    text: note.text.trim(),
-                                    confirm: t("common.delete"),
-                                    destructive: true,
-                                    action: () => deleteNote(note),
-                                  })
-                                }
-                              >
-                                {t("common.delete")}
-                              </button>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-
-            {!addingNote && notes.length === 0 && (
-              <SidebarEmpty>{t("detail.notes.empty")}</SidebarEmpty>
-            )}
-          </SidebarSection>
+          />
         </aside>
         )}
       </div>
@@ -2795,7 +2510,7 @@ export default function Detail({
             {
               label: t("detail.menu.note", { time: formatTime(transcriptMenu.time) }),
               icon: MENU_ICONS.note,
-              action: () => beginNoteAt(transcriptMenu.time),
+              action: () => notes.actions.beginAt(transcriptMenu.time),
             },
             /* One question — who said this — and every answer to it in one
                place. The speakers by name, rather than the block above and the
