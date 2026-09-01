@@ -115,6 +115,8 @@ export const csDialogs = {
   "dialogs.folder.deleteKeep": "Jen složku",
   "dialogs.folder.deleteAll": "Včetně přepisů",
   "dialogs.recordingMenu.transcribeInLanguage": "Přepsat v jazyce",
+  "dialogs.recordingMenu.secondLanguage": "Druhý jazyk v nahrávce",
+  "dialogs.recordingMenu.noSecondLanguage": "Žádný",
   "dialogs.recordingMenu.remove": "Odebrat z archivu",
 } as const;
 
@@ -213,6 +215,10 @@ export const csDialogsContext: Partial<Record<keyof typeof csDialogs, string>> =
     "Uloží zvukový soubor nahrávky jinam. Vlastní záznamy a stažená videa leží ve složce aplikace, kde je nikdo nehledá.",
   "dialogs.recordingMenu.transcribeInLanguage":
     "Položka, která otevírá podnabídku se seznamem jazyků. Jazyk se vybírá až v ní.",
+  "dialogs.recordingMenu.secondLanguage":
+    "Podnabídka: kterým dalším jazykem se v nahrávce mluví. U hotového přepisu se ten jazyk hned doplní.",
+  "dialogs.recordingMenu.noSecondLanguage":
+    "Poslední položka té podnabídky — nahrávka žádný druhý jazyk nemá.",
   "dialogs.recordingMenu.remove":
     "Odstraní nahrávku z archivu. Není to totéž co „Smazat přepis“, který nahrávku nechává být.",
 };

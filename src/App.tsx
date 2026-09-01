@@ -140,8 +140,10 @@ const PHASE_ORDER = [
   "playback",
   "transcription",
   "diarization",
-  "second_language",
   "saving",
+  // Written in after the transcript is saved, so it comes after `saving`: a
+  // report from it must not be dropped as a step backwards.
+  "second_language",
 ];
 
 /** Phases that end a run. After one of them anything may follow — a new run
@@ -821,6 +823,22 @@ export default function App() {
     [recordings, reportError, reportInfo, t, userMessage]
   );
 
+  /* Naming a second language on a recording. The backend writes it on the
+     recording and, when there is already a transcript, starts filling it in —
+     which reports like a run, so nothing here has to watch it. The list is
+     fetched again because the row's language changed. */
+  const nameSecondLanguage = useCallback(
+    async (id: string, language: string) => {
+      try {
+        await api.setSecondLanguageChoice(id, language);
+        await loadRecordings();
+      } catch (error) {
+        reportError(userMessage(error));
+      }
+    },
+    [loadRecordings, reportError, userMessage]
+  );
+
   // -------------------------------------------------- navigation
   const openRecording = useCallback((id: string, time?: number) => {
     setSelectedId(id);
@@ -1140,6 +1158,7 @@ export default function App() {
             loadRecordings();
           }}
           onTranscriptionLanguage={(id, j) => void beginTranscription([id], j)}
+          onSecondLanguage={(id, language) => void nameSecondLanguage(id, language)}
           automatic={automatic}
           onAutomatic={(z) => {
             setAutomatic(z);

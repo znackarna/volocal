@@ -51,6 +51,7 @@ export function recording(over: Partial<Recording> = {}): Recording {
     segment_count: 1,
     folder: null,
     source_url: null,
+    second_language_choice: "",
     ...over,
   };
 }
@@ -166,6 +167,7 @@ export function toolCheck(): ToolCheck {
     embedding_model: "cam.onnx",
     editor_cli: "llama.exe",
     editor_server: "llama-server.exe",
+    detect_second_language: false,
     editor_model: "model.gguf",
     editor_model_id: "editor",
     portable: false,
@@ -281,6 +283,7 @@ export const api = {
   sweepSecondLanguage: (id: string) => sweepSecondLanguage(id),
   fillSecondLanguage: (id: string) => fillSecondLanguage(id),
   refuseSecondLanguage: (id: string) => refuseSecondLanguage(id),
+  setSecondLanguageChoice: vi.fn(),
   checkTools: () => Promise.resolve(toolCheck()),
   loadSettings: () => Promise.resolve(settings()),
   saveSettings: vi.fn(),

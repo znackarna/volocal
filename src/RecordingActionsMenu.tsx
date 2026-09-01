@@ -19,6 +19,9 @@ interface Props {
   onRetranscribe: () => void;
   onDeleteTranscript: () => void;
   onTranscribeInLanguage: (language: string) => void;
+  /** Which second language the recording holds, or none. On a finished
+   *  transcript this also starts writing it in. */
+  onSecondLanguage: (language: string) => void;
   onRemove: () => void;
   className?: string;
 }
@@ -35,6 +38,7 @@ export default function RecordingActionsMenu({
   onRetranscribe,
   onDeleteTranscript,
   onTranscribeInLanguage,
+  onSecondLanguage,
   onRemove,
   className = "",
 }: Props) {
@@ -60,6 +64,27 @@ export default function RecordingActionsMenu({
               label: language.label,
               action: () => onTranscribeInLanguage(language.value),
             })),
+          },
+          /* A recording where two languages are spoken, said by the reader
+             rather than guessed. `auto` is left out: a second language is by
+             definition the one whisper did not pick. The last entry takes the
+             statement back. */
+          {
+            label: t("dialogs.recordingMenu.secondLanguage"),
+            icon: Icons.secondLanguage,
+            children: [
+              ...labels
+                .languageOptions()
+                .filter((language) => language.value !== "auto")
+                .map((language) => ({
+                  label: language.label,
+                  action: () => onSecondLanguage(language.value),
+                })),
+              {
+                label: t("dialogs.recordingMenu.noSecondLanguage"),
+                action: () => onSecondLanguage(""),
+              },
+            ],
           },
           {
             label: t("dialogs.recordingMenu.deleteTranscript"),
@@ -127,6 +152,9 @@ const Icons = {
   deleteTranscript:
     "M7.5 17.5l7-7a2 2 0 0 1 2.9 0l2.1 2.1a2 2 0 0 1 0 2.9L16 19H9l-1.5-1.5Z M11.5 13.5l4.5 4.5 M4 20h16",
   language: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z M3.6 9h16.8 M3.6 15h16.8 M12 3c2.3 2.4 3.5 5.6 3.5 9S14.3 18.6 12 21c-2.3-2.4-3.5-5.6-3.5-9S9.7 5.4 12 3Z",
+  /* Two speech bubbles, one behind the other: two voices in one recording. */
+  secondLanguage:
+    "M4 6.5A2.5 2.5 0 0 1 6.5 4h7A2.5 2.5 0 0 1 16 6.5v4a2.5 2.5 0 0 1-2.5 2.5H9l-3.5 3v-3H6.5A2.5 2.5 0 0 1 4 10.5v-4Z M18 9.5a2.5 2.5 0 0 1 2 2.45v4A2.5 2.5 0 0 1 17.5 18.5H17v3l-3.5-3H12",
   /* From the shared registry: the panel's speaker rows draw the same can. */
   remove: LINE_ICONS.remove,
   /* From the shared registry: three places draw a folder, and they must not

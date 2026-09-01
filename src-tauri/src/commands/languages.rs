@@ -93,6 +93,106 @@ pub async fn sweep_second_language(
     .map_err(|error| UserMessage::new("second_language.sweep_interrupted").detail(error))?
 }
 
+/// The reader says which second language the recording holds — or, with an
+/// empty `language`, that they no longer say so.
+///
+/// It is written on the recording, where it stands like the language choice
+/// beside it: every later transcription writes that language in without
+/// asking. And when the recording already has a transcript, the fill starts
+/// now, through the same queue as everything else that runs whisper. That is
+/// the by-hand way in for a transcript that detection did not catch, or that
+/// was made with detection off.
+#[tauri::command]
+pub async fn set_second_language_choice(
+    window: tauri::AppHandle,
+    app: State<'_, AppState>,
+    id: String,
+    language: String,
+) -> Reported<()> {
+    let has_transcript = {
+        let running = app.bezici.is_running(&id);
+        let db = app.db.lock().unwrap();
+        let recording = reported(db::recording(&db, &id))?;
+        if crate::commands::folders::recording_is_busy(running, &recording.status) {
+            return Err(UserMessage::new("transcription.still_running"));
+        }
+        reported(db::set_second_language_choice(&db, &id, &language))?;
+        let chosen = language.trim();
+        if chosen.is_empty() {
+            return Ok(());
+        }
+        // The row the fill reads, so the screen shows it as pending from now.
+        reported(db::save_second_language(
+            &db,
+            &db::SecondLanguage {
+                recording_id: id.clone(),
+                language: chosen.to_ascii_lowercase(),
+                share: 0.0,
+                state: db::second_language_state::OFFERED.to_string(),
+                filled_at: None,
+            },
+        ))?;
+        recording.status == db::status::DONE && recording.segment_count > 0
+    };
+    if has_transcript {
+        run_fill(window, app.db_path.clone(), app.bezici.clone(), id);
+    }
+    Ok(())
+}
+
+/// One fill, on its own thread, through the queue, announced like a run.
+///
+/// Shared by the two ways a fill can start — the offer's button and naming a
+/// language on a finished transcript — so the two cannot drift apart in how
+/// they queue, cancel or report.
+fn run_fill(
+    window: tauri::AppHandle,
+    db_path: std::path::PathBuf,
+    task: transcription::TranscriptionTask,
+    id: String,
+) {
+    task.enqueue(&id);
+    task.begin(&id);
+    std::thread::spawn(move || {
+        let ours = task.wait_for_turn(&id);
+        let done = if ours {
+            transcription::fill_second_language_in(&window, &db_path, &id, &task)
+        } else {
+            Err(UserMessage::new("transcription.cancelled"))
+        };
+        let cancelled = task.was_cancelled(&id);
+        task.leave_queue(&id);
+        task.cleanup(&id);
+        match (&done, cancelled) {
+            (_, true) => {
+                let _ = window.emit(
+                    "transcription:status",
+                    transcription::TranscriptionProgress {
+                        recording_id: id.clone(),
+                        phase: "cancelled".into(),
+                        percent: 0,
+                        description: UserMessage::new("transcription.cancelled"),
+                    },
+                );
+            }
+            (Err(error), false) => {
+                let _ = window.emit(
+                    "transcription:status",
+                    transcription::TranscriptionProgress {
+                        recording_id: id.clone(),
+                        phase: "error".into(),
+                        percent: 0,
+                        description: error.clone(),
+                    },
+                );
+                let _ = window.emit("transcription:error", (id.clone(), error.clone()));
+            }
+            (Ok(_), false) => {}
+        }
+        let _ = window.emit("transcription:complete", id.clone());
+    });
+}
+
 /// Transcribes the language the transcript is missing and merges it in.
 ///
 /// The long one of the three: it decodes the recording, runs whisper over the

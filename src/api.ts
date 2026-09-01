@@ -98,6 +98,12 @@ export const api = {
    *  `transcription:status` under the `second_language` phase. */
   fillSecondLanguage: (id: string) =>
     invoke<number>("fill_second_language", { id }),
+  /** The reader names a second language the recording holds — or, with an
+   *  empty string, says it holds none. Written on the recording, so every later
+   *  transcription fills it in without asking; on a finished transcript the fill
+   *  starts at once and reports like a run. */
+  setSecondLanguageChoice: (id: string, language: string) =>
+    invoke<void>("set_second_language_choice", { id, language }),
   fileExists: (path: string) => invoke<boolean>("file_exists", { path }),
   /** Lets the updater's installer survive this process exiting. */
   letTheInstallerOut: () => invoke<void>("let_the_installer_out"),

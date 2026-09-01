@@ -47,6 +47,7 @@ function recording(id: string): Recording {
     segment_count: 4,
     folder: null,
     source_url: null,
+  second_language_choice: "",
   };
 }
 
@@ -99,6 +100,7 @@ function show({
         automatic={false}
         onAutomatic={() => {}}
         onTranscriptionLanguage={() => {}}
+      onSecondLanguage={() => {}}
       />
     </I18nProvider>
   );

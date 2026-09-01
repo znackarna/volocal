@@ -52,6 +52,10 @@ export interface Recording {
    *  known — a file opened from the disk never had one, and an online import
    *  made before the archive stored it no longer has one. */
   source_url: string | null;
+  /** A second language the reader says this recording holds, as a code. Empty
+   *  means nobody said so. When set, every transcription writes that language
+   *  in at the end without asking. */
+  second_language_choice: string;
 }
 
 /** A folder in the archive, with what it holds. */
@@ -119,6 +123,10 @@ export interface Settings {
   quality_choice: string;
   /** Optional local model used to turn a transcript into a readable document. */
   editor_model: string;
+  /** Listen at the end of every transcription for a language it is missing, and
+   *  offer to write it in. Off by default; naming the language on the recording
+   *  is the surer way. */
+  detect_second_language: boolean;
   /** **Nothing reads or writes this any more.** It held the instruction last
    *  written for a custom-prompt document, one per installation — until an
    *  instruction written for one interview turned up standing over another,

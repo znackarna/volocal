@@ -637,6 +637,18 @@ export function TranscriptionSettings({
           description={t("settings.speakers.description")}
         />
 
+        {/* Off by default. It costs a few seconds on every run and answers a
+            question most recordings never raise; where the reader knows a
+            recording holds two languages, naming them on it is surer. */}
+        <SettingsToggle
+          title={t("settings.secondLanguage.title")}
+          label={t("settings.secondLanguage.title")}
+          checked={n.detect_second_language}
+          heading
+          onChange={(checked) => save({ ...n, detect_second_language: checked })}
+          description={t("settings.secondLanguage.description")}
+        />
+
         {/* Two controls stood here and both are gone.
 
             `Počet mluvčích` was overridden every time it could have mattered:

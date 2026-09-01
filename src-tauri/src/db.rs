@@ -56,6 +56,14 @@ pub struct Recording {
     /// Language requested for this recording. Empty means the application's
     /// own setting; "auto" means let Whisper recognise it.
     pub language_choice: String,
+    /// A second language the reader says this recording holds, as a code.
+    ///
+    /// Empty means nobody said so. When it is set, the end of every
+    /// transcription writes that language in from the stretches the first pass
+    /// left empty, without asking — and the sweep for one never runs, because
+    /// the answer is already known. A standing fact about the recording, like
+    /// `language_choice`, and kept beside it for the same reason.
+    pub second_language_choice: String,
     pub error: Option<String>,
     pub segment_count: i64,
     /// The folder holding this recording; `None` is the archive's root.
@@ -269,6 +277,16 @@ pub struct Settings {
     /// skipped and no background model is downloaded or loaded.
     #[serde(default)]
     pub editor_model: String,
+    /// Listen, at the end of every transcription, for a language the transcript
+    /// does not have, and offer to write it in.
+    ///
+    /// Off by default. It costs a few seconds on every run and answers a
+    /// question most recordings never raise — and when the reader already knows
+    /// a recording holds two languages, naming them on the recording is both
+    /// cheaper and surer than listening for them. Serde default, so a settings
+    /// record written before this existed still loads.
+    #[serde(default)]
+    pub detect_second_language: bool,
     /// The instruction last written for a custom-prompt document.
     ///
     /// One per installation, not one per recording: it says how this person
@@ -423,6 +441,7 @@ impl Default for Settings {
             // Nobody has been asked yet; the wizard writes it.
             quality_choice: String::new(),
             editor_model: String::new(),
+            detect_second_language: false,
             custom_prompt: String::new(),
             language: "auto".into(),
             // Always on: without it Whisper hallucinates over silence.
@@ -913,7 +932,10 @@ pub fn open(path: &std::path::Path) -> Result<Connection> {
             -- import. NULL for every other recording, and for the online
             -- imports made before this column existed: an address that was
             -- never written down is not one that can be filled in later.
-            source_url      TEXT
+            source_url      TEXT,
+            -- A second language the reader says the recording holds. Empty is
+            -- nobody said so, which is every recording written before this.
+            second_language_choice TEXT NOT NULL DEFAULT ''
         );
 
         CREATE TABLE IF NOT EXISTS folders (
@@ -1336,6 +1358,12 @@ fn migrate_legacy_schema(db: &Connection) {
     value. Refusing the archive over that would cost its owner far more than
     the column is worth. */
     let _ = db.execute("ALTER TABLE recordings ADD COLUMN source_url TEXT", []);
+    // A second language the reader named. Empty on every archive from before,
+    // which says exactly what it should: nobody has said anything yet.
+    let _ = db.execute(
+        "ALTER TABLE recordings ADD COLUMN second_language_choice TEXT NOT NULL DEFAULT ''",
+        [],
+    );
 }
 
 /// Earlier versions hard-coded Czech as the default language, so Whisper
@@ -1558,6 +1586,16 @@ pub fn set_model(db: &Connection, id: &str, model: &str) -> Result<()> {
 }
 
 /// Language the user requested for one particular recording.
+/// Writes down a second language the reader says the recording holds, or
+/// forgets it when `language` is empty.
+pub fn set_second_language_choice(db: &Connection, id: &str, language: &str) -> Result<()> {
+    db.execute(
+        "UPDATE recordings SET second_language_choice = ?2 WHERE id = ?1",
+        params![id, language.trim().to_ascii_lowercase()],
+    )?;
+    Ok(())
+}
+
 pub fn set_language_choice(db: &Connection, id: &str, language: &str) -> Result<()> {
     db.execute(
         "UPDATE recordings SET jazyk_volba = ?2 WHERE id = ?1",
@@ -1589,13 +1627,14 @@ fn recording_from_row(r: &rusqlite::Row) -> rusqlite::Result<Recording> {
         language_choice: r.get(10).unwrap_or_default(),
         folder: r.get(11).unwrap_or_default(),
         source_url: r.get(12).unwrap_or_default(),
+        second_language_choice: r.get(13).unwrap_or_default(),
     })
 }
 
 const RECORDING_SELECT_SQL: &str =
     "SELECT n.id, n.path, n.name, n.duration, n.created_at, n.status, n.model, n.error,
         (SELECT COUNT(*) FROM segments s WHERE s.recording_id = n.id), n.jazyk, n.jazyk_volba,
-        n.folder_id, n.source_url
+        n.folder_id, n.source_url, n.second_language_choice
      FROM recordings n";
 
 /// Every recording in the archive, and **a row that cannot be read is shown as
@@ -1644,6 +1683,7 @@ pub fn list_recordings(db: &Connection) -> Result<Vec<Recording>> {
                 model: String::new(),
                 language: String::new(),
                 language_choice: String::new(),
+                second_language_choice: String::new(),
                 error: Some(
                     crate::user_message::UserMessage::new("archive.row_unreadable")
                         .with("id", &id)
@@ -3416,6 +3456,7 @@ mod tests {
                     model: String::new(),
                     language: String::new(),
                     language_choice: String::new(),
+                    second_language_choice: String::new(),
                     error: None,
                     segment_count: 0,
                     folder: None,
@@ -3481,6 +3522,7 @@ mod tests {
                 model: String::new(),
                 language: String::new(),
                 language_choice: String::new(),
+                second_language_choice: String::new(),
                 error: None,
                 segment_count: 0,
                 folder: None,
@@ -3548,6 +3590,7 @@ mod tests {
                 model: String::new(),
                 language: String::new(),
                 language_choice: String::new(),
+                second_language_choice: String::new(),
                 error: None,
                 segment_count: 0,
                 folder: None,

@@ -50,8 +50,10 @@ const PHASE_ORDER = [
   "playback",
   "transcription",
   "diarization",
-  "second_language",
   "saving",
+  // Written in after the transcript is saved, so it comes after `saving`: a
+  // report from it must not be dropped as a step backwards.
+  "second_language",
 ];
 
 /** Phases that end a run. After one of them anything may follow — a new run

@@ -737,8 +737,9 @@ fn run(
     whisper is given one language for the whole file, so a recording where
     two people speak two languages comes back as one of them with the other
     silently absent — and the text still looks complete, which is worse than
-    a visible failure. A short sweep answers it; `languages.rs` carries the
-    measurements.
+    a visible failure. Two answers: the reader named it on the recording, or
+    detection is switched on and a short sweep listens for it. `languages.rs`
+    carries the measurements.
 
     After the commit rather than inside it, and its failure is not the run's:
     a finished, saved transcript must never be held up or rolled back over a
@@ -749,13 +750,53 @@ fn run(
     The offer is written afresh every run, so a refusal recorded against a
     transcript that has since been replaced is not carried over — a new text
     is a new question. */
-    let sweep = languages::sweep(&check, &wav, &language_written, recording_id, task);
-    let stored = match &sweep {
-        Some(found) => db::save_second_language(&connection, found),
-        None => db::clear_second_language(&connection, recording_id),
-    };
-    if let Err(error) = stored {
-        crate::note!("second language: the sweep could not be recorded: {error}");
+    let named = db::recording(&connection, recording_id)
+        .map(|fresh| fresh.second_language_choice.trim().to_string())
+        .unwrap_or_default();
+    if !named.is_empty() {
+        /* The reader said so, and that settles it: no sweep, no question. The
+        offer row is written first so the screen can show the fill as the
+        pending thing it is, and the fill runs here, on the audio already
+        prepared — the same reason the sweep lives here. Its failure is logged
+        and is not the run's: a finished transcript is never lost over the
+        part that was going to be added to it. */
+        let offer = db::SecondLanguage {
+            recording_id: recording_id.to_string(),
+            language: named.clone(),
+            share: 0.0,
+            state: db::second_language_state::OFFERED.to_string(),
+            filled_at: None,
+        };
+        if let Err(error) = db::save_second_language(&connection, &offer) {
+            crate::note!("second language: the named language could not be recorded: {error}");
+        } else {
+            let fresh = db::recording(&connection, recording_id)?;
+            if let Err(error) = languages::fill_with_audio(
+                app,
+                &connection,
+                &check,
+                &settings,
+                &fresh,
+                &named,
+                &wav,
+                &working_directory,
+                task,
+            ) {
+                crate::note!("second language: filling {named} failed: {error}");
+            }
+        }
+    } else if settings.detect_second_language {
+        let heard = db::segments(&connection, recording_id).unwrap_or_default();
+        let sweep = languages::sweep(&check, &wav, &language_written, &heard, recording_id, task);
+        let stored = match &sweep {
+            Some(found) => db::save_second_language(&connection, found),
+            None => db::clear_second_language(&connection, recording_id),
+        };
+        if let Err(error) = stored {
+            crate::note!("second language: the sweep could not be recorded: {error}");
+        }
+    } else if let Err(error) = db::clear_second_language(&connection, recording_id) {
+        crate::note!("second language: the old offer could not be cleared: {error}");
     }
 
     let _ = std::fs::remove_dir_all(&working_directory);

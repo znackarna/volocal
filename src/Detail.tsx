@@ -605,6 +605,13 @@ export default function Detail({
           onExportAudio,
           onRetranscribe: startTranscription,
           onTranscribeInLanguage: startTranscriptionInLanguage,
+          /* Written on the recording, and on a finished transcript the fill
+             starts at once — it reports like a run, so this screen learns of
+             it the way it learns of any run, through `progress`. */
+          onSecondLanguage: (language) =>
+            void api
+              .setSecondLanguageChoice(id, language)
+              .catch((error) => onError(userMessage(error))),
           onDeleteTranscript: () =>
             setConfirmation({
               title: t("detail.header.deleteTranscriptTitle"),

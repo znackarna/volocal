@@ -135,6 +135,7 @@ pub(crate) fn create_recording(
         model: String::new(),
         language: String::new(),
         language_choice: String::new(),
+        second_language_choice: String::new(),
         error: None,
         segment_count: 0,
         // Everything arriving from outside lands in the archive's root; a
@@ -491,6 +492,7 @@ pub fn rescue_interrupted_take(
         model: String::new(),
         language: String::new(),
         language_choice: String::new(),
+        second_language_choice: String::new(),
         error: None,
         segment_count: 0,
         folder: None,

@@ -39,7 +39,7 @@ the time.
 | [2026-08-27](2026-08-27.md) | 26 | The four times in the wizard were measured all along … |
 | [2026-08-28](2026-08-28.md) | 2 | The two failures worth logging were the two not being logged … |
 | [2026-08-31](2026-08-31.md) | 15 | The three pieces of ballast, and what each one turned out to be … |
-| [2026-09-01](2026-09-01.md) | 8 | The release script asks whether the version is already out; then what an interpreted recording showed Volocal was losing … |
+| [2026-09-01](2026-09-01.md) | 9 | The release script asks whether the version is already out; then what an interpreted recording showed Volocal was losing … |
 
 ## What each day was about
 

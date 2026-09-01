@@ -564,6 +564,7 @@ fn main() {
             commands::languages::refuse_second_language,
             commands::languages::sweep_second_language,
             commands::languages::fill_second_language,
+            commands::languages::set_second_language_choice,
             commands::detail::add_recording_note,
             commands::detail::update_recording_note,
             commands::detail::delete_recording_note,

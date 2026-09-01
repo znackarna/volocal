@@ -745,6 +745,7 @@ mod tests {
             model: "large-v3".to_string(),
             language: "cs".to_string(),
             language_choice: "cs".to_string(),
+            second_language_choice: String::new(),
             error: None,
             segment_count: 0,
             folder: None,

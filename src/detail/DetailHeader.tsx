@@ -58,6 +58,7 @@ export function DetailHeader({
     onExportAudio: () => void;
     onRetranscribe: () => void;
     onTranscribeInLanguage: (language: string) => void;
+    onSecondLanguage: (language: string) => void;
     onDeleteTranscript: () => void;
     onRemove: () => void;
   };
@@ -183,6 +184,7 @@ export function DetailHeader({
               onRetranscribe={menu.onRetranscribe}
               onDeleteTranscript={menu.onDeleteTranscript}
               onTranscribeInLanguage={menu.onTranscribeInLanguage}
+              onSecondLanguage={menu.onSecondLanguage}
               onRemove={menu.onRemove}
             />
           )}

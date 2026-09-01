@@ -68,6 +68,8 @@ interface Props {
   automatic: boolean;
   onAutomatic: (enabled: boolean) => void;
   onTranscriptionLanguage: (id: string, language: string) => void;
+  /** The reader names a second language the recording holds, or none. */
+  onSecondLanguage: (id: string, language: string) => void;
 }
 
 /** Fallback captions for the moment before the first report arrives.
@@ -481,6 +483,7 @@ export default function Library({
   automatic,
   onAutomatic,
   onTranscriptionLanguage,
+  onSecondLanguage,
 }: Props) {
   const { t, compare } = useI18n();
   const formats = useFormats();
@@ -838,6 +841,7 @@ export default function Library({
               onCancel={() => onCancel(n.id)}
               onDeleteTranscription={() => onDeleteTranscription(n.id)}
               onTranscriptionLanguage={(j) => onTranscriptionLanguage(n.id, j)}
+              onSecondLanguage={(j) => onSecondLanguage(n.id, j)}
               onRename={(title) => onRename(n.id, title)}
             />
           ))}
@@ -1217,6 +1221,7 @@ function Row({
   onCancel,
   onDeleteTranscription,
   onTranscriptionLanguage,
+  onSecondLanguage,
   onRename,
 }: {
   recording: Recording;
@@ -1233,6 +1238,7 @@ function Row({
   onCancel: () => void;
   onDeleteTranscription: () => void;
   onTranscriptionLanguage: (language: string) => void;
+  onSecondLanguage: (language: string) => void;
   onRename: (title: string) => void;
 }) {
   const { t } = useI18n();
@@ -1358,6 +1364,7 @@ function Row({
               onRetranscribe={onTranscription}
               onDeleteTranscript={onDeleteTranscription}
               onTranscribeInLanguage={onTranscriptionLanguage}
+              onSecondLanguage={onSecondLanguage}
               onRemove={onDelete}
             />
           </>
