@@ -14,15 +14,11 @@ import { LineIcon, type LineIconName } from "./icons";
 import { changedWords } from "./transcriptText";
 import { Wordmark } from "./Brand";
 import {
-  EMPTY_WAVEFORM,
   MiniPlayer,
-  loadWaveform,
   preparePlaybackSource,
   usePlayer,
-  usePlayerTime,
 } from "./player";
 import { MiniRecorder } from "./recorder";
-import type { Waveform } from "./player";
 import { useI18n } from "./i18n";
 import { useProgressMessage, useUserMessage } from "./messages";
 import type { TranslationKey } from "./i18n";
@@ -67,6 +63,7 @@ import { AiPreviewDialog } from "./detail/ai/AiPreviewDialog";
 import { AiToolsDialog } from "./detail/ai/AiToolsDialog";
 import { useAiWorkspace } from "./detail/ai/useAiWorkspace";
 import { useTranscriptSearch } from "./detail/useTranscriptSearch";
+import { useDetailPlayback } from "./detail/useDetailPlayback";
 import { MENU_ICONS, TranscriptContextMenu } from "./detail/TranscriptContextMenu";
 import type { TranscriptMenuItem } from "./detail/TranscriptContextMenu";
 import { SegmentRow } from "./detail/corrections";
@@ -163,9 +160,6 @@ export default function Detail({
   // screen. Opening another transcript does not touch it — until you press
   // play, whatever was playing keeps playing.
   const player = usePlayer();
-  // Asked for separately from the player: this is the one screen that follows
-  // the clock, and it is what makes the tick worth paying for here.
-  const playerTime = usePlayerTime();
 
   /* The player pill compacts by measurement, not by a window-width guess
      (which shrank it with visible room to spare): it gives up its words the
@@ -208,85 +202,20 @@ export default function Detail({
     /* `title` re-arms it: a rename changes the name's width without changing
        the observed column's box, so the observer alone would sleep through it. */
   }, [title]);
-  const isCurrentRecording = player.recordingId === id;
-  // Cursor in a transcript that does not own the audio yet.
-  const [localTime, setLocalTime] = useState(0);
-  const time = isCurrentRecording ? playerTime : localTime;
-  const isPlaying = isCurrentRecording && player.isPlaying;
-  // The duration in the database comes from ffprobe at import time and may be
-  // unknown. Once audio plays, the player knows it exactly — and without it
-  // the played ratio would be zero, so neither ring nor handle would render.
-  const trackDuration = isCurrentRecording && player.duration > 0 ? player.duration : duration;
+  const drawnBlocks = useProgressiveList(segments.length);
 
-  // The screen loads the waveform itself rather than through the player. The
-  // player only knows the one currently playing, so the waveform would appear
-  // only after pressing play, leaving an empty track under the slider.
-  const [waveform, setWaveform] = useState<Waveform>(EMPTY_WAVEFORM);
-  useEffect(() => {
-    let disposed = false;
-    setWaveform(EMPTY_WAVEFORM);
-    loadWaveform(id, setWaveform, () => disposed);
-    return () => {
-      disposed = true;
-    };
-  }, [id]);
+  const playback = useDetailPlayback({
+    recordingId: id,
+    path,
+    title,
+    duration,
+    segments,
+    seekTime,
+    drawnBlocks,
+  });
+  const { time, isPlaying, isCurrentRecording, trackDuration, waveform, active } = playback.state;
+  const { seek, updateCursor, playFrom, togglePlayback } = playback.actions;
 
-  // Everything the handlers need comes from a ref, not from dependencies.
-  //
-  // The player context value changes on every tick of the clock. Were `seek`
-  // to depend on it, that function would change several times a second — and
-  // since every transcript segment receives it, none of them would pass the
-  // `memo` comparison and the whole transcript would repaint over and over.
-  // On an hour-long sermon that is a thousand segments and twenty thousand
-  // elements per tick.
-  const current = useRef({ isCurrentRecording, player, id, path, title, duration, localTime });
-  current.current = { isCurrentRecording, player, id, path, title, duration, localTime };
-
-  /**
-   * Jump to a position in the recording.
-   *
-   * When the audio belongs to this recording it simply moves. When it does
-   * not, the player takes the recording over and starts it there — clicking a
-   * word is an instruction, not an accident, and waiting for the play button
-   * afterwards makes no sense. The quiet variant, which only moves the cursor,
-   * is used where audio should not start: dragging the slider, and arriving
-   * from search.
-   */
-  const seek = useCallback((t: number, silently = false) => {
-    const s = current.current;
-    if (s.isCurrentRecording) {
-      s.player.seek(t);
-    } else if (!silently && s.path) {
-      s.player.start(s.id, s.path, s.title, s.duration, Math.max(0, t));
-    } else {
-      setLocalTime(Math.max(0, t));
-    }
-  }, []);
-
-  const updateCursor = useCallback((t: number) => seek(t, true), [seek]);
-
-  /** Moves to a position and makes sure the audio is running.
-   *
-   *  `seek` deliberately stays quiet when the recording is already loaded,
-   *  because stepping through uncertain places is reading. A note's timestamp
-   *  is the opposite: it is asked for in order to hear that moment. */
-  const playFrom = useCallback((t: number) => {
-    const s = current.current;
-    if (s.isCurrentRecording) {
-      s.player.seek(t);
-      if (!s.player.isPlaying) s.player.togglePlayback();
-    } else if (s.path) {
-      s.player.start(s.id, s.path, s.title, s.duration, Math.max(0, t));
-    } else {
-      setLocalTime(Math.max(0, t));
-    }
-  }, []);
-
-  const togglePlayback = useCallback(() => {
-    const s = current.current;
-    if (s.isCurrentRecording) s.player.togglePlayback();
-    else if (s.path) s.player.start(s.id, s.path, s.title, s.duration, s.localTime);
-  }, []);
   /** The strip of shortcuts under the player. Useful the first few times and
    *  then just a line of text in the way, so it is dismissed here — and brought
    *  back here, by a button that appears in the player's row only once the strip
@@ -383,35 +312,6 @@ export default function Detail({
   useEffect(() => {
     if (["complete", "cancelled", "error"].includes(progress?.phase ?? "")) load();
   }, [progress?.phase, load]);
-
-  // ---------------------------------------------------------------- player
-  // Jump to the spot this screen was opened for, coming from search.
-  //
-  // Going through a ref is deliberate. The player context value changes on
-  // every tick, and the seek function changes with it. Were it in the
-  // dependencies, running audio would tear down and re-arm this effect
-  // constantly — and the deferred jump would never get its turn.
-  useEffect(() => {
-    if (seekTime == null) return;
-    // A short delay waits for the segments to render; without them there is
-    // nowhere to scroll. Quietly: arriving from search should place the
-    // cursor, not start playback.
-    const t = setTimeout(() => updateCursor(seekTime), 200);
-    return () => clearTimeout(t);
-  }, [seekTime, updateCursor]);
-
-  // When playback moves elsewhere, the cursor stays where it left off.
-  //
-  // Through a ref, and that is the whole point: the effect must not re-run
-  // eight times a second, so a cleanup reading the clock directly would close
-  // over whatever it said when this recording *took* the audio over — the
-  // moment it started, not the moment it stopped.
-  const lastPlayedTime = useRef(0);
-  if (isCurrentRecording) lastPlayedTime.current = playerTime;
-  useEffect(() => {
-    if (!isCurrentRecording) return;
-    return () => setLocalTime(lastPlayedTime.current);
-  }, [isCurrentRecording]);
 
   // -------------------------------------------------------------- the keyboard
   const goTo = useCallback(
@@ -691,7 +591,6 @@ export default function Detail({
     }
   }, [onError, onInfo, t]);
 
-  const drawnBlocks = useProgressiveList(segments.length);
 
   const togglePanel = useCallback(() => {
     setPanelOpen((o) => {
@@ -739,59 +638,6 @@ export default function Detail({
    *  one question, several hundred lines apart. It sits under `running` because
    *  that is the one of the four that is derived rather than held. */
   const speakersBusy = segments.length === 0 || running || diarizing || ai.state.running;
-  // The segment that last began, rather than the one the playhead sits
-  // inside. Between two sentences there is a pause that belongs to neither,
-  // and demanding a strict match made the highlight blink out for it before
-  // reappearing a line lower. Holding the previous line until the next one
-  // starts turns that flicker into a plain step down the page.
-  //
-  // Binary search rather than a scan: this runs on every frame of playback,
-  // and segments arrive ordered by their position in the recording.
-  const active = useMemo(() => {
-    let low = 0;
-    let high = segments.length - 1;
-    let found: Segment | undefined;
-    while (low <= high) {
-      const middle = (low + high) >> 1;
-      if (segments[middle].start <= time) {
-        found = segments[middle];
-        low = middle + 1;
-      } else {
-        high = middle - 1;
-      }
-    }
-    return found;
-  }, [segments, time]);
-
-  // Keep the active segment on screen, but only while audio is actually
-  // playing — during reading and editing, self-scrolling gets in the way.
-  //
-  // And only when it is genuinely out of sight. Clicking a word in the middle
-  // of the screen used to re-centre the whole transcript for no reason; now
-  // the text under your hand moves only when it would otherwise disappear.
-  useEffect(() => {
-    if (!isPlaying || !active) return;
-    const element = document.getElementById(`segment-${active.id}`);
-    const list = listRef.current;
-    if (!element || !list) return;
-
-    const box = element.getBoundingClientRect();
-    const view = list.getBoundingClientRect();
-    // Band near the edges where a segment counts as "on its way out".
-    const margin = Math.min(120, view.height * 0.15);
-    if (box.top >= view.top + margin && box.bottom <= view.bottom - margin) return;
-
-    element.scrollIntoView({ behavior: "smooth", block: "center" });
-    /* `drawnBlocks` is in here because on arrival the block being read is
-       usually past the first screenful, has no element yet, and this leaves
-       above without doing anything.
-
-       It is not the difference between working and not — that was the first
-       guess and it was wrong. The audio keeps running, so a few seconds later
-       the reading crosses into the next block, `active` changes, and it lands
-       then. This is the difference between immediate and one block late. */
-  }, [active?.id, isPlaying, drawnBlocks]);
-
   // Language names come from the shared dictionary, so a language change moves
   // them too — a module constant would keep whatever it was born with.
   const translationLanguageItems = useMemo(
@@ -1088,7 +934,7 @@ export default function Detail({
       <div className={`detail-body ${panelOpen ? "" : "no-panel"}`}>
       <TranscriptSearch search={search} />
 
-        <div className="transcript" ref={listRef}>
+        <div className="transcript" ref={playback.state.listRef}>
 
           {running && segments.length === 0 && (
             /* No placeholder while the first words are still on their way —
