@@ -19,6 +19,7 @@ import type {
   Recording,
   RecordingNote,
   Segment,
+  Speaker,
   ToolCheck,
 } from "../types";
 
@@ -107,6 +108,34 @@ export function conversation(): DetailData {
     segments: lines.map((text, i) =>
       segment({ id: `s${i + 1}`, order: i, start: i * 10, end: i * 10 + 8, text })
     ),
+  });
+}
+
+export function speaker(over: Partial<Speaker> = {}): Speaker {
+  return {
+    key: "SPEAKER_00",
+    recording_id: RECORDING_ID,
+    name: "Mluvčí 1",
+    color: "#7aa2f7",
+    ...over,
+  };
+}
+
+/** The same four sentences, split between two voices: three to the first and
+ *  one to the second, so the shares are 75 and 25 and a test can tell which
+ *  number belongs to whom. */
+export function conversationWithSpeakers(): DetailData {
+  const base = conversation();
+  return detailData({
+    ...base,
+    speakers: [
+      speaker({ key: "SPEAKER_00", name: "Jana" }),
+      speaker({ key: "SPEAKER_01", name: "Petr", color: "#9ece6a" }),
+    ],
+    segments: base.segments.map((s, i) => ({
+      ...s,
+      speakers: i === 2 ? "SPEAKER_01" : "SPEAKER_00",
+    })),
   });
 }
 
