@@ -67,6 +67,41 @@ export function detailData(over: Partial<DetailData> = {}): DetailData {
   return { recording: recording(), segments: [segment()], speakers: [], notes: [], ...over };
 }
 
+/** What the screen will be given when it asks for the recording. A test that
+ *  needs more than one segment — anything about searching, moving between
+ *  hits, or the speakers of a conversation — sets it before mounting, and
+ *  `resetScreen` puts it back. */
+let chosen: DetailData | null = null;
+
+export function setDetail(data: DetailData) {
+  chosen = data;
+}
+
+export function currentDetail(): DetailData {
+  return chosen ?? detailData();
+}
+
+export function forgetDetail() {
+  chosen = null;
+}
+
+/** A short conversation, one sentence per segment, with `porada` in the first
+ *  and the last. Enough for a search to have somewhere to move between. */
+export function conversation(): DetailData {
+  const lines = [
+    "Dobrý den, začneme poradu.",
+    "Dnes máme tři body.",
+    "První je rozpočet.",
+    "Tím poradu končíme.",
+  ];
+  return detailData({
+    recording: recording({ duration: 60, segment_count: lines.length }),
+    segments: lines.map((text, i) =>
+      segment({ id: `s${i + 1}`, order: i, start: i * 10, end: i * 10 + 8, text })
+    ),
+  });
+}
+
 /** Everything installed, so nothing on this screen is refused for a missing
  *  tool — these tests are about what the screen draws once it can draw. */
 export function toolCheck(): ToolCheck {
@@ -165,7 +200,7 @@ export function eventMock() {
 export function apiMock(over: Record<string, unknown> = {}) {
   return {
     api: {
-      detail: () => Promise.resolve(detailData()),
+      detail: () => Promise.resolve(currentDetail()),
       checkTools: () => Promise.resolve(toolCheck()),
       loadSettings: () => Promise.resolve(settings()),
       saveSettings: vi.fn(),

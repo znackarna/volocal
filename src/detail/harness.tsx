@@ -23,7 +23,7 @@ import { RecorderProvider } from "../recorder";
 import { enCommon } from "../locales/en/common";
 import { enDetail } from "../locales/en/detail";
 import type { AiOutput } from "../types";
-import { RECORDING_ID, aiDocument, aiEditStatus, listeners } from "./fixtures";
+import { RECORDING_ID, aiDocument, aiEditStatus, forgetDetail, listeners } from "./fixtures";
 
 /** The English wording of a key, which is what a query looks for. Czech is the
  *  source language, but the tests read in the language they are written in. */
@@ -112,9 +112,11 @@ export async function finishAiRun(outputs: AiOutput[]) {
 }
 
 /** The state every test of this screen starts from: no run going, no handler
- *  left over from the test before. */
+ *  left over from the test before, and the plain one-segment recording rather
+ *  than whatever the last test chose. */
 export function resetScreen() {
   listeners.clear();
+  forgetDetail();
   aiEditStatus.mockReset();
   aiEditStatus.mockResolvedValue({
     document: null,
