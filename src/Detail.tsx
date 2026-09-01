@@ -12,7 +12,7 @@ import RecordingActionsMenu from "./RecordingActionsMenu";
 import NameDialog from "./NameDialog";
 import Select from "./Select";
 import { LineIcon, type LineIconName } from "./icons";
-import { changedWords, plain } from "./transcriptText";
+import { changedWords } from "./transcriptText";
 import { Wordmark } from "./Brand";
 import {
   EMPTY_WAVEFORM,
@@ -79,6 +79,8 @@ import {
   parseNoteTime,
 } from "./detail/notes";
 import { transcriptKey } from "./detail/keys";
+import { TranscriptSearch } from "./detail/TranscriptSearch";
+import { useTranscriptSearch } from "./detail/useTranscriptSearch";
 import { MENU_ICONS, TranscriptContextMenu } from "./detail/TranscriptContextMenu";
 import type { TranscriptMenuItem } from "./detail/TranscriptContextMenu";
 import { MarkedWords, SegmentRow, UncertainEditor, describeEdit } from "./detail/corrections";
@@ -801,51 +803,10 @@ export default function Detail({
     [playFrom]
   );
 
-  /* Finding a word in this transcript. Highlighted in place rather than
-     filtered: the archive's search picks a recording, this one is used while
-     reading and correcting, and a block without the ones around it is no use.
-     WebView2 answers Ctrl+F with a find bar of its own, drawn by Windows —
-     the key press is taken before it gets there. */
-  const [finding, setFinding] = useState(false);
-  const [findQuery, setFindQuery] = useState("");
-  const [findAt, setFindAt] = useState(0);
-  const findRef = useRef<HTMLInputElement>(null);
-
-  const findNeedle = plain(findQuery.trim());
-  const findHits = useMemo(
-    () =>
-      findNeedle.length < 2
-        ? []
-        : segments.filter((s) => plain(s.text).includes(findNeedle)).map((s) => s.id),
-    [segments, findNeedle]
-  );
-
-  const goToHit = useCallback(
-    (index: number) => {
-      if (findHits.length === 0) return;
-      const wrapped = (index + findHits.length) % findHits.length;
-      setFindAt(wrapped);
-      document
-        .getElementById(`segment-${findHits[wrapped]}`)
-        ?.scrollIntoView({ behavior: "smooth", block: "center" });
-    },
-    [findHits]
-  );
-
-  // A new query starts from the top, and the first hit is shown at once
-  // rather than waiting for the reader to press the arrow.
-  useEffect(() => {
-    if (findHits.length === 0) return;
-    setFindAt(0);
-    document
-      .getElementById(`segment-${findHits[0]}`)
-      ?.scrollIntoView({ behavior: "smooth", block: "center" });
-  }, [findHits]);
-
-  const closeFind = useCallback(() => {
-    setFinding(false);
-    setFindQuery("");
-  }, []);
+  /* Finding a word in this transcript. The whole of it — the bar, the hits and
+     the cursor between them — lives in `useTranscriptSearch`; what stays here
+     is the keyboard, which belongs to the screen. */
+  const search = useTranscriptSearch(segments);
 
   const goToNextUncertain = useCallback(() => {
     if (uncertainSegments.length === 0) return;
@@ -1016,8 +977,8 @@ export default function Detail({
          read and tested on its own. Everything gathered here is what only the
          live window knows. */
       const response = transcriptKey(e, {
-        finding,
-        hits: findHits.length,
+        finding: search.state.open,
+        hits: search.state.total,
         isTyping: Boolean(
           target &&
             (target.tagName === "TEXTAREA" ||
@@ -1033,12 +994,11 @@ export default function Detail({
 
       switch (response.act) {
         case "openFind":
-          setFinding(true);
-          findRef.current?.select();
-          findRef.current?.focus();
+          search.actions.open();
+          search.state.field.current?.select();
           break;
         case "closeFind":
-          closeFind();
+          search.actions.close();
           break;
         case "stopEditing":
           setEditing(null);
@@ -1047,10 +1007,10 @@ export default function Detail({
           togglePlayback();
           break;
         case "findNext":
-          goToHit(findAt + 1);
+          search.actions.next();
           break;
         case "findPrevious":
-          goToHit(findAt - 1);
+          search.actions.previous();
           break;
         case "nextUncertain":
           goToNextUncertain();
@@ -1059,7 +1019,7 @@ export default function Detail({
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [togglePlayback, goToNextUncertain, finding, findHits, findAt, goToHit, closeFind]);
+  }, [togglePlayback, goToNextUncertain, search]);
 
   const locateSourceFile = useCallback(async () => {
     const selected = await open({
@@ -2239,14 +2199,8 @@ export default function Detail({
                 find bar existed only for whoever knew Ctrl+F. */}
             <button
               className="icon-button"
-              onClick={() => {
-                if (finding) closeFind();
-                else {
-                  setFinding(true);
-                  window.setTimeout(() => findRef.current?.focus(), 0);
-                }
-              }}
-              aria-pressed={finding}
+              onClick={search.actions.toggle}
+              aria-pressed={search.state.open}
               aria-label={t("detail.find.open")}
               title={t("detail.find.open")}
             >
@@ -2312,61 +2266,7 @@ export default function Detail({
           overflows at 1180 px with both pills up — and not permanently, since
           this is wanted now and then rather than always. */}
       <div className={`detail-body ${panelOpen ? "" : "no-panel"}`}>
-      {finding && (
-        <div className="search-transcript">
-          <input
-            ref={findRef}
-            value={findQuery}
-            autoFocus
-            spellCheck={false}
-            placeholder={t("detail.find.placeholder")}
-            aria-label={t("detail.find.placeholder")}
-            onChange={(event) => setFindQuery(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                goToHit(findAt + (event.shiftKey ? -1 : 1));
-              }
-            }}
-          />
-          <span className="search-count">
-            {findNeedle.length < 2
-              ? ""
-              : t("detail.find.count", {
-                  at: String(findHits.length === 0 ? 0 : findAt + 1),
-                  total: String(findHits.length),
-                })}
-          </span>
-          <button
-            disabled={findHits.length === 0}
-            onClick={() => goToHit(findAt - 1)}
-            aria-label={t("detail.find.previous")}
-            title={t("detail.find.previous")}
-          >
-            <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden>
-              <path d="M3.5 8.5 7 5l3.5 3.5" fill="none" stroke="currentColor"
-                    strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </button>
-          <button
-            disabled={findHits.length === 0}
-            onClick={() => goToHit(findAt + 1)}
-            aria-label={t("detail.find.next")}
-            title={t("detail.find.next")}
-          >
-            <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden>
-              <path d="M3.5 5.5 7 9l3.5-3.5" fill="none" stroke="currentColor"
-                    strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </button>
-          <button onClick={closeFind} aria-label={t("common.close")} title={t("common.close")}>
-            <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden>
-              <path d="M3 3l8 8M11 3l-8 8" stroke="currentColor"
-                    strokeWidth="1.7" strokeLinecap="round" />
-            </svg>
-          </button>
-        </div>
-      )}
+      <TranscriptSearch search={search} />
 
         <div className="transcript" ref={listRef}>
 
@@ -2414,8 +2314,8 @@ export default function Detail({
                   onConfirm={confirm}
                   onSave={saveText}
                   onContextMenu={openTranscriptMenu}
-                  find={findHits.length > 0 ? findNeedle : undefined}
-                  foundHere={findHits[findAt] === s.id}
+                  find={search.state.needle}
+                  foundHere={search.state.hitId === s.id}
                 />
               </div>
             );
