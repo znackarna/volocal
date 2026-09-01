@@ -96,6 +96,10 @@ export const csErrors = {
   "errors.playback.ffmpeg_missing":
     "Chybí ffmpeg, takže nejde připravit přesné přehrávání MP3.",
   "errors.playback.source_missing": "Zvukový soubor už na svém místě není.",
+  // Vzorkování jazyků nemá co s čím porovnat, dokud přepis neexistuje.
+  "errors.second_language.no_transcript":
+    "Nahrávka zatím nemá přepis, se kterým by šlo jazyky porovnat.",
+  "errors.second_language.sweep_interrupted": "Hledání dalšího jazyka se přerušilo.",
   "errors.playback.conversion_failed": "Nepodařilo se připravit přesné přehrávání: {reason}",
   "errors.playback.preparation_interrupted": "Příprava přehrávání selhala: {detail}",
 

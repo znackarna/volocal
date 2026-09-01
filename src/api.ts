@@ -87,6 +87,12 @@ export const api = {
    *  fresh transcription writes a fresh offer over it. */
   refuseSecondLanguage: (id: string) =>
     invoke<void>("refuse_second_language", { id }),
+  /** Asks the question again about a transcript that is already in the archive
+   *  — the only way a recording made before the sweep existed is ever told.
+   *  Takes about as long as decoding the recording plus twenty seconds, and
+   *  answers with what it found. */
+  sweepSecondLanguage: (id: string) =>
+    invoke<SecondLanguage | null>("sweep_second_language", { id }),
   fileExists: (path: string) => invoke<boolean>("file_exists", { path }),
   /** Lets the updater's installer survive this process exiting. */
   letTheInstallerOut: () => invoke<void>("let_the_installer_out"),

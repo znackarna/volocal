@@ -73,6 +73,11 @@ fn overall_transcription_percent(whisper_percent: u32) -> u32 {
 mod jobs;
 mod languages;
 mod speakers;
+
+/// The sweep for a second language over a transcript that is already stored.
+/// Re-exported here because `commands` reaches the pipeline through this
+/// module and never through its parts.
+pub use languages::sweep_existing as sweep_existing_recording;
 mod text;
 mod whisper;
 

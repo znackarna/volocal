@@ -262,6 +262,72 @@ pub(crate) fn sweep(
     })
 }
 
+/// Sweeps a transcript that is already in the archive.
+///
+/// **The hole this closes.** The sweep otherwise runs only at the end of a
+/// transcription, so every recording that was in the archive before it existed
+/// would never be asked about — and the person worst served by that is exactly
+/// the one this feature is for, somebody with a back catalogue of interpreted
+/// recordings none of which says that half its speech is missing.
+///
+/// The difference from the sweep inside a run is the audio: there is no
+/// prepared WAV any more, so one is made and thrown away again. That is the
+/// whole cost, and it is why this is asked for rather than done to every
+/// recording on sight.
+///
+/// It stands in the same queue as a transcription. Not because it is heavy —
+/// it is about twenty seconds — but because it runs whisper, and two of those
+/// on one graphics card finish later than either would alone.
+pub fn sweep_existing(
+    db_path: &Path,
+    recording_id: &str,
+    task: &TranscriptionTask,
+) -> Reported<Option<db::SecondLanguage>> {
+    let connection = db::open(db_path)?;
+    let settings = db::load_settings(&connection)?;
+    let recording = db::recording(&connection, recording_id)?;
+
+    // Nothing to compare a second language against. Refused rather than swept,
+    // because an answer about a recording with no transcript is meaningless.
+    if db::segments(&connection, recording_id)?.is_empty() {
+        return Err(UserMessage::new("second_language.no_transcript"));
+    }
+
+    let check = tools::check(&settings);
+    let ffmpeg = check
+        .ffmpeg
+        .clone()
+        .ok_or_else(|| UserMessage::new("tools.ffmpeg_missing"))?;
+    if !Path::new(&recording.path).is_file() {
+        return Err(UserMessage::new("playback.source_missing"));
+    }
+
+    let working_directory = std::env::temp_dir()
+        .join("volocal-languages")
+        .join(recording_id);
+    std::fs::create_dir_all(&working_directory)?;
+    let wav = working_directory.join("audio.wav");
+    let prepared = tools::convert_to_wav(
+        Path::new(&ffmpeg),
+        Path::new(&recording.path),
+        &wav,
+        &JobRunner { task, recording_id },
+    );
+    let outcome = prepared.and_then(|()| {
+        let own = crate::ai_edit::effective_language(&recording);
+        let found = sweep(&check, &wav, &own, recording_id, task);
+        match &found {
+            Some(row) => db::save_second_language(&connection, row)?,
+            None => db::clear_second_language(&connection, recording_id)?,
+        }
+        Ok(found)
+    });
+    // Whatever happened, the copy of the audio goes. It is the size of the
+    // recording and nothing else will come looking for it.
+    let _ = std::fs::remove_dir_all(&working_directory);
+    outcome
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

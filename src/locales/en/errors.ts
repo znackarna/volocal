@@ -54,6 +54,9 @@ export const enErrors: Partial<Record<keyof typeof csErrors, string>> = {
   "errors.update.install_failed": "The update could not be made ready to install. Please try again.",
   "errors.playback.ffmpeg_missing": "ffmpeg is missing, so precise MP3 playback cannot be prepared.",
   "errors.playback.source_missing": "The audio file is no longer where it was.",
+  "errors.second_language.no_transcript":
+    "This recording has no transcript yet, so there is nothing to compare languages against.",
+  "errors.second_language.sweep_interrupted": "The search for another language was interrupted.",
   "errors.playback.conversion_failed": "Could not prepare precise playback: {reason}",
   "errors.playback.preparation_interrupted": "Playback preparation failed: {detail}",
   "errors.online_import.already_running": "An online import is already running",

@@ -5,7 +5,8 @@
 //! exists; see `transcription/languages.rs`. What is left for the window is
 //! reading the answer and refusing it.
 
-use crate::db;
+use crate::user_message::UserMessage;
+use crate::{db, transcription};
 use crate::{reported, AppState, Reported};
 use tauri::State;
 
@@ -36,4 +37,58 @@ pub fn refuse_second_language(app: State<'_, AppState>, id: String) -> Reported<
         &id,
         db::second_language_state::REFUSED,
     ))
+}
+
+/// Asks the question again about a transcript that is already in the archive.
+///
+/// **Why this is a command and not something done on sight.** The sweep inside
+/// a transcription is free — the prepared audio is already there. This one has
+/// to make it again, which costs as long as decoding the recording, so it is
+/// asked for rather than run over everybody's archive uninvited.
+///
+/// It is also the only way an older archive is ever told. Every recording
+/// transcribed before the sweep existed would otherwise go on looking complete,
+/// and somebody with a back catalogue of interpreted recordings is exactly who
+/// this feature is for.
+///
+/// Answers with what it found, so the screen that asked does not have to go
+/// looking. `None` means one language, which is the ordinary answer.
+#[tauri::command]
+pub async fn sweep_second_language(
+    app: State<'_, AppState>,
+    id: String,
+) -> Reported<Option<db::SecondLanguage>> {
+    // Two workers on one recording is the defect this guard exists for; the
+    // database row is not a reliable answer on its own, because a run reaches
+    // it a moment later.
+    {
+        let running = app.bezici.is_running(&id);
+        let db = app.db.lock().unwrap();
+        let recording = reported(db::recording(&db, &id))?;
+        if crate::commands::folders::recording_is_busy(running, &recording.status) {
+            return Err(UserMessage::new("transcription.still_running"));
+        }
+    }
+
+    let db_path = app.db_path.clone();
+    let task = app.bezici.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        /* The same queue a transcription stands in. Not because twenty seconds
+        is heavy, but because it runs whisper, and two of those on one
+        graphics card take memory from each other and both finish later
+        than either would alone. */
+        task.enqueue(&id);
+        task.begin(&id);
+        let ours = task.wait_for_turn(&id);
+        let outcome = if ours {
+            transcription::sweep_existing_recording(&db_path, &id, &task)
+        } else {
+            Err(UserMessage::new("transcription.cancelled"))
+        };
+        task.leave_queue(&id);
+        task.cleanup(&id);
+        outcome
+    })
+    .await
+    .map_err(|error| UserMessage::new("second_language.sweep_interrupted").detail(error))?
 }
