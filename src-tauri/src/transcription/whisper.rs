@@ -45,6 +45,36 @@ pub(crate) fn program_help(program: &Path) -> String {
     }
 }
 
+/// How much of its own previous output whisper carries into the next window.
+///
+/// **64 for an ordinary run and 0 for the second-language pass, and the
+/// difference is measured.** A short context is what lets the model punctuate
+/// and capitalise, because it decides both from the preceding sentence; too
+/// much of it and a repeated sentence entrenches into a loop that runs to the
+/// end of the recording.
+///
+/// The second-language pass is fed disconnected pieces of audio with silence
+/// between them, so carried context is not merely useless there — it is
+/// actively wrong, describing a sentence from somewhere else in the recording.
+/// Nought is also what stops the model being pulled back to the language of
+/// what it has just written, which is the whole reason that pass can see the
+/// other language at all.
+pub(crate) const CONTEXT_FOR_A_RUN: &str = "64";
+pub(crate) const CONTEXT_FOR_A_SECOND_LANGUAGE: &str = "0";
+
+/// What separates one run of whisper from another.
+///
+/// Two values that only ever change together: an ordinary transcription asks
+/// for the recording's language and carries [`CONTEXT_FOR_A_RUN`], and the
+/// second-language pass asks for the other language and carries none. They are
+/// a group rather than a bag — naming a language without saying how much
+/// context goes with it is how the second pass would quietly become an
+/// ordinary one.
+pub(crate) struct Ask<'a> {
+    pub(crate) language: &'a str,
+    pub(crate) max_context: &'a str,
+}
+
 // whisper.cpp's own defaults (examples/cli/cli.cpp). Anything equal to them is
 // not put on the command line at all. Our entropy has always been different —
 // see `default_entropy_threshold` in db.rs.
@@ -76,7 +106,7 @@ pub(crate) struct Run<'a> {
 fn whisper_command(
     program: &Path,
     settings: &Settings,
-    language: &str,
+    ask: &Ask,
     check: &tools::ToolCheck,
     wav: &Path,
     prefix: &Path,
@@ -90,7 +120,7 @@ fn whisper_command(
         .arg(check.model_whisper.as_ref().unwrap())
         .arg("-f")
         .arg(wav)
-        .args(["-l", language]);
+        .args(["-l", ask.language]);
 
     if supports("--output-json-full") {
         cmd.arg("--output-json-full");
@@ -113,7 +143,7 @@ fn whisper_command(
     // sentence. A short context is the compromise: enough for typesetting the
     // text, not enough to entrench a loop.
     if supports("--max-context") {
-        cmd.args(["--max-context", "64"]);
+        cmd.args(["--max-context", ask.max_context]);
     }
     // Thresholds whisper.cpp uses to decide whether it transcribed a segment
     // properly or should try again. Only those differing from the program's
@@ -200,7 +230,7 @@ fn whisper_command(
 pub(crate) fn start_whisper(
     run: &Run,
     settings: &Settings,
-    language: &str,
+    ask: &Ask,
     check: &tools::ToolCheck,
     wav: &Path,
     prefix: &Path,
@@ -216,7 +246,7 @@ pub(crate) fn start_whisper(
     // differ, and on an unknown flag the program prints its help and **exits
     // with zero** — it looks like success, only there is no output after it.
     let available = program_help(program);
-    let mut cmd = whisper_command(program, settings, language, check, wav, prefix, &available);
+    let mut cmd = whisper_command(program, settings, ask, check, wav, prefix, &available);
 
     let mut child = cmd
         .stdout(Stdio::piped())
@@ -446,7 +476,10 @@ mod whisper_command_tests {
         let cmd = whisper_command(
             Path::new("whisper-cli.exe"),
             settings,
-            language,
+            &Ask {
+                language,
+                max_context: CONTEXT_FOR_A_RUN,
+            },
             check,
             Path::new("audio.wav"),
             Path::new("out"),
@@ -480,6 +513,31 @@ mod whisper_command_tests {
             EVERY_FLAG,
         );
         assert_eq!(value_of(&arguments, "--max-context"), Some("64"));
+    }
+
+    /// And the value the second-language pass asks for instead, which is the
+    /// difference between seeing the other language and being pulled back to
+    /// the one already written.
+    #[test]
+    fn the_second_language_pass_carries_none() {
+        let cmd = whisper_command(
+            Path::new("whisper-cli.exe"),
+            &Settings::default(),
+            &Ask {
+                language: "en",
+                max_context: CONTEXT_FOR_A_SECOND_LANGUAGE,
+            },
+            &tools_with_everything(),
+            Path::new("audio.wav"),
+            Path::new("out"),
+            EVERY_FLAG,
+        );
+        let arguments: Vec<String> = cmd
+            .get_args()
+            .map(|argument| argument.to_string_lossy().to_string())
+            .collect();
+        assert_eq!(value_of(&arguments, "--max-context"), Some("0"));
+        assert_eq!(value_of(&arguments, "-l"), Some("en"));
     }
 
     #[test]

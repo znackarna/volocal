@@ -78,6 +78,9 @@ mod speakers;
 /// Re-exported here because `commands` reaches the pipeline through this
 /// module and never through its parts.
 pub use languages::sweep_existing as sweep_existing_recording;
+
+/// Transcribing the second language and merging it into the transcript.
+pub use languages::fill as fill_second_language_in;
 mod text;
 mod whisper;
 
@@ -575,7 +578,17 @@ fn run(
         recording_id,
         task,
     };
-    start_whisper(&run, &settings, &language, &check, &wav, &prefix)?;
+    start_whisper(
+        &run,
+        &settings,
+        &Ask {
+            language: &language,
+            max_context: CONTEXT_FOR_A_RUN,
+        },
+        &check,
+        &wav,
+        &prefix,
+    )?;
 
     let json_file = prefix.with_extension("json");
     // With automatic detection the real language is only known from the output.

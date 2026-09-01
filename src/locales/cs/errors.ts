@@ -100,6 +100,8 @@ export const csErrors = {
   "errors.second_language.no_transcript":
     "Nahrávka zatím nemá přepis, se kterým by šlo jazyky porovnat.",
   "errors.second_language.sweep_interrupted": "Hledání dalšího jazyka se přerušilo.",
+  "errors.second_language.nothing_offered":
+    "U této nahrávky se žádný další jazyk nenašel.",
   "errors.playback.conversion_failed": "Nepodařilo se připravit přesné přehrávání: {reason}",
   "errors.playback.preparation_interrupted": "Příprava přehrávání selhala: {detail}",
 

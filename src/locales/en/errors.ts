@@ -57,6 +57,8 @@ export const enErrors: Partial<Record<keyof typeof csErrors, string>> = {
   "errors.second_language.no_transcript":
     "This recording has no transcript yet, so there is nothing to compare languages against.",
   "errors.second_language.sweep_interrupted": "The search for another language was interrupted.",
+  "errors.second_language.nothing_offered":
+    "No second language was found in this recording.",
   "errors.playback.conversion_failed": "Could not prepare precise playback: {reason}",
   "errors.playback.preparation_interrupted": "Playback preparation failed: {detail}",
   "errors.online_import.already_running": "An online import is already running",

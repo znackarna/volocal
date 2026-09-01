@@ -16,6 +16,13 @@ export const csProgress = {
 
   // Telling speakers apart.
   "progress.diarization.preparing_audio": "Připravuji zvuk",
+
+  // Doplnění druhého jazyka.
+  "progress.second_language.preparing_audio": "Připravuji zvuk",
+  "progress.second_language.cutting": "Vybírám místa bez přepisu",
+  "progress.second_language.transcribing": "Přepisuji druhý jazyk",
+  "progress.second_language.merging": "Skládám přepis dohromady",
+  "progress.second_language.done": "Hotovo",
   "progress.diarization.running": "Rozpoznávám mluvčí",
   "progress.diarization.complete": "{count} mluvčích",
 

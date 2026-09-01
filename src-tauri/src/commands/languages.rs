@@ -8,7 +8,7 @@
 use crate::user_message::UserMessage;
 use crate::{db, transcription};
 use crate::{reported, AppState, Reported};
-use tauri::State;
+use tauri::{Emitter, State};
 
 /// What the sweep found for one recording, or nothing.
 ///
@@ -91,4 +91,53 @@ pub async fn sweep_second_language(
     })
     .await
     .map_err(|error| UserMessage::new("second_language.sweep_interrupted").detail(error))?
+}
+
+/// Transcribes the language the transcript is missing and merges it in.
+///
+/// The long one of the three: it decodes the recording, runs whisper over the
+/// stretches the first pass left empty, and rewrites the transcript in one
+/// transaction. Progress goes out on `transcription:status` under a phase of
+/// its own, and it can be cancelled like any other run.
+///
+/// Answers with how many blocks it added, which is what the screen says
+/// afterwards.
+#[tauri::command]
+pub async fn fill_second_language(
+    window: tauri::AppHandle,
+    app: State<'_, AppState>,
+    id: String,
+) -> Reported<usize> {
+    {
+        let running = app.bezici.is_running(&id);
+        let db = app.db.lock().unwrap();
+        let recording = reported(db::recording(&db, &id))?;
+        if crate::commands::folders::recording_is_busy(running, &recording.status) {
+            return Err(UserMessage::new("transcription.still_running"));
+        }
+    }
+
+    let db_path = app.db_path.clone();
+    let task = app.bezici.clone();
+    let outcome = tauri::async_runtime::spawn_blocking(move || {
+        task.enqueue(&id);
+        task.begin(&id);
+        let ours = task.wait_for_turn(&id);
+        let done = if ours {
+            transcription::fill_second_language_in(&window, &db_path, &id, &task)
+        } else {
+            Err(UserMessage::new("transcription.cancelled"))
+        };
+        let cancelled = task.was_cancelled(&id);
+        task.leave_queue(&id);
+        task.cleanup(&id);
+        let _ = window.emit("transcription:complete", id.clone());
+        if cancelled {
+            return Err(UserMessage::new("transcription.cancelled"));
+        }
+        done
+    })
+    .await
+    .map_err(|error| UserMessage::new("second_language.sweep_interrupted").detail(error))?;
+    outcome
 }

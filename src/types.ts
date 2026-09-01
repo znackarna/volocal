@@ -689,6 +689,9 @@ export interface TranscriptionProgress {
     | "playback"
     | "transcription"
     | "diarization"
+    // Transcribing a language the first pass did not write down, and merging
+    // it in. It follows a finished transcript rather than being part of one.
+    | "second_language"
     | "saving"
     | "complete"
     | "error"

@@ -10,6 +10,13 @@ export const enProgress: Partial<Record<keyof typeof csProgress, string>> = {
   "progress.transcription.complete": "{count} segments",
   "progress.saving": "Saving",
   "progress.diarization.preparing_audio": "Preparing audio",
+
+  // Filling in the second language.
+  "progress.second_language.preparing_audio": "Preparing audio",
+  "progress.second_language.cutting": "Finding what the transcript missed",
+  "progress.second_language.transcribing": "Transcribing the second language",
+  "progress.second_language.merging": "Putting the transcript together",
+  "progress.second_language.done": "Done",
   "progress.diarization.running": "Identifying speakers",
   "progress.diarization.complete": "{count} speakers",
   "progress.ai.preparing_model": "Preparing the language model",

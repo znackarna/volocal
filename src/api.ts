@@ -93,6 +93,11 @@ export const api = {
    *  answers with what it found. */
   sweepSecondLanguage: (id: string) =>
     invoke<SecondLanguage | null>("sweep_second_language", { id }),
+  /** Transcribes the missing language and merges it into the transcript.
+   *  Answers with how many blocks it added. Progress arrives on
+   *  `transcription:status` under the `second_language` phase. */
+  fillSecondLanguage: (id: string) =>
+    invoke<number>("fill_second_language", { id }),
   fileExists: (path: string) => invoke<boolean>("file_exists", { path }),
   /** Lets the updater's installer survive this process exiting. */
   letTheInstallerOut: () => invoke<void>("let_the_installer_out"),

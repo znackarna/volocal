@@ -140,6 +140,7 @@ const PHASE_ORDER = [
   "playback",
   "transcription",
   "diarization",
+  "second_language",
   "saving",
 ];
 
