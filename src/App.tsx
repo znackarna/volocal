@@ -6,11 +6,7 @@ import { api } from "./api";
 import { MiniPlayer, usePlayer } from "./player";
 import { MiniRecorder } from "./recorder";
 import Library from "./Library";
-import ConfirmationDialog from "./ConfirmationDialog";
-import NameDialog from "./NameDialog";
-import Tooltips from "./Tooltips";
 import AddRecordingDialog from "./AddRecordingDialog";
-import SpeakerCountDialog from "./SpeakerCountDialog";
 import ProgressBubble from "./ProgressBubble";
 import { Wordmark } from "./Brand";
 /* Imported plainly rather than behind `await import(...)`. Deferring it looked
@@ -27,6 +23,7 @@ import { useWatchFolder } from "./app/useWatchFolder";
 import { useTranscriptionRuntime } from "./app/useTranscriptionRuntime";
 import { useFolderManagement } from "./app/useFolderManagement";
 import { AppFooter } from "./app/AppFooter";
+import { AppDialogs } from "./app/AppDialogs";
 import { NoticeBar } from "./app/NoticeBar";
 import { rememberSpeakerNames } from "./speakerNames";
 import { computeFellBack } from "./compute";
@@ -1325,22 +1322,6 @@ export default function App() {
         />
       )}
 
-      <NameDialog
-        open={folderDialog !== null}
-        title={t(
-          folderDialog?.mode === "rename"
-            ? "dialogs.folder.renameTitle"
-            : "dialogs.folder.createTitle"
-        )}
-        text={t("dialogs.folder.text")}
-        label={t("dialogs.folder.label")}
-        placeholder={t("dialogs.folder.placeholder")}
-        submitLabel={t(folderDialog?.mode === "rename" ? "common.save" : "dialogs.folder.create")}
-        initialName={folderDialog?.mode === "rename" ? folderDialog.folder.name : ""}
-        onClose={foldersModel.actions.closeDialog}
-        onSubmit={(name) => void foldersModel.actions.submit(name)}
-      />
-
       {/* Not on the wizard: that screen lists every component with its own
           progress, and a bubble repeating one of them would be noise. */}
       {downloading && screen !== "wizard" && (
@@ -1368,46 +1349,24 @@ export default function App() {
         />
       )}
 
-      <ConfirmationDialog
+      <AppDialogs
+        folders={foldersModel}
         query={query}
-        onClose={() => setQuery(null)}
+        onCloseQuery={() => setQuery(null)}
         onError={reportError}
+        pendingTranscription={pendingTranscription}
+        suggestedSpeakers={speakerSetup.count}
+        onCancelSpeakers={() => setPendingTranscription(null)}
+        onAnswerSpeakers={(speakerCount, names) => {
+          const pending = pendingTranscription;
+          if (!pending) return;
+          setPendingTranscription(null);
+          rememberSpeakerNames(pending.ids, names);
+          void runTranscription(pending.ids, pending.language, speakerCount, pending.diarizeOnly);
+        }}
+        dragging={dragging}
+        automatic={automatic}
       />
-
-      {pendingTranscription && (
-        <SpeakerCountDialog
-          recordingCount={pendingTranscription.ids.length}
-          suggested={speakerSetup.count}
-          onCancel={() => setPendingTranscription(null)}
-          onConfirm={(speakerCount, names) => {
-            const pending = pendingTranscription;
-            setPendingTranscription(null);
-            rememberSpeakerNames(pending.ids, names);
-            void runTranscription(
-              pending.ids,
-              pending.language,
-              speakerCount,
-              pending.diarizeOnly
-            );
-          }}
-        />
-      )}
-
-      {/* Last in the tree, so its own stacking context sits above everything
-          the application draws. */}
-      <Tooltips />
-
-      {dragging && (
-        <div className="drag-overlay">
-          <div className="overlay-content">
-            <div className="overlay-icon">↓</div>
-            {/* What is about to happen, not what usually happens. With
-                automatic transcription off the file only lands in the archive,
-                and promising a transcript there was a plain untruth. */}
-            <p>{t(automatic ? "app.dropZone.hint" : "app.dropZone.hintManual")}</p>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
