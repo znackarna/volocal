@@ -153,11 +153,6 @@ export default function Detail({
           sourceMissing, speakersReady } = recording.state;
   const load = recording.actions.load;
 
-  /* Written on every render, so the effect that watches a run ending reaches
-     the current one. The hook itself is set up further down, because it needs
-     `load`, and the effect is up here with the rest of the loading. */
-  const secondLanguageRef = useRef<() => Promise<void>>(() => Promise.resolve());
-
   const [renamingTitle, setRenamingTitle] = useState(false);
   const [confirmation, setConfirmation] = useState<ConfirmationRequest | null>(null);
   // The player is shared across the app so sound survives leaving this
@@ -226,16 +221,8 @@ export default function Detail({
 
   // Reload after every terminal transcription state. Completion, cancellation,
   // and failure all change the persisted recording status behind this screen.
-  //
-  // The second language is asked about again here for a reason peculiar to it:
-  // the sweep is the last thing a run does, so its answer lands *after* this
-  // screen asked once and was told nothing. Without this a reader watching a
-  // transcription finish would have to leave and come back to be told half of
-  // it was missing.
   useEffect(() => {
-    if (!["complete", "cancelled", "error"].includes(progress?.phase ?? "")) return;
-    load();
-    void secondLanguageRef.current();
+    if (["complete", "cancelled", "error"].includes(progress?.phase ?? "")) load();
   }, [progress?.phase, load]);
 
   // -------------------------------------------------------------- the keyboard
@@ -273,7 +260,24 @@ export default function Detail({
      nothing at all unless a sweep found one, which on an ordinary recording is
      never. `load` is handed in because filling rewrites every block. */
   const secondLanguage = useSecondLanguage({ recordingId: id, onError, reload: load });
-  secondLanguageRef.current = secondLanguage.actions.reread;
+
+  /* Asked again when a run ends, and it has to be: the sweep is the last thing
+     a transcription does, so its answer lands *after* this screen asked once
+     and was told nothing. Without this a reader watching a run finish would
+     have to leave the transcript and come back to be told half of it is
+     missing.
+
+     Its own effect, beside the hook it calls, rather than a line inside the
+     reload effect further up — that one is declared before this hook exists,
+     and reaching it from there needed a ref written during render, which is
+     exactly the shape hot reloading turns into `secondLanguageRef is not
+     defined` on a screen somebody has open. */
+  const rereadSecondLanguage = secondLanguage.actions.reread;
+  useEffect(() => {
+    if (["complete", "cancelled", "error"].includes(progress?.phase ?? "")) {
+      void rereadSecondLanguage();
+    }
+  }, [progress?.phase, rereadSecondLanguage]);
 
   const exportRecording = useCallback(
     async (format: string) => {
