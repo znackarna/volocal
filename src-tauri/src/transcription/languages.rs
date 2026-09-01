@@ -36,11 +36,31 @@ const MOST_SAMPLES: usize = 16;
 
 /// Below this the detection is not confident enough to count as anything.
 ///
-/// Measured on the reference recording: windows that were genuinely Czech
-/// averaged 0.86, genuinely English 0.68. The English number is lower because
-/// consecutive interpretation puts both languages inside most windows, which is
-/// exactly the uncertainty this floor is meant to drop.
-const CONFIDENT: f64 = 0.60;
+/// **This was 0.60 and 0.60 found nothing.** On the reference recording the
+/// sweep sampled three English windows out of sixteen — the share the full
+/// measurement predicts — and they came back at 0.50, 0.57 and 0.56. Every one
+/// was thrown away by the floor, so an interpreted talk with close to half its
+/// speech missing offered nothing at all. The floor put there against noise was
+/// removing the evidence.
+///
+/// The reason is in the material rather than in the model. Consecutive
+/// interpretation puts both languages inside almost every window, so the
+/// detector is never confident about the quieter one; a second language is
+/// *expected* to score low, and scoring low is not the same as being absent.
+///
+/// **0.45 is measured from both sides.** Across 287 windows of the interpreted
+/// recording the English confidences run from 0.38 with a tenth percentile of
+/// 0.51 and a median of 0.65 — and not one window came back a language that was
+/// neither of the two, so on a long file this kind of noise did not occur at
+/// all. On a genuinely single-language control the five real windows scored
+/// 0.996 and the one stray reading was English at 0.38. So the gap to sit in is
+/// 0.38 to 0.51, and 0.45 is the middle of it: above everything observed to be
+/// noise, below nine tenths of what was observed to be a real second language.
+///
+/// The rule does not balance on this number. Anything from 0.40 to 0.50 keeps
+/// 55 or more of the 59 English windows and rejects the stray reading, and
+/// [`LEAST_AGREEING`] is what actually stops a single odd window.
+const CONFIDENT: f64 = 0.45;
 
 /// How many windows must agree before the reader is told anything.
 ///
@@ -341,13 +361,13 @@ mod tests {
         assert!((share - 0.5).abs() < 1e-9);
     }
 
-    /// An uncertain window is exactly the one where both languages are audible
-    /// at once, which is evidence of nothing.
+    /// A reading this weak is what a single-language recording throws off now
+    /// and then, not a second language.
     #[test]
-    fn an_uncertain_window_does_not_count() {
+    fn a_reading_at_the_noise_level_does_not_count() {
         let heard = vec![
             ("en".into(), 0.31),
-            ("en".into(), 0.42),
+            ("en".into(), 0.38),
             ("cs".into(), 0.99),
         ];
         assert_eq!(strongest_other(&heard, "cs", 3), None);
@@ -365,6 +385,39 @@ mod tests {
             ("de".into(), 0.90),
         ];
         assert_eq!(strongest_other(&heard, "cs", 5).unwrap().0, "en");
+    }
+
+    /// **The case the first attempt got wrong, in the numbers it got it wrong
+    /// with.** These are the three English windows the sweep really sampled on
+    /// the reference recording. At the floor of 0.60 that shipped first, every
+    /// one was discarded, and an interpreted talk missing close to half its
+    /// speech offered nothing at all.
+    #[test]
+    fn the_interpreted_recordings_own_windows_are_counted() {
+        let heard = vec![
+            ("en".into(), 0.50),
+            ("cs".into(), 1.00),
+            ("en".into(), 0.57),
+            ("cs".into(), 0.99),
+            ("en".into(), 0.56),
+        ];
+        assert_eq!(strongest_other(&heard, "cs", 16).unwrap().0, "en");
+    }
+
+    /// The measured control: five confident Czech windows and one stray English
+    /// reading. One window is not a pattern and 0.38 is not a confidence, so
+    /// this stays silent by both rules at once.
+    #[test]
+    fn a_single_language_recording_says_nothing() {
+        let heard = vec![
+            ("cs".into(), 0.9957),
+            ("cs".into(), 0.9963),
+            ("cs".into(), 0.9964),
+            ("cs".into(), 0.9966),
+            ("cs".into(), 0.9966),
+            ("en".into(), 0.3786),
+        ];
+        assert_eq!(strongest_other(&heard, "cs", 6), None);
     }
 
     /// Nothing heard at all is not an offer, and must not be a panic either —
