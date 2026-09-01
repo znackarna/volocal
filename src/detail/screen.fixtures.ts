@@ -258,7 +258,11 @@ export const api = {
   catalog: () => Promise.resolve([]),
   aiEditStatus: (id: string) => aiEditStatus(id),
   fileExists: () => Promise.resolve(true),
-  exportPreview: () => Promise.resolve(""),
+  /* The plain-text export, which is what the reading window shows under
+     `Původní`. It answers with the transcript it was given, so a test can tell
+     the machine's own words apart from what the model made of them. */
+  exportPreview: () =>
+    Promise.resolve(currentDetail().segments.map((s) => s.text).join("\n\n")),
   startAiEdit: vi.fn(),
   startAiOutput: vi.fn(),
   cancelAiEdit: vi.fn(),
