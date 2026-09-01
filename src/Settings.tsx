@@ -36,6 +36,11 @@ import {
 import { useFormats } from "./formats";
 import { useLabels } from "./labels";
 import { SettingsToggle } from "./settings/toggle";
+import { SettingsDisclosure } from "./settings/disclosure";
+import { AboutSettings } from "./settings/AboutSettings";
+import { Backups } from "./settings/Backups";
+import { useDictionary } from "./settings/useDictionary";
+import { SettingsNavigation } from "./settings/SettingsNavigation";
 import { UpdateCheck } from "./settings/updates";
 import type {
   ToolCheck,
@@ -402,43 +407,6 @@ function Filled({
    model must not wear one drawing on the first screen and another on the
    fifth — so the drawing lives where the shared icons live. */
 
-/** One toggle pattern for section switches, field switches and card footers. */
-/** Native disclosure shared by advanced transcription and module diagnostics. */
-function SettingsDisclosure({
-  title,
-  badge,
-  children,
-  /** Called the first time it is opened, for content worth fetching only then. */
-  onOpen,
-  /** `card-footer` when it is the last band of a card and wants its own rule. */
-  className = "",
-}: {
-  title: string;
-  badge?: ReactNode;
-  children: ReactNode;
-  onOpen?: () => void;
-  className?: string;
-}) {
-  return (
-    <details
-      className={`settings-disclosure ${className}`.trim()}
-      onToggle={(event) => {
-        if ((event.currentTarget as HTMLDetailsElement).open) onOpen?.();
-      }}
-    >
-      <summary>
-        <svg className="settings-disclosure-chevron" width="10" height="10"
-             viewBox="0 0 10 10" aria-hidden>
-          <path d="M3 1.5 6.5 5 3 8.5" fill="none" stroke="currentColor"
-                strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-        <span>{title}</span>
-        {badge}
-      </summary>
-      <div className="settings-disclosure-content">{children}</div>
-    </details>
-  );
-}
 
 export default function SettingsScreen({
   onComplete,
@@ -482,7 +450,6 @@ export default function SettingsScreen({
   const [tipsVisible, setTipsVisible] = useState(
     () => localStorage.getItem("rychle-tipy") !== "skryte"
   );
-  const [dictionary, setDictionary] = useState<DictionaryEntry[]>([]);
   /** A transcription model picked before it was on the disk. Mirrors
    *  `localStorage[MODEL_WANTED]`, which is where it actually lives — see
    *  `load`, which is the only thing that turns it into `settings.model`. */
@@ -495,21 +462,8 @@ export default function SettingsScreen({
   const fetchingNow = useRef(fetching);
   fetchingNow.current = fetching;
   const [modelWanted, setModelWanted] = useState(() => localStorage.getItem(MODEL_WANTED) ?? "");
-  /** What the archive holds, as opposed to what is in the fields. A row is
-   *  edited in place, so `dictionary` follows every keystroke; this follows
-   *  only what was saved, and is what a row with an emptied side goes back to. */
-  const dictionaryRef = useRef<DictionaryEntry[]>([]);
-  /** The row that has been asked for and not yet written. It is a row of the
-   *  table and not a form above it, so it is held here rather than in the
-   *  archive: an entry with an empty side is not an entry, and the archive
-   *  should never hold one even for the moment between the press and the
-   *  typing. Leaving it empty simply takes it away again.
-   *
-   *  One at a time. `Přidat výraz` pressed while an empty row is already open
-   *  puts the cursor in that row instead of stacking a second one under it. */
-  const [draft, setDraft] = useState<{ find: string; replace: string } | null>(null);
-  const draftField = useRef<HTMLInputElement | null>(null);
-  const draftReplaceField = useRef<HTMLInputElement | null>(null);
+  const dictionary = useDictionary({ onError });
+
   const [activeTab, setActiveTab] = useState<SettingsTab>(() => {
     /* Whoever sent the reader here said where to put them, and that beats the
        last visit. The screen unmounts on the way out and this initialiser runs
@@ -526,118 +480,11 @@ export default function SettingsScreen({
       : "transcription";
   });
 
-  /* The dictionary is a list of corrections Whisper gets wrong the same way
-     every time — a name, a place, a term from the field. `find` is what comes
-     out of the recording, `replace` is what it should say. `prompt` also hands
-     the term to Whisper before it starts, which often prevents the mistake
-     instead of repairing it, but a long list of hints dilutes them, so it is
-     a choice rather than the rule.
-
-     A new entry hints. That is the useful default, and the row's own switch is
-     visible the moment the entry appears, so turning it off is one click in
-     the place you are already looking. There used to be a second switch above
-     the list carrying the same name; it only chose this default, was stored
-     nowhere, and read as a master switch over the column beneath it. */
-  const addEntry = useCallback(async (find: string, replace: string) => {
-    if (!find || !replace) return;
-    try {
-      const entry = await api.addDictionaryEntry(find, replace);
-      dictionaryRef.current = [...dictionaryRef.current, entry];
-      setDictionary((current) => [...current, entry]);
-    } catch (e) {
-      onError(userMessage(e));
-    }
-  }, [onError, userMessage]);
-
-  /** Keeps the unwritten row's first field and puts the cursor in it as it
-   *  appears. A stable callback ref runs on mount and on unmount and not on
-   *  every render, which is what makes it the right place for the focus. */
-  const holdDraftField = useCallback((node: HTMLInputElement | null) => {
-    draftField.current = node;
-    node?.focus();
-  }, []);
-
-  /** The button under the table. A row appears at the end of it with the
-   *  cursor in its first field — the reader types in the table they are
-   *  looking at rather than in a form that describes it. */
-  const startDraft = useCallback(() => {
-    setDraft((current) => current ?? EMPTY_DRAFT);
-    /* Only reaches a row that is already open; a row being made this moment is
-       focused by the callback ref on its first field, which runs on mount. */
-    draftField.current?.focus();
-  }, []);
-
-  /** Leaving the draft row is what decides it, which is the rule the saved
-   *  rows already follow — no separate act of confirming, and nothing to
-   *  cancel. Both halves filled, it is written; either one empty, the row goes
-   *  away, because that is what an unfinished entry is worth. */
-  const closeDraft = useCallback(() => {
-    if (!draft) return;
-    const find = draft.find.trim();
-    const replace = draft.replace.trim();
-    setDraft(null);
-    void addEntry(find, replace);
-  }, [draft, addEntry]);
-
-  const editEntry = useCallback((id: string, change: Partial<DictionaryEntry>) => {
-    setDictionary((current) =>
-      current.map((entry) => (entry.id === id ? { ...entry, ...change } : entry))
-    );
-  }, []);
-
-  /** Leaving a row saves it. An entry with an empty side is not an entry —
-   *  it would replace everything, or replace it with nothing — so instead of
-   *  saving it the field goes back to what is stored. Doing nothing at all was
-   *  worse than either: the screen showed one thing, the archive held another,
-   *  and nobody was told. Deleting an entry has its own control. */
-  const saveEntry = useCallback(async (entry: DictionaryEntry) => {
-    const find = entry.find.trim();
-    const replace = entry.replace.trim();
-    if (!find || !replace) {
-      const stored = dictionaryRef.current.find((saved) => saved.id === entry.id);
-      if (stored) editEntry(entry.id, { find: stored.find, replace: stored.replace });
-      return;
-    }
-    try {
-      await api.updateDictionaryEntry(entry.id, find, replace);
-      dictionaryRef.current = dictionaryRef.current.map((saved) =>
-        saved.id === entry.id ? { ...saved, find, replace } : saved
-      );
-      editEntry(entry.id, { find, replace });
-    } catch (e) {
-      onError(userMessage(e));
-    }
-  }, [editEntry, onError, userMessage]);
-
-  const removeEntry = useCallback(async (id: string) => {
-    try {
-      await api.deleteDictionaryEntry(id);
-      dictionaryRef.current = dictionaryRef.current.filter((entry) => entry.id !== id);
-      setDictionary((current) => current.filter((entry) => entry.id !== id));
-    } catch (e) {
-      onError(userMessage(e));
-    }
-  }, [onError, userMessage]);
-
   const selectTab = useCallback((tab: SettingsTab) => {
     localStorage.setItem("settings-tab", tab);
     setActiveTab(tab);
   }, []);
 
-  const handleTabKeyDown = useCallback((event: KeyboardEvent<HTMLButtonElement>) => {
-    const current = SETTINGS_TABS.findIndex((tab) => tab === activeTab);
-    let next = current;
-    if (event.key === "ArrowRight") next = (current + 1) % SETTINGS_TABS.length;
-    else if (event.key === "ArrowLeft") next = (current - 1 + SETTINGS_TABS.length) % SETTINGS_TABS.length;
-    else if (event.key === "Home") next = 0;
-    else if (event.key === "End") next = SETTINGS_TABS.length - 1;
-    else return;
-
-    event.preventDefault();
-    const tab = SETTINGS_TABS[next];
-    selectTab(tab);
-    requestAnimationFrame(() => document.getElementById(`settings-tab-${tab}`)?.focus());
-  }, [activeTab, selectTab]);
 
   /** Every check is stored together with the settings it answered for. There is
    *  no path that sets one without the other, which is what keeps the two from
@@ -705,9 +552,7 @@ export default function SettingsScreen({
       setModules(await api.catalog());
       setDiskUsed(await api.installedMegabytes());
       setMachine(await api.machineName());
-      const saved = await api.dictionary();
-      dictionaryRef.current = saved;
-      setDictionary(saved);
+      dictionary.actions.receive(await api.dictionary());
     } catch (e) {
       onError(userMessage(e));
     }
@@ -1063,9 +908,11 @@ export default function SettingsScreen({
      same id, same handlers. `draft` stays the record of *somebody is writing
      this* — that is what decides the focus and the bin below — so an empty
      table has a row without having a draft. */
-  const dictionaryRows = draft || dictionary.length === 0
-    ? [...dictionary, { id: DRAFT_ROW, find: draft?.find ?? "", replace: draft?.replace ?? "" }]
-    : dictionary;
+  const entries = dictionary.state.entries;
+  const draft = dictionary.state.draft;
+  const dictionaryRows = draft || entries.length === 0
+    ? [...entries, { id: DRAFT_ROW, find: draft?.find ?? "", replace: draft?.replace ?? "" }]
+    : entries;
 
   return (
     <>
@@ -1081,29 +928,14 @@ export default function SettingsScreen({
         </span>
       </div>
 
-      <nav className="settings-tabs" role="tablist" aria-label={t("settings.groups")}>
-        {SETTINGS_TABS.map((tab) => (
-          <button
-            key={tab}
-            type="button"
-            role="tab"
-            id={`settings-tab-${tab}`}
-            aria-selected={activeTab === tab}
-            aria-controls="settings-panel"
-            className={activeTab === tab ? "active" : ""}
-            tabIndex={activeTab === tab ? 0 : -1}
-            onClick={() => selectTab(tab)}
-            onKeyDown={handleTabKeyDown}
-          >
-            <span>{t(SETTINGS_TAB_KEYS[tab])}</span>
-            {/* The dot follows the status band, which stands on `Výkon a
-                modely` since that is where what is installed is read. */}
-            {tab === "tools" && missingRequired.length > 0 && (
-              <span className="settings-tab-alert" aria-label={t("settings.missingRequired")} />
-            )}
-          </button>
-        ))}
-      </nav>
+      <SettingsNavigation
+        tabs={SETTINGS_TABS}
+        labels={SETTINGS_TAB_KEYS}
+        active={activeTab}
+        onSelect={selectTab}
+        alertOn={missingRequired.length > 0 ? "tools" : null}
+        alertLabel={t("settings.missingRequired")}
+      />
 
       <div
         className="settings-panels"
@@ -1720,7 +1552,7 @@ export default function SettingsScreen({
                      is not leaving, which is what `relatedTarget` answers. */
                   onBlur={writing ? (event) => {
                     if (event.currentTarget.contains(event.relatedTarget)) return;
-                    closeDraft();
+                    dictionary.actions.closeDraft();
                   } : undefined}
                 >
                   {/* A mark in front of each half instead of an arrow between
@@ -1772,22 +1604,22 @@ export default function SettingsScreen({
                          Settings for. The ref attaches on the first keystroke
                          instead, where `focus()` lands on the field already
                          being typed into and does nothing. */
-                      ref={writing && draft ? holdDraftField : undefined}
+                      ref={writing && draft ? dictionary.actions.holdDraftField : undefined}
                       value={entry.find}
                       onChange={(event) => {
                         const value = event.target.value;
                         /* Typing into the standing row is what makes it a draft,
                            so this starts one rather than requiring one. */
-                        if (writing) setDraft((current) => ({ ...(current ?? EMPTY_DRAFT), find: value }));
-                        else editEntry(entry.id, { find: value });
+                        if (writing) dictionary.actions.writeDraft((current) => ({ ...(current ?? EMPTY_DRAFT), find: value }));
+                        else dictionary.actions.edit(entry.id, { find: value });
                       }}
-                      onBlur={writing ? undefined : () => void saveEntry(entry)}
+                      onBlur={writing ? undefined : () => void dictionary.actions.save(entry)}
                       onKeyDown={(event) => {
                         if (event.key !== "Enter") return;
                         /* On a row being written, Enter is *next*, not *done* —
                            blurring here would leave a half-filled row, and half
                            a row is thrown away rather than saved. */
-                        if (writing) draftReplaceField.current?.focus();
+                        if (writing) dictionary.actions.focusReplaceField();
                         else event.currentTarget.blur();
                       }}
                       placeholder={writing ? t("settings.dictionary.findPlaceholder") : undefined}
@@ -1812,14 +1644,14 @@ export default function SettingsScreen({
                       </svg>
                     </span>
                     <input
-                      ref={writing ? draftReplaceField : undefined}
+                      ref={writing ? dictionary.actions.holdReplaceField : undefined}
                       value={entry.replace}
                       onChange={(event) => {
                         const value = event.target.value;
-                        if (writing) setDraft((current) => ({ ...(current ?? EMPTY_DRAFT), replace: value }));
-                        else editEntry(entry.id, { replace: value });
+                        if (writing) dictionary.actions.writeDraft((current) => ({ ...(current ?? EMPTY_DRAFT), replace: value }));
+                        else dictionary.actions.edit(entry.id, { replace: value });
                       }}
-                      onBlur={writing ? undefined : () => void saveEntry(entry)}
+                      onBlur={writing ? undefined : () => void dictionary.actions.save(entry)}
                       onKeyDown={(event) => {
                         if (event.key === "Enter") event.currentTarget.blur();
                       }}
@@ -1855,8 +1687,8 @@ export default function SettingsScreen({
                        kinds of row: this row goes. */
                     onMouseDown={writing ? (event) => event.preventDefault() : undefined}
                     onClick={() => {
-                      if (writing) setDraft(null);
-                      else void removeEntry(entry.id);
+                      if (writing) dictionary.actions.writeDraft(null);
+                      else void dictionary.actions.remove(entry.id);
                     }}
                   >
                     <LineIcon name="remove" size={16} />
@@ -1878,7 +1710,7 @@ export default function SettingsScreen({
               to something you typed. */}
           <div className="settings-action-row spaced">
             <InfoNote>{t("settings.dictionary.saving")}</InfoNote>
-            <button className="button" onClick={startDraft}>
+            <button className="button" onClick={dictionary.actions.startDraft}>
               {t("settings.dictionary.add")}
             </button>
           </div>
@@ -2401,7 +2233,7 @@ export default function SettingsScreen({
         </section>
       )}
 
-      {activeTab === "about" && <About onError={onError} />}
+      {activeTab === "about" && <AboutSettings onError={onError} />}
 
       </div>
 
@@ -2426,504 +2258,3 @@ export default function SettingsScreen({
     </>
   );
 }
-
-/** Where the application comes from, for the one row on `Informace` that leaves
- *  this computer when it is pressed.
- *
- *  The same host the updater already asks — `tauri.conf.json` points at
- *  `github.com/znackarna/volocal/releases` — so this is not a second address to
- *  keep in step with anything, it is the page above the one the application has
- *  been fetching from all along.
- *
- *  i18n-ignore: an address, the same in every language */
-const WEBSITE = "https://github.com/znackarna/volocal";
-
-/** Who made this, on the `Autor` row and as the drawn mark's accessible name.
- *
- *  Named once because it is now read twice — the drawing carries it for anybody
- *  listening, the type carries it for anybody looking — and two literals would
- *  be two chances to correct only one of them.
- *
- *  i18n-ignore: a company name, and it mirrors `src-tauri/Cargo.toml` */
-const PUBLISHER = "značkárna s.r.o.";
-
-/**
- * What the application is, what it does, and what it is made of.
- *
- * Jakub asked for the three things this answers: which technologies it stands
- * on, under what licences, and what the application can actually do. Nothing
- * here is a setting or an action — it is the one page that exists to be read,
- * which is why the update check moved off it and onto a tab of its own.
- */
-function About({ onError }: { onError: (message: string) => void }) {
-  const { t } = useI18n();
-  /* The one thing on this page that can fail. Without a way to say so, a
-     refused `openUrl` is a row that does nothing when it is pressed, which is
-     indistinguishable from a row that is not a control at all. */
-  const userMessage = useUserMessage();
-
-  /* The version stood here in a row of its own and is on `Aktualizace` now.
-     It belongs on the tab where it can be acted on — the button under it
-     fetches a newer one — and this page is the one page that exists only to be
-     read. What was moved rather than removed: nothing else on this tab names
-     the number, and the licence sentence beside it never did. */
-
-  /* Project and licence names are proper nouns — the same string in every
-     language — so they stand here rather than in the dictionary, where a
-     translator would be invited to change them. Only the group headings and
-     the one licence that is a Czech phrase come from keys.
-     i18n-ignore: names of projects and of licences */
-  const credits: ReadonlyArray<{ label: TranslationKey; items: [string, string][] }> = [
-    {
-      label: "settings.about.groupApp",
-      items: [
-        ["Tauri 2", "MIT / Apache 2.0"],
-        ["React 18", "MIT"],
-        ["SQLite", t("settings.about.publicDomain")],
-      ],
-    },
-    {
-      label: "settings.about.groupTranscription",
-      items: [
-        ["whisper.cpp (ggml)", "MIT"],
-        ["Whisper (OpenAI)", "MIT"],
-        ["Silero VAD", "MIT"],
-      ],
-    },
-    {
-      label: "settings.about.groupSpeakers",
-      items: [
-        ["ONNX Runtime", "MIT"],
-        ["3D-Speaker CAM++", "Apache 2.0"],
-      ],
-    },
-    {
-      label: "settings.about.groupEditor",
-      items: [
-        ["llama.cpp", "MIT"],
-        ["Gemma (Google)", "Gemma Terms of Use"],
-      ],
-    },
-    {
-      label: "settings.about.groupMedia",
-      items: [
-        ["FFmpeg", "GPL v3"],
-        ["yt-dlp", "Unlicense"],
-        ["Deno", "MIT"],
-      ],
-    },
-    {
-      label: "settings.about.groupFonts",
-      items: [
-        ["Geist, Inter, Schibsted Grotesk", "SIL OFL 1.1"],
-        ["Literata, Source Serif 4", "SIL OFL 1.1"],
-      ],
-    },
-  ];
-
-  /** One line each, with the mark of the part of the application it belongs
-   *  to — the same drawings those screens carry. */
-  const abilities: ReadonlyArray<{ icon: LineIconName; text: TranslationKey }> = [
-    { icon: "transcription", text: "settings.about.abilityTranscribe" },
-    { icon: "speakers", text: "settings.about.abilitySpeakers" },
-    { icon: "editor", text: "settings.about.abilityEditor" },
-    { icon: "review", text: "settings.about.abilityReview" },
-    { icon: "note", text: "settings.about.abilityNotes" },
-    { icon: "video", text: "settings.about.abilitySources" },
-    { icon: "folder", text: "settings.about.abilityExport" },
-  ];
-
-  return (
-    <>
-      <section className="settings-card-about">
-        {/* i18n-ignore: the name of the product, the same word in every language */}
-        <h2>Volocal</h2>
-        <p className="settings-section-description">{t("settings.about.description")}</p>
-
-        {/* Both rows carry a mark, and both is the point: a panel where some
-            rows have one and some do not reads as an accident rather than as a
-            distinction. These two are the whole panel and they are the two
-            things somebody opens this page to find, so the circle is the same
-            `.about-mark` the abilities list below uses — 30 px, `--accent-light`
-            — rather than a size invented here.
-
-            The other `.about-panel` on this screen, the licence list, stays
-            plain: its rows are one per component and a glyph on each would be a
-            column of marks saying nothing the name beside it does not. */}
-        <dl className="about-panel about-panel-marked">
-          <div className="about-row">
-            <dt>
-              <span className="about-mark"><LineIcon name="author" size={17} /></span>
-              {t("settings.about.author")}
-            </dt>
-            {/* The publisher's drawn mark stood here beside the name and is out
-                again, on the owner's word and for now rather than for good.
-                `ZnackarnaMark` stays in `Brand.tsx` unimported, the way
-                `mark.svg` is kept: it is still the publisher's mark and putting
-                it back is one line.
-
-                **The `aria-hidden` on the name went with it, and had to.** The
-                accessible name used to live on the drawing so a screen reader
-                heard the publisher once rather than twice; with the drawing gone
-                that argument takes the name away entirely and the row answering
-                *who made this* answers nobody. */}
-            <dd className="about-author">
-              <span>{PUBLISHER}</span>
-            </dd>
-          </div>
-          <div className="about-row">
-            <dt>
-              <span className="about-mark"><LineIcon name="link" size={17} /></span>
-              {t("settings.about.website")}
-            </dt>
-            <dd>
-              {/* A button and not an `<a href>`, deliberately. An anchor the
-                  webview follows would open the page inside the application
-                  window — no address bar, no back, nothing to close — which is
-                  a room somebody cannot leave. `openUrl` hands it to whatever
-                  browser this computer already uses, where all of that is.
-
-                  The whole address, scheme included. Trimming `https://` makes
-                  the row show something that is not what it opens, and this
-                  panel is the application stating facts about itself.
-
-                  The failure is reported rather than swallowed, the same way
-                  `revealItemInDir` reports its own on the backups card. A `void`
-                  on this promise is exactly how it came to do nothing at all
-                  when the capability had not been granted yet: the rejection
-                  went nowhere and the row simply did not respond. */}
-              <button
-                type="button"
-                className="about-link"
-                onClick={() =>
-                  void openUrl(WEBSITE).catch((e) => onError(userMessage(e)))
-                }
-              >
-                {/* i18n-ignore: an address, the same in every language */}
-                {WEBSITE}
-              </button>
-            </dd>
-          </div>
-        </dl>
-      </section>
-
-      <section className="settings-card-abilities">
-        <h2>{t("settings.about.abilities")}</h2>
-        <ul className="about-abilities">
-          {abilities.map((ability) => (
-            <li key={ability.icon}>
-              <span className="about-mark">
-                <LineIcon name={ability.icon} size={17} />
-              </span>
-              {t(ability.text)}
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <section className="settings-card-credits">
-        <h2>{t("settings.about.credits")}</h2>
-        <p className="settings-section-description">
-          {t("settings.about.creditsDescription")}
-        </p>
-
-        {credits.map((group) => (
-          <div className="about-group" key={group.label}>
-            <p className="about-group-label">{t(group.label)}</p>
-            <dl className="about-panel">
-              {group.items.map(([name, licence]) => (
-                <div className="about-row" key={name}>
-                  <dt>{name}</dt>
-                  <dd>{licence}</dd>
-                </div>
-              ))}
-            </dl>
-          </div>
-        ))}
-
-        <InfoNote>{t("settings.about.licenceNote")}</InfoNote>
-      </section>
-    </>
-  );
-}
-
-/**
- * Backups of the archive.
- *
- * The whole archive is one SQLite file. It is worth saying out loud where the
- * copies are, because the moment anyone needs them is the moment they will not
- * feel like hunting for a folder.
- *
- * The card carries two more things than its title suggests, and they are here
- * rather than on a card of their own because they are the same file. Saving a
- * copy is what the automatic backups are not: those live beside the archive, on
- * this disk, in this profile, and a dead disk takes the lot. Loading one belongs
- * beside restoring, because it is the same act — an archive arrives in place of
- * the one that is open.
- */
-function Backups({
-  onError,
-  onInfo,
-}: {
-  onError: (message: string) => void;
-  onInfo: (message: string) => void;
-}) {
-  const { t, formatNumber, formatDate } = useI18n();
-  const { dataSize, transcriptCount, archiveDuration } = useFormats();
-  /** The hour on its own for the row, and the whole moment for the question
-   *  that names it — the row already has the day beside it, the dialog does not. */
-  const formatTime = (moment: string) =>
-    formatDate(new Date(moment), { hour: "2-digit", minute: "2-digit" });
-  const formatMoment = (moment: string) =>
-    formatDate(new Date(moment), {
-      day: "numeric",
-      month: "numeric",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  const userMessage = useUserMessage();
-  /* Its own, rather than a prop threaded down from the application: this is the
-     only question this screen asks, and it asks it about its own card. */
-  const [confirmation, setConfirmation] = useState<ConfirmationRequest | null>(null);
-  const [status, setStatus] = useState<{
-    latest: string;
-    count: number;
-    directory: string;
-  } | null>(null);
-  const [running, setRunning] = useState(false);
-  /** Separate from `running`: saving a copy changes nothing, so it must not
-   *  disable the buttons that do. */
-  const [saving, setSaving] = useState(false);
-  const [list, setList] = useState<
-    {
-      file: string;
-      taken_at: string;
-      size: number;
-      recordings: number | null;
-      seconds: number | null;
-    }[] | null
-  >(null);
-
-  const refresh = useCallback(() => {
-    api.backupStatus().then(setStatus).catch(() => setStatus(null));
-    setList(null);
-  }, []);
-
-  useEffect(refresh, [refresh]);
-
-  /* `Zálohovat teď` stood here and is gone with its handler. A copy is taken at
-     every start — which is what the card's own description says — so the button
-     made a second copy of an archive that had not changed since the first one,
-     and the only thing it could do that the automatic copy cannot is make three
-     of them in a row. Restoring, exporting and importing are the acts that
-     needed a button. */
-
-  /* A name with the day in it, because the folder these land in is the one
-     somebody keeps several in. */
-  const exportArchive = useCallback(async () => {
-    const stamp = new Date().toISOString().slice(0, 10);
-    try {
-      const destination = await save({
-        defaultPath: `volocal-${stamp}.db`,
-        filters: [{ name: t("settings.archive.fileFilter"), extensions: ["db"] }],
-      });
-      if (!destination) return;
-      setSaving(true);
-      await api.exportArchive(destination);
-      onInfo(t("settings.archive.exported", { path: destination }));
-    } catch (e) {
-      onError(userMessage(e));
-    } finally {
-      setSaving(false);
-    }
-  }, [onError, onInfo, t, userMessage]);
-
-  /* The question is asked after the file is chosen rather than before, so that
-     it can name it. "Replace the archive?" with nothing named is a question
-     nobody can answer. */
-  const importArchive = useCallback(async () => {
-    const chosen = await open({
-      multiple: false,
-      filters: [{ name: t("settings.archive.fileFilter"), extensions: ["db"] }],
-    });
-    if (typeof chosen !== "string") return;
-    setConfirmation({
-      title: t("settings.archive.importConfirmTitle"),
-      text: t("settings.archive.importConfirmText", {
-        name: chosen.split(/[\\/]/).pop() ?? chosen,
-      }),
-      confirm: t("settings.archive.importAction"),
-      destructive: true,
-      action: async () => {
-        setRunning(true);
-        try {
-          await api.importArchive(chosen);
-          // Same reason as restoring: every screen is holding data from the
-          // archive that has just been replaced.
-          window.location.reload();
-        } catch (e) {
-          onError(userMessage(e));
-          setRunning(false);
-        }
-      },
-    });
-  }, [onError, t, userMessage]);
-
-  return (
-    <section className="settings-card-backups">
-      <h2>{t("settings.backups.title")}</h2>
-      <p className="settings-section-description">{t("settings.backups.description")}</p>
-
-      {/* Three facts about one thing, so they are one panel with one rule
-          between each: when, how many, where. The folder used to hang under
-          the pair as a loose monospace line with nothing naming it — it is a
-          row like the others now, and clicking it opens the folder, which is
-          the only reason anyone reads a path at all. */}
-      <dl className="backup-summary">
-        <div className="backup-row">
-          <dt>{t("settings.backups.latest")}</dt>
-          <dd>{status?.latest || t("settings.backups.none")}</dd>
-        </div>
-        <div className="backup-row">
-          <dt>{t("settings.backups.count")}</dt>
-          <dd>{formatNumber(status?.count ?? 0)}</dd>
-        </div>
-        {status?.directory && (
-          <div className="backup-row">
-            <dt>{t("settings.backups.directory")}</dt>
-            <dd>
-              <button
-                type="button"
-                className="backup-path"
-                title={t("settings.backups.reveal")}
-                onClick={() => {
-                  void revealItemInDir(status.directory).catch((e) => onError(userMessage(e)));
-                }}
-              >
-                <bdi>{status.directory}</bdi>
-              </button>
-            </dd>
-          </div>
-        )}
-      </dl>
-
-      {/* The archive leaving and arriving, on the face of the card.
-
-          Both were folded away with the list of backups, under a heading that
-          had to name two subjects at once — and they are not the same subject.
-          Going back to a Tuesday is a list to read; sending the archive to
-          another disk is one press. The press is up here; the reading is folded
-          under it. One note for the two of them, because they are one archive
-          going in either direction. */}
-      <div className="settings-action-row spaced">
-        <InfoNote compact>{t("settings.archive.note")}</InfoNote>
-        <div className="settings-action-row-buttons">
-          <button className="button" onClick={exportArchive} disabled={saving || running}>
-            {saving ? t("settings.archive.exportSaving") : t("settings.archive.export")}
-          </button>
-          <button className="button" onClick={importArchive} disabled={running}>
-            {t("settings.archive.import")}
-          </button>
-        </div>
-      </div>
-
-      {/* Last band of the card, folded away. Putting a backup back is the
-          rarest thing on this screen and the only one that replaces what is
-          there — it belongs under everything that is not. */}
-      {/* Always here, unlike the list inside it. A machine that has just been
-          set up has no backups and is exactly the machine somebody wants to
-          load an archive into. */}
-      <SettingsDisclosure
-        title={t("settings.backups.restoreTitle")}
-        className="card-footer"
-        onOpen={() => {
-          if (list === null) api.backups().then(setList).catch(() => setList([]));
-        }}
-      >
-        {(status?.count ?? 0) > 0 ? (
-          <ul className="backup-list">
-            {(list ?? []).map((backup) => (
-              <li key={backup.file}>
-                {/* The same torn-off leaf the archive puts on a recording. A
-                    backup is chosen by its day first and its hour second, and
-                    the day is what the eye finds without reading. */}
-                <RecordingCalendar value={backup.taken_at} />
-                {/* No mark on the hour. The leaf beside it already says which
-                    day, and with marks on both facts at the right a third one
-                    made the row busier than it is informative. */}
-                <span className="backup-when">{formatTime(backup.taken_at)}</span>
-                {/* dataSize speaks in megabytes; the file system speaks in
-                    bytes. Passed straight through, a 1.4 MB archive announced
-                    itself as 1 420 GB. */}
-                {/* The archive's own pair, with the archive's own marks: how
-                    many transcripts and how much audio. Nobody picks a backup
-                    by megabytes — those stay in the tooltip, where a file's
-                    weight belongs. */}
-                {backup.recordings !== null && (
-                  <span className="recording-metadata backup-holds"
-                        title={dataSize(backup.size / (1024 * 1024))}>
-                    <RecordingMetadataItem
-                      kind="segments"
-                      label={t("library.folders.count")}
-                      value={transcriptCount(backup.recordings)}
-                    />
-                    <RecordingMetadataItem
-                      kind="duration"
-                      label={t("library.card.duration")}
-                      value={archiveDuration(backup.seconds ?? 0)}
-                    />
-                  </span>
-                )}
-                <button
-                  className="button"
-                  disabled={running}
-                  onClick={() =>
-                    setConfirmation({
-                      title: t("settings.backups.restoreConfirmTitle"),
-                      text: t("settings.backups.restoreConfirmText", {
-                        when: formatMoment(backup.taken_at),
-                      }),
-                      confirm: t("settings.backups.restoreAction"),
-                      destructive: true,
-                      action: async () => {
-                        setRunning(true);
-                        try {
-                          await api.restoreBackup(backup.file);
-                          // Everything on every screen came from the archive
-                          // that was just replaced. Reloading is the honest way
-                          // to be sure nothing on screen is from the old one.
-                          window.location.reload();
-                        } catch (e) {
-                          onError(userMessage(e));
-                          setRunning(false);
-                        }
-                      },
-                    })
-                  }
-                >
-                  {t("settings.backups.restoreAction")}
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="settings-section-description">{t("settings.backups.emptyList")}</p>
-        )}
-        {/* Under the list, not over it. What it says is what happens *after*
-            a row is chosen, and it was standing between the reader and the
-            dates they came here to look at. */}
-        {(status?.count ?? 0) > 0 && <InfoNote>{t("settings.backups.restoreNote")}</InfoNote>}
-
-      </SettingsDisclosure>
-
-      <ConfirmationDialog
-        query={confirmation}
-        onClose={() => setConfirmation(null)}
-        onError={onError}
-      />
-    </section>
-  );
-}
-
-
