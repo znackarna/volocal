@@ -30,7 +30,6 @@ import type { TranslationKey } from "./i18n";
 import { useLabels } from "./labels";
 import { useDialog } from "./useDialog";
 import {
-  CONFIDENCE_THRESHOLD,
   EDITOR_MODELS,
   EDITOR_TIER,
   UNOFFERED_COMPONENTS,
@@ -77,10 +76,12 @@ import { NotesSection } from "./detail/NotesSection";
 import { useRecordingNotes } from "./detail/useRecordingNotes";
 import { SpeakersSection } from "./detail/SpeakersSection";
 import { useSpeakerManagement } from "./detail/useSpeakerManagement";
+import { ReviewSections } from "./detail/ReviewSections";
+import { useTranscriptEditing } from "./detail/useTranscriptEditing";
 import { useTranscriptSearch } from "./detail/useTranscriptSearch";
 import { MENU_ICONS, TranscriptContextMenu } from "./detail/TranscriptContextMenu";
 import type { TranscriptMenuItem } from "./detail/TranscriptContextMenu";
-import { MarkedWords, SegmentRow, UncertainEditor, describeEdit } from "./detail/corrections";
+import { SegmentRow } from "./detail/corrections";
 import type {
   AiCustomDocument,
   AiDocument,
@@ -88,7 +89,6 @@ import type {
   AiOutput,
   Speaker,
   Segment,
-  DictionaryEntry,
   TranscriptionProgress,
   LiveSegment,
   RecordingNote,
@@ -198,7 +198,6 @@ export default function Detail({
   const [error, setError] = useState<string | null>(null);
   const [language, setLanguage] = useState("");
   const [segments, setSegments] = useState<Segment[]>([]);
-  const [dictionary, setDictionary] = useState<DictionaryEntry[]>([]);
   const [aiDocument, setAiDocument] = useState<AiDocument | null>(null);
   const [aiOutputs, setAiOutputs] = useState<AiOutput[]>([]);
   /** Everything this recording has been asked for in somebody's own words,
@@ -414,12 +413,6 @@ export default function Detail({
     if (s.isCurrentRecording) s.player.togglePlayback();
     else if (s.path) s.player.start(s.id, s.path, s.title, s.duration, s.localTime);
   }, []);
-  const [editing, setEditing] = useState<string | null>(null);
-  /* Editing in the sidebar is its own state, not `editing`. The two lists show
-     the same segment, and sharing one id would open the transcript's editor at
-     the same time — two textareas over one record, whichever blurred last
-     winning. */
-  const [editingUncertain, setEditingUncertain] = useState<string | null>(null);
   /** The strip of shortcuts under the player. Useful the first few times and
    *  then just a line of text in the way, so it is dismissed here — and brought
    *  back here, by a button that appears in the player's row only once the strip
@@ -443,7 +436,6 @@ export default function Detail({
   // The source file may have been deleted after transcription — the text
   // stays in the database, but there is nothing to play.
   const [sourceMissing, setSourceMissing] = useState(false);
-  const [dictionarySuggestion, setDictionarySuggestion] = useState<{ z: string; na: string } | null>(null);
 
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -481,7 +473,7 @@ export default function Detail({
       setSegments(d.segments);
       speakers.actions.receive(d.speakers);
       notes.actions.receive(d.notes);
-      setDictionary(dictionaryEntries);
+      editing.actions.receiveDictionary(dictionaryEntries);
       setSourceMissing(!exists);
       setAiDocument(aiStatus.document);
       setAiOutputs(aiStatus.outputs);
@@ -677,32 +669,6 @@ export default function Detail({
   }, [isCurrentRecording]);
 
   // -------------------------------------------------------------- the keyboard
-  const uncertainSegments = useMemo(
-    () => segments.filter((s) => (s.confidence ?? 1) < CONFIDENCE_THRESHOLD && !s.verified),
-    [segments]
-  );
-
-  /* Blocks nobody could put a name to — the short interjections, "Yeah.",
-     "Okay.", a third of a second each. The model is never asked about them
-     because there is too little voice to describe, and the ones that sit
-     between two blocks of one person are filled in on the way out of
-     recognition. What is left is the genuinely ambiguous handful, and this
-     list is where they stop being scattered through the transcript.
-
-     Only when somebody has been recognised at all: before that every block is
-     unassigned and a list of all of them says nothing. */
-  /* What this recording was corrected on, in transcript order.
-     Only segments whose original is known. A row here is `před → po`; one that
-     cannot say what changed is not a correction, it is a paragraph — and a list
-     where some rows are a two-word swap and others a whole block reads as
-     broken rather than as varied. Segments edited before the archive had
-     anywhere to keep the original are not listed, but they are not lost: the
-     transcript still marks each of them with its pencil. */
-  const editedSegments = useMemo(
-    () => segments.filter((s) => s.edited && s.original !== null),
-    [segments]
-  );
-
   const goTo = useCallback(
     (segment: Segment) => {
       // Quietly: stepping through uncertain spots is reading, not listening.
@@ -733,10 +699,22 @@ export default function Detail({
      is the keyboard, which belongs to the screen. */
   const search = useTranscriptSearch(segments);
 
+  const editing = useTranscriptEditing({
+    recordingId: id,
+    segments,
+    updateSegments: setSegments,
+    onError,
+    onInfo,
+    markAiStale: () =>
+      setAiDocument((document) => (document ? { ...document, stale: true } : null)),
+    reload: load,
+  });
+
   const goToNextUncertain = useCallback(() => {
-    if (uncertainSegments.length === 0) return;
-    goTo(uncertainSegments.find((s) => s.start > time + 0.05) ?? uncertainSegments[0]);
-  }, [uncertainSegments, time, goTo]);
+    if (editing.state.uncertain.length === 0) return;
+    goTo(editing.state.uncertain.find((s) => s.start > time + 0.05) ?? editing.state.uncertain[0]);
+  }, [editing.state.uncertain, time, goTo]);
+
 
   /** Plays from a moment and brings the transcript with it. The position
    *  played is the one asked for, not the start of the block that happens to
@@ -795,6 +773,7 @@ export default function Detail({
     progressPhase: progress?.phase,
   });
 
+
   const toggleSection = useCallback((name: SidebarSectionName) => {
     setOpenSections((current) => {
       const next = { ...current, [name]: !current[name] };
@@ -834,7 +813,7 @@ export default function Detail({
           search.actions.close();
           break;
         case "stopEditing":
-          setEditing(null);
+          editing.actions.stop();
           break;
         case "togglePlayback":
           togglePlayback();
@@ -913,10 +892,6 @@ export default function Detail({
     }
   }, [id, onError, userMessage]);
 
-  const startEditing = useCallback((segment: Segment) => {
-    setEditing(segment.id);
-  }, []);
-
   /** What was pointed at, and where the menu should appear. */
   const [transcriptMenu, setTranscriptMenu] = useState<
     { x: number; y: number; segment: Segment; time: number } | null
@@ -947,107 +922,6 @@ export default function Detail({
       onError(t("detail.preview.copyFailed"));
     }
   }, [onError, onInfo, t]);
-
-  const confirm = useCallback(async (segment: Segment) => {
-    setSegments((p) =>
-      p.map((x) => (x.id === segment.id ? { ...x, verified: true } : x))
-    );
-    try {
-      await api.markVerified(segment.id, true);
-    } catch (e) {
-      onError(userMessage(e));
-    }
-  }, [onError, userMessage]);
-
-  // ---------------------------------------------------------------- editing
-  const saveText = useCallback(
-    async (segment: Segment, newText: string) => {
-      const trimmedText = newText.trim();
-      setEditing(null);
-      if (trimmedText === segment.text) return;
-
-      try {
-        await api.updateSegment(segment.id, trimmedText);
-        setSegments((s) =>
-          s.map((x) =>
-            x.id === segment.id
-              ? // `words` has to go, not just be left alone. The segment is
-                // rendered from the stored word timings, not from `text` —
-                // that is what makes clicking a word seek the audio. Keep
-                // them and the screen goes on showing the old wording, even
-                // though the new one is already saved. The backend drops them
-                // for the same reason; this mirrors it so the change is
-                // visible at once instead of after a reload.
-                //
-                // `original` mirrors the backend's COALESCE for the same
-                // reason: the first rewrite records what the machine wrote,
-                // later ones leave that record alone. Without it the Opravy
-                // list — which only shows segments whose original is known —
-                // learned about a fresh correction only after a reload.
-                {
-                  ...x,
-                  text: trimmedText,
-                  edited: true,
-                  verified: true,
-                  words: null,
-                  original: x.original ?? x.text,
-                }
-              : x
-          )
-        );
-        setAiDocument((document) => document ? { ...document, stale: true } : null);
-
-        // When exactly one word changed, offer to remember it. The dictionary
-        // then grows by being used, rather than by somebody filling it in.
-        const old = segment.text.split(/\s+/);
-        const newWords = trimmedText.split(/\s+/);
-        if (old.length === newWords.length) {
-          const differences = old
-            .map((w, i) => [w, newWords[i]] as const)
-            .filter(([a, b]) => a !== b);
-          if (differences.length === 1) {
-            const [z, na] = differences[0];
-            const cleanWord = (w: string) => w.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "");
-            const zz = cleanWord(z);
-            const nn = cleanWord(na);
-            const alreadyExists = dictionary.some((p) => p.find.toLowerCase() === zz.toLowerCase());
-            if (zz && nn && zz.toLowerCase() !== nn.toLowerCase() && !alreadyExists) {
-              setDictionarySuggestion({ z: zz, na: nn });
-            }
-          }
-        }
-      } catch (e) {
-        onError(userMessage(e));
-      }
-    },
-    [dictionary, onError, userMessage]
-  );
-
-  const confirmDictionary = useCallback(async () => {
-    if (!dictionarySuggestion) return;
-    const { z, na } = dictionarySuggestion;
-    setDictionarySuggestion(null);
-    try {
-      const p = await api.addDictionaryEntry(z, na);
-      setDictionary((s) => [...s, p]);
-      // The dictionary used to take effect only in the next transcription.
-      // The same word usually occurs several times in a recording, and fixing
-      // each by hand is wasted work.
-      const changesApplied = await api.applyDictionary(id);
-      if (changesApplied > 0) await load();
-      // Always report, even when nothing else changed. Without confirmation
-      // there is no telling whether the term was saved at all.
-      // Zero is not a grammatical form of the sentence below, it is a different
-      // sentence, so it keeps its own key.
-      onInfo(
-        changesApplied === 0
-          ? t("detail.dictionary.savedNoOther", { from: z, to: na })
-          : tPlural("detail.dictionary.savedApplied", changesApplied, { from: z, to: na })
-      );
-    } catch (e) {
-      onError(userMessage(e));
-    }
-  }, [dictionarySuggestion, id, load, onError, onInfo, t, tPlural, userMessage]);
 
   const drawnBlocks = useProgressiveList(segments.length);
 
@@ -1860,12 +1734,12 @@ export default function Detail({
                   segment={s}
                   active={active?.id === s.id}
                   time={time}
-                  editing={editing === s.id}
+                  editing={editing.state.editing === s.id}
                   color={m?.color}
                   onSeek={seek}
-                  onStartUpravu={startEditing}
-                  onConfirm={confirm}
-                  onSave={saveText}
+                  onStartUpravu={editing.actions.start}
+                  onConfirm={editing.actions.confirm}
+                  onSave={editing.actions.save}
                   onContextMenu={openTranscriptMenu}
                   find={search.state.needle}
                   foundHere={search.state.hitId === s.id}
@@ -1984,101 +1858,13 @@ export default function Detail({
             </SidebarSection>
           )}
 
-          <SidebarSection
-            icon="review"
-            title={t("detail.review.heading")}
-            count={uncertainSegments.length}
-            open={openSections.review}
-            onToggle={() => toggleSection("review")}
-          >
-            {uncertainSegments.length > 0 ? (
-              <ul className="uncertain-places">
-                {uncertainSegments.map((uncertain) => (
-                  <li key={uncertain.id}>
-                    {editingUncertain === uncertain.id ? (
-                      <UncertainEditor
-                        segment={uncertain}
-                        onSave={(text) => {
-                          setEditingUncertain(null);
-                          void saveText(uncertain, text);
-                        }}
-                        onCancel={() => setEditingUncertain(null)}
-                      />
-                    ) : (
-                      <>
-                        <button onClick={() => hear(uncertain)}
-                                onDoubleClick={() => setEditingUncertain(uncertain.id)}
-                                title={t("detail.review.editHint")}
-                                className={uncertain.start <= time && time < uncertain.end ? "current" : ""}>
-                          <PlayMark />
-                          <span className="uncertain-time">{formatTime(uncertain.start)}</span>
-                          <span className="uncertain-text">{uncertain.text}</span>
-                        </button>
-                        <button className="confirm" title={t("detail.review.markCorrectTitle")}
-                                aria-label={t("detail.review.markCorrectLabel")}
-                                onClick={() => confirm(uncertain)}>
-                          <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden>
-                            <path d="M2.5 7.5l3 3 6-7" fill="none" stroke="currentColor"
-                                  strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
-                        </button>
-                      </>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <SidebarEmpty>{t("detail.review.empty")}</SidebarEmpty>
-            )}
-          </SidebarSection>
-
-          <SidebarSection
-            icon="edits"
-            title={t("detail.edits.heading")}
-            count={editedSegments.length}
-            open={openSections.edits}
-            onToggle={() => toggleSection("edits")}
-          >
-            {editedSegments.length > 0 ? (
-              <ul className="corrections">
-                {editedSegments.map((segment) => {
-                  const change = describeEdit(segment.original, segment.text);
-                  if (!change) return null;
-                  return (
-                    <li key={segment.id}>
-                      <button
-                        onClick={() => hear(segment)}
-                        title={t("detail.edits.seekTitle")}
-                        className={
-                          segment.start <= time && time < segment.end ? "current" : ""
-                        }
-                      >
-                        <PlayMark />
-                        <span className="correction-time">{formatTime(segment.start)}</span>
-                        <span className="correction-change">
-                          <span className="correction-before">{change.before}</span>
-                          <span className="correction-arrow" aria-hidden>→</span>
-                          <span className="correction-after">
-                            {/* One word changed: the row is already only that
-                                word, so underlining it would say nothing. Both
-                                versions whole: the reader would otherwise have
-                                to spot the difference. */}
-                            {change.narrowed ? (
-                              change.after
-                            ) : (
-                              <MarkedWords original={change.before} text={change.after} />
-                            )}
-                          </span>
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : (
-              <SidebarEmpty>{t("detail.edits.empty")}</SidebarEmpty>
-            )}
-          </SidebarSection>
+          <ReviewSections
+            editing={editing}
+            openSections={openSections}
+            onToggle={toggleSection}
+            time={time}
+            onHear={hear}
+          />
 
           <NotesSection
             notes={notes}
@@ -2119,7 +1905,7 @@ export default function Detail({
             {
               label: t("detail.menu.edit"),
               icon: MENU_ICONS.edit,
-              action: () => startEditing(transcriptMenu.segment),
+              action: () => editing.actions.start(transcriptMenu.segment),
             },
             {
               label: t("detail.menu.note", { time: formatTime(transcriptMenu.time) }),
@@ -2654,18 +2440,18 @@ export default function Detail({
         </div>
       )}
 
-      {dictionarySuggestion && (
+      {editing.state.suggestion && (
         <div className="menu">
           <span>
             {t("detail.dictionary.prompt", {
-              from: dictionarySuggestion.z,
-              to: dictionarySuggestion.na,
+              from: editing.state.suggestion.z,
+              to: editing.state.suggestion.na,
             })}
           </span>
-          <button className="button" onClick={confirmDictionary}>
+          <button className="button" onClick={editing.actions.acceptSuggestion}>
             {t("detail.dictionary.confirm")}
           </button>
-          <button className="button quiet" onClick={() => setDictionarySuggestion(null)}>
+          <button className="button quiet" onClick={editing.actions.dismissSuggestion}>
             {t("detail.dictionary.decline")}
           </button>
         </div>
