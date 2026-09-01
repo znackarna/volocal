@@ -254,17 +254,6 @@ export default function Detail({
      is the keyboard, which belongs to the screen. */
   const search = useTranscriptSearch(segments);
 
-  const editing = useTranscriptEditing({
-    recordingId: id,
-    segments,
-    updateSegments: recording.actions.update,
-    onError,
-    onInfo,
-    markAiStale: () =>
-      ai.actions.markStale,
-    reload: load,
-  });
-
   const exportRecording = useCallback(
     async (format: string) => {
       try {
@@ -279,6 +268,13 @@ export default function Detail({
     [id, onError, userMessage]
   );
 
+  /* The language model comes first of the four, and the order is load-bearing:
+     three of them mark its document old when they change the transcript, and
+     they are handed `markStale` itself rather than a wrapper around it. A
+     wrapper would be a new function on every render, and `useTranscriptEditing`
+     lists it among the dependencies of `save` — which every `SegmentRow`
+     receives. On an hour-long transcript that is a thousand memoised rows
+     failing their comparison on every tick of the clock. */
   const ai = useAiWorkspace({
     recordingId: id,
     onError,
@@ -286,6 +282,16 @@ export default function Detail({
     onToModule,
     reload: load,
     saveTranscript: exportRecording,
+  });
+
+  const editing = useTranscriptEditing({
+    recordingId: id,
+    segments,
+    updateSegments: recording.actions.update,
+    onError,
+    onInfo,
+    markAiStale: ai.actions.markStale,
+    reload: load,
   });
 
   deliverRef.current = (loaded) => {
@@ -355,8 +361,7 @@ export default function Detail({
     updateSegments: recording.actions.update,
     playFrom,
     onError,
-    markAiStale: () =>
-      ai.actions.markStale,
+    markAiStale: ai.actions.markStale,
     reveal: revealSpeakers,
     reload: load,
     progressPhase: progress?.phase,
