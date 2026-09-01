@@ -4,7 +4,12 @@ export const csApp = {
   "app.newTranscript": "Nový přepis",
 
   // ---------------------------------------------------------------- shell
-  "app.download.running": "Stahuji {name}",
+  /* Dvojtečka, protože jméno součásti je vlastní jméno a ne pokračování věty.
+     `Stahuji Menší model jazykové úpravy` se čte jako souvětí, kterému něco
+     chybí; `Stahuji: Menší model jazykové úpravy` je popisek a hodnota, což to
+     ve skutečnosti je. V bublině se jméno navíc zkracuje třemi tečkami, takže
+     věta stejně nikdy nedojde do konce. */
+  "app.download.running": "Stahuji: {name}",
   // Said when Transcribe is pressed while something needed is missing. The
   // archive's notice has been saying so above the list; this is what happens
   // when somebody presses anyway, and it carries the way out rather than only
