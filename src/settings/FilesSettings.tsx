@@ -67,7 +67,7 @@ export function FilesSettings({
 
   return (
     <>
-      check?.portable && (
+      {check?.portable && (
         <section className="portable-info settings-card-portable">
           <h2>{t("settings.portable.title")}</h2>
           <p>
@@ -88,7 +88,7 @@ export function FilesSettings({
             </Filled>
           </p>
         </section>
-      )
+      )}
 
       <section className="settings-card-watch-folder">
         <h2>{t("settings.files.watchTitle")}</h2>
@@ -196,7 +196,7 @@ export function FilesSettings({
 
       <Backups onError={onError} onInfo={onInfo} />
 
-      !check?.portable && (
+      {!check?.portable && (
         <section className="settings-card-portable-copy">
           <h2>{t("settings.portable.copyTitle")}</h2>
           <p className="settings-section-description">
@@ -228,7 +228,7 @@ export function FilesSettings({
           )}
 
         </section>
-      )
+      )}
     </>
   );
 }
