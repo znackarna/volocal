@@ -1,5 +1,11 @@
 # Tidy-up plan, 28 August 2026
 
+**Closed on 31 August 2026.** A and B are done, and C was read against the
+screen and turned out to need no repair — what it needed was the test it now
+has. What is left below is D, which is on-touch by design and describes a habit
+rather than a task, and E, which is parked until the facts change. Nothing here
+is waiting on anybody.
+
 Written for the next working session (Opus/Fable). Goal: clear ballast and make
 the records easier to use for future development and repairs. Nothing here is a
 rewrite; every item is small, checkable, and most need the owner's word before
@@ -33,7 +39,9 @@ speculative `note!` logging. Do not touch the visual system.
 
 - [x] **`site-on-vercel`** — nothing to settle. Its commit `2d4b96c` is an
   ancestor of `main`; the branch was merged and deleted before 31 August.
-- [ ] **`prepinac-v-bundlu`** — looked at on 31 August (`docs/history/2026-08-31.md`).
+- [x] **`prepinac-v-bundlu`** — deleted by the owner on 31 August, after the
+  reading below. `origin` now carries `dev` and `main` and nothing else.
+  Looked at on 31 August (`docs/history/2026-08-31.md`).
   It is behind `dev`, not ahead of it: both commits were redone on `dev`, the
   script is identical line for line, both history entries are in place, and the
   branch's one real difference is a bundle language switch pointing at
