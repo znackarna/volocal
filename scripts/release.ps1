@@ -222,6 +222,40 @@ if ($version -ne $cargo -or $version -ne $npm) {
 $tag = "v$version"
 Write-Host "Volocal $version" -ForegroundColor Green
 
+<#
+  **Is this version already out?**
+
+  Asked before the twenty minutes rather than after, and asked of the remote
+  rather than of this machine: a tag can be pushed from anywhere, and the
+  question is whether the world already has this number.
+
+  On 31 August 1.2.22 was published at 23:01 and this session went on building
+  the same version for another three-quarters of an hour, because nothing asked
+  and nobody looked. Two releases later the number was still the one already
+  taken. Whatever else that cost, the dangerous shape is the same one the clean
+  tree guard exists for: an installer that says a version somebody else's copy
+  already has, carrying different bytes.
+
+  A local tag is not enough to answer it - `git tag` says only what this clone
+  has fetched - so this asks `origin`. No network, no answer, and that is a
+  warning rather than a stop: being unable to ask is not evidence of anything.
+#>
+$taken = git ls-remote --tags origin "refs/tags/$tag" 2>$null
+if ($LASTEXITCODE) {
+  Write-Host "Could not ask origin whether $tag exists - carrying on." -ForegroundColor Yellow
+} elseif ($taken) {
+  Fail @"
+$tag is already published.
+
+Building it again would produce a second installer under a number the world
+already has, with different bytes inside it. Raise the version in
+tauri.conf.json, Cargo.toml and package.json, write the change log entry, and
+build that.
+
+  gh release list        what is already out
+"@
+}
+
 $key = "$env:USERPROFILE\.slobot\updater.key"
 if (-not (Test-Path $key)) {
   Fail @"
