@@ -12,7 +12,15 @@
  * moves into hooks of its own.
  */
 import { vi } from "vitest";
-import type { AiDocument, AiOutput, Detail as DetailData, Recording, Segment, ToolCheck } from "../types";
+import type {
+  AiDocument,
+  AiOutput,
+  Detail as DetailData,
+  Recording,
+  RecordingNote,
+  Segment,
+  ToolCheck,
+} from "../types";
 
 export const RECORDING_ID = "r1";
 
@@ -100,6 +108,18 @@ export function conversation(): DetailData {
       segment({ id: `s${i + 1}`, order: i, start: i * 10, end: i * 10 + 8, text })
     ),
   });
+}
+
+export function note(over: Partial<RecordingNote> = {}): RecordingNote {
+  return {
+    id: "n1",
+    recording_id: RECORDING_ID,
+    time: null,
+    text: "Ověřit rozpočet.",
+    done: false,
+    created_at: "2026-08-31T09:10:00Z",
+    ...over,
+  };
 }
 
 /** Everything installed, so nothing on this screen is refused for a missing
@@ -194,61 +214,74 @@ export function eventMock() {
  *  the reads answer with the fixtures above, and everything that writes is a
  *  spy, so a test can ask what the screen asked the backend to do.
  *
- *  `detail` is a function so that a test can hand in a different recording —
- *  a transcript still running, a source file that has moved — without a second
- *  copy of the whole double. */
-export function apiMock(over: Record<string, unknown> = {}) {
-  return {
-    api: {
-      detail: () => Promise.resolve(currentDetail()),
-      checkTools: () => Promise.resolve(toolCheck()),
-      loadSettings: () => Promise.resolve(settings()),
-      saveSettings: vi.fn(),
-      dictionary: () => Promise.resolve([]),
-      catalog: () => Promise.resolve([]),
-      aiEditStatus: (id: string) => aiEditStatus(id),
-      fileExists: () => Promise.resolve(true),
-      exportPreview: () => Promise.resolve(""),
-      startAiEdit: vi.fn(),
-      startAiOutput: vi.fn(),
-      cancelAiEdit: vi.fn(),
-      deleteAiDocument: vi.fn(),
-      saveAiDocument: vi.fn(),
-      saveAiOutput: vi.fn(),
-      suggestedName: vi.fn(),
-      suggestedAiName: vi.fn(),
-      suggestedAiOutputName: vi.fn(),
-      saveExport: vi.fn(),
-      addRecordingNote: vi.fn(),
-      updateRecordingNote: vi.fn(),
-      deleteRecordingNote: vi.fn(),
-      addDictionaryEntry: vi.fn(),
-      applyDictionary: vi.fn(),
-      addSpeaker: vi.fn(),
-      deleteSpeaker: vi.fn(),
-      renameSpeaker: vi.fn(),
-      mergeSpeakers: vi.fn(),
-      setSegmentSpeaker: vi.fn(),
-      updateSegment: vi.fn(),
-      markVerified: vi.fn(),
-      renameRecording: vi.fn(),
-      deleteRecording: vi.fn(),
-      deleteTranscription: vi.fn(),
-      cancelTranscription: vi.fn(),
-      changeRecordingPath: vi.fn(),
-      download: vi.fn(),
-      // Reached through the player and the recorder rather than by this screen,
-      // but the screen mounts both.
-      playbackSource: () => Promise.resolve(null),
-      recordingWaveform: () => Promise.resolve(null),
-      beginTake: vi.fn(),
-      appendTakeChunk: vi.fn(),
-      discardTake: vi.fn(),
-      noteCrash: vi.fn(),
-      prevent: vi.fn(),
-      ...over,
-    },
-  };
+ *  Built once and exported, rather than made fresh inside `apiMock`, because a
+ *  test has to be able to reach the very spies the screen is calling — to say
+ *  what a write answers with, and to read back what it was given.
+ *
+ *  The reads are functions rather than fixed values so that a test can choose
+ *  the recording through `setDetail` without a second copy of the whole thing. */
+export const api = {
+  detail: () => Promise.resolve(currentDetail()),
+  checkTools: () => Promise.resolve(toolCheck()),
+  loadSettings: () => Promise.resolve(settings()),
+  saveSettings: vi.fn(),
+  dictionary: () => Promise.resolve([]),
+  catalog: () => Promise.resolve([]),
+  aiEditStatus: (id: string) => aiEditStatus(id),
+  fileExists: () => Promise.resolve(true),
+  exportPreview: () => Promise.resolve(""),
+  startAiEdit: vi.fn(),
+  startAiOutput: vi.fn(),
+  cancelAiEdit: vi.fn(),
+  deleteAiDocument: vi.fn(),
+  saveAiDocument: vi.fn(),
+  saveAiOutput: vi.fn(),
+  suggestedName: vi.fn(),
+  suggestedAiName: vi.fn(),
+  suggestedAiOutputName: vi.fn(),
+  saveExport: vi.fn(),
+  addRecordingNote: vi.fn(),
+  updateRecordingNote: vi.fn(),
+  deleteRecordingNote: vi.fn(),
+  addDictionaryEntry: vi.fn(),
+  applyDictionary: vi.fn(),
+  addSpeaker: vi.fn(),
+  deleteSpeaker: vi.fn(),
+  renameSpeaker: vi.fn(),
+  mergeSpeakers: vi.fn(),
+  setSegmentSpeaker: vi.fn(),
+  updateSegment: vi.fn(),
+  markVerified: vi.fn(),
+  renameRecording: vi.fn(),
+  deleteRecording: vi.fn(),
+  deleteTranscription: vi.fn(),
+  cancelTranscription: vi.fn(),
+  changeRecordingPath: vi.fn(),
+  download: vi.fn(),
+  // Reached through the player and the recorder rather than by this screen,
+  // but the screen mounts both.
+  playbackSource: () => Promise.resolve(null),
+  recordingWaveform: () => Promise.resolve(null),
+  beginTake: vi.fn(),
+  appendTakeChunk: vi.fn(),
+  discardTake: vi.fn(),
+  noteCrash: vi.fn(),
+  prevent: vi.fn(),
+};
+
+/** Call from inside `vi.mock("../api", ...)`. */
+export function apiMock() {
+  return { api };
+}
+
+/** Forgets what the last test asked the backend to do, and what the spies were
+ *  told to answer. The reads are plain functions and are left alone. */
+export function resetApi() {
+  for (const value of Object.values(api)) {
+    if (typeof value === "function" && "mockReset" in value) {
+      (value as { mockReset: () => void }).mockReset();
+    }
+  }
 }
 
 /** jsdom does no layout, so the two browser things this screen measures with
