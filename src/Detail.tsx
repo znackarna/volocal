@@ -12,7 +12,6 @@ import { LineIcon, type LineIconName } from "./icons";
 import { changedWords } from "./transcriptText";
 import { Wordmark } from "./Brand";
 import {
-  preparePlaybackSource,
   usePlayer,
 } from "./player";
 import { useI18n } from "./i18n";
@@ -58,6 +57,8 @@ import { AiToolsDialog } from "./detail/ai/AiToolsDialog";
 import { useAiWorkspace } from "./detail/ai/useAiWorkspace";
 import { useTranscriptSearch } from "./detail/useTranscriptSearch";
 import { useDetailPlayback } from "./detail/useDetailPlayback";
+import { useRecordingDetail } from "./detail/useRecordingDetail";
+import type { LoadedRecording } from "./detail/useRecordingDetail";
 import { MENU_ICONS, TranscriptContextMenu } from "./detail/TranscriptContextMenu";
 import type { TranscriptMenuItem } from "./detail/TranscriptContextMenu";
 import { SegmentRow } from "./detail/corrections";
@@ -135,21 +136,23 @@ export default function Detail({
   const labels = useLabels();
   /** For the one sentence that names how large the language editor is. */
   const { dataSize } = useFormats();
-  const [title, setTitle] = useState("");
+  /* Everything one visit to the backend brings back is given out here, not
+     inside the hook that fetched it: six things belonging to five owners, and
+     the wiring is meant to be visible.
+
+     Through a ref because the owners are set up below this line — the fetch
+     needs the recording's own facts, and the features need its blocks. The ref
+     is written on every render, so the call always reaches the current one. */
+  const deliverRef = useRef<(loaded: LoadedRecording) => void>(() => {});
+  const deliver = useCallback((loaded: LoadedRecording) => deliverRef.current(loaded), []);
+
+  const recording = useRecordingDetail({ recordingId: id, onError, onLoaded: deliver });
+  const { title, path, duration, status, folder, error, language, segments,
+          sourceMissing, speakersReady } = recording.state;
+  const load = recording.actions.load;
+
   const [renamingTitle, setRenamingTitle] = useState(false);
   const [confirmation, setConfirmation] = useState<ConfirmationRequest | null>(null);
-  const [path, setPath] = useState("");
-  const [duration, setDuration] = useState(0);
-  const [status, setStatus] = useState("");
-  /** Which folder holds this recording, so its menu can offer to move it. */
-  const [folder, setFolder] = useState<string | null>(null);
-  /** Why the last transcription failed. Only set when status is "error". */
-  const [error, setError] = useState<string | null>(null);
-  const [language, setLanguage] = useState("");
-  const [segments, setSegments] = useState<Segment[]>([]);
-  /** Whether the speaker-separation tools are installed. Its card offers to
-   *  fetch them when they are not, rather than failing on the way out. */
-  const [speakersReady, setSpeakersReady] = useState(false);
   // The player is shared across the app so sound survives leaving this
   // screen. Opening another transcript does not touch it — until you press
   // play, whatever was playing keeps playing.
@@ -191,8 +194,6 @@ export default function Detail({
   );
   // The source file may have been deleted after transcription — the text
   // stays in the database, but there is nothing to play.
-  const [sourceMissing, setSourceMissing] = useState(false);
-
   const listRef = useRef<HTMLDivElement>(null);
 
   // ---------------------------------------------------------------- loading
@@ -201,50 +202,6 @@ export default function Detail({
   // State used to be set piecemeal between `await`s, which on an hour-long
   // transcript meant three consecutive renders of a thousand-segment list.
   // Neither the dictionary nor the file check needs to wait for the segments;
-  // both can be fetched alongside them.
-  const load = useCallback(async () => {
-    try {
-      const d = await api.detail(id);
-      // The transcription pipeline prepares the precise MP3 playback copy
-      // itself. Starting the detail prewarm as well would run a second ffmpeg
-      // conversion for the same source. Finished and legacy recordings still
-      // use this best-effort fallback when their cache does not exist yet.
-      if (d.recording.status !== "transcribing") {
-        preparePlaybackSource(id, d.recording.path);
-      }
-      const [dictionaryEntries, exists, aiStatus, settings, tools] = await Promise.all([
-        api.dictionary(),
-        api.fileExists(d.recording.path),
-        api.aiEditStatus(id),
-        api.loadSettings(),
-        api.checkTools(),
-      ]);
-      setTitle(d.recording.title);
-      setPath(d.recording.path);
-      setDuration(d.recording.duration);
-      setStatus(d.recording.status);
-      setFolder(d.recording.folder);
-      setError(d.recording.error ? userMessage(d.recording.error) : null);
-      setLanguage(d.recording.language);
-      setSegments(d.segments);
-      speakers.actions.receive(d.speakers);
-      notes.actions.receive(d.notes);
-      editing.actions.receiveDictionary(dictionaryEntries);
-      setSourceMissing(!exists);
-      ai.actions.receive(aiStatus);
-      ai.actions.receiveReadiness(
-        !!settings.editor_model,
-        !!settings.editor_model && tools.issues_editor.length === 0
-      );
-      setSpeakersReady(tools.issues_diarization.length === 0);
-    } catch (e) {
-      onError(userMessage(e));
-    }
-  }, [id, onError, t, userMessage]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
 
   /* The instruction is not remembered between recordings — *v okně vlastního
      promptu mi zůstalo tohle, měl by se pokaždé vyresetovat*.
@@ -300,7 +257,7 @@ export default function Detail({
   const editing = useTranscriptEditing({
     recordingId: id,
     segments,
-    updateSegments: setSegments,
+    updateSegments: recording.actions.update,
     onError,
     onInfo,
     markAiStale: () =>
@@ -330,6 +287,17 @@ export default function Detail({
     reload: load,
     saveTranscript: exportRecording,
   });
+
+  deliverRef.current = (loaded) => {
+    speakers.actions.receive(loaded.detail.speakers);
+    notes.actions.receive(loaded.detail.notes);
+    editing.actions.receiveDictionary(loaded.dictionary);
+    ai.actions.receive(loaded.aiStatus);
+    ai.actions.receiveReadiness(
+      !!loaded.settings.editor_model,
+      !!loaded.settings.editor_model && loaded.tools.issues_editor.length === 0
+    );
+  };
 
   const goToNextUncertain = useCallback(() => {
     if (editing.state.uncertain.length === 0) return;
@@ -384,7 +352,7 @@ export default function Detail({
   const speakers = useSpeakerManagement({
     recordingId: id,
     segments,
-    updateSegments: setSegments,
+    updateSegments: recording.actions.update,
     playFrom,
     onError,
     markAiStale: () =>
@@ -479,17 +447,12 @@ export default function Detail({
     // busy for ever: a bubble frozen at zero, no player, no actions, and a
     // cancel button the backend answers with "nothing is running".
     if (!(await onTranscribe(id))) return;
-    setStatus("transcribing");
-    // Clear the previous failure, or the old message would linger under a
-    // progress bar for a run that is going fine.
-    setError(null);
+    recording.actions.markTranscribing();
   }, [id, onTranscribe]);
 
   const startTranscriptionInLanguage = useCallback(async (selectedLanguage: string) => {
     if (!(await onTranscribe(id, selectedLanguage))) return;
-    setLanguage(selectedLanguage);
-    setStatus("transcribing");
-    setError(null);
+    recording.actions.markTranscribing(selectedLanguage);
   }, [id, onTranscribe]);
 
   const saveRecordingTitle = useCallback(async (value: string) => {
@@ -498,7 +461,7 @@ export default function Detail({
     if (!trimmed || trimmed === title) return;
     try {
       await api.renameRecording(id, trimmed);
-      setTitle(trimmed);
+      recording.actions.rename(trimmed);
       player.updateTitle(id, trimmed);
     } catch (e) {
       onError(userMessage(e));
