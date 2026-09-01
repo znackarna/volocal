@@ -12,6 +12,7 @@ pub mod dictionary;
 pub mod downloads;
 pub mod exports;
 pub mod folders;
+pub mod languages;
 pub mod library;
 pub mod settings;
 pub mod updates;

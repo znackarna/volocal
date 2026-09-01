@@ -10,6 +10,7 @@ import type {
   Recording,
   RecordingNote,
   SearchResult,
+  SecondLanguage,
   Settings,
   Speaker,
   ToolCheck,
@@ -78,6 +79,14 @@ export const api = {
   updateRecordingNote: (id: string, time: number | null, text: string, done: boolean) =>
     invoke<void>("update_recording_note", { id, time, text, done }),
   deleteRecordingNote: (id: string) => invoke<void>("delete_recording_note", { id }),
+  /** A second language in this recording, when a sweep found one. Null is the
+   *  ordinary answer and the screen shows nothing for it. */
+  secondLanguage: (id: string) =>
+    invoke<SecondLanguage | null>("second_language", { id }),
+  /** The reader said no. Remembered, so the offer does not come back — and a
+   *  fresh transcription writes a fresh offer over it. */
+  refuseSecondLanguage: (id: string) =>
+    invoke<void>("refuse_second_language", { id }),
   fileExists: (path: string) => invoke<boolean>("file_exists", { path }),
   /** Lets the updater's installer survive this process exiting. */
   letTheInstallerOut: () => invoke<void>("let_the_installer_out"),

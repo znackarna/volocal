@@ -69,6 +69,7 @@ export function segment(over: Partial<Segment> = {}): Segment {
     verified: false,
     words: null,
     original: null,
+    language: null,
     ...over,
   };
 }

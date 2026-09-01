@@ -71,6 +71,7 @@ fn overall_transcription_percent(whisper_percent: u32) -> u32 {
 }
 
 mod jobs;
+mod languages;
 mod speakers;
 mod text;
 mod whisper;
@@ -573,9 +574,15 @@ fn run(
 
     let json_file = prefix.with_extension("json");
     // With automatic detection the real language is only known from the output.
-    if let Some(j) = language_from_json(&json_file) {
-        db::set_language(&connection, recording_id, &j)?;
+    let detected = language_from_json(&json_file);
+    if let Some(j) = &detected {
+        db::set_language(&connection, recording_id, j)?;
     }
+    /* What the transcript is actually in, which is the only thing the sweep for
+    a second language can compare against. On `auto` the setting says nothing,
+    so whisper's own answer is taken where there is one and the requested
+    language stands in where there is not. */
+    let language_written = detected.unwrap_or_else(|| language.clone());
     let mut segments = load_segments_from_json(&json_file, recording_id).map_err(|error| {
         // Report what whisper actually left behind; otherwise this is guesswork
         let remaining_files: Vec<String> = std::fs::read_dir(&working_directory)
@@ -707,6 +714,31 @@ fn run(
         return Err(e);
     }
     connection.execute_batch("COMMIT")?;
+
+    /* **Does this recording hold a language the transcript does not?**
+    whisper is given one language for the whole file, so a recording where
+    two people speak two languages comes back as one of them with the other
+    silently absent — and the text still looks complete, which is worse than
+    a visible failure. A short sweep answers it; `languages.rs` carries the
+    measurements.
+
+    After the commit rather than inside it, and its failure is not the run's:
+    a finished, saved transcript must never be held up or rolled back over a
+    question about it. Before the working directory goes, because the 16 kHz
+    copy whisper was given is in there and re-decoding the audio to ask would
+    cost more than the asking.
+
+    The offer is written afresh every run, so a refusal recorded against a
+    transcript that has since been replaced is not carried over — a new text
+    is a new question. */
+    let sweep = languages::sweep(&check, &wav, &language_written, recording_id, task);
+    let stored = match &sweep {
+        Some(found) => db::save_second_language(&connection, found),
+        None => db::clear_second_language(&connection, recording_id),
+    };
+    if let Err(error) = stored {
+        crate::note!("second language: the sweep could not be recorded: {error}");
+    }
 
     let _ = std::fs::remove_dir_all(&working_directory);
     Ok(segments.len())
@@ -935,6 +967,7 @@ mod onset_tests {
             verified: false,
             original: None,
             words: Some(serde_json::to_string(&list).unwrap()),
+            language: None,
         }
     }
 

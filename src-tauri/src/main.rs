@@ -560,6 +560,8 @@ fn main() {
             commands::folders::rename_recording,
             commands::folders::diarize_speakers,
             commands::detail::detail,
+            commands::languages::second_language,
+            commands::languages::refuse_second_language,
             commands::detail::add_recording_note,
             commands::detail::update_recording_note,
             commands::detail::delete_recording_note,

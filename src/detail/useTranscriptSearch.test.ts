@@ -36,6 +36,7 @@ function block(id: string, text: string): Segment {
     verified: false,
     words: null,
     original: null,
+  language: null,
   };
 }
 

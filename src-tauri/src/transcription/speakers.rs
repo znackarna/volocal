@@ -564,6 +564,11 @@ pub(crate) fn assign_speakers(segments: Vec<Segment>, turns: &[SpeakerTurn]) -> 
                 verified: s.verified,
                 words: serde_json::to_string(&word_data).ok(),
                 original: s.original.clone(),
+                // Carried, like `original` above it. Splitting a block by who
+                // is speaking does not change what language it is in, and a
+                // part that forgot would stop being findable as one the
+                // second-language pass wrote.
+                language: s.language.clone(),
             });
             order_offset += 1;
             from = end_parts + 1;
@@ -595,6 +600,7 @@ mod bridge_tests {
             verified: false,
             original: None,
             words: None,
+            language: None,
         }
     }
 
@@ -763,6 +769,7 @@ mod speaker_assignment_tests {
             verified: false,
             words: serde_json::to_string(&word_data).ok(),
             original: None,
+            language: None,
         }
     }
 

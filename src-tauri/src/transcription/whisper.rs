@@ -393,6 +393,10 @@ pub(crate) fn load_segments_from_json(file: &Path, recording_id: &str) -> Result
             verified: false,
             original: None,
             words,
+            // The recording's own language. The second-language pass reads its
+            // own output through this same function and stamps what it keeps
+            // afterwards, so this stays `None` here for both.
+            language: None,
         };
         db::align_word_timestamps(&mut segment);
         result.push(segment);

@@ -481,6 +481,8 @@ pub(crate) fn push_sentence(
         verified: template.verified,
         words: serde_json::to_string(&word_data).ok(),
         original: template.original.clone(),
+        // Cutting a block into sentences does not change its language.
+        language: template.language.clone(),
     });
 }
 
@@ -566,6 +568,7 @@ mod sentence_block_tests {
             verified: false,
             words: serde_json::to_string(&word_data).ok(),
             original: None,
+            language: None,
         }
     }
 
@@ -824,7 +827,8 @@ mod sentence_block_tests {
                     id TEXT PRIMARY KEY, recording_id TEXT NOT NULL, position INTEGER NOT NULL,
                     start_time REAL NOT NULL, end_time REAL NOT NULL, text TEXT NOT NULL,
                     speakers TEXT, confidence REAL, edited INTEGER NOT NULL DEFAULT 0,
-                    words TEXT, verified INTEGER NOT NULL DEFAULT 0, original TEXT
+                    words TEXT, verified INTEGER NOT NULL DEFAULT 0, original TEXT,
+                    language TEXT
                  );
                  CREATE VIRTUAL TABLE segments_fts USING fts5(
                     text, segment_id UNINDEXED, recording_id UNINDEXED
@@ -1163,6 +1167,7 @@ mod dictionary_tests {
             words: None,
             verified: false,
             original: None,
+            language: None,
         }
     }
 

@@ -81,6 +81,11 @@ export interface Segment {
    *  Null for a segment nobody has touched — and for one edited before the
    *  archive had somewhere to keep it. */
   original: string | null;
+  /** Which language this block was transcribed in, when it is not the
+   *  recording's own. Null is every block of every transcript written before
+   *  the second-language pass existed, and every block that pass did not
+   *  write. */
+  language: string | null;
 }
 
 export interface Speaker {
@@ -649,6 +654,21 @@ export interface RecordingNote {
   text: string;
   done: boolean;
   created_at: string;
+}
+
+/** A second language found in one recording, and where the reader stands on it.
+ *
+ *  Null everywhere it was never found — which is every recording spoken in one
+ *  language, and every transcript written before the sweep existed. */
+export interface SecondLanguage {
+  recording_id: string;
+  /** The other language, as a code: `en`, `de`. */
+  language: string;
+  /** What fraction of the sampled windows came back that language. Kept so a
+   *  later change to the rule can be judged against archives already swept. */
+  share: number;
+  state: "offered" | "filled" | "refused";
+  filled_at: string | null;
 }
 
 export interface SearchResult {
