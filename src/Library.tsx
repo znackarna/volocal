@@ -1402,6 +1402,11 @@ function Row({
               onDeleteTranscript={onDeleteTranscription}
               onTranscribeInLanguage={onTranscriptionLanguage}
               language={recording.language || recording.language_choice}
+              secondLanguage={
+                recording.second_language ??
+                recording.second_language_missing ??
+                recording.second_language_choice
+              }
               onSecondLanguage={onSecondLanguage}
               onRemove={onDelete}
             />

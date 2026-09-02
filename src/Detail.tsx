@@ -624,7 +624,17 @@ export default function Detail({
   return (
     <main className="detail">
       <DetailHeader
-        recording={{ title, path, status, folder, language }}
+        recording={{
+          title,
+          path,
+          status,
+          folder,
+          language,
+          // What this screen knows about a second language is the standing
+          // offer; a language already written in shows on the archive card,
+          // which reads the recording's own row.
+          secondLanguage: secondLanguage.state.found?.language,
+        }}
         busy={{ running, diarizing }}
         menu={{
           folders,

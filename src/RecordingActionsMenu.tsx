@@ -23,6 +23,11 @@ interface Props {
    *  language as well — the backend refuses that, and an option that always
    *  fails does not belong in a menu. */
   language: string;
+  /** The second language already on this recording, if any — named by the
+   *  reader or written down by a fill. whisper hears ninety-nine languages and
+   *  the list below offers the dozen a reader is likely to pick, so this is how
+   *  a menu that would otherwise hide what is set gets to show it. */
+  secondLanguage?: string | null;
   /** Which second language the recording holds, or none. On a finished
    *  transcript this also starts writing it in. */
   onSecondLanguage: (language: string) => void;
@@ -43,12 +48,20 @@ export default function RecordingActionsMenu({
   onDeleteTranscript,
   onTranscribeInLanguage,
   language,
+  secondLanguage,
   onSecondLanguage,
   onRemove,
   className = "",
 }: Props) {
   const { t } = useI18n();
   const labels = useLabels();
+  const held = secondLanguage?.trim().toLowerCase() ?? "";
+  const offered = labels
+    .languageOptions()
+    .filter(
+      (option) =>
+        option.value !== "auto" && option.value.toLowerCase() !== language.toLowerCase()
+    );
   const items: ActionItem[] = [
     { label: t("common.rename"), icon: Icons.rename, action: onRename },
     ...(status === "done"
@@ -97,17 +110,24 @@ export default function RecordingActionsMenu({
                 label: t("dialogs.recordingMenu.secondLanguage"),
                 hint: t("dialogs.recordingMenu.secondLanguageHint"),
                 children: [
-                  ...labels
-                    .languageOptions()
-                    .filter(
-                      (option) =>
-                        option.value !== "auto" &&
-                        option.value.toLowerCase() !== language.toLowerCase()
-                    )
-                    .map((language) => ({
-                      label: language.label,
-                      action: () => onSecondLanguage(language.value),
-                    })),
+                  /* A language the detection heard but the list does not
+                     offer — Welsh, Mongolian, any of the other eighty-odd —
+                     goes in at the top rather than being left out. The pass
+                     handles every language whisper knows; without this the
+                     menu would show a dozen options and none of them the one
+                     the recording actually holds. */
+                  ...(held && !offered.some((o) => o.value === held)
+                    ? [
+                        {
+                          label: labels.languageCapitalized(held),
+                          action: () => onSecondLanguage(held),
+                        },
+                      ]
+                    : []),
+                  ...offered.map((language) => ({
+                    label: language.label,
+                    action: () => onSecondLanguage(language.value),
+                  })),
                   {
                     label: t("dialogs.recordingMenu.noSecondLanguage"),
                     action: () => onSecondLanguage(""),

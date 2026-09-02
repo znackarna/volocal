@@ -54,6 +54,10 @@ export function DetailHeader({
     /** What the transcript is written in, so the menu does not offer it as the
      *  second language too. */
     language: string;
+    /** And what it holds beside that, so the menu can show a language its own
+     *  list does not offer — Welsh, Mongolian, any of the other eighty-odd
+     *  whisper hears. */
+    secondLanguage?: string | null;
   };
   /** What is already happening to it. */
   busy: { running: boolean; diarizing: boolean };
@@ -193,6 +197,7 @@ export function DetailHeader({
               onDeleteTranscript={menu.onDeleteTranscript}
               onTranscribeInLanguage={menu.onTranscribeInLanguage}
               language={recording.language}
+              secondLanguage={recording.secondLanguage}
               onSecondLanguage={menu.onSecondLanguage}
               onRemove={menu.onRemove}
             />
