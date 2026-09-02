@@ -259,6 +259,18 @@
    up on the same left edge as the labels there. */
 .clip-shape .check-box,
 .save-choice .check-box { margin: 1px 0; }
+/* The row lights up under the pointer, the same way the rows of files a
+   watched folder offers do — the other list in this application made of things
+   to tick. `--muted` over the panel's `--subtle` ground is one step, which is
+   all a row that is merely pickable should take.
+
+   Not a row that cannot be picked: a text format over a recording with no
+   transcript stays where it is, or the highlight would promise a click that
+   does nothing. */
+.clip-shape,
+.save-choice { transition: background var(--hover-duration) var(--hover-ease); }
+.clip-shape:hover,
+.save-choice:has(input:not(:disabled)):hover { background: var(--muted); }
 .clip-shape .check-box,
 .save-choice .check-box { grid-row: span 2; align-self: center; }
 .clip-shape-name,
