@@ -47,29 +47,20 @@ pub(crate) fn program_help(program: &Path) -> String {
 
 /// How much of its own previous output whisper carries into the next window.
 ///
-/// **64 for an ordinary run and 0 for the second-language pass, and the
-/// difference is measured.** A short context is what lets the model punctuate
-/// and capitalise, because it decides both from the preceding sentence; too
-/// much of it and a repeated sentence entrenches into a loop that runs to the
-/// end of the recording.
+/// A short context is what lets the model punctuate and capitalise, because it
+/// decides both from the preceding sentence; too much of it and a repeated
+/// sentence entrenches into a loop that runs to the end of the recording.
 ///
-/// The second-language pass is fed disconnected pieces of audio with silence
-/// between them, so carried context is not merely useless there — it is
-/// actively wrong, describing a sentence from somewhere else in the recording.
-/// Nought is also what stops the model being pulled back to the language of
-/// what it has just written, which is the whole reason that pass can see the
-/// other language at all.
+/// It was 0 for the second-language pass while that pass fed whisper
+/// disconnected pieces of audio with silence laid between them, where carried
+/// context described a sentence from somewhere else in the recording. The
+/// multilingual pass hands whisper one turn of speech at a time — see
+/// [`Over`] — and every turn carries the ordinary amount.
 pub(crate) const CONTEXT_FOR_A_RUN: &str = "64";
-pub(crate) const CONTEXT_FOR_A_SECOND_LANGUAGE: &str = "0";
 
-/// What separates one run of whisper from another.
-///
-/// Two values that only ever change together: an ordinary transcription asks
-/// for the recording's language and carries [`CONTEXT_FOR_A_RUN`], and the
-/// second-language pass asks for the other language and carries none. They are
-/// a group rather than a bag — naming a language without saying how much
-/// context goes with it is how the second pass would quietly become an
-/// ordinary one.
+/// What one run of whisper is asked for: the language, and how much context it
+/// carries. A group rather than a bag, because naming a language without
+/// saying how much context goes with it is how a run quietly changes shape.
 pub(crate) struct Ask<'a> {
     pub(crate) language: &'a str,
     pub(crate) max_context: &'a str,
@@ -93,57 +84,11 @@ pub(crate) struct Run<'a> {
     pub(crate) task: &'a TranscriptionTask,
 }
 
-/// Builds the command one run of whisper is started with.
-///
-/// Lifted out of [`start_whisper`] so that the arguments can be looked at
-/// without a process being spawned — `whisper_command_tests` below pins them,
-/// and they are worth pinning: this program answers an unknown flag by printing
-/// its help and **exiting with zero**, so a wrong argument does not fail, it
-/// silently produces no transcript.
-///
-/// `available` is the program's own help text rather than something this reads
-/// for itself, which is the whole point: fetching it means running the program.
-fn whisper_command(
-    program: &Path,
-    settings: &Settings,
-    ask: &Ask,
-    check: &tools::ToolCheck,
-    wav: &Path,
-    prefix: &Path,
-    available: &str,
-) -> Command {
-    let supports = |argument: &str| available.is_empty() || available.contains(argument);
-
-    let mut cmd: Command = command(program);
-
-    cmd.arg("-m")
-        .arg(check.model_whisper.as_ref().unwrap())
-        .arg("-f")
-        .arg(wav)
-        .args(["-l", ask.language]);
-
-    if supports("--output-json-full") {
-        cmd.arg("--output-json-full");
-    } else {
-        cmd.arg("--output-json");
-    }
-    cmd.arg("--output-file").arg(prefix).arg("--print-progress");
-
+/// The flags every run of whisper is given, whatever it is given to read:
+/// the search, the thresholds, the alignment, the threads.
+fn shared_flags(cmd: &mut Command, settings: &Settings, supports: &dyn Fn(&str) -> bool) {
     if settings.beam > 1 {
         cmd.args(["--beam-size", &settings.beam.to_string()]);
-    }
-
-    // Whisper can get stuck in a loop and repeat one sentence a hundred
-    // times over. The safeguard is to limit how much of its own previous
-    // output it carries forward.
-    //
-    // Turning context off entirely (`--no-context`) breaks the loop reliably,
-    // but the model then starts every window from scratch and stops producing
-    // capitals and punctuation — both of which it decides from the preceding
-    // sentence. A short context is the compromise: enough for typesetting the
-    // text, not enough to entrench a loop.
-    if supports("--max-context") {
-        cmd.args(["--max-context", ask.max_context]);
     }
     // Thresholds whisper.cpp uses to decide whether it transcribed a segment
     // properly or should try again. Only those differing from the program's
@@ -193,6 +138,57 @@ fn whisper_command(
     if settings.threads > 0 {
         cmd.args(["-t", &settings.threads.to_string()]);
     }
+}
+
+/// Builds the command one run of whisper is started with.
+///
+/// Lifted out of [`start_whisper`] so that the arguments can be looked at
+/// without a process being spawned — `whisper_command_tests` below pins them,
+/// and they are worth pinning: this program answers an unknown flag by printing
+/// its help and **exiting with zero**, so a wrong argument does not fail, it
+/// silently produces no transcript.
+///
+/// `available` is the program's own help text rather than something this reads
+/// for itself, which is the whole point: fetching it means running the program.
+fn whisper_command(
+    program: &Path,
+    settings: &Settings,
+    ask: &Ask,
+    check: &tools::ToolCheck,
+    wav: &Path,
+    prefix: &Path,
+    available: &str,
+) -> Command {
+    let supports = |argument: &str| available.is_empty() || available.contains(argument);
+
+    let mut cmd: Command = command(program);
+
+    cmd.arg("-m")
+        .arg(check.model_whisper.as_ref().unwrap())
+        .arg("-f")
+        .arg(wav)
+        .args(["-l", ask.language]);
+
+    if supports("--output-json-full") {
+        cmd.arg("--output-json-full");
+    } else {
+        cmd.arg("--output-json");
+    }
+    cmd.arg("--output-file").arg(prefix).arg("--print-progress");
+
+    // Whisper can get stuck in a loop and repeat one sentence a hundred
+    // times over. The safeguard is to limit how much of its own previous
+    // output it carries forward.
+    //
+    // Turning context off entirely (`--no-context`) breaks the loop reliably,
+    // but the model then starts every window from scratch and stops producing
+    // capitals and punctuation — both of which it decides from the preceding
+    // sentence. A short context is the compromise: enough for typesetting the
+    // text, not enough to entrench a loop.
+    if supports("--max-context") {
+        cmd.args(["--max-context", ask.max_context]);
+    }
+    shared_flags(&mut cmd, settings, &supports);
     // VAD: without it Whisper repeats one token over silence and swallows the
     // beginning of the speech.
     //
@@ -225,6 +221,130 @@ fn whisper_command(
     }
 
     cmd
+}
+
+/// What one run of whisper over many files at once is for.
+///
+/// **Why many at once.** The multilingual pass hands whisper hundreds of short
+/// pieces of one recording, and starting the program costs seconds every time,
+/// because the model is loaded again on every start. whisper-cli takes any
+/// number of `-f`, loads once and walks them in order, writing `<file>.json`
+/// beside each one it transcribes and one *auto-detected language* line to its
+/// log for each one it only listens to. Measured on the reference recording:
+/// 1 272 pieces answered in 107 seconds, which one process a piece would have
+/// spent on loading alone.
+pub(crate) enum Over<'a> {
+    /// Say which language each file is in, and write nothing.
+    Languages,
+    /// Transcribe every file, in this language.
+    Transcript { language: &'a str },
+}
+
+/// Builds the command for one run over many short files.
+///
+/// The files are given by name and the run is started in their folder: four
+/// hundred full paths into a temporary directory run past what a Windows
+/// command line holds, four hundred names do not.
+///
+/// No silence detection, because every file is one stretch of speech already,
+/// cut by the caller, and the padding and overlap detection adds would only
+/// move the times. No `--output-file` either, since whisper applies it to the
+/// first file alone; each answer is read from `<file>.json`, where whisper
+/// puts it of its own accord.
+pub(crate) fn files_command(
+    program: &Path,
+    settings: &Settings,
+    check: &tools::ToolCheck,
+    over: &Over,
+    names: &[String],
+    available: &str,
+) -> Command {
+    let supports = |argument: &str| available.is_empty() || available.contains(argument);
+
+    let mut cmd: Command = command(program);
+    cmd.arg("-m").arg(check.model_whisper.as_ref().unwrap());
+    match over {
+        Over::Languages => {
+            cmd.arg("--detect-language");
+            if settings.threads > 0 {
+                cmd.args(["-t", &settings.threads.to_string()]);
+            }
+        }
+        Over::Transcript { language } => {
+            cmd.args(["-l", language]);
+            if supports("--output-json-full") {
+                cmd.arg("--output-json-full");
+            } else {
+                cmd.arg("--output-json");
+            }
+            if supports("--max-context") {
+                cmd.args(["--max-context", CONTEXT_FOR_A_RUN]);
+            }
+            if supports("--suppress-nst") {
+                cmd.arg("--suppress-nst");
+            }
+            shared_flags(&mut cmd, settings, &supports);
+        }
+    }
+    for name in names {
+        cmd.arg("-f").arg(name);
+    }
+    cmd
+}
+
+/// Runs whisper over many files and hands back its log.
+///
+/// The handshake is [`start_whisper`]'s: the child goes into the registry so
+/// `Zrušit` can reach it, its output is read to the end, and it is taken back
+/// out to be waited on — unless cancellation took it first, which is reported
+/// as the cancellation it was. `started` is told how many files whisper has
+/// picked up so far, after each one, so a run over four hundred pieces can
+/// move a bar.
+pub(crate) fn run_over_files(
+    run: &Run,
+    mut cmd: Command,
+    mut started: impl FnMut(usize),
+) -> Reported<String> {
+    let Run {
+        recording_id, task, ..
+    } = *run;
+    let mut child = cmd
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|error| UserMessage::new("transcription.whisper_launch_failed").detail(error))?;
+    let stdout = child.stdout.take().unwrap();
+    let stderr = child.stderr.take().unwrap();
+    task.record_process(recording_id, child);
+
+    // stdout carries the text as it is made. Nobody reads it here, but it has
+    // to be drained, or the process stops on a full pipe.
+    let drain =
+        std::thread::spawn(
+            move || {
+                for _ in BufReader::new(stdout).lines().map_while(Result::ok) {}
+            },
+        );
+    let mut log = String::new();
+    let mut picked_up = 0;
+    for row in BufReader::new(stderr).lines().map_while(Result::ok) {
+        if row.contains("processing '") {
+            picked_up += 1;
+            started(picked_up);
+        }
+        log.push_str(&row);
+        log.push('\n');
+    }
+    let _ = drain.join();
+    let process_status = match task.take_process(recording_id) {
+        Some(mut child) => child.wait()?,
+        None => return Err(UserMessage::new("transcription.cancelled")),
+    };
+    if !process_status.success() {
+        return Err(UserMessage::new("transcription.whisper_failed")
+            .with("code", process_status.code().unwrap_or(-1)));
+    }
+    Ok(log)
 }
 
 pub(crate) fn start_whisper(
@@ -497,13 +617,10 @@ mod whisper_command_tests {
         arguments.get(at + 1).map(String::as_str)
     }
 
-    /// **The one this feature turns on.** 64 is not an arbitrary number: it is
-    /// the compromise `start_whisper` documents — enough context for whisper to
-    /// punctuate and capitalise, not enough for it to entrench a loop.
-    ///
-    /// The second-language pass will ask for 0 instead, which is measurably the
-    /// difference between recovering the other language and not. This test is
-    /// what makes that a deliberate change rather than a drift.
+    /// 64 is not an arbitrary number: it is the compromise `start_whisper`
+    /// documents — enough context for whisper to punctuate and capitalise, not
+    /// enough for it to entrench a loop. This test is what makes a change to
+    /// it deliberate rather than a drift.
     #[test]
     fn a_run_carries_sixty_four_tokens_of_context() {
         let arguments = arguments(
@@ -515,29 +632,71 @@ mod whisper_command_tests {
         assert_eq!(value_of(&arguments, "--max-context"), Some("64"));
     }
 
-    /// And the value the second-language pass asks for instead, which is the
-    /// difference between seeing the other language and being pulled back to
-    /// the one already written.
-    #[test]
-    fn the_second_language_pass_carries_none() {
-        let cmd = whisper_command(
+    fn over(over: &Over, names: &[&str], help: &str) -> Vec<String> {
+        let names: Vec<String> = names.iter().map(|n| (*n).to_string()).collect();
+        let cmd = files_command(
             Path::new("whisper-cli.exe"),
             &Settings::default(),
-            &Ask {
-                language: "en",
-                max_context: CONTEXT_FOR_A_SECOND_LANGUAGE,
-            },
             &tools_with_everything(),
-            Path::new("audio.wav"),
-            Path::new("out"),
+            over,
+            &names,
+            help,
+        );
+        cmd.get_args()
+            .map(|argument| argument.to_string_lossy().to_string())
+            .collect()
+    }
+
+    /// **The multilingual pass.** Every file on the line by name, the language
+    /// asked for once, and no `--output-file` — whisper applies that to the
+    /// first file alone, and each answer is read from beside its file instead.
+    #[test]
+    fn a_run_over_files_names_each_file_and_no_output_file() {
+        let arguments = over(
+            &Over::Transcript { language: "en" },
+            &["0000.wav", "0001.wav", "0002.wav"],
             EVERY_FLAG,
         );
-        let arguments: Vec<String> = cmd
-            .get_args()
-            .map(|argument| argument.to_string_lossy().to_string())
+        let files: Vec<&str> = arguments
+            .iter()
+            .enumerate()
+            .filter(|(at, a)| *a == "-f" && *at + 1 < arguments.len())
+            .map(|(at, _)| arguments[at + 1].as_str())
             .collect();
-        assert_eq!(value_of(&arguments, "--max-context"), Some("0"));
+        assert_eq!(files, vec!["0000.wav", "0001.wav", "0002.wav"]);
         assert_eq!(value_of(&arguments, "-l"), Some("en"));
+        assert_eq!(value_of(&arguments, "--max-context"), Some("64"));
+        assert!(arguments.iter().any(|a| a == "--output-json-full"));
+        assert!(!arguments.iter().any(|a| a == "--output-file"));
+    }
+
+    /// A turn is one stretch of speech already. Silence detection would only
+    /// pad it and move the times.
+    #[test]
+    fn a_run_over_files_asks_for_no_silence_detection() {
+        let arguments = over(
+            &Over::Transcript { language: "cs" },
+            &["0000.wav"],
+            EVERY_FLAG,
+        );
+        assert!(!arguments.iter().any(|a| a == "--vad"));
+        assert!(!arguments.iter().any(|a| a == "--vad-model"));
+        // The thresholds and the alignment still travel: this is a transcript.
+        assert_eq!(value_of(&arguments, "--entropy-thold"), Some("2.6"));
+        assert_eq!(value_of(&arguments, "--dtw"), Some("large.v3"));
+        assert!(arguments.iter().any(|a| a == "--suppress-nst"));
+    }
+
+    /// Listening for the language asks for that and nothing else: no language,
+    /// no output, no thresholds that only a transcript needs.
+    #[test]
+    fn listening_asks_for_the_language_and_nothing_else() {
+        let arguments = over(&Over::Languages, &["0000.wav", "0001.wav"], EVERY_FLAG);
+        assert!(arguments.iter().any(|a| a == "--detect-language"));
+        assert!(!arguments.iter().any(|a| a == "-l"));
+        assert!(!arguments.iter().any(|a| a == "--output-json-full"));
+        assert!(!arguments.iter().any(|a| a == "--dtw"));
+        assert_eq!(arguments.iter().filter(|a| *a == "-f").count(), 2);
     }
 
     #[test]

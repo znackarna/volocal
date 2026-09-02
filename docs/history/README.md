@@ -40,7 +40,7 @@ the time.
 | [2026-08-28](2026-08-28.md) | 2 | The two failures worth logging were the two not being logged … |
 | [2026-08-31](2026-08-31.md) | 15 | The three pieces of ballast, and what each one turned out to be … |
 | [2026-09-01](2026-09-01.md) | 9 | The release script asks whether the version is already out; then what an interpreted recording showed Volocal was losing … |
-| [2026-09-02](2026-09-02.md) | 9 | The first real fill worked in the archive and stuck on screen: the fill never said `complete`. Fixed, and the setting moved into a card of its own, renamed to what it is about. |
+| [2026-09-02](2026-09-02.md) | 10 | The first real fill stuck on screen and was then found to be chaos on paper; the second-language pass was rebuilt from the sound rather than from the first transcript's word timings — 409 English blocks where there were 108. |
 
 ## What each day was about
 

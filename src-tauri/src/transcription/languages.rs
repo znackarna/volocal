@@ -13,14 +13,21 @@
 //! listens for one and the transcript screen offers to fill it in. Both end in
 //! [`fill_with_audio`], which is the only part that does real work.
 //!
-//! **The one idea everything rests on.** A block's *span* runs to where whisper
-//! stopped listening, which on an interpreted recording reaches over the other
-//! speaker entirely; the *words inside* it do not. The stretches between words
-//! are the only place another language can be — so they are where the sweep
-//! listens, and they are what the fill transcribes. Handing whisper only audio
-//! the first pass found no words in is also what keeps it from translating:
-//! asked for English over Czech speech it does not fail, it translates, and a
-//! blind pass over the whole file produced 376 such lines.
+//! **The one idea everything rests on.** whisper is asked one language for the
+//! whole of whatever it is given, so it is given one turn at a time. The
+//! recording is cut into pieces of speech at its own silences, each piece cut
+//! down until it is short enough to hold one language, and whisper says which
+//! language every piece is in — hundreds of pieces to one run, which loads the
+//! model once. The pieces are joined back into turns, and every turn is
+//! transcribed in its own language. Nothing is translated, because whisper is
+//! never handed audio in a language it was not asked for; nothing is chopped,
+//! because the boundaries come from the sound rather than from the first
+//! transcript's word timings, which on an interpreted recording are spread over
+//! the other speaker. The sweep that *notices* the other language still
+//! listens between the first transcript's words, where it was measured to work.
+//!
+//! The design before this one filled the gaps between the first pass's words.
+//! `docs/history/2026-09-02.md` says what was wrong with it, with the numbers.
 
 use super::*;
 
@@ -345,101 +352,332 @@ pub(crate) fn sweep(
     })
 }
 
-// ------------------------------------------------- filling in the other one
+// ---------------------------------------------- the multilingual pass
 
-/// Silence laid between two pieces of extracted audio.
+/// One frame of the loudness curve, in seconds.
+const FRAME: f64 = 0.02;
+
+/// How far above the recording's own quiet a frame has to be to count as
+/// speech. The quiet is the fifth percentile of every frame, so a hum, a fan
+/// or a hall's ambience sets the floor rather than defeating it.
+const ABOVE_QUIET_DB: f64 = 12.0;
+
+/// A recording whose loud and quiet are within this many decibels has no
+/// speech to tell from its quiet — silence, a hum, or music at one level —
+/// and nothing is cut from it. Speech against a room is forty decibels or
+/// more apart; a microphone's own noise varies by one or two.
+const LEAST_RANGE_DB: f64 = 6.0;
+
+/// The quiet that ends one piece of speech.
 ///
-/// Long enough for speech detection to cut there, so two stretches from
-/// opposite ends of the recording are never read as one sentence.
-const SILENCE_BETWEEN: f64 = 0.6;
+/// **Measured on the reference recording, and it is the number the whole pass
+/// turns on.** Between the guest's last word and the interpreter's first there
+/// are 100 to 200 milliseconds: the exchange at 02:03 — *We are the same age*,
+/// *Je nám stejně let*, *We have three children* — has dips of 0.12, 0.10,
+/// 0.20 and 0.18 seconds. Cut at 300 milliseconds, the whole exchange came
+/// back as one fifteen-second piece, and the detection called it Czech.
+const PAUSE: f64 = 0.15;
 
-/// Where one piece of the extracted audio came from.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub(crate) struct Piece {
-    /// Its place in the file handed to whisper.
-    pub(crate) at: f64,
-    pub(crate) until: f64,
-    /// The moment in the recording it was cut from.
-    pub(crate) from: f64,
+/// A piece shorter than this is a syllable or a click. It goes with the piece
+/// before it when there is one close by, and nowhere otherwise.
+const LEAST_PIECE: f64 = 0.5;
+
+/// No piece is longer than this when the detection listens to it.
+///
+/// **Measured, and it is what made the pass work.** A pause is not the only
+/// place two languages meet: the interpreter often starts before the room has
+/// gone quiet at all. So every piece is cut down at its quietest frame until it
+/// is under this, and the language is read from each part. Pieces of up to 25
+/// seconds gave 108 English blocks on the reference recording; pieces of 3.5
+/// gave 409, and eleven of fourteen sentences known to be missing came back.
+const LONGEST_PIECE: f64 = 3.5;
+
+/// A cut is never closer than this to a piece's end: a part shorter than a
+/// second is too little to tell a language from.
+const CUT_EDGE: f64 = 1.0;
+
+/// What is kept either side of a piece, so the first consonant is not lost.
+const PAD: f64 = 0.12;
+
+/// Two pieces in one language closer than this are one turn.
+const JOIN_GAP: f64 = 1.0;
+
+/// A turn is never longer than whisper's window, so it is heard whole.
+const LONGEST_TURN: f64 = 28.0;
+
+/// How many files one run of whisper is given at most. Four hundred short
+/// names are a fraction of what a Windows command line holds; four hundred
+/// full paths would not be.
+const MOST_FILES_AT_ONCE: usize = 400;
+
+/// The loudness of each frame in decibels.
+fn loudness(samples: &[i16], rate: u32) -> Vec<f64> {
+    let hop = ((f64::from(rate) * FRAME) as usize).max(1);
+    samples
+        .chunks_exact(hop)
+        .map(|frame| {
+            let energy = frame
+                .iter()
+                .map(|s| f64::from(*s) * f64::from(*s))
+                .sum::<f64>()
+                / hop as f64;
+            10.0 * (energy + 1e-9).log10()
+        })
+        .collect()
 }
 
-/// Lays the unheard stretches end to end with silence between, and says where
-/// each one landed.
+/// Where speech is, as pieces no longer than [`LONGEST_PIECE`], in seconds
+/// from the start of the recording.
 ///
-/// One file and one run of whisper rather than one run per stretch: three
-/// hundred invocations would spend nearly all of their time starting a process
-/// and loading a model. The silence is what keeps them separate pieces of
-/// speech rather than one long one.
-pub(crate) fn lay_out(gaps: &[(f64, f64)], rate: u32) -> (Vec<Piece>, Vec<(usize, usize)>) {
-    let mut pieces = Vec::new();
-    let mut ranges = Vec::new();
-    let mut at = 0.0;
-    for (from, to) in gaps {
-        let length = to - from;
-        if length < LEAST_GAP {
+/// By loudness rather than by the first transcript's word timings, which is
+/// the difference from the design this replaced: on an interpreted recording a
+/// block's words are spread by the alignment over the other speaker's audio,
+/// so the gaps between them chopped the other language at every word and
+/// swallowed it under every block. The sound knows where the turns are; the
+/// first transcript does not.
+pub(crate) fn pieces_of_speech(samples: &[i16], rate: u32) -> Vec<(f64, f64)> {
+    let db = loudness(samples, rate);
+    if db.is_empty() {
+        return Vec::new();
+    }
+    let mut sorted = db.clone();
+    sorted.sort_by(f64::total_cmp);
+    let quiet = sorted[sorted.len() / 20];
+    let loud = sorted[sorted.len() * 19 / 20];
+    if loud - quiet < LEAST_RANGE_DB {
+        return Vec::new();
+    }
+    // Twelve above the quiet, or halfway up on a recording that is close to
+    // its own floor throughout.
+    let threshold = quiet + ABOVE_QUIET_DB.min((loud - quiet) / 2.0);
+
+    let frames = |seconds: f64| (seconds / FRAME).round() as usize;
+    let pause = frames(PAUSE).max(1);
+    let least = frames(LEAST_PIECE);
+    let join = frames(JOIN_GAP);
+
+    // Stretches of speech. A pause shorter than PAUSE does not end one.
+    let mut pieces: Vec<(usize, usize)> = Vec::new();
+    let mut at = 0;
+    while at < db.len() {
+        if db[at] <= threshold {
+            at += 1;
             continue;
         }
-        pieces.push(Piece {
-            at,
-            until: at + length,
-            from: *from,
-        });
-        ranges.push((
-            (from * f64::from(rate)) as usize,
-            (to * f64::from(rate)) as usize,
-        ));
-        at += length + SILENCE_BETWEEN;
-    }
-    (pieces, ranges)
-}
-
-/// The moment in the recording that a moment in the extracted audio came from.
-pub(crate) fn back_to_the_recording(pieces: &[Piece], at: f64) -> Option<f64> {
-    pieces
-        .iter()
-        .find(|piece| at >= piece.at - 0.05 && at <= piece.until + 0.05)
-        .map(|piece| piece.from + (at - piece.at).max(0.0))
-}
-
-/// A whole line of the second pass, put back where it came from: its start,
-/// its end and its word timings, all shifted by the same amount and none of
-/// them allowed past the piece they came out of.
-///
-/// **The end used to be two seconds after the start, whatever the line.** A
-/// five-second sentence ended mid-word, the highlight stopped early, and — the
-/// costly part — speaker recognition, which takes its windows from block
-/// spans, listened to the first two seconds of every English line and called
-/// the rest somebody else's.
-pub(crate) fn back_whole(
-    pieces: &[Piece],
-    start: f64,
-    end: f64,
-    words: Option<&str>,
-) -> Option<(f64, f64, Option<String>)> {
-    let from = back_to_the_recording(pieces, start)?;
-    let piece = pieces
-        .iter()
-        .find(|piece| start >= piece.at - 0.05 && start <= piece.until + 0.05)?;
-    let shift = piece.from - piece.at;
-    // `from` may sit a few hundredths past the piece's end — the tolerance in
-    // `back_to_the_recording` allows it — and `clamp` panics when its floor is
-    // above its ceiling. This crashed a transcription at 352.35 against 352.34.
-    let last = (piece.from + (piece.until - piece.at)).max(from);
-    let to = (end + shift).clamp(from, last);
-    let moved = words
-        .and_then(|json| serde_json::from_str::<Vec<serde_json::Value>>(json).ok())
-        .map(|mut list| {
-            for word in &mut list {
-                if let Some(t) = word["t"].as_f64() {
-                    let at = ((t + shift).clamp(from, to) * 1000.0).round() / 1000.0;
-                    word["t"] = serde_json::json!(at);
+        let mut last_loud = at;
+        let mut quiet_run = 0;
+        let mut cursor = at;
+        while cursor < db.len() {
+            if db[cursor] > threshold {
+                last_loud = cursor;
+                quiet_run = 0;
+            } else {
+                quiet_run += 1;
+                if quiet_run >= pause {
+                    break;
                 }
             }
-            list
+            cursor += 1;
+        }
+        let end = last_loud + 1;
+        if end - at >= least {
+            pieces.push((at, end));
+        } else if let Some(previous) = pieces.last_mut() {
+            // A syllable on its own goes with the speech just before it.
+            if at - previous.1 <= join {
+                previous.1 = end;
+            }
+        }
+        at = cursor;
+    }
+
+    // Long pieces cut down at their quietest frame, never within CUT_EDGE of
+    // an end, until every part is short enough to hold one language.
+    let edge = frames(CUT_EDGE);
+    let longest = frames(LONGEST_PIECE);
+    let mut out: Vec<(usize, usize)> = Vec::with_capacity(pieces.len());
+    let mut work: Vec<(usize, usize)> = pieces.into_iter().rev().collect();
+    while let Some((from, to)) = work.pop() {
+        if to - from <= longest || to - from < 2 * edge + 1 {
+            out.push((from, to));
+            continue;
+        }
+        let cut = (from + edge..to - edge)
+            .min_by(|a, b| db[*a].total_cmp(&db[*b]))
+            .unwrap_or(from + edge);
+        work.push((cut, to));
+        work.push((from, cut));
+    }
+
+    let seconds = samples.len() as f64 / f64::from(rate);
+    out.into_iter()
+        .map(|(from, to)| {
+            (
+                (from as f64 * FRAME - PAD).max(0.0),
+                (to as f64 * FRAME + PAD).min(seconds),
+            )
         })
-        .filter(|list| list.len() >= 2)
-        .and_then(|list| serde_json::to_string(&list).ok());
-    Some((from, to, moved))
+        .collect()
+}
+
+/// The language of each piece, from what the detection said about it.
+///
+/// Only the recording's own language and the one being filled are possible
+/// answers: a Czech piece read as Slovak is Czech, and a two-second piece the
+/// detection is not sure of is whatever the piece before it was. Measured on
+/// the reference recording, 32 of 1 272 pieces were settled that way.
+pub(crate) fn language_of_each(
+    heard: &[Option<(String, f64)>],
+    own: &str,
+    second: &str,
+) -> Vec<String> {
+    let mut previous = own.to_ascii_lowercase();
+    heard
+        .iter()
+        .map(|reading| {
+            if let Some((code, probability)) = reading {
+                let allowed = code.eq_ignore_ascii_case(own) || code.eq_ignore_ascii_case(second);
+                if *probability >= CONFIDENT && allowed {
+                    previous = code.to_ascii_lowercase();
+                }
+            }
+            previous.clone()
+        })
+        .collect()
+}
+
+/// One turn of speech in one language, ready to be transcribed in it.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct Spoken {
+    pub(crate) from: f64,
+    pub(crate) to: f64,
+    pub(crate) language: String,
+}
+
+/// Pieces back into turns: neighbours in one language become one, up to a
+/// window's worth, so whisper hears a sentence whole and punctuates it.
+pub(crate) fn turns_of(pieces: &[(f64, f64)], languages: &[String]) -> Vec<Spoken> {
+    let mut turns: Vec<Spoken> = Vec::new();
+    for ((from, to), language) in pieces.iter().zip(languages) {
+        match turns.last_mut() {
+            Some(last)
+                if last.language == *language
+                    && from - last.to < JOIN_GAP
+                    && to - last.from <= LONGEST_TURN =>
+            {
+                last.to = last.to.max(*to);
+            }
+            _ => turns.push(Spoken {
+                from: *from,
+                to: *to,
+                language: language.clone(),
+            }),
+        }
+    }
+    turns
+}
+
+/// What whisper said about each file, in the order it was given them.
+///
+/// The log carries `processing 'NAME'` as each file is picked up and
+/// `auto-detected language: en (p = 0.99)` once it has listened, so a name is
+/// paired with the first report after it. A file with no report — one whisper
+/// could not read — has no entry.
+pub(crate) fn languages_reported(log: &str) -> Vec<(String, String, f64)> {
+    let mut out = Vec::new();
+    let mut current: Option<String> = None;
+    for line in log.lines() {
+        if let Some(rest) = line.split("processing '").nth(1) {
+            current = rest.split('\'').next().map(str::to_string);
+        } else if line.contains("auto-detected language:") {
+            if let (Some(name), Some((code, probability))) =
+                (current.take(), detected_language(line))
+            {
+                out.push((name, code, probability));
+            }
+        }
+    }
+    out
+}
+
+/// Writes each span of the samples as a WAV of its own, named by its place.
+fn write_pieces(
+    folder: &Path,
+    samples: &[i16],
+    rate: u32,
+    spans: &[(f64, f64)],
+) -> Reported<Vec<String>> {
+    std::fs::create_dir_all(folder)?;
+    let mut names = Vec::with_capacity(spans.len());
+    for (index, (from, to)) in spans.iter().enumerate() {
+        let first = ((from * f64::from(rate)) as usize).min(samples.len());
+        let last = ((to * f64::from(rate)) as usize)
+            .min(samples.len())
+            .max(first);
+        let name = format!("{index:04}.wav");
+        write_wav(&folder.join(&name), &samples[first..last], rate)?;
+        names.push(name);
+    }
+    Ok(names)
+}
+
+/// Asks whisper which language each file is in, [`MOST_FILES_AT_ONCE`] to a
+/// run. `progress` is told how many files have been picked up so far.
+fn languages_of_files(
+    run: &Run,
+    settings: &Settings,
+    check: &tools::ToolCheck,
+    folder: &Path,
+    names: &[String],
+    mut progress: impl FnMut(usize),
+) -> Reported<Vec<Option<(String, f64)>>> {
+    let program = Path::new(check.whisper_cli.as_ref().unwrap());
+    let available = program_help(program);
+    let mut heard: HashMap<String, (String, f64)> = HashMap::new();
+    let mut before = 0;
+    for batch in names.chunks(MOST_FILES_AT_ONCE) {
+        let mut cmd = files_command(
+            program,
+            settings,
+            check,
+            &Over::Languages,
+            batch,
+            &available,
+        );
+        cmd.current_dir(folder);
+        let log = run_over_files(run, cmd, |started| progress(before + started))?;
+        for (name, code, probability) in languages_reported(&log) {
+            heard.insert(name, (code, probability));
+        }
+        before += batch.len();
+        stop_if_cancelled(run.task, run.recording_id)?;
+    }
+    Ok(names.iter().map(|name| heard.get(name).cloned()).collect())
+}
+
+/// Transcribes each file in one language, [`MOST_FILES_AT_ONCE`] to a run,
+/// leaving `<file>.json` beside every one.
+fn transcribe_files(
+    run: &Run,
+    settings: &Settings,
+    check: &tools::ToolCheck,
+    folder: &Path,
+    language: &str,
+    names: &[String],
+    mut progress: impl FnMut(usize),
+) -> Reported<()> {
+    let program = Path::new(check.whisper_cli.as_ref().unwrap());
+    let available = program_help(program);
+    let mut before = 0;
+    for batch in names.chunks(MOST_FILES_AT_ONCE) {
+        let over = Over::Transcript { language };
+        let mut cmd = files_command(program, settings, check, &over, batch, &available);
+        cmd.current_dir(folder);
+        run_over_files(run, cmd, |started| progress(before + started))?;
+        before += batch.len();
+        stop_if_cancelled(run.task, run.recording_id)?;
+    }
+    Ok(())
 }
 
 /// Letters only the first language uses, for the pairs this has been measured
@@ -447,9 +685,8 @@ pub(crate) fn back_whole(
 ///
 /// Czech against English is the pair the whole feature was measured against,
 /// and diacritics separate them cleanly *in this direction*: a line carrying
-/// `ř` or `ě` is not English. A language with no entry here is filtered by
-/// length and repetition alone, which is weaker, and that is the honest state
-/// of it until somebody measures another pair.
+/// `ř` or `ě` is not English. A language with no entry here is told apart by
+/// its function words alone, or not at all.
 fn letters_of(language: &str) -> &'static str {
     match language {
         "cs" | "sk" => "áčďéěíňóřšťúůýžÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ",
@@ -457,20 +694,15 @@ fn letters_of(language: &str) -> &'static str {
     }
 }
 
-/// Words that only the first language uses, for lines its letters do not
+/// Words that only one of the two languages uses, for lines the letters do not
 /// give away.
 ///
-/// The letters catch most of it, but not a Czech line that happens to carry no
-/// diacritics: the fill on the reference recording let through `Jsem
-/// odcestoval.`, `Jsi jedl.` and `A jejich hlubb.` — the interpreter's own
-/// sentence, mis-heard by the pass at the edge of a gap and standing in the
-/// transcript beside the correct one. Function words are the tell: a line
-/// where a third of the words are `jsem`, `že`, `už`, `jejich` is Czech.
-///
-/// **Only words that are not also English words.** The first draft of this
-/// list had `my`, `to`, `a` and `on` in it and would have thrown away `My
-/// grandkids come to my house.` Measured over the fill's 282 lines: this list
-/// drops the three Czech ones and no English one.
+/// **Only words that are not also words in the other language.** The first
+/// draft of the Czech list had `my`, `to`, `a` and `on` in it and would have
+/// read `My grandkids come to my house.` as Czech; the English list leaves out
+/// `a`, `to`, `on`, `my`, `do`, `by`, `no` and `i` for the same reason in the
+/// other direction. Measured over 282 lines of the reference recording: the
+/// Czech list catches the Czech ones and no English one.
 fn function_words_of(language: &str) -> &'static [&'static str] {
     match language {
         "cs" => &[
@@ -482,12 +714,19 @@ fn function_words_of(language: &str) -> &'static [&'static str] {
             "pro", "při", "bez", "od", "po", "za", "před", "nad", "pod", "mezi", "ale", "kde",
             "kam", "proč", "dobře", "moc", "protože", "jako", "tohle", "tohleto", "ta",
         ],
+        "en" => &[
+            "the", "and", "you", "that", "with", "have", "this", "what", "your", "they", "we",
+            "could", "would", "should", "from", "were", "was", "are", "not", "but", "for", "our",
+            "is", "of", "it", "in", "he", "she", "so", "at", "as", "if", "or", "be", "us", "there",
+            "here", "when", "because", "about", "just", "like", "know", "going", "get", "got",
+            "them", "his", "her", "who", "how", "why", "did", "does", "don't", "didn't",
+        ],
         _ => &[],
     }
 }
 
-/// Is at least a third of this line made of the first language's function
-/// words? Inclusive, so a three-word line with one of them counts.
+/// Is at least a third of this line made of the language's function words?
+/// Inclusive, so a three-word line with one of them counts.
 fn reads_as(language: &str, text: &str) -> bool {
     let function_words = function_words_of(language);
     if function_words.is_empty() {
@@ -505,80 +744,72 @@ fn reads_as(language: &str, text: &str) -> bool {
     hits > 0 && hits * 3 >= words.len()
 }
 
-/// Below this a line carries nothing worth inserting, and it is where a
-/// hallucination hides.
-const SHORTEST_LINE: usize = 4;
-
-/// Two identical lines closer than this are one line heard twice.
+/// Which of the two languages a line reads as, when its letters or its
+/// function words say so; nothing when they do not.
 ///
-/// whisper over a quiet piece repeats the sentence it has just written —
-/// `and why we love our city` came back five seconds after itself, on a
-/// stretch where the speaker had moved on. Real speech does repeat a line for
-/// effect, but not inside twenty seconds and not word for word; measured over
-/// the reference fill, nothing legitimate falls inside this window.
-const ECHO_SECONDS: f64 = 20.0;
-
-/// How many times one line may appear before it reads as a loop rather than as
-/// speech.
-///
-/// **Measured.** The fill over the reference recording produced `he had a
-/// voice` eleven times, on the one stretch of near-silence in the whole set —
-/// whisper over nothing, which is exactly what silence detection and this are
-/// for. Twice can be a real repetition; eleven cannot. The guard in
-/// `load_segments_from_json` does not catch it, because these are not
-/// consecutive.
-const MOST_REPEATS: usize = 2;
-
-/// Which of the second pass's lines are worth putting in the transcript.
-///
-/// Three rules, and each answers something that was observed rather than
-/// imagined: a line still written in the first language — by its letters, or
-/// by its function words where the letters give nothing away — because the
-/// pass reads back whatever it is given; a line too short to carry anything;
-/// and a line repeated far more often than speech repeats.
-pub(crate) fn worth_keeping(lines: &[(f64, String)], own: &str) -> Vec<(f64, String)> {
-    let letters = letters_of(own);
-    let mut seen: HashMap<String, usize> = HashMap::new();
-    for (_, text) in lines {
-        *seen.entry(text.trim().to_lowercase()).or_default() += 1;
-    }
-    // An echo is judged against the last time the same line was *kept*, so a
-    // line heard three times in a row is one line, not two.
-    let mut last_kept: HashMap<String, f64> = HashMap::new();
-    let mut kept = Vec::with_capacity(lines.len());
-    for (at, text) in lines {
-        let trimmed = text.trim();
-        let key = trimmed
-            .to_lowercase()
-            .trim_matches(|c: char| !c.is_alphanumeric())
-            .to_string();
-        let echo = last_kept
-            .get(&key)
-            .is_some_and(|previous| (at - previous).abs() < ECHO_SECONDS);
-        if trimmed.chars().count() >= SHORTEST_LINE
-            && !trimmed.chars().any(|letter| letters.contains(letter))
-            && !reads_as(own, trimmed)
-            && seen
-                .get(&trimmed.to_lowercase())
-                .is_none_or(|n| *n <= MOST_REPEATS)
-            && !echo
-        {
-            last_kept.insert(key, *at);
-            kept.push((*at, text.clone()));
+/// whisper told to transcribe in the wrong language does one of two things,
+/// and both were seen on the reference recording: it writes the language
+/// actually spoken anyway — `If we could have skipped` under a Czech label —
+/// or it writes the sounds in the language it was asked for — `Mám vnútsata`
+/// under an English one. Letters catch the second, function words the first,
+/// and a turn caught either way is heard again in its real language.
+fn spoken_in(text: &str, own: &str, second: &str) -> Option<String> {
+    for language in [own, second] {
+        let letters = letters_of(language);
+        if !letters.is_empty() && text.chars().any(|c| letters.contains(c)) {
+            return Some(language.to_string());
         }
     }
-    kept
+    [own, second]
+        .into_iter()
+        .find(|language| reads_as(language, text))
+        .map(str::to_string)
 }
 
-/// Transcribes the other language from audio that is already prepared, and
-/// puts it into the transcript.
+/// A block heard inside one turn, put back at the turn's place in the
+/// recording and stamped with the turn's language.
+fn shifted(mut segment: Segment, by: f64, language: Option<&str>) -> Segment {
+    let place = |t: f64| ((t + by) * 1000.0).round() / 1000.0;
+    segment.start = place(segment.start);
+    segment.end = place(segment.end);
+    if let Some(words) = segment
+        .words
+        .as_deref()
+        .and_then(|w| serde_json::from_str::<Vec<serde_json::Value>>(w).ok())
+    {
+        let moved: Vec<serde_json::Value> = words
+            .into_iter()
+            .map(|mut word| {
+                if let Some(t) = word["t"].as_f64() {
+                    word["t"] = serde_json::json!(place(t));
+                }
+                word
+            })
+            .collect();
+        segment.words = serde_json::to_string(&moved).ok();
+    }
+    segment.language = language.map(str::to_string);
+    segment
+}
+
+/// Transcribes a recording in both of its languages and replaces the
+/// transcript with the result.
 ///
-/// The stretches where the first pass heard no words are cut out and laid end
-/// to end with silence between them, and whisper is run over that once, told
-/// the other language and given no carried context. What comes back is
-/// filtered by [`worth_keeping`] and written in one transaction with the
-/// offer's new state, so a failure anywhere leaves the transcript exactly as it
-/// was.
+/// **The pass, in order.** The prepared audio is cut into pieces of speech at
+/// its own silences and each piece cut down until it is short enough to hold
+/// one language; whisper says which language every piece is in, hundreds to a
+/// run; the pieces are joined back into turns of one language; every turn is
+/// transcribed in its language, one run for each; a turn whose text gives
+/// away that it was heard in the wrong one is heard again; and the blocks are
+/// put back at their places, cut into sentences, given their speakers and
+/// written in one transaction with the offer's new state — so a failure
+/// anywhere leaves the transcript exactly as it was.
+///
+/// It replaces the whole transcript rather than adding to it, because the
+/// first transcript is wrong wherever the other language was spoken: whisper
+/// asked for Czech over English speech does not fail, it translates, and those
+/// lines look like Czech that was never said. Corrections made to the earlier
+/// text do not survive this, the same as any transcription run again.
 ///
 /// Called from two places: the end of a transcription, where the WAV is still
 /// there, and [`fill`], which has to make one first.
@@ -598,126 +829,213 @@ pub(crate) fn fill_with_audio(
     let say = |percent: u32, code: &str| {
         status(app, recording_id, "second_language", percent, step(code));
     };
-    let segments = db::segments(connection, recording_id)?;
-    if segments.is_empty() {
-        return Err(UserMessage::new("second_language.no_transcript"));
-    }
-
-    say(5, "second_language.cutting");
-    let Some((samples, rate)) = read_pcm16(wav) else {
-        return Err(UserMessage::new("diarization.audio_unreadable"));
+    let own = crate::ai_edit::effective_language(recording);
+    let second = language.trim().to_ascii_lowercase();
+    let spoken_languages: Vec<&str> = if own == second {
+        vec![own.as_str()]
+    } else {
+        vec![own.as_str(), second.as_str()]
     };
-    let duration = samples.len() as f64 / f64::from(rate.max(1));
-    let gaps = unheard_stretches(&segments, duration);
-    let (pieces, ranges) = lay_out(&gaps, rate);
-    if pieces.is_empty() {
-        // Every second of the recording already has words on it. Nothing to
-        // look into, and that is an answer rather than a failure.
-        db::set_second_language_state(connection, recording_id, db::second_language_state::FILLED)?;
-        say(100, "second_language.done");
-        return Ok(0);
-    }
-
-    let silence = vec![0_i16; (SILENCE_BETWEEN * f64::from(rate)) as usize];
-    let mut extracted: Vec<i16> = Vec::new();
-    for (from, to) in &ranges {
-        let piece = &samples[(*from).min(samples.len())..(*to).min(samples.len())];
-        extracted.extend_from_slice(piece);
-        extracted.extend_from_slice(&silence);
-    }
-    let cut = working.join("unheard.wav");
-    write_wav(&cut, &extracted, rate)?;
-    stop_if_cancelled(task, recording_id)?;
-
-    say(15, "second_language.transcribing");
-    let prefix = working.join("second");
     let run = Run {
         app,
         recording_id,
         task,
     };
-    // The recording's own model and settings, with two things changed: the
-    // language asked for, and no carried context. Both are the difference
-    // between seeing the other language and not.
-    start_whisper(
-        &run,
-        settings,
-        &Ask {
-            language,
-            max_context: CONTEXT_FOR_A_SECOND_LANGUAGE,
-        },
-        check,
-        &cut,
-        &prefix,
-    )?;
+
+    say(5, "second_language.cutting");
+    let Some((samples, rate)) = read_pcm16(wav) else {
+        return Err(UserMessage::new("diarization.audio_unreadable"));
+    };
+    let pieces = pieces_of_speech(&samples, rate);
+    if pieces.is_empty() {
+        // Nothing spoken at all. That is an answer rather than a failure.
+        db::set_second_language_state(connection, recording_id, db::second_language_state::FILLED)?;
+        say(100, "second_language.done");
+        return Ok(0);
+    }
+    let pieces_folder = working.join("pieces");
+    let piece_names = write_pieces(&pieces_folder, &samples, rate, &pieces)?;
     stop_if_cancelled(task, recording_id)?;
 
-    say(85, "second_language.merging");
-    let found = load_segments_from_json(&prefix.with_extension("json"), recording_id)
-        .map_err(|error| UserMessage::new("transcription.no_output_file").detail(error))?;
-    // Every line put back whole — start, end and word timings — and the text
-    // rule run over the starts and texts alone, which is all it reads.
-    let whole: Vec<(f64, f64, Option<String>, String)> = found
-        .iter()
-        .filter_map(|segment| {
-            back_whole(
-                &pieces,
-                segment.start,
-                segment.end,
-                segment.words.as_deref(),
-            )
-            .map(|(from, to, words)| (from, to, words, segment.text.clone()))
-        })
-        .collect();
-    let lines: Vec<(f64, String)> = whole
-        .iter()
-        .map(|(from, _, _, text)| (*from, text.clone()))
-        .collect();
-    let own = crate::ai_edit::effective_language(recording);
-    let kept = worth_keeping(&lines, &own);
+    say(8, "second_language.listening");
+    let heard = languages_of_files(
+        &run,
+        settings,
+        check,
+        &pieces_folder,
+        &piece_names,
+        |done| {
+            say(
+                8 + (22 * done / pieces.len()) as u32,
+                "second_language.listening",
+            );
+        },
+    )?;
+    let _ = std::fs::remove_dir_all(&pieces_folder);
+    let languages = language_of_each(&heard, &own, &second);
+    let turns = turns_of(&pieces, &languages);
+    crate::note!(
+        "second language: {} pieces, {} turns, {} of them in {second}",
+        pieces.len(),
+        turns.len(),
+        turns.iter().filter(|t| t.language == second).count()
+    );
 
-    let added = kept.len();
-    let mut all: Vec<Segment> = segments.clone();
-    // `kept` is a subsequence of `lines` in the same order, so one pointer
-    // walking `whole` finds each kept line's end and words.
-    let mut cursor = 0;
-    for (at, text) in kept {
-        while cursor < whole.len() && !(whole[cursor].0 == at && whole[cursor].3 == text) {
-            cursor += 1;
+    let turns_folder = working.join("turns");
+    let spans: Vec<(f64, f64)> = turns.iter().map(|t| (t.from, t.to)).collect();
+    let turn_names = write_pieces(&turns_folder, &samples, rate, &spans)?;
+    stop_if_cancelled(task, recording_id)?;
+
+    say(30, "second_language.transcribing");
+    let mut done_before = 0;
+    for spoken in &spoken_languages {
+        let names: Vec<String> = turns
+            .iter()
+            .zip(&turn_names)
+            .filter(|(turn, _)| turn.language == *spoken)
+            .map(|(_, name)| name.clone())
+            .collect();
+        if names.is_empty() {
+            continue;
         }
-        let (from, to, words) = match whole.get(cursor) {
-            Some((from, to, words, _)) => (*from, *to, words.clone()),
-            None => (at, at + 2.0, None),
-        };
-        all.push(Segment {
-            id: uuid::Uuid::new_v4().to_string(),
-            recording_id: recording_id.to_string(),
-            order: 0,
-            start: from,
-            end: to,
-            text,
-            speakers: None,
-            confidence: None,
-            edited: false,
-            verified: false,
-            words,
-            original: None,
-            language: Some(language.to_string()),
-        });
+        transcribe_files(
+            &run,
+            settings,
+            check,
+            &turns_folder,
+            spoken,
+            &names,
+            |done| {
+                say(
+                    30 + (55 * (done_before + done) / turns.len()) as u32,
+                    "second_language.transcribing",
+                );
+            },
+        )?;
+        done_before += names.len();
     }
-    all.sort_by(|left, right| left.start.total_cmp(&right.start));
-    for (position, segment) in all.iter_mut().enumerate() {
+
+    say(85, "second_language.merging");
+    let answer = |name: &str| {
+        load_segments_from_json(&turns_folder.join(format!("{name}.json")), recording_id)
+            .unwrap_or_default()
+    };
+    let mut heard_turns: Vec<(Spoken, Vec<Segment>)> = turns
+        .iter()
+        .zip(&turn_names)
+        .map(|(turn, name)| (turn.clone(), answer(name)))
+        .collect();
+
+    // A turn whose text reads as the other language was heard in the wrong
+    // one. It is flipped and heard again, one small run for each language.
+    let mut flipped: Vec<usize> = Vec::new();
+    if own != second {
+        for (index, (turn, blocks)) in heard_turns.iter_mut().enumerate() {
+            let other = if turn.language == own { &second } else { &own };
+            let gives_away = blocks
+                .iter()
+                .any(|b| spoken_in(&b.text, &own, &second).as_deref() == Some(other.as_str()));
+            if gives_away {
+                turn.language = other.clone();
+                flipped.push(index);
+            }
+        }
+    }
+    if !flipped.is_empty() {
+        crate::note!(
+            "second language: {} turns heard again in the other language",
+            flipped.len()
+        );
+        for spoken in &spoken_languages {
+            let names: Vec<String> = flipped
+                .iter()
+                .filter(|index| heard_turns[**index].0.language == *spoken)
+                .map(|index| turn_names[*index].clone())
+                .collect();
+            if names.is_empty() {
+                continue;
+            }
+            transcribe_files(&run, settings, check, &turns_folder, spoken, &names, |_| {})?;
+        }
+        for index in &flipped {
+            heard_turns[*index].1 = answer(&turn_names[*index]);
+        }
+    }
+    let _ = std::fs::remove_dir_all(&turns_folder);
+    stop_if_cancelled(task, recording_id)?;
+
+    // Back in place, each language cut into sentences on its own so a sentence
+    // never runs across the change of speaker, then one transcript in time.
+    let mut in_own: Vec<Segment> = Vec::new();
+    let mut in_second: Vec<Segment> = Vec::new();
+    for (turn, blocks) in heard_turns {
+        let stamp = (turn.language != own).then_some(turn.language.as_str());
+        for block in blocks {
+            let moved = shifted(block, turn.from, stamp);
+            if stamp.is_some() {
+                in_second.push(moved);
+            } else {
+                in_own.push(moved);
+            }
+        }
+    }
+    let mut segments = rebuild_sentences(in_own);
+    let mut added = rebuild_sentences(in_second);
+    let count = added.len();
+    segments.append(&mut added);
+    segments.sort_by(|left, right| left.start.total_cmp(&right.start));
+    for (position, segment) in segments.iter_mut().enumerate() {
         segment.order = position as i64;
     }
+    if segments.is_empty() {
+        return Err(UserMessage::new("transcription.empty_result"));
+    }
+    snap_starts_to_sound(&mut segments, wav);
+    apply_dictionary(&mut segments, &db::dictionary(connection)?);
+    stop_if_cancelled(task, recording_id)?;
 
+    // Speakers, the way a run gives them: a bonus, and never a reason to lose
+    // the transcript. The language rule at the end is what makes the voices
+    // right on an interpreted recording, where the language *is* the speaker.
+    if settings.diarization && check.issues_diarization.is_empty() {
+        say(90, "diarization.running");
+        match diarize(settings, check, wav, &segments, task, recording_id, None) {
+            Ok(voices) => {
+                segments = assign_speakers(segments, &voices);
+                bridge_unknown(&mut segments);
+                keep_voices_to_one_language(&mut segments);
+            }
+            Err(error) => {
+                crate::note!("second language: the speakers were not told apart: {error}");
+            }
+        }
+    }
+    stop_if_cancelled(task, recording_id)?;
+    let mut key: Vec<String> = segments.iter().filter_map(|s| s.speakers.clone()).collect();
+    key.sort_by_key(|k| order_key(k));
+    key.dedup();
+
+    say(97, "saving");
     // One transaction. A failure halfway through would otherwise leave a
     // transcript with half its blocks gone, which is worse than never having
     // asked.
     connection.execute_batch("BEGIN")?;
     let written = (|| -> Reported<()> {
         db::delete_segments(connection, recording_id)?;
-        for segment in &all {
+        for segment in &segments {
             db::insert_segment(connection, segment)?;
+        }
+        db::keep_only_speakers(connection, recording_id, &key)?;
+        for (i, k) in key.iter().enumerate() {
+            db::insert_speaker(
+                connection,
+                &db::Speaker {
+                    key: k.clone(),
+                    recording_id: recording_id.to_string(),
+                    name: format!("Mluvčí {}", i + 1),
+                    color: db::COLORS[i % db::COLORS.len()].to_string(),
+                },
+            )?;
         }
         db::set_second_language_state(connection, recording_id, db::second_language_state::FILLED)?;
         Ok(())
@@ -728,7 +1046,7 @@ pub(crate) fn fill_with_audio(
     }
     connection.execute_batch("COMMIT")?;
     say(100, "second_language.done");
-    Ok(added)
+    Ok(count)
 }
 
 /// Transcribes the other language into a transcript that is already stored,
@@ -993,33 +1311,6 @@ mod tests {
         }
     }
 
-    // ------------------------------------------------- laying the pieces out
-
-    #[test]
-    fn a_piece_can_be_found_again_where_it_came_from() {
-        let (pieces, ranges) = lay_out(&[(10.0, 14.0), (100.0, 103.0)], 16_000);
-        assert_eq!(pieces.len(), 2);
-        assert_eq!(ranges[0], (160_000, 224_000));
-        assert!((pieces[1].at - (4.0 + SILENCE_BETWEEN)).abs() < 1e-9);
-        let at = back_to_the_recording(&pieces, pieces[1].at + 2.0).unwrap();
-        assert!((at - 102.0).abs() < 1e-9, "got {at}");
-    }
-
-    /// The silence between pieces belongs to neither of them. Whisper writing
-    /// something there has nowhere to be put, and must not be guessed onto the
-    /// nearest piece.
-    #[test]
-    fn a_moment_in_the_silence_between_pieces_belongs_nowhere() {
-        let (pieces, _) = lay_out(&[(10.0, 14.0), (100.0, 103.0)], 16_000);
-        assert_eq!(back_to_the_recording(&pieces, 4.3), None);
-    }
-
-    #[test]
-    fn a_stretch_too_short_to_hold_a_turn_is_not_cut_out() {
-        let (pieces, _) = lay_out(&[(10.0, 10.4)], 16_000);
-        assert!(pieces.is_empty());
-    }
-
     // ------------------------------------------------ what the detection says
 
     #[test]
@@ -1133,159 +1424,237 @@ mod tests {
         assert_eq!(strongest_other(&[], "cs", 0), None);
     }
 
-    // ------------------------------------------------ what is worth inserting
+    // ------------------------------------------- cutting speech into pieces
 
-    fn lines(items: &[(f64, &str)]) -> Vec<(f64, String)> {
-        items.iter().map(|(t, s)| (*t, (*s).to_string())).collect()
+    /// A signal at 16 kHz: a tone where `speech` says, a whisper of noise
+    /// everywhere else, so the quiet has a floor of its own.
+    fn sound(seconds: f64, speech: &[(f64, f64)]) -> Vec<i16> {
+        let rate = 16_000.0;
+        (0..(seconds * rate) as usize)
+            .map(|n| {
+                let t = n as f64 / rate;
+                let loud = speech.iter().any(|(from, to)| t >= *from && t < *to);
+                if loud {
+                    (8000.0 * (t * 2.0 * std::f64::consts::PI * 220.0).sin()) as i16
+                } else {
+                    ((n * 7919) % 13) as i16 - 6
+                }
+            })
+            .collect()
     }
 
-    /// **The measured hallucination.** `he had a voice` eleven times over the
-    /// one stretch of near-silence in the set. Twice can be a real repetition;
-    /// eleven cannot.
+    fn near(a: f64, b: f64) -> bool {
+        (a - b).abs() < 0.06
+    }
+
     #[test]
-    fn a_line_repeated_far_more_often_than_speech_repeats_is_dropped() {
-        let mut items: Vec<(f64, &str)> = Vec::new();
-        for turn in 0..11 {
-            items.push((turn as f64 * 30.0, "he had a voice"));
+    fn silence_holds_no_pieces() {
+        assert!(pieces_of_speech(&sound(5.0, &[]), 16_000).is_empty());
+    }
+
+    #[test]
+    fn one_stretch_of_speech_is_one_piece_with_its_edges_kept() {
+        let pieces = pieces_of_speech(&sound(5.0, &[(1.0, 3.0)]), 16_000);
+        assert_eq!(pieces.len(), 1, "{pieces:?}");
+        assert!(near(pieces[0].0, 1.0 - PAD), "{pieces:?}");
+        assert!(near(pieces[0].1, 3.0 + PAD), "{pieces:?}");
+    }
+
+    /// **The number the pass turns on.** Half a second of quiet is a change of
+    /// speaker; a tenth of a second is a breath inside one.
+    #[test]
+    fn half_a_second_of_quiet_ends_a_piece_and_a_tenth_does_not() {
+        let two = pieces_of_speech(&sound(6.0, &[(1.0, 2.5), (3.0, 4.5)]), 16_000);
+        assert_eq!(two.len(), 2, "{two:?}");
+        let one = pieces_of_speech(&sound(6.0, &[(1.0, 2.5), (2.6, 4.0)]), 16_000);
+        assert_eq!(one.len(), 1, "{one:?}");
+    }
+
+    /// **The measurement that made the difference.** A long stretch is cut
+    /// down until every piece is short enough to hold one language, and the
+    /// pieces still cover what they were cut from.
+    #[test]
+    fn a_long_stretch_is_cut_into_pieces_short_enough_to_hold_one_language() {
+        let pieces = pieces_of_speech(&sound(13.0, &[(1.0, 12.0)]), 16_000);
+        assert!(pieces.len() >= 4, "{pieces:?}");
+        for (from, to) in &pieces {
+            assert!(to - from <= LONGEST_PIECE + 2.0 * PAD + 1e-9, "{pieces:?}");
+            assert!(to - from >= CUT_EDGE - 1e-9, "{pieces:?}");
         }
-        items.push((5.0, "I always go fishing for the type of fish I want."));
-        let kept = worth_keeping(&lines(&items), "cs");
-        assert_eq!(kept.len(), 1);
-        assert!(kept[0].1.starts_with("I always go fishing"));
+        for pair in pieces.windows(2) {
+            assert!(pair[1].0 <= pair[0].1, "a hole between pieces: {pieces:?}");
+        }
+        assert!(near(pieces[0].0, 1.0 - PAD));
+        assert!(near(pieces[pieces.len() - 1].1, 12.0 + PAD));
     }
 
-    /// Twice is speech. A speaker really does repeat a line for effect.
+    /// A syllable on its own is part of the speech before it; a click a long
+    /// way from any speech is nothing.
     #[test]
-    fn a_line_said_twice_is_kept() {
-        let kept = worth_keeping(
-            &lines(&[(1.0, "Don't worry."), (40.0, "Don't worry.")]),
+    fn a_syllable_joins_the_piece_before_it_and_a_distant_click_is_dropped() {
+        let joined = pieces_of_speech(&sound(6.0, &[(1.0, 3.0), (3.3, 3.5)]), 16_000);
+        assert_eq!(joined.len(), 1, "{joined:?}");
+        assert!(near(joined[0].1, 3.5 + PAD), "{joined:?}");
+        let alone = pieces_of_speech(&sound(12.0, &[(1.0, 3.0), (10.0, 10.2)]), 16_000);
+        assert_eq!(alone.len(), 1, "{alone:?}");
+    }
+
+    // ------------------------------------------------ the language of each
+
+    fn heard(readings: &[Option<(&str, f64)>]) -> Vec<Option<(String, f64)>> {
+        readings
+            .iter()
+            .map(|r| r.map(|(code, p)| (code.to_string(), p)))
+            .collect()
+    }
+
+    #[test]
+    fn a_confident_reading_in_either_language_is_taken() {
+        let languages = language_of_each(
+            &heard(&[Some(("cs", 0.99)), Some(("en", 0.97)), Some(("cs", 0.9))]),
             "cs",
+            "en",
         );
-        assert_eq!(kept.len(), 2);
+        assert_eq!(languages, vec!["cs", "en", "cs"]);
     }
 
-    /// The pass reads back whatever it is given, so the first language turns up
-    /// in its output at the edges of a gap. It is already in the transcript,
-    /// and better.
+    /// Slovak over a Czech recording is Czech, and a reading the detection is
+    /// not sure of is whatever came before it. The first piece, with nothing
+    /// before it, is the recording's own language.
     #[test]
-    fn a_line_still_in_the_first_language_is_dropped() {
-        let kept = worth_keeping(
-            &lines(&[(1.0, "Já jsem rybář."), (2.0, "I am a fisherman.")]),
-            "cs",
-        );
-        assert_eq!(kept.len(), 1);
-        assert_eq!(kept[0].1, "I am a fisherman.");
-    }
-
-    /// **The leak the letters cannot see.** `Jsem odcestoval.` carries no
-    /// diacritics and stood in the reference transcript beside the correct
-    /// Czech line. Its function words give it away.
-    #[test]
-    fn a_czech_line_without_diacritics_is_still_dropped() {
-        let kept = worth_keeping(
-            &lines(&[
-                (1.0, "Jsem odcestoval."),
-                (2.0, "Jsi jedl."),
-                (3.0, "A jejich hlubb."),
-                (4.0, "She didn't even notice I was gone."),
+    fn a_third_language_or_an_unsure_reading_follows_the_piece_before() {
+        let languages = language_of_each(
+            &heard(&[
+                Some(("en", 0.30)),
+                Some(("en", 0.95)),
+                Some(("sk", 0.99)),
+                None,
+                Some(("cs", 0.98)),
+                Some(("ro", 0.7)),
             ]),
             "cs",
+            "en",
         );
-        assert_eq!(kept.len(), 1);
-        assert!(kept[0].1.starts_with("She didn't"));
+        assert_eq!(languages, vec!["cs", "en", "en", "en", "cs", "cs"]);
     }
 
-    /// **What the first draft of that list got wrong.** `my`, `to`, `a` and
-    /// `on` are Czech function words and English words both, and a list that
-    /// held them threw away real English. Only the unambiguous ones are used.
+    // ------------------------------------------------ pieces back into turns
+
+    fn named(languages: &[&str]) -> Vec<String> {
+        languages.iter().map(|l| (*l).to_string()).collect()
+    }
+
     #[test]
-    fn english_full_of_short_words_is_kept() {
-        let kept = worth_keeping(
-            &lines(&[
-                (1.0, "My grandkids come to my house."),
-                (2.0, "I have a rule, a guideline."),
-                (3.0, "And I have a rule."),
-                (4.0, "don't tell me what to do."),
-            ]),
-            "cs",
+    fn neighbours_in_one_language_are_one_turn_and_a_change_starts_another() {
+        let turns = turns_of(
+            &[(0.0, 2.0), (2.0, 4.0), (4.1, 6.0), (6.0, 7.0)],
+            &named(&["cs", "cs", "en", "cs"]),
         );
-        assert_eq!(kept.len(), 4);
-    }
-
-    /// Where the pair has never been measured, the letters say nothing and only
-    /// the general rules apply. Weaker, and deliberately not pretended
-    /// otherwise.
-    #[test]
-    fn a_language_nobody_measured_is_filtered_by_the_general_rules_alone() {
-        let kept = worth_keeping(&lines(&[(1.0, "Ich bin ein Fischer.")]), "fr");
-        assert_eq!(kept.len(), 1);
-    }
-
-    /// Short lines are where hallucination hides, and they carry nothing worth
-    /// inserting anyway.
-    #[test]
-    fn a_line_too_short_to_carry_anything_is_dropped() {
-        let kept = worth_keeping(&lines(&[(1.0, "Ok"), (2.0, "Hm"), (3.0, "Amen.")]), "cs");
-        assert_eq!(kept.len(), 1);
-        assert_eq!(kept[0].1, "Amen.");
-    }
-
-    /// **The echo.** `and why we love our city` came back five seconds after
-    /// itself over a stretch where the speaker had moved on. Word for word
-    /// inside twenty seconds is one line heard twice.
-    #[test]
-    fn the_same_line_inside_twenty_seconds_is_an_echo() {
-        let kept = worth_keeping(
-            &lines(&[
-                (341.0, "and why we love our city"),
-                (346.0, "and why we love our city"),
-                (370.0, "some of them don't even like us"),
-            ]),
-            "cs",
+        assert_eq!(turns.len(), 3, "{turns:?}");
+        assert_eq!(
+            turns[0],
+            Spoken {
+                from: 0.0,
+                to: 4.0,
+                language: "cs".into()
+            }
         );
-        assert_eq!(kept.len(), 2, "the echo goes, the next line stays");
-        assert!(
-            (kept[0].0 - 341.0).abs() < 1e-9,
-            "the first hearing is the one kept"
+        assert_eq!(turns[1].language, "en");
+        assert_eq!(turns[2].from, 6.0);
+    }
+
+    /// A gap of more than a second is a new turn even in the same language,
+    /// and a turn never grows past whisper's window.
+    #[test]
+    fn a_long_gap_or_a_full_window_starts_a_new_turn() {
+        let apart = turns_of(&[(0.0, 2.0), (3.5, 5.0)], &named(&["cs", "cs"]));
+        assert_eq!(apart.len(), 2);
+        let pieces: Vec<(f64, f64)> = (0..12)
+            .map(|n| (n as f64 * 3.0, n as f64 * 3.0 + 3.0))
+            .collect();
+        let long = turns_of(&pieces, &named(&["en"; 12]));
+        assert!(long.len() >= 2, "{long:?}");
+        for turn in &long {
+            assert!(turn.to - turn.from <= LONGEST_TURN + 1e-9, "{turn:?}");
+        }
+    }
+
+    // ------------------------------------------- a turn heard in the wrong one
+
+    /// **Both things whisper does when asked the wrong language**, as seen on
+    /// the reference recording: it writes the language actually spoken anyway,
+    /// or it writes the sounds in the language it was asked for.
+    #[test]
+    fn a_line_gives_away_the_language_it_was_really_spoken_in() {
+        assert_eq!(
+            spoken_in("If we could have skipped", "cs", "en").as_deref(),
+            Some("en")
         );
-        assert!((kept[1].0 - 370.0).abs() < 1e-9);
-    }
-
-    /// A line comes back whole: shifted by the piece it sat in, its end kept,
-    /// its words moved with it and nothing allowed past the piece.
-    #[test]
-    fn a_line_comes_back_with_its_end_and_its_words() {
-        let (pieces, _) = lay_out(&[(100.0, 108.0)], 16_000);
-        let words = r#"[{"t":1.0,"s":"You"},{"t":1.5,"s":"know"},{"t":9.0,"s":"late"}]"#;
-        let (from, to, moved) = back_whole(&pieces, 1.0, 6.2, Some(words)).unwrap();
-        assert!((from - 101.0).abs() < 1e-9);
-        assert!(
-            (to - 106.2).abs() < 1e-9,
-            "the end travels with the start, got {to}"
+        assert_eq!(
+            spoken_in("Peter the Jew", "cs", "en").as_deref(),
+            Some("en")
         );
-        let list: Vec<serde_json::Value> = serde_json::from_str(&moved.unwrap()).unwrap();
-        assert_eq!(list[0]["t"], 101.0);
-        assert_eq!(list[1]["t"], 101.5);
-        // A word timed past the line's end is pulled back to it.
-        assert_eq!(list[2]["t"], 106.2);
+        assert_eq!(
+            spoken_in("Mám vnútsata.", "cs", "en").as_deref(),
+            Some("cs")
+        );
+        assert_eq!(
+            spoken_in("Jsem odcestoval.", "cs", "en").as_deref(),
+            Some("cs")
+        );
     }
 
-    /// **The crash.** A line starting inside the tolerance past its piece's end
-    /// gave a floor above the ceiling, and `clamp` panicked mid-transcription
-    /// with `min = 352.35, max = 352.34`.
+    /// A line with no tell says nothing, and is left where whisper put it.
     #[test]
-    fn a_line_starting_just_past_its_piece_does_not_panic() {
-        let (pieces, _) = lay_out(&[(100.0, 103.0)], 16_000);
-        let (from, to, _) = back_whole(&pieces, 3.04, 3.5, None).unwrap();
-        assert!(to >= from, "got {from}..{to}");
+    fn a_line_with_no_tell_says_nothing() {
+        assert_eq!(spoken_in("Two boys, one girl.", "cs", "en"), None);
+        assert_eq!(spoken_in("333.", "cs", "en"), None);
     }
 
-    /// An end that runs into the silence after its piece is cut at the piece.
+    // ------------------------------------------- what whisper said about each
+
     #[test]
-    fn a_line_never_runs_past_its_piece() {
-        let (pieces, _) = lay_out(&[(100.0, 103.0)], 16_000);
-        let (_, to, _) = back_whole(&pieces, 0.5, 9.0, None).unwrap();
-        assert!((to - 103.0).abs() < 1e-9, "got {to}");
+    fn the_language_of_each_file_is_paired_with_its_name() {
+        let log = "main: processing '0000.wav' (48000 samples, 3.0 sec), 4 threads\n\
+                   whisper_full_with_state: auto-detected language: cs (p = 0.991)\n\
+                   main: processing '0001.wav' (32000 samples, 2.0 sec), 4 threads\n\
+                   error: failed to read audio\n\
+                   main: processing '0002.wav' (32000 samples, 2.0 sec), 4 threads\n\
+                   whisper_full_with_state: auto-detected language: en (p = 0.870)\n";
+        let heard = languages_reported(log);
+        assert_eq!(heard.len(), 2);
+        assert_eq!(heard[0].0, "0000.wav");
+        assert_eq!(heard[0].1, "cs");
+        assert_eq!(heard[1].0, "0002.wav");
+        assert!((heard[1].2 - 0.87).abs() < 1e-9);
+    }
+
+    // ----------------------------------------------- a block back in its place
+
+    #[test]
+    fn a_block_moves_with_its_turn_and_takes_the_language_with_it() {
+        let block = Segment {
+            id: "b".into(),
+            recording_id: "r".into(),
+            order: 0,
+            start: 1.0,
+            end: 2.5,
+            text: "We are the same age.".into(),
+            speakers: None,
+            confidence: None,
+            edited: false,
+            verified: false,
+            words: Some(r#"[{"t":1.0,"s":"We"},{"t":1.4,"s":"are"}]"#.into()),
+            original: None,
+            language: None,
+        };
+        let moved = shifted(block, 122.0, Some("en"));
+        assert!((moved.start - 123.0).abs() < 1e-9);
+        assert!((moved.end - 124.5).abs() < 1e-9);
+        assert_eq!(moved.language.as_deref(), Some("en"));
+        let words: Vec<serde_json::Value> =
+            serde_json::from_str(moved.words.as_ref().unwrap()).unwrap();
+        assert_eq!(words[1]["t"], 123.4);
     }
 
     /// The header a WAV needs, checked by reading it back with the same reader
