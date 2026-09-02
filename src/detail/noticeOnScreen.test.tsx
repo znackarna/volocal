@@ -14,7 +14,7 @@
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { cleanup, screen } from "@testing-library/react";
-import { installBrowserStubs, setDetail } from "./screen.fixtures";
+import { conversation, installBrowserStubs, setDetail } from "./screen.fixtures";
 
 vi.mock("@tauri-apps/api/event", async () => (await import("./screen.fixtures")).eventMock());
 vi.mock("@tauri-apps/plugin-dialog", () => ({ open: vi.fn(), save: vi.fn() }));
@@ -34,7 +34,7 @@ const holding = (text: string, kind: "info" | "error"): Notices => ({
 describe("the notice bar on the transcript screen", () => {
   beforeEach(() => {
     resetScreen();
-    setDetail();
+    setDetail(conversation());
   });
   afterEach(cleanup);
 
