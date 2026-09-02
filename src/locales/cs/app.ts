@@ -36,7 +36,7 @@ export const csApp = {
   "app.shell.documentState": "Stav dokumentu",
   "app.shell.recordingDuration": "Délka nahrávky",
   "app.shell.language": "Jazyk",
-  "app.shell.twoLanguages": "{first} a {second}",
+  "app.shell.twoLanguages": "{first}, {second}",
   "app.shell.segmentCount": "Počet úseků",
 
   // --------------------------------------------------------------- notice
@@ -146,7 +146,7 @@ export const csAppContext: Partial<Record<keyof typeof csApp, string>> = {
     "Popisek položky v patičce; hodnotou je stav rozpracovaného přepisu, například „Uloženo“.",
   "app.shell.language": "Popisek položky v patičce; hodnotou je jazyk nahrávky.",
   "app.shell.twoLanguages":
-    "Hodnota téže položky, když byl do přepisu doplněn druhý jazyk. {first} je velkým písmenem, {second} malým: „Čeština a angličtina“.",
+    "Hodnota téže položky, když byl do přepisu doplněn druhý jazyk. Oba velkým písmenem, oddělené čárkou: „Čeština, Angličtina“.",
   "app.shell.segmentCount": "Popisek položky v patičce; hodnotou je počet úseků přepisu.",
   "app.notice.unsupportedFormat":
     "Hláška po přetažení souboru, který neumíme otevřít. Vyká uživateli, stejně jako zbytek aplikace.",

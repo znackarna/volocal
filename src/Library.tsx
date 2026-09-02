@@ -1306,7 +1306,7 @@ function Row({
                   recording.second_language
                     ? t("app.shell.twoLanguages", {
                         first: labels.languageCapitalized(recording.language),
-                        second: labels.language(recording.second_language),
+                        second: labels.languageCapitalized(recording.second_language),
                       })
                     : labels.languageCapitalized(recording.language)
                 }
