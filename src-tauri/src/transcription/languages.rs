@@ -2225,7 +2225,10 @@ mod tests {
         };
         let own = std::env::var("VOLOCAL_PASS_OWN").unwrap_or_else(|_| "cs".into());
         let second = std::env::var("VOLOCAL_PASS_SECOND").unwrap_or_else(|_| "en".into());
-        let settings = Settings::default();
+        let mut settings = Settings::default();
+        if let Ok(beam) = std::env::var("VOLOCAL_PASS_BEAM") {
+            settings.beam = beam.parse().unwrap_or(settings.beam);
+        }
         let check = tools::ToolCheck {
             whisper_cli: Some(whisper.clone()),
             model_whisper: Some(model),
