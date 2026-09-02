@@ -114,7 +114,7 @@ export const csDialogs = {
     "Složka obsahuje {count} přepisů. Můžete je přesunout do archivu, nebo smazat spolu se složkou.",
   "dialogs.folder.deleteKeep": "Jen složku",
   "dialogs.folder.deleteAll": "Včetně přepisů",
-  "dialogs.recordingMenu.languages": "Jazyky",
+  "dialogs.recordingMenu.languages": "Jazyk",
   "dialogs.recordingMenu.mainLanguage": "Hlavní jazyk",
   "dialogs.recordingMenu.mainLanguageHint": "Přepsat znovu",
   "dialogs.recordingMenu.secondLanguage": "Druhý jazyk",
