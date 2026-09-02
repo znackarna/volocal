@@ -379,8 +379,11 @@ fn run_diarization(
     stop_if_cancelled(task, recording_id)?;
 
     let mut segments = assign_speakers(segments, &turns);
-    bridge_unknown(&mut segments);
+    /* The language rule runs first now. It moves blocks between voices, and
+    until it has, the neighbours of an unidentified block may not agree — so
+    bridging first left blocks unclaimed that bridging afterwards can close. */
     keep_voices_to_one_language(&mut segments);
+    bridge_unknown(&mut segments);
 
     status(app, recording_id, "saving", 90, step("saving"));
 
@@ -773,8 +776,8 @@ fn run(
             ) {
                 Ok(turns) => {
                     segments = assign_speakers(segments, &turns);
-                    bridge_unknown(&mut segments);
                     keep_voices_to_one_language(&mut segments);
+                    bridge_unknown(&mut segments);
                 }
                 Err(error) => {
                     // Diarization is a bonus. If it fails, the transcript is

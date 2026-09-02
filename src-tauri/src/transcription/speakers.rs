@@ -470,20 +470,39 @@ pub(crate) fn keep_voices_to_one_language(segments: &mut [Segment]) -> usize {
         .collect();
     let mut moved = 0;
     for s in segments.iter_mut() {
-        let Some(voice) = s.speakers.clone() else {
-            continue;
-        };
-        if speaks.get(&voice) == Some(&s.language) {
-            continue;
-        }
-        let nearest = placed
-            .iter()
-            .filter(|(_, other, language)| *other != voice && *language == s.language)
-            .min_by(|a, b| (a.0 - s.start).abs().total_cmp(&(b.0 - s.start).abs()))
-            .map(|(_, other, _)| other.clone());
-        if let Some(other) = nearest {
-            s.speakers = Some(other);
-            moved += 1;
+        match s.speakers.clone() {
+            /* **A block nobody could be recognised in still says who spoke
+            it.** Under 0.8 seconds there is too little voice to ask the model
+            about, so a short remark comes back with no speaker at all — 17 of
+            1 005 blocks on the reference recording, and every one of them made
+            the export print a name twice. On a recording in two languages the
+            language answers it: *Yeah.* is English, and only one person here
+            speaks English. */
+            None => {
+                let nearest = placed
+                    .iter()
+                    .filter(|(_, _, language)| *language == s.language)
+                    .min_by(|a, b| (a.0 - s.start).abs().total_cmp(&(b.0 - s.start).abs()))
+                    .map(|(_, voice, _)| voice.clone());
+                if let Some(voice) = nearest {
+                    s.speakers = Some(voice);
+                    moved += 1;
+                }
+            }
+            Some(voice) => {
+                if speaks.get(&voice) == Some(&s.language) {
+                    continue;
+                }
+                let nearest = placed
+                    .iter()
+                    .filter(|(_, other, language)| *other != voice && *language == s.language)
+                    .min_by(|a, b| (a.0 - s.start).abs().total_cmp(&(b.0 - s.start).abs()))
+                    .map(|(_, other, _)| other.clone());
+                if let Some(other) = nearest {
+                    s.speakers = Some(other);
+                    moved += 1;
+                }
+            }
         }
     }
     moved
@@ -792,6 +811,30 @@ mod language_voice_tests {
                 "prekladatelka"
             ]
         );
+    }
+
+    /// **The seventeen orphans.** Under 0.8 seconds there is too little voice
+    /// to ask the model about, so a short remark comes back with nobody on it
+    /// — and in the export that prints the speaker's name a second time. Its
+    /// language says who said it.
+    #[test]
+    fn a_block_nobody_was_recognised_in_goes_to_the_voice_of_its_language() {
+        let mut blocks = vec![
+            block(600.0, "paul", Some("en")),
+            block(603.0, "prekladatelka", None),
+            block(610.0, "paul", Some("en")),
+            block(613.0, "prekladatelka", None),
+        ];
+        let mut orphan = block(611.0, "paul", Some("en"));
+        orphan.speakers = None;
+        blocks.insert(3, orphan);
+        let mut czech = block(614.0, "prekladatelka", None);
+        czech.speakers = None;
+        blocks.push(czech);
+
+        keep_voices_to_one_language(&mut blocks);
+        assert_eq!(blocks[3].speakers.as_deref(), Some("paul"));
+        assert_eq!(blocks[5].speakers.as_deref(), Some("prekladatelka"));
     }
 
     /// One language — every voice speaks the same one — is left alone. This is

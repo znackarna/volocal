@@ -1555,8 +1555,8 @@ pub(crate) fn fill_with_audio(
         match diarize(settings, check, wav, &segments, task, recording_id, None) {
             Ok(voices) => {
                 segments = assign_speakers(segments, &voices);
-                bridge_unknown(&mut segments);
                 keep_voices_to_one_language(&mut segments);
+                bridge_unknown(&mut segments);
             }
             Err(error) => {
                 crate::note!("second language: the speakers were not told apart: {error}");
