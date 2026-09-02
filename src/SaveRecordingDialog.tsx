@@ -142,7 +142,7 @@ export function SaveRecordingDialog({
             out at once — so the line says that instead. */}
         <InfoNote compact>{t("save.text")}</InfoNote>
 
-        <ul className="save-choices">
+        <ul className="about-panel save-choices">
           {rows.map(([shape, word, note]) => (
             <li key={shape}>
               <label className="save-choice">

@@ -108,7 +108,7 @@ export function ClipSaveDialog({
         </p>
         <InfoNote compact>{t("detail.clip.several")}</InfoNote>
 
-        <ul className="clip-shapes">
+        <ul className="about-panel clip-shapes">
           {SHAPES.map(([shape, word, note]) => (
             <li key={shape}>
               <label className="clip-shape">
