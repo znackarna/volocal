@@ -12,6 +12,7 @@ use std::io::{BufRead, BufReader, Read};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::{Arc, Condvar, Mutex};
+use std::time::Instant;
 use tauri::{AppHandle, Emitter};
 
 use crate::db::{self, Segment, Settings};
@@ -42,7 +43,46 @@ pub struct LiveSegment {
     pub text: String,
 }
 
+/// The phase a run is in and when it began, so the log can say how long each
+/// one really took.
+///
+/// Asked for on 2026-09-02, and the reason is a good one: the question before
+/// a transcription was measured on the bench at six seconds and the reader
+/// watched it for a minute — because the caption over a *fill* says the same
+/// thing, and because a debug build runs the loudness pass eleven times
+/// slower. Nobody should have to argue about that from memory. One run is in
+/// flight at a time, so one slot is enough.
+static PHASE: Mutex<Option<(String, Instant)>> = Mutex::new(None);
+
+/// Writes down how long the phase that has just ended took, and starts the
+/// clock on the next. `None` closes the last one.
+///
+/// Returns what it wrote, which is what the tests read: a phase reported again
+/// is the same phase going on, not a new one, and the percentage inside it
+/// moves several times a second.
+fn phase_clock(now: Option<String>) -> Option<(String, f64)> {
+    let Ok(mut held) = PHASE.lock() else {
+        return None;
+    };
+    let Some((was, began)) = held.take() else {
+        *held = now.map(|code| (code, Instant::now()));
+        return None;
+    };
+    if now.as_deref() == Some(was.as_str()) {
+        *held = Some((was, began));
+        return None;
+    }
+    let took = began.elapsed().as_secs_f64();
+    crate::note!("phase {was} took {took:.1} s");
+    *held = now.map(|code| (code, Instant::now()));
+    Some((was, took))
+}
+
+/// Every phase caption goes through here, which is why the clock lives here
+/// rather than in each pass: a phase nobody reports is a phase nobody waits
+/// through.
 fn status(app: &AppHandle, id: &str, phase: &str, percent: u32, description: UserMessage) {
+    let _ = phase_clock(Some(format!("{phase}/{}", description.code)));
     let _ = app.emit(
         "transcription:status",
         TranscriptionProgress {
@@ -341,6 +381,7 @@ fn run_diarization(
     task: &TranscriptionTask,
     speaker_count: Option<i64>,
 ) -> Reported<usize> {
+    let _phases = PhasesLogged;
     let connection = db::open(db_path)?;
     let mut settings = db::load_settings(&connection)?;
     if let Some(count) = speaker_count {
@@ -477,6 +518,17 @@ fn model_to_record(check: &tools::ToolCheck, settings: &crate::db::Settings) -> 
         .unwrap_or_else(|| settings.model.clone())
 }
 
+/// Closes the last phase in the log however the run ends — finished, failed,
+/// cancelled or panicking. Without it the one phase nobody ever sees the
+/// length of is the one that went wrong.
+pub(crate) struct PhasesLogged;
+
+impl Drop for PhasesLogged {
+    fn drop(&mut self) {
+        phase_clock(None);
+    }
+}
+
 fn run(
     app: &AppHandle,
     db_path: &Path,
@@ -484,6 +536,7 @@ fn run(
     task: &TranscriptionTask,
     speaker_count: Option<i64>,
 ) -> Reported<usize> {
+    let _phases = PhasesLogged;
     // A connection of this thread's own, so the main thread does not wait
     // minutes on the lock.
     let connection = db::open(db_path)?;
@@ -1285,5 +1338,33 @@ mod onset_tests {
         let check = tools::ToolCheck::default();
 
         assert_eq!(model_to_record(&check, &settings), "large-v3");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::phase_clock;
+
+    /// The one test of the phase log, and it is about the thing that would
+    /// make it useless: whisper reports its percentage several times a second
+    /// and every one of those goes through the same funnel. If each restarted
+    /// the clock, every phase in the log would read as a tenth of a second.
+    ///
+    /// One run is in flight at a time and the clock is one slot, so this test
+    /// walks a whole run rather than splitting into several that would share
+    /// it.
+    #[test]
+    fn a_phase_reported_again_is_the_same_phase() {
+        assert_eq!(phase_clock(None), None, "nothing was running");
+        assert_eq!(phase_clock(Some("run/cutting".into())), None);
+        assert_eq!(phase_clock(Some("run/cutting".into())), None);
+        assert_eq!(phase_clock(Some("run/cutting".into())), None);
+
+        let (was, _) = phase_clock(Some("run/transcribing".into())).expect("cutting ended");
+        assert_eq!(was, "run/cutting");
+
+        let (was, _) = phase_clock(None).expect("the run ended");
+        assert_eq!(was, "run/transcribing");
+        assert_eq!(phase_clock(None), None, "and it is closed only once");
     }
 }

@@ -575,7 +575,7 @@ impl Heard {
             task,
             recording_id,
             |done| {
-                say(14 + (10 * done / total) as u32, "second_language.listening");
+                say(14 + (10 * done / total) as u32, "second_language.sorting");
             },
         )?;
         Ok(())
@@ -609,7 +609,7 @@ pub(crate) fn listen_to_pieces(
     let readings = languages_of_files(run, settings, check, &folder, &seed_names, |done| {
         say(
             6 + (8 * done / seeds.len().max(1)) as u32,
-            "second_language.listening",
+            "second_language.sorting",
         );
     })?;
     Ok(Heard {
@@ -1110,7 +1110,7 @@ pub(crate) fn fill_with_audio(
     };
     let duration = samples.len() as f64 / f64::from(rate.max(1));
 
-    say(6, "second_language.listening");
+    say(6, "second_language.sorting");
     // Whatever the question before the transcription already heard is handed
     // over rather than listened to again: the pieces, the voices and the first
     // answers are the same ones.
@@ -1191,7 +1191,7 @@ pub(crate) fn fill_with_audio(
         let more = languages_of_files(&run, settings, check, &heard.folder, &names, |done| {
             say(
                 24 + (6 * done / names.len()) as u32,
-                "second_language.listening",
+                "second_language.sorting",
             );
         })?;
         for (index, reading) in doubtful.iter().zip(more) {
@@ -1476,6 +1476,9 @@ pub fn fill(
         .join(recording_id);
     std::fs::create_dir_all(&working)?;
     let _sweepings = Sweepings(working.clone());
+    // A fill started by hand does not go through `run`, so it brings its own
+    // closing of the phase log.
+    let _phases = super::PhasesLogged;
     status(
         app,
         recording_id,

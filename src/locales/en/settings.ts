@@ -159,7 +159,7 @@ export const enSettings: Partial<Record<keyof typeof csSettings, string>> = {
   "settings.dictionary.saving": "Changes save themselves. An unfinished row is discarded.",
   "settings.secondLanguage.title": "Second-language recognition",
   "settings.secondLanguage.description":
-    "Volocal always looks for a second language. With this on it writes it straight into the transcript; without it, it only offers it.",
+    "Volocal writes the second language into the transcript by itself. Otherwise it only marks it.",
   "settings.speakers.title": "Speaker recognition",
   "settings.speakers.description": "Runs speaker recognition during the first transcription.",
   "settings.backups.title": "Archive backup",

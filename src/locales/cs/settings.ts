@@ -224,7 +224,7 @@ export const csSettings = {
 
   "settings.secondLanguage.title": "Rozlišení druhého jazyka",
   "settings.secondLanguage.description":
-    "Volocal hledá druhý jazyk vždycky. S tímhle ho rovnou doplní do přepisu, jinak ho jen nabídne.",
+    "Volocal automaticky doplní druhý jazyk do přepisu. Jinak ho pouze označí.",
   "settings.speakers.title": "Rozlišení mluvčích",
   "settings.speakers.description":
     "Spouští rozlišení mluvčích během prvního přepisu.",

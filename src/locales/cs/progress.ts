@@ -21,6 +21,7 @@ export const csProgress = {
   "progress.second_language.preparing_audio": "Připravuji zvuk",
   "progress.second_language.cutting": "Rozděluji nahrávku na úseky",
   "progress.second_language.listening": "Hledám druhý jazyk",
+  "progress.second_language.sorting": "Poznávám, kde je který jazyk",
   "progress.second_language.transcribing": "Přepisuji úsek po úseku",
   "progress.second_language.merging": "Skládám přepis dohromady",
   "progress.second_language.done": "Hotovo",
