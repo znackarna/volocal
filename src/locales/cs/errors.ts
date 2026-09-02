@@ -51,6 +51,8 @@ export const csErrors = {
   // Files and recordings.
   "errors.file.not_found": "Soubor neexistuje: {path}",
   "errors.file.write_failed": "Zápis selhal: {detail}",
+  "errors.file.same_file": "Výřez by přepsal samotnou nahrávku. Vyberte jiné místo.",
+  "errors.clip.audio_failed": "Zvuk výřezu se nepodařilo vyříznout: {reason}",
   "errors.recording.path_not_found": "Takový soubor neexistuje.",
   "errors.note.empty": "Poznámka nemůže být prázdná.",
   "errors.note.invalid_time": "Čas poznámky není platný.",

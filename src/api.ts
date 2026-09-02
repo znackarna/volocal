@@ -98,6 +98,30 @@ export const api = {
    *  starts at once and reports like a run. */
   setSecondLanguageChoice: (id: string, language: string) =>
     invoke<void>("set_second_language_choice", { id, language }),
+  /** One stretch of a transcript, as it would be written. `fromZero` moves a
+   *  copy of the blocks so the subtitles start at zero; nothing in the archive
+   *  moves. */
+  clipPreview: (
+    id: string,
+    from: number,
+    to: number,
+    format: string,
+    fromZero: boolean
+  ) => invoke<string>("clip_preview", { id, from, to, format, fromZero }),
+  saveClipText: (
+    id: string,
+    from: number,
+    to: number,
+    format: string,
+    path: string,
+    fromZero: boolean
+  ) => invoke<string>("save_clip_text", { id, from, to, format, path, fromZero }),
+  /** The audio between two instants, re-encoded rather than stream-copied —
+   *  see `tools::cut_arguments` for why that is not a preference. */
+  saveClipAudio: (id: string, from: number, to: number, path: string) =>
+    invoke<string>("save_clip_audio", { id, from, to, path }),
+  suggestedClipName: (id: string, from: number, to: number, format: string) =>
+    invoke<string>("suggested_clip_name", { id, from, to, format }),
   fileExists: (path: string) => invoke<boolean>("file_exists", { path }),
   /** Lets the updater's installer survive this process exiting. */
   letTheInstallerOut: () => invoke<void>("let_the_installer_out"),

@@ -32,6 +32,7 @@ vi.mock("../api", async () => (await import("./screen.fixtures")).apiMock());
 installBrowserStubs();
 
 import { resetScreen, say, show, transcriptShown } from "./screen.harness";
+import { enDomain } from "../locales/en/domain";
 
 /** What the sweep found, as the backend hands it over. */
 const offered = (language = "en") => ({
@@ -58,8 +59,10 @@ describe("a language the transcript is missing", () => {
     await waitFor(() =>
       expect(container.textContent).toContain(say("detail.secondLanguage.fill"))
     );
-    // Named rather than shown as a code: the reader is told what they will get.
-    expect(container.textContent).toContain(say("detail.language.en"));
+    /* Named rather than shown as a code: the reader is told what they will
+       get. From `domain.language`, which names all ninety-nine whisper can
+       hear — the bar kept a list of seven and shouted "CY" for the rest. */
+    expect(container.textContent).toContain(enDomain["domain.language.en"]);
   });
 
   test("says nothing once the reader has already answered", async () => {

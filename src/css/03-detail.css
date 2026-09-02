@@ -227,6 +227,53 @@
 .second-language .button.quiet {
   background: rgb(0 0 0 / 0.18); color: #fff;
 }
+/* A stretch marked to be cut out.
+   The same band and the same 10/18 padding as the missing-language bar above
+   it, and deliberately not its colour: that bar is news the reader is meant to
+   act on, this one is a state they put the screen into and can see the whole
+   time. So it takes the surface the transcript itself sits on, with the accent
+   only on the rule beneath. */
+.clip-bar {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 10px 18px;
+  background: var(--ground);
+  border-bottom: 2px solid var(--accent-solid);
+  font-size: 13px; color: var(--text);
+}
+/* The span is the fact; everything after it is commentary, and reads quieter. */
+.clip-span { font-weight: 700; font-variant-numeric: tabular-nums; }
+.clip-length { font-variant-numeric: tabular-nums; color: var(--text-soft); }
+.clip-hint { flex: 1; min-width: 180px; color: var(--text-soft); }
+
+/* The blocks inside it. A wash rather than a border, because a border on the
+   left is where the speaker's colour already lives. */
+.segment.in-clip {
+  /* `--accent-light` is the application's own eight-percent petrol, defined in
+     01-base.css beside the solid one. `--ds-accent` next door is the grey the
+     name suggests it is not. */
+  background: var(--accent-light);
+  border-radius: 8px;
+}
+
+.clip-dialog { width: 520px; }
+.clip-shapes { display: flex; gap: 8px; flex-wrap: wrap; }
+.clip-zero {
+  display: flex; align-items: center; gap: 8px;
+  margin-top: 14px; font-size: 13.5px; color: var(--text);
+}
+/* The text as it will be written. Small, scrolling, and never taller than a
+   third of the screen: it is there to settle one question — where the times
+   start — not to be read through. */
+.clip-preview {
+  margin-top: 14px;
+  max-height: 34vh; overflow: auto;
+  padding: 12px 14px;
+  background: var(--ground); border-radius: 10px;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 12px; line-height: 1.55; white-space: pre-wrap;
+  color: var(--text-soft);
+}
+
 /* There is no finished state to draw: a fill that is done is said in the
    notice bar like every other confirmation, and this bar simply goes. */
 

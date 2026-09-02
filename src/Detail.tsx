@@ -44,6 +44,9 @@ import { transcriptKey } from "./detail/keys";
 import { TranscriptSearch } from "./detail/TranscriptSearch";
 import { TranscriptTips } from "./detail/TranscriptTips";
 import { SecondLanguageBar } from "./detail/SecondLanguageBar";
+import { ClipBar } from "./detail/ClipBar";
+import { ClipSaveDialog } from "./detail/ClipSaveDialog";
+import { useClipSelection } from "./detail/useClipSelection";
 import { useSecondLanguage } from "./detail/useSecondLanguage";
 import { DetailProgress } from "./detail/DetailProgress";
 import { DetailHeader } from "./detail/DetailHeader";
@@ -265,6 +268,11 @@ export default function Detail({
      nothing at all unless a sweep found one, which on an ordinary recording is
      never. `load` is handed in because filling rewrites every block. */
   const secondLanguage = useSecondLanguage({ recordingId: id, onError, onInfo, reload: load });
+
+  /* One stretch of the transcript, marked to be cut out of it. It draws
+     nothing until the reader starts one, and stores nothing when they are
+     done: the clip is the file that comes out. */
+  const clip = useClipSelection({ segments, playRange });
 
   /* Asked again when a run ends, and it has to be: the sweep is the last thing
      a transcription does, so its answer lands *after* this screen asked once
@@ -765,6 +773,14 @@ export default function Detail({
           two doors to one room. When the run ends the answer is read again,
           and a filled one draws nothing. */}
       {!running && segments.length > 0 && <SecondLanguageBar offer={secondLanguage} />}
+      <ClipBar clip={clip} />
+      <ClipSaveDialog
+        clip={clip}
+        recordingId={id}
+        choose={(name) => save({ defaultPath: name })}
+        onError={(message) => onError(userMessage(message))}
+        onSaved={(path) => onInfo(t("detail.clip.saved", { path }))}
+      />
 
       {/* Only over a transcript: the shortcuts are about reading one. */}
       {segments.length > 0 && <TranscriptTips />}
@@ -823,6 +839,7 @@ export default function Detail({
                   onContextMenu={openTranscriptMenu}
                   find={search.state.needle}
                   foundHere={search.state.hitId === s.id}
+                  inClip={clip.state.inside.has(s.id)}
                 />
               </div>
             );
@@ -991,6 +1008,17 @@ export default function Detail({
               label: t("detail.menu.note", { time: formatTime(transcriptMenu.time) }),
               icon: MENU_ICONS.note,
               action: () => notes.actions.beginAt(transcriptMenu.time),
+            },
+            /* One item that reads as two, because it is one gesture: the first
+               block starts the clip and any later one closes it. Two separate
+               items would have made the reader decide which of them applies
+               before they had a clip at all. */
+            {
+              label: clip.state.active
+                ? t("detail.menu.clipEnd")
+                : t("detail.menu.clipStart"),
+              icon: MENU_ICONS.clip,
+              action: () => clip.actions.beginOrExtend(transcriptMenu.segment),
             },
             /* One question — who said this — and every answer to it in one
                place. The speakers by name, rather than the block above and the

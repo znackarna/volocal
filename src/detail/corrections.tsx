@@ -152,6 +152,7 @@ export const SegmentRow = memo(function SegmentRow({
   time,
   editing,
   color,
+  inClip,
   onSeek,
   onStartUpravu,
   onConfirm,
@@ -165,6 +166,11 @@ export const SegmentRow = memo(function SegmentRow({
   time: number;
   editing: boolean;
   color?: string;
+  /** Inside the stretch marked for a clip. A plain boolean rather than the set
+   *  itself: the row is memoised, and handing it a set would fail the
+   *  comparison on every render and repaint a thousand rows on every tick of
+   *  the clock. */
+  inClip?: boolean;
   /** Already normalised: lower case and stripped of diacritics. */
   find?: string;
   /** This block is the match the reader is standing on. */
@@ -280,7 +286,7 @@ export const SegmentRow = memo(function SegmentRow({
     <div
       className={`segment ${active ? "current" : ""} ${uncertain ? "uncertain" : ""} ${
         foundHere ? "found" : ""
-      }`}
+      } ${inClip ? "in-clip" : ""}`}
       id={`segment-${segment.id}`}
       style={color ? { borderLeftColor: color } : undefined}
       onDoubleClick={() => onStartUpravu(segment)}

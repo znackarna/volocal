@@ -10,32 +10,24 @@
  * from what is in front of them is not a question worth asking.
  */
 import { useI18n } from "../i18n";
+import { useLabels } from "../labels";
 import { LineIcon } from "../icons";
 import type { SecondLanguageOffer } from "./useSecondLanguage";
 
-/** The languages a recording is likely to hold beside Czech, named rather than
- *  shown as a code. A code with no name here is shown as it is, which is worse
- *  but never wrong. */
-const NAMES: Record<string, string> = {
-  // i18n-ignore: language names come from the dictionary through `tDynamic`
-  en: "detail.language.en",
-  de: "detail.language.de",
-  sk: "detail.language.sk",
-  pl: "detail.language.pl",
-  uk: "detail.language.uk",
-  ru: "detail.language.ru",
-  cs: "detail.language.cs",
-};
-
 export function SecondLanguageBar({ offer }: { offer: SecondLanguageOffer }) {
-  const { t, tDynamic } = useI18n();
+  const { t } = useI18n();
+  /* The names the whole application uses, rather than a list of its own. This
+     bar kept seven of them and shouted the bare code for everything else —
+     "V nahrávce se mluví také CY", reported on 2026-09-02 on a recording
+     whisper misheard as Welsh. Whisper can name ninety-nine languages and the
+     dictionary now names all of them; a list here could only fall behind it
+     again. */
+  const labels = useLabels();
   const { state, actions } = offer;
 
   if (!state.offered || !state.found) return null;
 
-  const language = NAMES[state.found.language]
-    ? tDynamic(NAMES[state.found.language], state.found.language)
-    : state.found.language.toUpperCase();
+  const language = labels.language(state.found.language);
 
   return (
     <div className="second-language">

@@ -972,6 +972,64 @@ pub fn convert_to_wav(
     Ok(())
 }
 
+/// The ffmpeg arguments that cut one stretch of audio out of a recording.
+///
+/// **Two things here are not preferences, and the reproduction in `CLAUDE.md`
+/// is why.**
+///
+/// `-ss` and `-to` come *after* `-i`, which makes them output options: ffmpeg
+/// then decodes from the beginning and starts writing at the requested
+/// instant. Put before `-i` they are an input seek, which lands on the nearest
+/// index entry — the same coarse landing that once made a click on `když` play
+/// `zavané` eight seconds later.
+///
+/// And the audio is always re-encoded. A stream copy can only cut on a frame
+/// boundary, so it moves the start by up to a frame's worth and writes the
+/// wrong first syllable. A clip is seconds of work; correctness is worth more
+/// than the copy.
+///
+/// Returned as a list so a test can hold them to it. A comment saying "do not
+/// use -c copy" is not a check.
+pub fn cut_arguments(input: &Path, output: &Path, from: f64, to: f64) -> Vec<String> {
+    let at = |t: f64| format!("{:.3}", t.max(0.0));
+    vec![
+        "-hide_banner".into(),
+        "-loglevel".into(),
+        "error".into(),
+        "-y".into(),
+        "-i".into(),
+        input.to_string_lossy().into_owned(),
+        "-ss".into(),
+        at(from),
+        "-to".into(),
+        at(to),
+        // Audio only: the source may be a video, and a clip is for listening.
+        "-vn".into(),
+        output.to_string_lossy().into_owned(),
+    ]
+}
+
+/// Cuts one stretch of audio into `output`, which the caller has chosen the
+/// extension of — ffmpeg picks the encoder from it.
+pub fn cut_audio(
+    ffmpeg: &Path,
+    input: &Path,
+    output: &Path,
+    from: f64,
+    to: f64,
+    runner: &dyn CommandRunner,
+) -> std::result::Result<(), UserMessage> {
+    let mut program = command(ffmpeg);
+    program.args(cut_arguments(input, output, from, to));
+    let Some((status, stderr)) = runner.run(program)? else {
+        return Err(UserMessage::new("transcription.cancelled"));
+    };
+    if !status.success() {
+        return Err(UserMessage::new("clip.audio_failed").with("reason", stderr));
+    }
+    Ok(())
+}
+
 // ------------------------------------------------------ precise playback
 
 /// Browser media engines seek some long variable-bitrate MP3 files through
@@ -1540,6 +1598,44 @@ mod compute_choice_tests {
 
 #[cfg(test)]
 mod tests {
+    /// **The one test that stands between a clip and the fault in `CLAUDE.md`.**
+    ///
+    /// `-ss` after `-i` is a decoded seek and lands on the instant asked for;
+    /// before `-i` it lands on the nearest index entry, which is how a click on
+    /// one word came to play a sentence eight seconds later. And a stream copy
+    /// cuts only on frame boundaries. Both are one flag away at any time, so
+    /// they are held here as a list rather than described in a comment.
+    #[test]
+    fn a_clip_is_cut_by_decoding_and_never_by_copying() {
+        let arguments =
+            super::cut_arguments(Path::new("in.mp3"), Path::new("out.mp3"), 724.0, 871.25);
+        let at = |flag: &str| arguments.iter().position(|a| a == flag);
+
+        let input = at("-i").expect("the source is given");
+        assert!(
+            at("-ss").expect("a start") > input,
+            "-ss must follow -i: {arguments:?}"
+        );
+        assert!(
+            at("-to").expect("an end") > input,
+            "-to must follow -i: {arguments:?}"
+        );
+        assert!(
+            !arguments.iter().any(|a| a == "copy"),
+            "a clip is re-encoded, never stream-copied: {arguments:?}"
+        );
+        assert_eq!(arguments[at("-ss").unwrap() + 1], "724.000");
+        assert_eq!(arguments[at("-to").unwrap() + 1], "871.250");
+    }
+
+    /// A clip asked for from before the beginning starts at the beginning.
+    #[test]
+    fn a_clip_never_starts_before_the_recording_does() {
+        let arguments = super::cut_arguments(Path::new("in.wav"), Path::new("out.wav"), -3.0, 12.0);
+        let start = arguments.iter().position(|a| a == "-ss").unwrap();
+        assert_eq!(arguments[start + 1], "0.000");
+    }
+
     use super::*;
 
     #[test]

@@ -27,6 +27,8 @@ export const enErrors: Partial<Record<keyof typeof csErrors, string>> = {
   "errors.diarization.audio_unreadable": "The prepared audio could not be read. Try identifying the speakers again.",
   "errors.file.not_found": "The file does not exist: {path}",
   "errors.file.write_failed": "Write failed: {detail}",
+  "errors.file.same_file": "The clip would overwrite the recording itself. Choose another place.",
+  "errors.clip.audio_failed": "The clip's audio could not be cut: {reason}",
   "errors.recording.path_not_found": "No such file exists.",
   "errors.note.empty": "A note cannot be empty.",
   "errors.note.invalid_time": "The note time is not valid.",

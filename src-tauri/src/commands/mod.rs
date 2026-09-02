@@ -7,6 +7,7 @@
 pub mod ai;
 pub mod backups;
 pub mod benchmark;
+pub mod clips;
 pub mod detail;
 pub mod dictionary;
 pub mod downloads;
