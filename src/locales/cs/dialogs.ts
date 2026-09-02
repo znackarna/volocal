@@ -118,7 +118,7 @@ export const csDialogs = {
   "dialogs.recordingMenu.mainLanguage": "Přepsat v jazyce",
   "dialogs.recordingMenu.mainLanguageHint": "Nahradí celý přepis",
   "dialogs.recordingMenu.secondLanguage": "Doplnit druhý jazyk",
-  "dialogs.recordingMenu.secondLanguageHint": "Dopíše, co první přepis vynechal",
+  "dialogs.recordingMenu.secondLanguageHint": "Doplní, co první přepis vynechal",
   "dialogs.recordingMenu.automaticSecondLanguage": "Automatický výběr",
   "dialogs.recordingMenu.noSecondLanguage": "Žádný druhý jazyk",
   "dialogs.recordingMenu.remove": "Odebrat z archivu",
