@@ -211,7 +211,7 @@ pub struct Window {
 }
 
 /// About two seconds, which is where the measurement put the sweet spot.
-const WINDOW: f64 = 2.0;
+pub(crate) const WINDOW: f64 = 2.0;
 
 /// The fewest frames DirectML will run this model's pooling layer on.
 ///
@@ -244,7 +244,7 @@ const HOP: f64 = 1.0;
 /// Under this there is not enough voice to describe. One second reads 80 %
 /// against two seconds' 86 %, so a short block is worth asking about — but only
 /// just, and anything shorter is noise.
-const SHORTEST: f64 = 0.8;
+pub(crate) const SHORTEST: f64 = 0.8;
 
 /// Where to look, taken from the transcript rather than from a second model.
 ///

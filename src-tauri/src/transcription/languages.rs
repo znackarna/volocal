@@ -520,6 +520,92 @@ pub(crate) fn pieces_of_speech(samples: &[i16], rate: u32) -> Vec<(f64, f64)> {
         .collect()
 }
 
+/// One piece in every stretch this long is asked whisper about directly. The
+/// rest are told by their voice, and only a piece whose voice says nothing
+/// clear is asked as well.
+///
+/// **This is the hack, and it is the same one speaker recognition is.** whisper
+/// answers the language of a piece in about eighty milliseconds, whatever the
+/// piece's length, because it runs its whole encoder over a thirty-second
+/// window every time — 1 264 pieces of the reference recording cost 105
+/// seconds, more than the transcription itself. The voice model already on
+/// the disk describes a piece in a few milliseconds, and on an interpreted
+/// recording the voice *is* the language: the guest speaks one, the
+/// interpreter the other. So whisper is asked about one piece in every half
+/// minute — enough to hear every voice several times over — and every other
+/// piece takes the language of the seeds its voice is most like.
+const SEED_EVERY: f64 = 30.0;
+
+/// How many of the nearest seeds a piece's voice is compared with.
+const NEAREST: usize = 7;
+
+/// The share of the nearest seeds' weight one language must hold before the
+/// voice's answer is taken. Below it the voices disagree — a piece at a
+/// handover, a laugh, a voice the seeds never heard — and whisper is asked.
+const AGREEING_SHARE: f32 = 0.8;
+
+/// Fewer seeds than this say nothing about anybody.
+const LEAST_SEEDS: usize = 3;
+
+/// Which pieces are asked whisper about directly: the longest in every
+/// [`SEED_EVERY`] seconds, so that every voice in the recording is heard
+/// several times and a long piece — the surest kind — is what is heard.
+pub(crate) fn seeds_of(pieces: &[(f64, f64)]) -> Vec<usize> {
+    let mut longest: Vec<Option<usize>> = Vec::new();
+    for (index, (from, to)) in pieces.iter().enumerate() {
+        let bucket = (from / SEED_EVERY) as usize;
+        if longest.len() <= bucket {
+            longest.resize(bucket + 1, None);
+        }
+        let better = match longest[bucket] {
+            Some(held) => to - from > pieces[held].1 - pieces[held].0,
+            None => true,
+        };
+        if better {
+            longest[bucket] = Some(index);
+        }
+    }
+    longest.into_iter().flatten().collect()
+}
+
+/// The language a piece's voice says it is in, from the seeds it is most like;
+/// nothing when the voice is not known or the nearest seeds do not agree.
+pub(crate) fn by_voice(
+    prints: &[Option<Vec<f32>>],
+    known: &[(usize, String)],
+    index: usize,
+) -> Option<String> {
+    let print = prints.get(index)?.as_ref()?;
+    let mut nearest: Vec<(f32, &str)> = known
+        .iter()
+        .filter_map(|(seed, language)| {
+            prints
+                .get(*seed)?
+                .as_ref()
+                .map(|other| (crate::voiceprint::alike(print, other), language.as_str()))
+        })
+        .collect();
+    if nearest.len() < LEAST_SEEDS {
+        return None;
+    }
+    nearest.sort_by(|left, right| right.0.total_cmp(&left.0));
+    nearest.truncate(NEAREST);
+    let mut weight: HashMap<&str, f32> = HashMap::new();
+    let mut total = 0.0_f32;
+    for (alike, language) in &nearest {
+        let w = alike.max(0.0);
+        *weight.entry(language).or_default() += w;
+        total += w;
+    }
+    if total <= 0.0 {
+        return None;
+    }
+    let (language, held) = weight
+        .into_iter()
+        .max_by(|left, right| left.1.total_cmp(&right.1).then(right.0.cmp(left.0)))?;
+    (held / total >= AGREEING_SHARE).then(|| language.to_string())
+}
+
 /// The language of each piece, from what the detection said about it.
 ///
 /// Only the recording's own language and the one being filled are possible
@@ -825,13 +911,18 @@ pub(crate) fn own_language_heard(heard: &[Option<(String, f64)>], second: &str) 
 ///
 /// **The pass, in order.** The prepared audio is cut into pieces of speech at
 /// its own silences and each piece cut down until it is short enough to hold
-/// one language; whisper says which language every piece is in, hundreds to a
-/// run; the pieces are joined back into turns of one language; every turn is
+/// one language; the voice says which language each piece is in, and whisper
+/// is asked about a few; the pieces are joined back into turns; every turn is
 /// transcribed in its language, one run for each; a turn whose text gives
 /// away that it was heard in the wrong one is heard again; and the blocks are
-/// put back at their places, cut into sentences, given their speakers and
-/// written in one transaction with the offer's new state — so a failure
-/// anywhere leaves the transcript exactly as it was.
+/// put back at their places, given their speakers and written in one
+/// transaction with the offer's new state — so a failure anywhere leaves the
+/// transcript exactly as it was.
+///
+/// Which language a piece is in is asked of its *voice* first and of whisper
+/// only for the seeds and the doubtful — see [`SEED_EVERY`] for why that is
+/// the difference between a pass that takes as long as a transcription and
+/// one that takes three times as long.
 ///
 /// It replaces the whole transcript rather than adding to it, because the
 /// first transcript is wrong wherever the other language was spoken: whisper
@@ -886,26 +977,28 @@ pub(crate) fn fill_with_audio(
     let piece_names = write_pieces(&pieces_folder, &samples, rate, &pieces)?;
     stop_if_cancelled(task, recording_id)?;
 
-    say(8, "second_language.listening");
-    let heard = languages_of_files(
-        &run,
-        settings,
-        check,
-        &pieces_folder,
-        &piece_names,
-        |done| {
+    say(6, "second_language.listening");
+    // The voice of every piece first — cheap — then whisper about the seeds.
+    let prints = voiceprints_of(check, &samples, rate, &pieces, task, recording_id, |done| {
+        say(
+            6 + (8 * done / pieces.len()) as u32,
+            "second_language.listening",
+        );
+    })?;
+    let seeds = seeds_of(&pieces);
+    let seed_names: Vec<String> = seeds.iter().map(|i| piece_names[*i].clone()).collect();
+    let seed_readings =
+        languages_of_files(&run, settings, check, &pieces_folder, &seed_names, |done| {
             say(
-                8 + (22 * done / pieces.len()) as u32,
+                14 + (8 * done / seeds.len().max(1)) as u32,
                 "second_language.listening",
             );
-        },
-    )?;
-    let _ = std::fs::remove_dir_all(&pieces_folder);
+        })?;
 
-    // The recording's own language: what it says, or what was just heard.
+    // The recording's own language: what it says, or what the seeds said.
     let mut own = crate::ai_edit::effective_language(recording);
     if own.is_empty() || own == "auto" {
-        own = own_language_heard(&heard, &second).unwrap_or_else(|| second.clone());
+        own = own_language_heard(&seed_readings, &second).unwrap_or_else(|| second.clone());
         db::set_language(connection, recording_id, &own)?;
         crate::note!("second language: the recording's own language read as {own}");
     }
@@ -914,7 +1007,70 @@ pub(crate) fn fill_with_audio(
     } else {
         vec![own.as_str(), second.as_str()]
     };
+    let allowed =
+        |code: &str| code.eq_ignore_ascii_case(&own) || code.eq_ignore_ascii_case(&second);
+
+    // Each piece's answer as a reading, so one rule settles what is not known.
+    let mut heard: Vec<Option<(String, f64)>> = vec![None; pieces.len()];
+    let mut how: Vec<&str> = vec!["inherited"; pieces.len()];
+    let mut known: Vec<(usize, String)> = Vec::new();
+    for (seed, reading) in seeds.iter().zip(&seed_readings) {
+        if let Some((code, probability)) = reading {
+            if *probability >= CONFIDENT && allowed(code) {
+                heard[*seed] = Some((code.to_ascii_lowercase(), *probability));
+                how[*seed] = "asked";
+                known.push((*seed, code.to_ascii_lowercase()));
+            }
+        }
+    }
+    let mut doubtful: Vec<usize> = Vec::new();
+    for index in 0..pieces.len() {
+        if heard[index].is_some() {
+            continue;
+        }
+        match by_voice(&prints, &known, index) {
+            Some(language) => {
+                heard[index] = Some((language, 1.0));
+                how[index] = "voice";
+            }
+            None => doubtful.push(index),
+        }
+    }
+    if !doubtful.is_empty() {
+        let names: Vec<String> = doubtful.iter().map(|i| piece_names[*i].clone()).collect();
+        let readings = languages_of_files(&run, settings, check, &pieces_folder, &names, |done| {
+            say(
+                22 + (8 * done / names.len()) as u32,
+                "second_language.listening",
+            );
+        })?;
+        for (index, reading) in doubtful.iter().zip(readings) {
+            if let Some((code, probability)) = reading {
+                if probability >= CONFIDENT && allowed(&code) {
+                    heard[*index] = Some((code.to_ascii_lowercase(), probability));
+                    how[*index] = "asked";
+                }
+            }
+        }
+    }
+    let _ = std::fs::remove_dir_all(&pieces_folder);
+    crate::note!(
+        "second language: {} pieces, {} asked whisper, {} told by the voice",
+        pieces.len(),
+        how.iter().filter(|h| **h == "asked").count(),
+        how.iter().filter(|h| **h == "voice").count()
+    );
     let languages = language_of_each(&heard, &own, &second);
+    // For measuring the voice's answers against whisper's, piece by piece.
+    if let Some(dump) = std::env::var_os("VOLOCAL_LANGUAGE_DUMP") {
+        let rows: Vec<String> = pieces
+            .iter()
+            .zip(&languages)
+            .zip(&how)
+            .map(|(((from, to), language), how)| format!("{from:.3}\t{to:.3}\t{language}\t{how}"))
+            .collect();
+        let _ = std::fs::write(dump, rows.join("\n"));
+    }
     let turns = turns_of(&pieces, &languages);
     crate::note!(
         "second language: {} pieces, {} turns, {} of them in {second}",
@@ -1006,8 +1162,12 @@ pub(crate) fn fill_with_audio(
     let _ = std::fs::remove_dir_all(&turns_folder);
     stop_if_cancelled(task, recording_id)?;
 
-    // Back in place, each language cut into sentences on its own so a sentence
-    // never runs across the change of speaker, then one transcript in time.
+    /* Back in place, and whisper's own blocks are kept as they are. They were
+    cut into sentences here at first, each language on its own — and the
+    sentence rule then joined four Czech turns across the English ones between
+    them into one block sixteen seconds long, which stood in the export before
+    the English that was said inside it. A turn is the unit; nothing joins
+    across it. */
     let mut in_own: Vec<Segment> = Vec::new();
     let mut in_second: Vec<Segment> = Vec::new();
     for (turn, blocks) in heard_turns {
@@ -1021,8 +1181,8 @@ pub(crate) fn fill_with_audio(
             }
         }
     }
-    let mut segments = rebuild_sentences(in_own);
-    let mut added = rebuild_sentences(in_second);
+    let mut segments = in_own;
+    let mut added = in_second;
     let count = added.len();
     segments.append(&mut added);
     segments.sort_by(|left, right| left.start.total_cmp(&right.start));
@@ -1609,6 +1769,71 @@ mod tests {
             own_language_heard(&heard(&[Some(("en", 0.99))]), "en"),
             None
         );
+    }
+
+    // ------------------------------------------------- the voice as the language
+
+    #[test]
+    fn one_seed_a_half_minute_and_the_longest_piece_is_it() {
+        let pieces = vec![
+            (0.0, 2.0),
+            (3.0, 6.5),
+            (10.0, 11.0),
+            (31.0, 33.0),
+            (40.0, 41.0),
+            (95.0, 97.0),
+        ];
+        assert_eq!(seeds_of(&pieces), vec![1, 3, 5]);
+    }
+
+    fn print(x: f32, y: f32) -> Option<Vec<f32>> {
+        Some(vec![x, y])
+    }
+
+    fn voices() -> Vec<Option<Vec<f32>>> {
+        vec![
+            print(1.0, 0.0),   // 0 guest
+            print(0.9, 0.1),   // 1 guest
+            print(0.95, 0.05), // 2 guest
+            print(0.0, 1.0),   // 3 interpreter
+            print(0.1, 0.9),   // 4 interpreter
+            print(0.05, 0.95), // 5 interpreter
+            print(0.85, 0.15), // 6 unknown, sounds like the guest
+            print(0.7, 0.7),   // 7 unknown, halfway between
+            None,              // 8 too short to describe
+        ]
+    }
+
+    fn seeds() -> Vec<(usize, String)> {
+        vec![
+            (0, "en".into()),
+            (1, "en".into()),
+            (2, "en".into()),
+            (3, "cs".into()),
+            (4, "cs".into()),
+            (5, "cs".into()),
+        ]
+    }
+
+    /// **The hack.** A piece that sounds like the guest is in the guest's
+    /// language, and whisper was never asked about it.
+    #[test]
+    fn a_piece_takes_the_language_of_the_voices_it_is_most_like() {
+        assert_eq!(by_voice(&voices(), &seeds(), 6).as_deref(), Some("en"));
+    }
+
+    /// Halfway between two voices, the nearest seeds split, and the voice says
+    /// nothing: that piece is asked whisper about.
+    #[test]
+    fn a_voice_between_two_others_says_nothing() {
+        assert_eq!(by_voice(&voices(), &seeds(), 7), None);
+    }
+
+    /// No print, or too few seeds to compare with, is nothing as well.
+    #[test]
+    fn a_piece_with_no_voice_or_too_few_seeds_is_not_answered() {
+        assert_eq!(by_voice(&voices(), &seeds(), 8), None);
+        assert_eq!(by_voice(&voices(), &seeds()[..2], 6), None);
     }
 
     // ------------------------------------------------ pieces back into turns

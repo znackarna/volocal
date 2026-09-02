@@ -199,6 +199,77 @@ pub(crate) fn diarize(
         .collect())
 }
 
+/// One voiceprint for each span of speech, from the two seconds at its middle.
+///
+/// For the multilingual pass, which asks the voice which language a piece is
+/// in — see `languages::by_voice`. One window a span rather than the
+/// overlapping walk [`diarize`] does: a piece is a few seconds, and one answer
+/// for it is all that is asked. A span too short to describe a voice from is
+/// answered with nothing, and so is every span when the speaker model is not
+/// installed or will not open; the caller then asks whisper instead, which is
+/// slower and never wrong for want of a model.
+///
+/// `progress` is told how many spans have been described so far, every so
+/// often: the arithmetic is the slow half in a debug build.
+pub(crate) fn voiceprints_of(
+    check: &tools::ToolCheck,
+    samples: &[i16],
+    rate: u32,
+    spans: &[(f64, f64)],
+    task: &TranscriptionTask,
+    recording_id: &str,
+    mut progress: impl FnMut(usize),
+) -> Reported<Vec<Option<Vec<f32>>>> {
+    let mut prints: Vec<Option<Vec<f32>>> = vec![None; spans.len()];
+    let Some(model) = check.embedding_model.as_ref() else {
+        return Ok(prints);
+    };
+    let mut heard = Vec::new();
+    let mut owners = Vec::new();
+    for (index, (from, to)) in spans.iter().enumerate() {
+        if index % 200 == 0 {
+            stop_if_cancelled(task, recording_id)?;
+            progress(index);
+        }
+        if to - from < crate::voiceprint::SHORTEST {
+            continue;
+        }
+        let middle = (from + to) / 2.0;
+        let start = (middle - crate::voiceprint::WINDOW / 2.0).max(*from);
+        let end = (start + crate::voiceprint::WINDOW).min(*to);
+        let (first, last) =
+            crate::voiceprint::enough_audio(start, end, f64::from(rate), samples.len());
+        if last <= first {
+            continue;
+        }
+        let piece: Vec<f32> = samples[first..last]
+            .iter()
+            .map(|value| f32::from(*value) / 32768.0)
+            .collect();
+        if let Some(features) = crate::voiceprint::features(&piece) {
+            heard.push(features);
+            owners.push(index);
+        }
+    }
+    if heard.is_empty() {
+        return Ok(prints);
+    }
+    stop_if_cancelled(task, recording_id)?;
+    let embedded = crate::voiceprint::Voices::open(Path::new(model))
+        .and_then(|mut voices| voices.embed(&heard));
+    match embedded {
+        Ok(embedded) => {
+            for (owner, print) in owners.into_iter().zip(embedded) {
+                prints[owner] = Some(print);
+            }
+        }
+        Err(error) => {
+            crate::note!("speaker model {model} did not describe the pieces: {error:#}");
+        }
+    }
+    Ok(prints)
+}
+
 /// How much speech inside one sentence has to belong to the second speaker for
 /// the change to count as a real handover rather than an inexact boundary.
 ///
