@@ -88,6 +88,27 @@ export function selectedSegmentIds(): string[] {
   return touched;
 }
 
+/** The two ends of a passage, from the block ids a selection touched.
+ *
+ * The clip's own knowledge, not the screen's: which blocks those ids are, in
+ * which order, and whether there is a passage there at all. It stood inside the
+ * transcript screen's JSX as a function called where it was written, which is
+ * where a feature starts moving back into the screen it was kept out of.
+ *
+ * `null` when the selection touched nothing that is a block, or when the
+ * transcript has changed under it since the menu opened.
+ */
+export function endsOfSelection(
+  segments: Segment[],
+  ids: string[]
+): [Segment, Segment] | null {
+  const touched = ids
+    .map((id) => segments.find((s) => s.id === id))
+    .filter((s): s is Segment => s !== undefined)
+    .sort((a, b) => a.start - b.start);
+  return touched.length > 0 ? [touched[0], touched[touched.length - 1]] : null;
+}
+
 /** Saving one passage in every shape that was ticked.
  *
  * Several shapes go to a folder and take their suggested names; a single one
