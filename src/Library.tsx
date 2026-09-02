@@ -1282,10 +1282,17 @@ function Row({
           if (name !== recording.title) onRename(name);
         }}
       />
+      {/* Shut only while there is nothing behind it. A first transcription
+          has nothing to open until its blocks start arriving, and an empty
+          screen reads as a fault. But a recording that already holds a
+          transcript is being *added to* — filling another language, separating
+          speakers, transcribing again — and the reader wants to watch it
+          happen. Reported on 2026-09-02: after starting a fill, the only way
+          back to the transcript was the mouse's back button. */}
       <button
         className="row-main"
         onClick={onOpen}
-        disabled={running && !liveSegments.length}
+        disabled={running && !liveSegments.length && !recording.segment_count}
       >
         <RecordingCalendar value={recording.created_at} />
         <span className="row-text">
