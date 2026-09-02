@@ -34,7 +34,7 @@ pub fn refuse_second_language(app: State<'_, AppState>, id: String) -> Reported<
     let db = app.db.lock().unwrap();
     // The standing choice goes with it, or the next transcription would write
     // in the very language the reader has just declined.
-    reported(db::set_second_language_choice(&db, &id, ""))?;
+    reported(db::set_second_language_choice(&db, &id, "", true))?;
     reported(db::set_second_language_state(
         &db,
         &id,
@@ -75,7 +75,7 @@ pub async fn set_second_language_choice(
         {
             return Err(UserMessage::new("second_language.same_as_first"));
         }
-        reported(db::set_second_language_choice(&db, &id, chosen))?;
+        reported(db::set_second_language_choice(&db, &id, chosen, true))?;
         let has_transcript = recording.status == db::status::DONE && recording.segment_count > 0;
         if !chosen.is_empty() && !has_transcript {
             /* Named before there is a transcript — the ordinary way to say it,

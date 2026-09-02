@@ -172,7 +172,7 @@ export default function Detail({
     drawnBlocks,
   });
   const { time, isPlaying, isCurrentRecording, trackDuration, waveform, active } = playback.state;
-  const { seek, updateCursor, playFrom, togglePlayback } = playback.actions;
+  const { seek, updateCursor, playFrom, playRange, togglePlayback } = playback.actions;
 
   /** The strip of shortcuts under the player. Useful the first few times and
    *  then just a line of text in the way, so it is dismissed here — and brought
@@ -240,15 +240,20 @@ export default function Detail({
   /* An interjection is clicked in order to *hear* it — a third of a second of
      text says nothing about whose voice it is. Same reasoning as a note's time
      chip, and the opposite of `goTo`, which stays quiet because stepping
-     through uncertain spots is reading. */
+     through uncertain spots is reading.
+
+     **And it stops at the end of that place.** The question being answered is
+     *is this word right*, which the next sentence does not help with; letting
+     the recording run on means reaching for pause before the next one can be
+     checked. Asked for on 2026-09-02. */
   const hear = useCallback(
     (segment: Segment) => {
       document
         .getElementById(`segment-${segment.id}`)
         ?.scrollIntoView({ behavior: "smooth", block: "center" });
-      playFrom(segment.start);
+      playRange(segment.start, segment.end);
     },
-    [playFrom]
+    [playRange]
   );
 
   /* Finding a word in this transcript. The whole of it — the bar, the hits and

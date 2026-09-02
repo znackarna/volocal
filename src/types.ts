@@ -56,6 +56,10 @@ export interface Recording {
    *  means nobody said so. When set, every transcription writes that language
    *  in at the end without asking. */
   second_language_choice: string;
+  /** Whether the language above was named by the reader or left there by a
+   *  fill. A reader's naming is followed however the settings stand; a fill's
+   *  memory only while automatic filling is on. */
+  second_language_by_reader: boolean;
   /** The language actually written into the transcript beside its own, once a
    *  fill has run. Null until then — what is in the text, not what was asked. */
   second_language: string | null;

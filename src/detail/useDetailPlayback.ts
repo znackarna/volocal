@@ -56,6 +56,9 @@ export interface DetailPlayback {
     seek: (time: number) => void;
     /** Moves and makes sure the audio is running. */
     playFrom: (time: number) => void;
+    /** Plays one stretch and stops at the end of it. What a place put up for
+     *  checking asks for: hear *this*, not the rest of the recording. */
+    playRange: (from: number, to: number) => void;
     togglePlayback: () => void;
   };
 }
@@ -140,10 +143,42 @@ export function useDetailPlayback({
     }
   }, []);
 
-  const seek = useCallback((t: number) => seekTo(t), [seekTo]);
-  const updateCursor = useCallback((t: number) => seekTo(t, true), [seekTo]);
+  /* Where a stretch that is playing on its own should stop, and the frame
+     watch that stops it.
 
-  const playFrom = useCallback((t: number) => {
+     **The clock is watched rather than a timer set.** The reader can change
+     the speed or drag the slider while the stretch runs, and a timer started
+     at the click would then cut in the wrong place. `readTime` is the one
+     reading that costs no render, which is why the loop may run every frame.
+
+     The watch is dropped the moment the reader asks the screen for another
+     moment — a word, the slider, the play button — so a stop never lands on
+     playback it was not set for. */
+  const stopAt = useRef<number | null>(null);
+  const watching = useRef(0);
+
+  const stopWatching = useCallback(() => {
+    stopAt.current = null;
+    if (watching.current) cancelAnimationFrame(watching.current);
+    watching.current = 0;
+  }, []);
+
+  const seek = useCallback(
+    (t: number) => {
+      stopWatching();
+      seekTo(t);
+    },
+    [seekTo, stopWatching]
+  );
+  const updateCursor = useCallback(
+    (t: number) => {
+      stopWatching();
+      seekTo(t, true);
+    },
+    [seekTo, stopWatching]
+  );
+
+  const startPlaying = useCallback((t: number) => {
     const s = current.current;
     if (s.isCurrentRecording) {
       s.player.seek(t);
@@ -155,11 +190,46 @@ export function useDetailPlayback({
     }
   }, []);
 
+  const playFrom = useCallback(
+    (t: number) => {
+      stopWatching();
+      startPlaying(t);
+    },
+    [startPlaying, stopWatching]
+  );
+
+  const playRange = useCallback(
+    (from: number, to: number) => {
+      stopWatching();
+      startPlaying(from);
+      if (!current.current.path || !(to > from)) return;
+      stopAt.current = to;
+      const watch = () => {
+        const s = current.current;
+        const end = stopAt.current;
+        if (end == null) return;
+        // Playback moved to another recording: this stop is no longer about
+        // anything on this screen.
+        if (!s.isCurrentRecording) return stopWatching();
+        if (s.player.readTime() >= end) {
+          if (s.player.isPlaying) s.player.togglePlayback();
+          return stopWatching();
+        }
+        watching.current = requestAnimationFrame(watch);
+      };
+      watching.current = requestAnimationFrame(watch);
+    },
+    [startPlaying, stopWatching]
+  );
+
+  useEffect(() => stopWatching, [stopWatching]);
+
   const togglePlayback = useCallback(() => {
+    stopWatching();
     const s = current.current;
     if (s.isCurrentRecording) s.player.togglePlayback();
     else if (s.path) s.player.start(s.id, s.path, s.title, s.duration, s.localTime);
-  }, []);
+  }, [stopWatching]);
 
   /* Jump to the spot this screen was opened for, coming from search.
 
@@ -238,6 +308,6 @@ export function useDetailPlayback({
 
   return {
     state: { isCurrentRecording, time, isPlaying, trackDuration, waveform, active, listRef },
-    actions: { updateCursor, seek, playFrom, togglePlayback },
+    actions: { updateCursor, seek, playFrom, playRange, togglePlayback },
   };
 }

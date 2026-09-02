@@ -709,6 +709,30 @@ pub(crate) fn two_languages_heard(
     }
 }
 
+/// The second language a fresh transcription should be written in from its
+/// first second, if any — the reader's naming, or a language an earlier fill
+/// left behind.
+///
+/// **Whose language it is decides whether the switch can stop it.** One the
+/// reader named on this recording is an instruction and holds however the
+/// settings stand. One a fill wrote down is a convenience, remembered only
+/// while automatic filling is on; the reader who switches that off is asking
+/// to be asked, and a recording filled last week may not go on answering for
+/// them.
+///
+/// Both were the same value until 2026-09-02, which is how a recording came
+/// back in English the afternoon automatic filling was switched off.
+pub(crate) fn bilingual_from_the_start(
+    recording: &db::Recording,
+    fills_by_itself: bool,
+) -> Option<String> {
+    if !recording.second_language_by_reader && !fills_by_itself {
+        return None;
+    }
+    let named = recording.second_language_choice.trim().to_ascii_lowercase();
+    (!named.is_empty()).then_some(named)
+}
+
 /// One turn of speech: one voice, one language, and the boundary it really has.
 ///
 /// `from` and `to` are the turn itself. whisper is handed a little more than
@@ -1398,9 +1422,11 @@ pub(crate) fn fill_with_audio(
         // is what `set_second_language_state` is for and where that stamp is
         // written everywhere else.
         db::set_second_language_state(connection, recording_id, db::second_language_state::FILLED)?;
-        // From now on the recording is bilingual, and says so itself.
+        // From now on the recording is bilingual, and says so itself — as the
+        // fill's memory, not as the reader's instruction, so switching
+        // automatic filling off is enough to stop it happening again.
         if recording.second_language_choice.trim().is_empty() && own != second {
-            db::set_second_language_choice(connection, recording_id, &second)?;
+            db::set_second_language_choice(connection, recording_id, &second, false)?;
         }
         Ok(())
     })();
@@ -1484,6 +1510,66 @@ pub fn fill(
 
 #[cfg(test)]
 mod tests {
+    use super::bilingual_from_the_start;
+
+    fn recording(second: &str, by_reader: bool) -> crate::db::Recording {
+        crate::db::Recording {
+            id: "recording".into(),
+            path: "x.wav".into(),
+            title: "x".into(),
+            duration: 1.0,
+            created_at: "2026-09-02".into(),
+            status: crate::db::status::DONE.into(),
+            model: String::new(),
+            language: "cs".into(),
+            language_choice: String::new(),
+            second_language_choice: second.into(),
+            second_language_by_reader: by_reader,
+            error: None,
+            segment_count: 0,
+            folder: None,
+            source_url: None,
+            second_language: None,
+            second_language_missing: None,
+        }
+    }
+
+    /// What the reader saw on 2026-09-02: automatic filling switched off, and
+    /// a recording filled the day before came back in English anyway.
+    #[test]
+    fn a_fill_is_not_remembered_once_the_reader_switches_filling_off() {
+        assert_eq!(
+            bilingual_from_the_start(&recording("en", false), false),
+            None
+        );
+    }
+
+    #[test]
+    fn a_fill_is_remembered_while_filling_is_on() {
+        assert_eq!(
+            bilingual_from_the_start(&recording("en", false), true).as_deref(),
+            Some("en")
+        );
+    }
+
+    /// A language the reader named on this recording is an instruction about
+    /// it, and the settings do not overrule an instruction.
+    #[test]
+    fn what_the_reader_named_holds_whichever_way_the_switch_stands() {
+        for switch in [true, false] {
+            assert_eq!(
+                bilingual_from_the_start(&recording("EN ", true), switch).as_deref(),
+                Some("en"),
+                "the reader named it and the switch was {switch}"
+            );
+        }
+    }
+
+    #[test]
+    fn no_language_named_is_no_shortcut() {
+        assert_eq!(bilingual_from_the_start(&recording("  ", true), true), None);
+    }
+
     use super::*;
 
     // ------------------------------------------- cutting speech into pieces

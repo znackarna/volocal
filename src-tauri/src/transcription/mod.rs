@@ -597,9 +597,18 @@ fn run(
 
     Asked for on 2026-09-02, the morning the pass was rebuilt: a transcript
     that was once bilingual has to come back bilingual without being asked,
-    and without the two minutes of a pass nobody will read. */
-    let named = recording.second_language_choice.trim().to_ascii_lowercase();
-    if !named.is_empty() {
+    and without the two minutes of a pass nobody will read.
+
+    **Whose language it is decides whether the switch can stop it.** One the
+    reader named is an instruction about this recording and is followed either
+    way; one a fill left behind is remembered only while automatic filling is
+    on. Both were the same value until 2026-09-02, so a recording filled once
+    came back bilingual for ever — which is what the reader saw the afternoon
+    they switched automatic filling off and got an English transcript
+    anyway. */
+    if let Some(named) =
+        languages::bilingual_from_the_start(&recording, settings.detect_second_language)
+    {
         let written = languages::fill_with_audio(
             app,
             &connection,
@@ -671,7 +680,7 @@ fn run(
                 // next transcription of it is bilingual from its first second,
                 // and its own so the archive card says what it is in.
                 db::set_language(&connection, recording_id, &own)?;
-                db::set_second_language_choice(&connection, recording_id, &second)?;
+                db::set_second_language_choice(&connection, recording_id, &second, false)?;
                 let fresh = db::recording(&connection, recording_id)?;
                 let written = languages::fill_with_audio(
                     app,

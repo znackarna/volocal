@@ -64,6 +64,11 @@ pub struct Recording {
     /// the answer is already known. A standing fact about the recording, like
     /// `language_choice`, and kept beside it for the same reason.
     pub second_language_choice: String,
+    /// Whether the second language above was named by the reader or written
+    /// there by a fill. Both used to look the same, and a recording filled
+    /// once then came back bilingual for ever — including with automatic
+    /// filling switched off, which is the one thing that switch promises.
+    pub second_language_by_reader: bool,
     pub error: Option<String>,
     pub segment_count: i64,
     /// The folder holding this recording; `None` is the archive's root.
@@ -946,7 +951,11 @@ pub fn open(path: &std::path::Path) -> Result<Connection> {
             source_url      TEXT,
             -- A second language the reader says the recording holds. Empty is
             -- nobody said so, which is every recording written before this.
-            second_language_choice TEXT NOT NULL DEFAULT ''
+            second_language_choice TEXT NOT NULL DEFAULT '',
+            -- Who put that language there: the reader, or a fill. A reader's
+            -- naming holds whatever the settings say; a fill's memory only
+            -- while automatic filling is on.
+            second_language_by_reader INTEGER NOT NULL DEFAULT 1
         );
 
         CREATE TABLE IF NOT EXISTS folders (
@@ -1375,6 +1384,15 @@ fn migrate_legacy_schema(db: &Connection) {
         "ALTER TABLE recordings ADD COLUMN second_language_choice TEXT NOT NULL DEFAULT ''",
         [],
     );
+    /* Who named it. Every archive from before this column says *the reader*,
+    which is the kinder of the two readings: a language sitting on a recording
+    goes on being honoured rather than quietly stopping. The only rows that
+    were in fact written by a fill are the ones from the two days this feature
+    has existed, and the reader can clear any of them from the menu. */
+    let _ = db.execute(
+        "ALTER TABLE recordings ADD COLUMN second_language_by_reader INTEGER NOT NULL DEFAULT 1",
+        [],
+    );
 }
 
 /// Earlier versions hard-coded Czech as the default language, so Whisper
@@ -1597,12 +1615,23 @@ pub fn set_model(db: &Connection, id: &str, model: &str) -> Result<()> {
 }
 
 /// Language the user requested for one particular recording.
-/// Writes down a second language the reader says the recording holds, or
-/// forgets it when `language` is empty.
-pub fn set_second_language_choice(db: &Connection, id: &str, language: &str) -> Result<()> {
+/// Writes down a second language the recording holds, or forgets it when
+/// `language` is empty.
+///
+/// **`by_reader` is the whole point of the column beside it.** A language the
+/// reader named is an instruction about that recording and holds however the
+/// settings stand; one a fill wrote down is a convenience, and a convenience
+/// stops when the reader switches automatic filling off.
+pub fn set_second_language_choice(
+    db: &Connection,
+    id: &str,
+    language: &str,
+    by_reader: bool,
+) -> Result<()> {
     db.execute(
-        "UPDATE recordings SET second_language_choice = ?2 WHERE id = ?1",
-        params![id, language.trim().to_ascii_lowercase()],
+        "UPDATE recordings SET second_language_choice = ?2, second_language_by_reader = ?3
+          WHERE id = ?1",
+        params![id, language.trim().to_ascii_lowercase(), by_reader],
     )?;
     Ok(())
 }
@@ -1641,6 +1670,7 @@ fn recording_from_row(r: &rusqlite::Row) -> rusqlite::Result<Recording> {
         second_language_choice: r.get(13).unwrap_or_default(),
         second_language: r.get(14).unwrap_or_default(),
         second_language_missing: r.get(15).unwrap_or_default(),
+        second_language_by_reader: r.get(16).unwrap_or(true),
     })
 }
 
@@ -1651,7 +1681,8 @@ const RECORDING_SELECT_SQL: &str =
         (SELECT sl.language FROM second_language sl
           WHERE sl.recording_id = n.id AND sl.state = 'filled'),
         (SELECT sl.language FROM second_language sl
-          WHERE sl.recording_id = n.id AND sl.state = 'offered')
+          WHERE sl.recording_id = n.id AND sl.state = 'offered'),
+        n.second_language_by_reader
      FROM recordings n";
 
 /// Every recording in the archive, and **a row that cannot be read is shown as
@@ -1701,6 +1732,7 @@ pub fn list_recordings(db: &Connection) -> Result<Vec<Recording>> {
                 language: String::new(),
                 language_choice: String::new(),
                 second_language_choice: String::new(),
+                second_language_by_reader: true,
                 second_language: None,
                 second_language_missing: None,
                 error: Some(
@@ -2950,6 +2982,7 @@ mod tests {
                 language: "cs".into(),
                 language_choice: String::new(),
                 second_language_choice: String::new(),
+                second_language_by_reader: true,
                 error: None,
                 segment_count: 0,
                 folder: None,
@@ -3520,6 +3553,7 @@ mod tests {
                     language: String::new(),
                     language_choice: String::new(),
                     second_language_choice: String::new(),
+                    second_language_by_reader: true,
                     second_language: None,
                     second_language_missing: None,
                     error: None,
@@ -3588,6 +3622,7 @@ mod tests {
                 language: String::new(),
                 language_choice: String::new(),
                 second_language_choice: String::new(),
+                second_language_by_reader: true,
                 second_language: None,
                 second_language_missing: None,
                 error: None,
@@ -3658,6 +3693,7 @@ mod tests {
                 language: String::new(),
                 language_choice: String::new(),
                 second_language_choice: String::new(),
+                second_language_by_reader: true,
                 second_language: None,
                 second_language_missing: None,
                 error: None,
