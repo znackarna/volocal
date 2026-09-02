@@ -595,6 +595,80 @@ fn run(
         return Ok(written.blocks);
     }
 
+    /* **The question is asked before the transcript, not after it.** Until
+    today a recording with detection switched on was transcribed whole in one
+    language, then swept, then transcribed again in two — and the first
+    transcript, minutes of work, was thrown away unread. The voices answer it
+    for the price of a few questions to whisper, so the recording goes down one
+    road or the other and never both.
+
+    A failure to ask is not a failure to transcribe: the ordinary pass below
+    still runs, and the recording is then simply a recording in one language. */
+    if settings.detect_second_language {
+        status(
+            app,
+            recording_id,
+            "second_language",
+            2,
+            step("second_language.listening"),
+        );
+        let asking = Run {
+            app,
+            recording_id,
+            task,
+        };
+        let found = languages::two_languages_heard(
+            &asking,
+            &settings,
+            &check,
+            &wav,
+            &working_directory,
+            &|percent, code| status(app, recording_id, "second_language", percent, step(code)),
+        );
+        stop_if_cancelled(task, recording_id)?;
+        match found {
+            Ok(Some((own, second))) => {
+                // Both go on the recording: the second language so that the
+                // next transcription of it is bilingual from its first second,
+                // and its own so the archive card says what it is in.
+                db::set_language(&connection, recording_id, &own)?;
+                db::set_second_language_choice(&connection, recording_id, &second)?;
+                db::save_second_language(
+                    &connection,
+                    &db::SecondLanguage {
+                        recording_id: recording_id.to_string(),
+                        language: second.clone(),
+                        share: 0.0,
+                        state: db::second_language_state::OFFERED.to_string(),
+                        filled_at: None,
+                    },
+                )?;
+                let fresh = db::recording(&connection, recording_id)?;
+                let written = languages::fill_with_audio(
+                    app,
+                    &connection,
+                    &check,
+                    &settings,
+                    &fresh,
+                    &second,
+                    &wav,
+                    &working_directory,
+                    task,
+                )?;
+                let _ = std::fs::remove_dir_all(&working_directory);
+                return Ok(written.blocks);
+            }
+            Ok(None) => {
+                if let Err(error) = db::clear_second_language(&connection, recording_id) {
+                    crate::note!("second language: the old offer could not be cleared: {error}");
+                }
+            }
+            Err(error) => {
+                crate::note!("second language: could not be asked about beforehand: {error}");
+            }
+        }
+    }
+
     status(
         app,
         recording_id,
@@ -635,11 +709,6 @@ fn run(
     if let Some(j) = &detected {
         db::set_language(&connection, recording_id, j)?;
     }
-    /* What the transcript is actually in, which is the only thing the sweep for
-    a second language can compare against. On `auto` the setting says nothing,
-    so whisper's own answer is taken where there is one and the requested
-    language stands in where there is not. */
-    let language_written = detected.unwrap_or_else(|| language.clone());
     let mut segments = load_segments_from_json(&json_file, recording_id).map_err(|error| {
         // Report what whisper actually left behind; otherwise this is guesswork
         let remaining_files: Vec<String> = std::fs::read_dir(&working_directory)
@@ -794,50 +863,7 @@ fn run(
     The offer is written afresh every run, so a refusal recorded against a
     transcript that has since been replaced is not carried over — a new text
     is a new question. */
-    if settings.detect_second_language {
-        /* Switched on means *do it*, not *ask me*. The first run with detection
-        on found the language and then stood there offering to write it in,
-        and the owner's answer was that he had switched it on precisely so
-        that he would not have to press anything. So a language the sweep
-        finds is written in here, the same way a named one is; the offer with
-        a button remains only for a sweep run by hand over an older
-        transcript, where nobody is watching a run finish. */
-        let heard = db::segments(&connection, recording_id).unwrap_or_default();
-        let sweep = languages::sweep(&check, &wav, &language_written, &heard, recording_id, task);
-        match &sweep {
-            Some(found) => {
-                if let Err(error) = db::save_second_language(&connection, found) {
-                    crate::note!("second language: the sweep could not be recorded: {error}");
-                } else {
-                    let fresh = db::recording(&connection, recording_id)?;
-                    if let Err(error) = without_panicking(|| {
-                        languages::fill_with_audio(
-                            app,
-                            &connection,
-                            &check,
-                            &settings,
-                            &fresh,
-                            &found.language,
-                            &wav,
-                            &working_directory,
-                            task,
-                        )
-                        .map(|written| written.in_second)
-                    }) {
-                        crate::note!(
-                            "second language: filling {} failed: {error}",
-                            found.language
-                        );
-                    }
-                }
-            }
-            None => {
-                if let Err(error) = db::clear_second_language(&connection, recording_id) {
-                    crate::note!("second language: the old offer could not be cleared: {error}");
-                }
-            }
-        }
-    } else if let Err(error) = db::clear_second_language(&connection, recording_id) {
+    if let Err(error) = db::clear_second_language(&connection, recording_id) {
         crate::note!("second language: the old offer could not be cleared: {error}");
     }
 

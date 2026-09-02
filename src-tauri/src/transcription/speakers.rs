@@ -270,6 +270,125 @@ pub(crate) fn voiceprints_of(
     Ok(prints)
 }
 
+/// How often the voice is looked at when finding where speech changes hands.
+///
+/// Every 0.4 seconds. The window itself is [`crate::voiceprint::WINDOW`] — two
+/// seconds — so consecutive readings overlap heavily and a handover shows as a
+/// dip rather than as a step; this is the resolution of the dip, not of the
+/// window.
+const LISTEN_EVERY: f64 = 0.4;
+
+/// How many readings either side of a moment are averaged before the two sides
+/// are compared. Fewer is sharper and noisier, more is steadier and later.
+const NEIGHBOURS: usize = 3;
+
+/// Below this the two sides of a moment are two people.
+///
+/// The voice model's own [`crate::voiceprint::SAME_VOICE`] is 0.25 and answers
+/// a different question — whether two *clean* windows are one person. Here both
+/// sides of the moment are averages of windows that each straddle the handover
+/// to some degree, so the two sides are alike even when the speakers are not,
+/// and the line has to sit higher.
+const A_DIFFERENT_VOICE: f32 = 0.62;
+
+/// No two handovers closer together than this: below it there is not enough
+/// speech either side to have been a turn.
+const SHORTEST_TURN: f64 = 0.7;
+
+/// Where to listen along a stretch of speech: a window every [`LISTEN_EVERY`],
+/// each one [`crate::voiceprint::WINDOW`] long and centred on its moment.
+pub(crate) fn listening_walk(regions: &[(f64, f64)]) -> Vec<(usize, f64)> {
+    let half = crate::voiceprint::WINDOW / 2.0;
+    let mut walk = Vec::new();
+    for (index, (from, to)) in regions.iter().enumerate() {
+        if to - from < crate::voiceprint::SHORTEST {
+            continue;
+        }
+        let mut at = from + half.min((to - from) / 2.0);
+        let last = to - half.min((to - from) / 2.0);
+        loop {
+            walk.push((index, at));
+            if at >= last - 1e-9 {
+                break;
+            }
+            at = (at + LISTEN_EVERY).min(last);
+        }
+    }
+    walk
+}
+
+/// The middle of some voiceprints, scaled back to length one.
+pub(crate) fn middle_of(prints: &[&[f32]]) -> Option<Vec<f32>> {
+    let width = prints.first()?.len();
+    let mut sum = vec![0.0f32; width];
+    for print in prints {
+        for (slot, value) in sum.iter_mut().zip(print.iter()) {
+            *slot += value;
+        }
+    }
+    let length = sum.iter().map(|v| v * v).sum::<f32>().sqrt();
+    if length <= f32::EPSILON {
+        return None;
+    }
+    for slot in sum.iter_mut() {
+        *slot /= length;
+    }
+    Some(sum)
+}
+
+/// The moments inside one stretch where speech changes hands.
+///
+/// **Clustering the windows is not enough, and that is the point of this.** A
+/// window laid across a handover holds both people, so its print is a blend and
+/// the label it is given is a coin toss — the same defect one storey up from
+/// the one this replaces. What is not a blend is the *difference* between what
+/// came before a moment and what comes after it: at a handover the two sides
+/// are two people, and the likeness between them dips. The moment is the bottom
+/// of the dip.
+///
+/// `walk` is the times, `prints` what was heard at each; the two run together
+/// and a moment nobody could be described at breaks the run rather than
+/// pretending.
+pub(crate) fn handovers(walk: &[f64], prints: &[Option<Vec<f32>>]) -> Vec<f64> {
+    let mut scores: Vec<(f64, f32)> = Vec::new();
+    for at in NEIGHBOURS..walk.len().saturating_sub(NEIGHBOURS) {
+        let before: Vec<&[f32]> = prints[at - NEIGHBOURS..at]
+            .iter()
+            .filter_map(|p| p.as_deref())
+            .collect();
+        let after: Vec<&[f32]> = prints[at..at + NEIGHBOURS]
+            .iter()
+            .filter_map(|p| p.as_deref())
+            .collect();
+        if before.len() < NEIGHBOURS || after.len() < NEIGHBOURS {
+            continue;
+        }
+        let (Some(left), Some(right)) = (middle_of(&before), middle_of(&after)) else {
+            continue;
+        };
+        scores.push((walk[at], crate::voiceprint::alike(&left, &right)));
+    }
+
+    // The bottom of each dip, and never two closer than a turn: of two moments
+    // inside SHORTEST_TURN the less alike one is the handover and the other is
+    // its shoulder.
+    let mut found: Vec<(f64, f32)> = Vec::new();
+    for (at, score) in scores.iter().copied() {
+        if score >= A_DIFFERENT_VOICE {
+            continue;
+        }
+        match found.last_mut() {
+            Some(last) if at - last.0 < SHORTEST_TURN => {
+                if score < last.1 {
+                    *last = (at, score);
+                }
+            }
+            _ => found.push((at, score)),
+        }
+    }
+    found.into_iter().map(|(at, _)| at).collect()
+}
+
 /// How much speech inside one sentence has to belong to the second speaker for
 /// the change to count as a real handover rather than an inexact boundary.
 ///
