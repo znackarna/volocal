@@ -12,6 +12,7 @@ use std::io::{BufRead, BufReader, Read};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::{Arc, Condvar, Mutex};
+use std::time::Instant;
 use tauri::{AppHandle, Emitter};
 
 use crate::db::{self, Segment, Settings};
@@ -42,7 +43,54 @@ pub struct LiveSegment {
     pub text: String,
 }
 
+/// The phase a run is in and when it began, so the log can say how long each
+/// one really took.
+///
+/// Asked for on 2026-09-02, and the reason is a good one: the question before
+/// a transcription was measured on the bench at six seconds and the reader
+/// watched it for a minute — because the caption over a *fill* says the same
+/// thing, and because a debug build runs the loudness pass eleven times
+/// slower. Nobody should have to argue about that from memory. One run is in
+/// flight at a time, so one slot is enough.
+static PHASE: Mutex<Option<(String, Instant)>> = Mutex::new(None);
+
+/// Writes down how long the phase that has just ended took, and starts the
+/// clock on the next. `None` closes the last one.
+///
+/// Returns what it wrote, which is what the tests read: a phase reported again
+/// is the same phase going on, not a new one, and the percentage inside it
+/// moves several times a second.
+fn phase_clock(now: Option<String>) -> Option<(String, f64)> {
+    let Ok(mut held) = PHASE.lock() else {
+        return None;
+    };
+    let Some((was, began)) = held.take() else {
+        *held = now.map(|code| (code, Instant::now()));
+        return None;
+    };
+    if now.as_deref() == Some(was.as_str()) {
+        *held = Some((was, began));
+        return None;
+    }
+    let took = began.elapsed().as_secs_f64();
+    crate::note!("phase {was} took {took:.1} s");
+    *held = now.map(|code| (code, Instant::now()));
+    Some((was, took))
+}
+
+/// How a run says it is over. These are not phases and nothing is waited
+/// through in them; reported as one, the clock would run from the end of a run
+/// to the start of the next and write down the idle time in between. It did:
+/// `phase complete/diarization.complete took 221.3 s`, in the first log that
+/// had the timings in it at all.
+const ENDINGS: [&str; 3] = ["complete", "error", "cancelled"];
+
+/// Every phase caption goes through here, which is why the clock lives here
+/// rather than in each pass: a phase nobody reports is a phase nobody waits
+/// through.
 fn status(app: &AppHandle, id: &str, phase: &str, percent: u32, description: UserMessage) {
+    let _ =
+        phase_clock((!ENDINGS.contains(&phase)).then(|| format!("{phase}/{}", description.code)));
     let _ = app.emit(
         "transcription:status",
         TranscriptionProgress {
@@ -71,7 +119,11 @@ fn overall_transcription_percent(whisper_percent: u32) -> u32 {
 }
 
 mod jobs;
+mod languages;
 mod speakers;
+
+/// Transcribing the second language and merging it into the transcript.
+pub use languages::fill as fill_second_language_in;
 mod text;
 mod whisper;
 
@@ -89,9 +141,24 @@ pub(crate) use whisper::*;
 /// the worst way for this application to fail, because the person watching
 /// has nothing to report but "it does not work". A panic is still a bug, but
 /// now it is a visible one.
-fn without_panicking<F>(work: F) -> Reported<usize>
+/// A working directory that is removed however its owner leaves.
+///
+/// The multilingual pass cuts up to two and a half thousand pieces of audio
+/// into `%TEMP%`, about eighty megabytes for a long recording. The cleanup used
+/// to sit after the work, which is exactly where an error or a cancellation
+/// never reaches — both return through `?` — and a panic reaches nothing at
+/// all. As a guard it runs on all three.
+pub(crate) struct Sweepings(pub(crate) PathBuf);
+
+impl Drop for Sweepings {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
+pub(crate) fn without_panicking<T, F>(work: F) -> Reported<T>
 where
-    F: FnOnce() -> Reported<usize>,
+    F: FnOnce() -> Reported<T>,
 {
     match std::panic::catch_unwind(std::panic::AssertUnwindSafe(work)) {
         Ok(result) => result,
@@ -104,6 +171,26 @@ where
             crate::note!("worker thread panicked: {text}");
             Err(UserMessage::new("unknown").detail(text))
         }
+    }
+}
+
+/// Says on the row itself that this recording is working, from the moment it
+/// joins the queue.
+///
+/// **The archive draws a run from the status, not from the events.** A
+/// recording waiting its turn was emitting `queued` — which the transcript
+/// screen showed in its bubble — while its row in the archive sat there
+/// looking untouched, because the status still said the run had not begun.
+/// Reported on 2026-09-02: *to čekání ve frontě je jen na bublině v detailu*.
+///
+/// Both ways out put the status back: a cancelled run restores it, and a
+/// finished one writes what it finished as.
+fn mark_as_working(db_path: &Path, recording_id: &str) {
+    match db::open(db_path) {
+        Ok(connection) => {
+            let _ = db::set_status(&connection, recording_id, db::status::TRANSCRIBING, None);
+        }
+        Err(error) => crate::note!("queued but not marked as working: {error}"),
     }
 }
 
@@ -122,6 +209,7 @@ pub fn start_in_thread(
     // for a waiting recording as well as for a working one.
     let waiting = task.enqueue(&recording_id);
     task.begin(&recording_id);
+    mark_as_working(&db_path, &recording_id);
     if waiting {
         status(
             &app,
@@ -144,11 +232,27 @@ pub fn start_in_thread(
         task.cleanup(&recording_id);
 
         if cancelled {
-            // Cancelling is not a failure; the recording reverts to its
-            // initial state.
+            /* **Cancelling is not a failure, and it is not a deletion
+            either.** This used to throw the segments away and set the row to
+            `new` whatever was there — so stopping a *second* transcription of
+            a recording destroyed the first one, which nobody asked to lose.
+            Worse, a click landing just after the run committed took the fresh
+            transcript with it.
+
+            What the archive holds at this moment decides. A transcript there
+            is a transcript worth keeping, whether it is the old one this run
+            never replaced or the new one it had just finished writing; only a
+            recording left with nothing goes back to `new`. */
             if let Some(s) = &connection {
-                let _ = db::delete_segments(s, &recording_id);
-                let _ = db::set_status(s, &recording_id, db::status::NEW, None);
+                let kept = db::recording(s, &recording_id)
+                    .map(|recording| recording.segment_count > 0)
+                    .unwrap_or(false);
+                if kept {
+                    let _ = db::set_status(s, &recording_id, db::status::DONE, None);
+                } else {
+                    let _ = db::delete_segments(s, &recording_id);
+                    let _ = db::set_status(s, &recording_id, db::status::NEW, None);
+                }
             }
             status(
                 &app,
@@ -220,6 +324,7 @@ pub fn start_diarization_in_thread(
     // machine, so it stands in the same queue rather than beside it.
     let waiting = task.enqueue(&recording_id);
     task.begin(&recording_id);
+    mark_as_working(&db_path, &recording_id);
     if waiting {
         status(
             &app,
@@ -306,6 +411,7 @@ fn run_diarization(
     task: &TranscriptionTask,
     speaker_count: Option<i64>,
 ) -> Reported<usize> {
+    let _phases = PhasesLogged;
     let connection = db::open(db_path)?;
     let mut settings = db::load_settings(&connection)?;
     if let Some(count) = speaker_count {
@@ -314,7 +420,13 @@ fn run_diarization(
     let recording = db::recording(&connection, recording_id)?;
 
     let check = tools::check(&settings);
-    if let Some(issue) = check.issues_diarization.first() {
+    // One speaker is answered without the model, so a missing one is not a
+    // reason to refuse the work.
+    if let Some(issue) = check
+        .issues_diarization
+        .first()
+        .filter(|_| settings.speaker_count != 1)
+    {
         return Err(issue.clone());
     }
     let ffmpeg = check
@@ -370,6 +482,10 @@ fn run_diarization(
     stop_if_cancelled(task, recording_id)?;
 
     let mut segments = assign_speakers(segments, &turns);
+    /* The language rule runs first now. It moves blocks between voices, and
+    until it has, the neighbours of an unidentified block may not agree — so
+    bridging first left blocks unclaimed that bridging afterwards can close. */
+    keep_voices_to_one_language(&mut segments);
     bridge_unknown(&mut segments);
 
     status(app, recording_id, "saving", 90, step("saving"));
@@ -438,6 +554,17 @@ fn model_to_record(check: &tools::ToolCheck, settings: &crate::db::Settings) -> 
         .unwrap_or_else(|| settings.model.clone())
 }
 
+/// Closes the last phase in the log however the run ends — finished, failed,
+/// cancelled or panicking. Without it the one phase nobody ever sees the
+/// length of is the one that went wrong.
+pub(crate) struct PhasesLogged;
+
+impl Drop for PhasesLogged {
+    fn drop(&mut self) {
+        phase_clock(None);
+    }
+}
+
 fn run(
     app: &AppHandle,
     db_path: &Path,
@@ -445,6 +572,7 @@ fn run(
     task: &TranscriptionTask,
     speaker_count: Option<i64>,
 ) -> Reported<usize> {
+    let _phases = PhasesLogged;
     // A connection of this thread's own, so the main thread does not wait
     // minutes on the lock.
     let connection = db::open(db_path)?;
@@ -494,6 +622,7 @@ fn run(
 
     let working_directory = std::env::temp_dir().join("whisp").join(recording_id);
     std::fs::create_dir_all(&working_directory)?;
+    let _sweepings = Sweepings(working_directory.clone());
     let wav = working_directory.join("zvuk.wav");
 
     let runner = JobRunner { task, recording_id };
@@ -547,6 +676,143 @@ fn run(
     // arrived during preparation is how `Zrušit` used to look like it did
     // nothing at all: the request was noted and the run went on for minutes.
     stop_if_cancelled(task, recording_id)?;
+
+    /* **A recording in two languages is transcribed in two from the start.**
+    The second language on its row — named by the reader, or written there by
+    the fill that once found it — means the single-language pass would only
+    be thrown away and replaced. So it is skipped: the multilingual pass does
+    the whole transcript, speakers and all, and writes it itself. Its failure
+    is the run's here, because there is no other transcript to fall back on.
+
+    Asked for on 2026-09-02, the morning the pass was rebuilt: a transcript
+    that was once bilingual has to come back bilingual without being asked,
+    and without the two minutes of a pass nobody will read.
+
+    **Whose language it is decides whether the switch can stop it.** One the
+    reader named is an instruction about this recording and is followed either
+    way; one a fill left behind is remembered only while automatic filling is
+    on. Both were the same value until 2026-09-02, so a recording filled once
+    came back bilingual for ever — which is what the reader saw the afternoon
+    they switched automatic filling off and got an English transcript
+    anyway. */
+    if let Some(named) =
+        languages::bilingual_from_the_start(&recording, settings.detect_second_language)
+    {
+        let written = languages::fill_with_audio(
+            app,
+            &connection,
+            &check,
+            &settings,
+            &recording,
+            &named,
+            &wav,
+            &working_directory,
+            task,
+        )?;
+        return Ok(written.blocks);
+    }
+
+    /* **The question is asked before the transcript, not after it.** Until
+    today a recording with detection switched on was transcribed whole in one
+    language, then swept, then transcribed again in two — and the first
+    transcript, minutes of work, was thrown away unread. The voices answer it
+    for the price of a few questions to whisper, so the recording goes down one
+    road or the other and never both.
+
+    A failure to ask is not a failure to transcribe: the ordinary pass below
+    still runs, and the recording is then simply a recording in one language.
+
+    **The question is always asked; the setting says what to do with the
+    answer.** Those are two different things and one switch used to decide
+    both, so with it off a recording where half the speech is in another
+    language came back looking complete and said nothing. Asking costs two
+    seconds on a short recording and six on a forty-seven-minute one — a
+    tenth of the transcription it precedes, against silently losing half of
+    it. What the setting decides is whether a second language is written in
+    on the spot or only pointed out. */
+    let mut noticed: Option<String> = None;
+    let mut overheard: Option<String> = None;
+    {
+        /* **Its own phase name, not the fill's.** The window drops a report
+        that would move a run backwards, and the order it goes by had
+        `second_language` last, because until today the only second-language
+        work happened after the transcript was saved. The question put in
+        front of the transcript therefore parked the caption on *Hledám druhý
+        jazyk* and every later report — the transcription, the saving — was
+        thrown away as a step back. Reported on 2026-09-02: the caption said
+        it was still looking while the words were already arriving. */
+        status(
+            app,
+            recording_id,
+            "second_language_question",
+            2,
+            step("second_language.listening"),
+        );
+        let asking = Run {
+            app,
+            recording_id,
+            task,
+        };
+        let found = languages::two_languages_heard(
+            &asking,
+            &settings,
+            &check,
+            &wav,
+            &working_directory,
+            &|percent, code| {
+                status(
+                    app,
+                    recording_id,
+                    "second_language_question",
+                    percent,
+                    step(code),
+                )
+            },
+        );
+        stop_if_cancelled(task, recording_id)?;
+        let found = found.inspect(|heard| overheard = heard.own.clone());
+        match found.map(|heard| heard.own.zip(heard.second)) {
+            Ok(Some((own, second))) if !settings.detect_second_language => {
+                /* Heard, but not written in: the reader has said they would
+                rather be asked. The transcript below runs as usual and the
+                offer is put down after it is saved — an offer against a
+                transcript that failed to arrive would be a bar on an empty
+                screen. */
+                db::set_language(&connection, recording_id, &own)?;
+                crate::note!("second language: {second} is here; the reader will be asked");
+                noticed = Some(second);
+            }
+            Ok(Some((own, second))) => {
+                // Both go on the recording: the second language so that the
+                // next transcription of it is bilingual from its first second,
+                // and its own so the archive card says what it is in.
+                db::set_language(&connection, recording_id, &own)?;
+                db::set_second_language_choice(&connection, recording_id, &second, false)?;
+                let fresh = db::recording(&connection, recording_id)?;
+                let written = languages::fill_with_audio(
+                    app,
+                    &connection,
+                    &check,
+                    &settings,
+                    &fresh,
+                    &second,
+                    &wav,
+                    &working_directory,
+                    task,
+                )?;
+                return Ok(written.blocks);
+            }
+            Ok(None) => {
+                if let Err(error) = db::clear_second_language(&connection, recording_id) {
+                    crate::note!("second language: the old offer could not be cleared: {error}");
+                }
+            }
+            Err(error) => {
+                crate::note!("second language: could not be asked about beforehand: {error}");
+            }
+        }
+    }
+
     status(
         app,
         recording_id,
@@ -557,11 +823,31 @@ fn run(
 
     let prefix = working_directory.join("vystup");
 
-    // A per-recording choice beats the global setting.
-    let language = if recording.language_choice.is_empty() {
-        settings.language.clone()
-    } else {
+    /* A per-recording choice beats the global setting — and where neither
+    names a language, what the question just heard beats leaving it to
+    whisper.
+
+    **Whisper decides the language of a whole recording from its first half
+    minute.** The question has just listened to forty-odd samples spread over
+    the whole of it, so it holds the better evidence by construction: on a
+    European Parliament debate whose speakers are English throughout, the
+    samples said English twenty-seven times and whisper, left on `auto`, wrote
+    the transcript in French. Reported on 2026-09-02.
+
+    Only where nobody asked for a language. `auto` stays the answer when the
+    question heard nothing it was sure of. */
+    let language = if !recording.language_choice.is_empty() {
         recording.language_choice.clone()
+    } else if settings.language == "auto" {
+        match &overheard {
+            Some(heard) => {
+                crate::note!("language: transcribing as {heard}, heard across the recording");
+                heard.clone()
+            }
+            None => settings.language.clone(),
+        }
+    } else {
+        settings.language.clone()
     };
 
     let run = Run {
@@ -569,12 +855,23 @@ fn run(
         recording_id,
         task,
     };
-    start_whisper(&run, &settings, &language, &check, &wav, &prefix)?;
+    start_whisper(
+        &run,
+        &settings,
+        &Ask {
+            language: &language,
+            max_context: CONTEXT_FOR_A_RUN,
+        },
+        &check,
+        &wav,
+        &prefix,
+    )?;
 
     let json_file = prefix.with_extension("json");
     // With automatic detection the real language is only known from the output.
-    if let Some(j) = language_from_json(&json_file) {
-        db::set_language(&connection, recording_id, &j)?;
+    let detected = language_from_json(&json_file);
+    if let Some(j) = &detected {
+        db::set_language(&connection, recording_id, j)?;
     }
     let mut segments = load_segments_from_json(&json_file, recording_id).map_err(|error| {
         // Report what whisper actually left behind; otherwise this is guesswork
@@ -610,7 +907,13 @@ fn run(
 
     // ---------------------------------------------------------- diarisation
     if settings.diarization {
-        if let Some(issue) = check.issues_diarization.first() {
+        // As in `run_diarization`: told there is one speaker, nothing is
+        // listened to, so nothing is missing.
+        if let Some(issue) = check
+            .issues_diarization
+            .first()
+            .filter(|_| settings.speaker_count != 1)
+        {
             status(
                 app,
                 recording_id,
@@ -638,6 +941,7 @@ fn run(
             ) {
                 Ok(turns) => {
                     segments = assign_speakers(segments, &turns);
+                    keep_voices_to_one_language(&mut segments);
                     bridge_unknown(&mut segments);
                 }
                 Err(error) => {
@@ -708,7 +1012,42 @@ fn run(
     }
     connection.execute_batch("COMMIT")?;
 
-    let _ = std::fs::remove_dir_all(&working_directory);
+    /* **Does this recording hold a language the transcript does not?**
+    whisper is given one language for the whole file, so a recording where
+    two people speak two languages comes back as one of them with the other
+    silently absent — and the text still looks complete, which is worse than
+    a visible failure. A recording with the language already on its row never
+    reaches this point — see the multilingual branch above the
+    single-language pass. What arrives here is a recording nobody has named a
+    second language for, with detection switched on: a short sweep listens
+    for one, and a language it finds is written in and stays on the row, so
+    the next run is bilingual from the start. `languages.rs` carries the
+    measurements.
+
+    After the commit rather than inside it, and its failure is not the run's:
+    a finished, saved transcript must never be held up or rolled back over a
+    question about it. Before the working directory goes, because the 16 kHz
+    copy whisper was given is in there and re-decoding the audio to ask would
+    cost more than the asking.
+
+    The offer is written afresh every run, so a refusal recorded against a
+    transcript that has since been replaced is not carried over — a new text
+    is a new question. */
+    let offer = noticed.map(|language| db::SecondLanguage {
+        recording_id: recording_id.to_string(),
+        language,
+        share: 0.0,
+        state: db::second_language_state::OFFERED.to_string(),
+        filled_at: None,
+    });
+    let recorded = match &offer {
+        Some(offer) => db::save_second_language(&connection, offer),
+        None => db::clear_second_language(&connection, recording_id),
+    };
+    if let Err(error) = recorded {
+        crate::note!("second language: the offer could not be written: {error}");
+    }
+
     Ok(segments.len())
 }
 
@@ -935,6 +1274,7 @@ mod onset_tests {
             verified: false,
             original: None,
             words: Some(serde_json::to_string(&list).unwrap()),
+            language: None,
         }
     }
 
@@ -1078,5 +1418,46 @@ mod onset_tests {
         let check = tools::ToolCheck::default();
 
         assert_eq!(model_to_record(&check, &settings), "large-v3");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::phase_clock;
+
+    /// The one test of the phase log, and it is about the thing that would
+    /// make it useless: whisper reports its percentage several times a second
+    /// and every one of those goes through the same funnel. If each restarted
+    /// the clock, every phase in the log would read as a tenth of a second.
+    ///
+    /// One run is in flight at a time and the clock is one slot, so this test
+    /// walks a whole run rather than splitting into several that would share
+    /// it.
+    #[test]
+    fn a_phase_reported_again_is_the_same_phase() {
+        assert_eq!(phase_clock(None), None, "nothing was running");
+        assert_eq!(phase_clock(Some("run/cutting".into())), None);
+        assert_eq!(phase_clock(Some("run/cutting".into())), None);
+        assert_eq!(phase_clock(Some("run/cutting".into())), None);
+
+        let (was, _) = phase_clock(Some("run/transcribing".into())).expect("cutting ended");
+        assert_eq!(was, "run/cutting");
+
+        let (was, _) = phase_clock(None).expect("the run ended");
+        assert_eq!(was, "run/transcribing");
+        assert_eq!(phase_clock(None), None, "and it is closed only once");
+    }
+
+    /// `complete` arrives after the run has already let go of its clock, so
+    /// timing it measured the wait until the next recording started.
+    #[test]
+    fn an_ending_is_not_a_phase() {
+        for ending in super::ENDINGS {
+            assert!(
+                !ending.contains('.'),
+                "{ending} is a phase name, not a message code"
+            );
+        }
+        assert!(super::ENDINGS.contains(&"complete"));
     }
 }

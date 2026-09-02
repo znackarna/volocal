@@ -45,6 +45,10 @@ export function recording(over: Partial<Recording> = {}): Recording {
     segment_count: 4,
     folder: null,
     source_url: null,
+    second_language_choice: "",
+  second_language_by_reader: true,
+    second_language: null,
+  second_language_missing: null,
     ...over,
   };
 }
@@ -60,6 +64,7 @@ export function toolCheck(over: Partial<ToolCheck> = {}): ToolCheck {
     embedding_model: "cam.onnx",
     editor_cli: "llama.exe",
     editor_server: "llama-server.exe",
+    detect_second_language: false,
     editor_model: "model.gguf",
     editor_model_id: "editor",
     portable: false,
@@ -194,6 +199,11 @@ export const api = {
   aiEditStatus: () =>
     Promise.resolve({ document: null, outputs: [], custom: [], running: false, progress: null }),
   fileExists: () => Promise.resolve(true),
+  /* Asked by the transcript screen the moment it opens. Nothing found is the
+     ordinary answer, and it is the only one these tests want: the shell's own
+     behaviour has nothing to do with what language a recording is in. */
+  secondLanguage: () => Promise.resolve(null),
+  setSecondLanguageChoice: vi.fn(),
 };
 
 /** Call from inside `vi.mock("../api", ...)`. */

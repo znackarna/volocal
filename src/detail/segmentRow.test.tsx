@@ -22,6 +22,7 @@ function block(words: Array<[number, string]>): Segment {
     verified: false,
     words: JSON.stringify(words.map(([t, s]) => ({ t, s }))),
     original: null,
+  language: null,
   };
 }
 

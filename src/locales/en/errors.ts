@@ -27,6 +27,8 @@ export const enErrors: Partial<Record<keyof typeof csErrors, string>> = {
   "errors.diarization.audio_unreadable": "The prepared audio could not be read. Try identifying the speakers again.",
   "errors.file.not_found": "The file does not exist: {path}",
   "errors.file.write_failed": "Write failed: {detail}",
+  "errors.file.same_file": "The clip would overwrite the recording itself. Choose another place.",
+  "errors.clip.audio_failed": "The clip's audio could not be cut: {reason}",
   "errors.recording.path_not_found": "No such file exists.",
   "errors.note.empty": "A note cannot be empty.",
   "errors.note.invalid_time": "The note time is not valid.",
@@ -54,6 +56,14 @@ export const enErrors: Partial<Record<keyof typeof csErrors, string>> = {
   "errors.update.install_failed": "The update could not be made ready to install. Please try again.",
   "errors.playback.ffmpeg_missing": "ffmpeg is missing, so precise MP3 playback cannot be prepared.",
   "errors.playback.source_missing": "The audio file is no longer where it was.",
+  "errors.second_language.no_transcript":
+    "This recording has no transcript yet, so there is nothing to compare languages against.",
+  "errors.second_language.interrupted": "Writing the other language in was interrupted.",
+  "errors.second_language.same_as_first":
+    "The second language has to differ from the one the recording is transcribed in.",
+  "errors.second_language.none_found": "We did not hear another language in this recording.",
+  "errors.second_language.nothing_offered":
+    "No second language was found in this recording.",
   "errors.playback.conversion_failed": "Could not prepare precise playback: {reason}",
   "errors.playback.preparation_interrupted": "Playback preparation failed: {detail}",
   "errors.online_import.already_running": "An online import is already running",

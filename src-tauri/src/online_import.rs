@@ -424,6 +424,10 @@ pub fn import(
         model: String::new(),
         language: String::new(),
         language_choice: String::new(),
+        second_language_choice: String::new(),
+        second_language_by_reader: false,
+        second_language: None,
+        second_language_missing: None,
         error: None,
         segment_count: 0,
         // Everything arriving from outside lands in the archive's root; a

@@ -30,6 +30,7 @@ export function toolCheck(over: Partial<ToolCheck> = {}): ToolCheck {
     embedding_model: "cam.onnx",
     editor_cli: "llama.exe",
     editor_server: "llama-server.exe",
+    detect_second_language: false,
     editor_model: "model.gguf",
     editor_model_id: "editor",
     portable: false,

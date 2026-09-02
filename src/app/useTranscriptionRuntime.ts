@@ -48,9 +48,18 @@ const PHASE_ORDER = [
   "queued",
   "preparation",
   "playback",
+  // The question put in front of the transcript. It shares its captions with
+  // the fill and shared its phase name too, until that parked the caption on
+  // "looking for a second language" for the whole of the transcription: the
+  // fill's name sits at the end of this list, so everything after the question
+  // read as a step backwards and was dropped.
+  "second_language_question",
   "transcription",
   "diarization",
   "saving",
+  // Written in after the transcript is saved, so it comes after `saving`: a
+  // report from it must not be dropped as a step backwards.
+  "second_language",
 ];
 
 /** Phases that end a run. After one of them anything may follow — a new run

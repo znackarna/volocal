@@ -8,6 +8,7 @@ import { recorderTime, useRecorder, useSpectrum } from "./recorder";
 import type { RecorderPhase } from "./recorder";
 import { useDialog } from "./useDialog";
 import { useI18n } from "./i18n";
+import { DiscardIcon } from "./detail/documents";
 import type { TranslationKey } from "./i18n";
 import { useProgressMessage, useUserMessage } from "./messages";
 import type { DownloadProgress, Recording, UserMessage } from "./types";
@@ -707,12 +708,17 @@ function MicrophoneView({
                 away exactly as `discard` does — same `discardTake`, so no
                 rescue is left behind — and also lets the device go, which
                 closing the window should do anyway. */}
-            <button className="button quiet"
+            {/* Throwing away a recording that was just made is the same act
+                as throwing away the language model's document, so it wears the
+                same clothes: the bin, and the red that says this one does not
+                come back. */}
+            <button className="button quiet danger"
                     onClick={() => {
                       recorder.releaseMicrophone();
                       onClose();
                     }}
                     disabled={phase === "saving"}>
+              <DiscardIcon />
               {t("dialogs.addRecording.micDiscard")}
             </button>
             <button className="button" onClick={() => void save(false)}

@@ -10,6 +10,7 @@ import type {
   Recording,
   RecordingNote,
   SearchResult,
+  SecondLanguage,
   Settings,
   Speaker,
   ToolCheck,
@@ -78,6 +79,37 @@ export const api = {
   updateRecordingNote: (id: string, time: number | null, text: string, done: boolean) =>
     invoke<void>("update_recording_note", { id, time, text, done }),
   deleteRecordingNote: (id: string) => invoke<void>("delete_recording_note", { id }),
+  /** A second language in this recording, when a sweep found one. Null is the
+   *  ordinary answer and the screen shows nothing for it. */
+  secondLanguage: (id: string) =>
+    invoke<SecondLanguage | null>("second_language", { id }),
+  /** The reader said no. Remembered, so the offer does not come back — and a
+   *  fresh transcription writes a fresh offer over it. */
+  refuseSecondLanguage: (id: string) =>
+    invoke<void>("refuse_second_language", { id }),
+  /** Writes the second language into a transcript that is already stored.
+   *  Answers with how many blocks it added. Progress arrives on
+   *  `transcription:status` under the `second_language` phase. */
+  fillSecondLanguage: (id: string) =>
+    invoke<number>("fill_second_language", { id }),
+  /** The reader names a second language the recording holds — or, with an
+   *  empty string, says it holds none. Written on the recording, so every later
+   *  transcription fills it in without asking; on a finished transcript the fill
+   *  starts at once and reports like a run. */
+  setSecondLanguageChoice: (id: string, language: string) =>
+    invoke<void>("set_second_language_choice", { id, language }),
+  /** One stretch of a transcript. Subtitles are written from zero, because
+   *  they go under the piece of audio cut out beside them; text and Markdown
+   *  keep the recording's own clock, because a quotation is worth more when it
+   *  still points at where it came from. Nothing in the archive moves. */
+  saveClipText: (id: string, from: number, to: number, format: string, path: string) =>
+    invoke<string>("save_clip_text", { id, from, to, format, path }),
+  /** The audio between two instants, re-encoded rather than stream-copied —
+   *  see `tools::cut_arguments` for why that is not a preference. */
+  saveClipAudio: (id: string, from: number, to: number, path: string) =>
+    invoke<string>("save_clip_audio", { id, from, to, path }),
+  suggestedClipName: (id: string, from: number, to: number, format: string) =>
+    invoke<string>("suggested_clip_name", { id, from, to, format }),
   fileExists: (path: string) => invoke<boolean>("file_exists", { path }),
   /** Lets the updater's installer survive this process exiting. */
   letTheInstallerOut: () => invoke<void>("let_the_installer_out"),

@@ -52,6 +52,22 @@ export interface Recording {
    *  known — a file opened from the disk never had one, and an online import
    *  made before the archive stored it no longer has one. */
   source_url: string | null;
+  /** A second language the reader says this recording holds, as a code. Empty
+   *  means nobody said so. When set, every transcription writes that language
+   *  in at the end without asking. */
+  second_language_choice: string;
+  /** Whether the language above was named by the reader or left there by a
+   *  fill. A reader's naming is followed however the settings stand; a fill's
+   *  memory only while automatic filling is on. */
+  second_language_by_reader: boolean;
+  /** The language actually written into the transcript beside its own, once a
+   *  fill has run. Null until then — what is in the text, not what was asked. */
+  second_language: string | null;
+  /** A language heard in the recording that the transcript does not have —
+   *  the standing offer. The archive marks it, so a recording missing half its
+   *  speech is not filed away looking complete. Null once the offer is
+   *  answered, whichever way. */
+  second_language_missing: string | null;
 }
 
 /** A folder in the archive, with what it holds. */
@@ -81,6 +97,11 @@ export interface Segment {
    *  Null for a segment nobody has touched — and for one edited before the
    *  archive had somewhere to keep it. */
   original: string | null;
+  /** Which language this block was transcribed in, when it is not the
+   *  recording's own. Null is every block of every transcript written before
+   *  the second-language pass existed, and every block that pass did not
+   *  write. */
+  language: string | null;
 }
 
 export interface Speaker {
@@ -114,6 +135,10 @@ export interface Settings {
   quality_choice: string;
   /** Optional local model used to turn a transcript into a readable document. */
   editor_model: string;
+  /** Listen at the end of every transcription for a language it is missing, and
+   *  offer to write it in. Off by default; naming the language on the recording
+   *  is the surer way. */
+  detect_second_language: boolean;
   /** **Nothing reads or writes this any more.** It held the instruction last
    *  written for a custom-prompt document, one per installation — until an
    *  instruction written for one interview turned up standing over another,
@@ -651,6 +676,21 @@ export interface RecordingNote {
   created_at: string;
 }
 
+/** A second language found in one recording, and where the reader stands on it.
+ *
+ *  Null everywhere it was never found — which is every recording spoken in one
+ *  language, and every transcript written before the sweep existed. */
+export interface SecondLanguage {
+  recording_id: string;
+  /** The other language, as a code: `en`, `de`. */
+  language: string;
+  /** What fraction of the sampled windows came back that language. Kept so a
+   *  later change to the rule can be judged against archives already swept. */
+  share: number;
+  state: "offered" | "filled" | "refused";
+  filled_at: string | null;
+}
+
 export interface SearchResult {
   recording_id: string;
   title: string;
@@ -667,8 +707,16 @@ export interface TranscriptionProgress {
     | "queued"
     | "preparation"
     | "playback"
+    // Asking, before the transcript, whether a second language is here at all.
+    // A phase of its own because the fill below reports after `saving`, and one
+    // name in two places in a run reads to `keepsMovingForward` as a run going
+    // backwards.
+    | "second_language_question"
     | "transcription"
     | "diarization"
+    // Transcribing a language the first pass did not write down, and merging
+    // it in. It follows a finished transcript rather than being part of one.
+    | "second_language"
     | "saving"
     | "complete"
     | "error"

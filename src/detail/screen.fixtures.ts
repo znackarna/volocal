@@ -51,6 +51,10 @@ export function recording(over: Partial<Recording> = {}): Recording {
     segment_count: 1,
     folder: null,
     source_url: null,
+    second_language_choice: "",
+  second_language_by_reader: true,
+    second_language: null,
+  second_language_missing: null,
     ...over,
   };
 }
@@ -69,6 +73,7 @@ export function segment(over: Partial<Segment> = {}): Segment {
     verified: false,
     words: null,
     original: null,
+    language: null,
     ...over,
   };
 }
@@ -165,6 +170,7 @@ export function toolCheck(): ToolCheck {
     embedding_model: "cam.onnx",
     editor_cli: "llama.exe",
     editor_server: "llama-server.exe",
+    detect_second_language: false,
     editor_model: "model.gguf",
     editor_model_id: "editor",
     portable: false,
@@ -266,8 +272,19 @@ export function eventMock() {
  *
  *  The reads are functions rather than fixed values so that a test can choose
  *  the recording through `setDetail` without a second copy of the whole thing. */
+/** The question about a second language, asked on its own once the screen is
+ *  up. Held out here like `aiEditStatus` so a test can answer it, since the
+ *  ordinary answer — nothing found — is what almost every test wants. */
+export const secondLanguage = vi.fn();
+export const fillSecondLanguage = vi.fn();
+export const refuseSecondLanguage = vi.fn();
+
 export const api = {
   detail: () => Promise.resolve(currentDetail()),
+  secondLanguage: (id: string) => secondLanguage(id),
+  fillSecondLanguage: (id: string) => fillSecondLanguage(id),
+  refuseSecondLanguage: (id: string) => refuseSecondLanguage(id),
+  setSecondLanguageChoice: vi.fn(),
   checkTools: () => Promise.resolve(toolCheck()),
   loadSettings: () => Promise.resolve(settings()),
   saveSettings: vi.fn(),
@@ -332,6 +349,13 @@ export function resetApi() {
       (value as { mockReset: () => void }).mockReset();
     }
   }
+  for (const spy of [secondLanguage, fillSecondLanguage, refuseSecondLanguage]) {
+    spy.mockReset();
+  }
+  // Nothing found is the ordinary answer and what almost every test wants: on
+  // a recording spoken in one language this feature draws nothing.
+  secondLanguage.mockResolvedValue(null);
+  refuseSecondLanguage.mockResolvedValue(undefined);
 }
 
 /** jsdom does no layout, so the two browser things this screen measures with

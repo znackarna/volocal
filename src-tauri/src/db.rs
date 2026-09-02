@@ -56,6 +56,19 @@ pub struct Recording {
     /// Language requested for this recording. Empty means the application's
     /// own setting; "auto" means let Whisper recognise it.
     pub language_choice: String,
+    /// A second language the reader says this recording holds, as a code.
+    ///
+    /// Empty means nobody said so. When it is set, the end of every
+    /// transcription writes that language in from the stretches the first pass
+    /// left empty, without asking — and the sweep for one never runs, because
+    /// the answer is already known. A standing fact about the recording, like
+    /// `language_choice`, and kept beside it for the same reason.
+    pub second_language_choice: String,
+    /// Whether the second language above was named by the reader or written
+    /// there by a fill. Both used to look the same, and a recording filled
+    /// once then came back bilingual for ever — including with automatic
+    /// filling switched off, which is the one thing that switch promises.
+    pub second_language_by_reader: bool,
     pub error: Option<String>,
     pub segment_count: i64,
     /// The folder holding this recording; `None` is the archive's root.
@@ -69,6 +82,16 @@ pub struct Recording {
     /// discarded the moment the download finished. Neither can be told from
     /// the other afterwards, and nothing here invents a link for either.
     pub source_url: Option<String>,
+    /// The language that has actually been written into this transcript beside
+    /// its own, when a fill has run — read from the fill's own record, so it
+    /// says what is in the text rather than what somebody asked for.
+    pub second_language: Option<String>,
+    /// A language heard in the recording and **not** in the transcript: the
+    /// question every run now asks, left standing because the reader would
+    /// rather be asked than have it written in. The archive marks it, so a
+    /// recording missing half its speech is not just quietly filed away.
+    /// `None` the moment the offer is answered, either way.
+    pub second_language_missing: Option<String>,
 }
 
 /// A folder in the archive, with what it holds. The two totals come from the
@@ -103,6 +126,15 @@ pub struct Segment {
     /// `None` for a segment nobody has touched — and for one edited before
     /// the column existed.
     pub original: Option<String>,
+    /// Which language this block was transcribed in, when it is not the
+    /// recording's own.
+    ///
+    /// `None` means the recording's language, which is every block of every
+    /// transcript written before this existed. It is set only by the
+    /// second-language pass, so what it really answers is *did this sentence
+    /// come from the fill* — which is what keeps a second fill from writing
+    /// the same sentences twice.
+    pub language: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -260,6 +292,17 @@ pub struct Settings {
     /// skipped and no background model is downloaded or loaded.
     #[serde(default)]
     pub editor_model: String,
+    /// Listen, at the end of every transcription, for a language the transcript
+    /// does not have, and offer to write it in.
+    ///
+    /// Off by default, and it no longer decides whether to *listen* — every
+    /// run asks, because a recording half of which is in another language used
+    /// to come back looking complete and saying nothing. What this decides is
+    /// what happens next: on, the language is written in on the spot; off, the
+    /// transcript screen points it out and the reader presses the button.
+    /// Serde default, so a settings record written before this existed loads.
+    #[serde(default)]
+    pub detect_second_language: bool,
     /// The instruction last written for a custom-prompt document.
     ///
     /// One per installation, not one per recording: it says how this person
@@ -414,6 +457,7 @@ impl Default for Settings {
             // Nobody has been asked yet; the wizard writes it.
             quality_choice: String::new(),
             editor_model: String::new(),
+            detect_second_language: false,
             custom_prompt: String::new(),
             language: "auto".into(),
             // Always on: without it Whisper hallucinates over silence.
@@ -904,7 +948,16 @@ pub fn open(path: &std::path::Path) -> Result<Connection> {
             -- import. NULL for every other recording, and for the online
             -- imports made before this column existed: an address that was
             -- never written down is not one that can be filled in later.
-            source_url      TEXT
+            source_url      TEXT,
+            -- A second language the reader says the recording holds. Empty is
+            -- nobody said so, which is every recording written before this.
+            second_language_choice TEXT NOT NULL DEFAULT '',
+            -- Who put that language there: the reader, or a fill. A reader's
+            -- naming holds whatever the settings say; a fill's memory only
+            -- while automatic filling is on. Nought by default: the column is
+            -- written by `set_second_language_choice`, which knows, and a row
+            -- that never went through it was not named by anybody.
+            second_language_by_reader INTEGER NOT NULL DEFAULT 0
         );
 
         CREATE TABLE IF NOT EXISTS folders (
@@ -925,7 +978,12 @@ pub fn open(path: &std::path::Path) -> Result<Connection> {
             edited     INTEGER NOT NULL DEFAULT 0,
             words        TEXT,
             verified      INTEGER NOT NULL DEFAULT 0,
-            original      TEXT
+            original      TEXT,
+            -- Which language this block was transcribed in, when it is not the
+            -- recording's own. NULL is every block written before the
+            -- second-language pass existed, and every block that pass did not
+            -- write.
+            language      TEXT
         );
         CREATE INDEX IF NOT EXISTS idx_segments_recording ON segments(recording_id, position);
 
@@ -1038,6 +1096,23 @@ pub fn open(path: &std::path::Path) -> Result<Connection> {
             path          TEXT PRIMARY KEY,
             fingerprint   TEXT NOT NULL,
             observed_at   TEXT NOT NULL
+        );
+
+        -- What a sweep for a second language found in one recording, so the
+        -- offer survives a restart and a refusal is not asked again.
+        --
+        -- One row per recording and one language, not a list: the offer is a
+        -- single question with a single button, and a recording carrying three
+        -- languages is not a case anybody has yet. `share` is what fraction of
+        -- the sampled windows came back that language, kept so a later change
+        -- to the threshold can be judged against archives already swept.
+        CREATE TABLE IF NOT EXISTS second_language (
+            recording_id  TEXT PRIMARY KEY REFERENCES recordings(id) ON DELETE CASCADE,
+            language      TEXT NOT NULL,
+            share         REAL NOT NULL,
+            -- offered | filled | refused
+            state         TEXT NOT NULL,
+            filled_at     TEXT
         );
 
         CREATE VIRTUAL TABLE IF NOT EXISTS segments_fts USING fts5(
@@ -1259,6 +1334,10 @@ fn migrate_legacy_schema(db: &Connection) {
     // Segments edited before this column existed keep NULL: the original is
     // simply not knowable for them, and guessing one would be worse.
     let _ = db.execute("ALTER TABLE segments ADD COLUMN original TEXT", []);
+    // Which language a block was transcribed in, when it is not the
+    // recording's own. Added with the second-language pass; NULL in every
+    // archive written before it, which is exactly what it should say.
+    let _ = db.execute("ALTER TABLE segments ADD COLUMN language TEXT", []);
     let _ = db.execute(
         "ALTER TABLE recordings ADD COLUMN jazyk TEXT NOT NULL DEFAULT ''",
         [],
@@ -1301,7 +1380,41 @@ fn migrate_legacy_schema(db: &Connection) {
     value. Refusing the archive over that would cost its owner far more than
     the column is worth. */
     let _ = db.execute("ALTER TABLE recordings ADD COLUMN source_url TEXT", []);
+    // A second language the reader named. Empty on every archive from before,
+    // which says exactly what it should: nobody has said anything yet.
+    let _ = db.execute(
+        "ALTER TABLE recordings ADD COLUMN second_language_choice TEXT NOT NULL DEFAULT ''",
+        [],
+    );
+    /* Who named it — and *nobody* is the truthful answer for every archive
+    written before this build, because the menu that lets a reader name a
+    second language has never been published either. Reading them as the
+    reader's, which is what this said for half a day, means the switch that
+    turns automatic filling off cannot stop a recording that was filled once:
+    tested on Paul Bartlett, whose row said `en` from a fill and `1` from this
+    default, and who came back bilingual with the switch off.
+
+    The sweep below is what the default cannot do on its own, since the column
+    already exists on any archive that has run one of those half-day builds. It
+    runs once, marked in the settings, and after it every value in the column
+    was written by `set_second_language_choice`, which knows who is asking. */
+    let _ = db.execute(
+        "ALTER TABLE recordings ADD COLUMN second_language_by_reader INTEGER NOT NULL DEFAULT 0",
+        [],
+    );
+    if metadata_value(db, WHO_NAMED_THE_SECOND_LANGUAGE)
+        .ok()
+        .flatten()
+        .is_none()
+    {
+        let _ = db.execute("UPDATE recordings SET second_language_by_reader = 0", []);
+        let _ = save_metadata_value(db, WHO_NAMED_THE_SECOND_LANGUAGE, "hotovo");
+    }
 }
+
+/// Marks the one-time correction above as done, so a reader who names a second
+/// language after it is not quietly demoted at the next start.
+const WHO_NAMED_THE_SECOND_LANGUAGE: &str = "druhy-jazyk-kdo-pojmenoval";
 
 /// Earlier versions hard-coded Czech as the default language, so Whisper
 /// translated a foreign-language recording instead of transcribing it. This
@@ -1523,6 +1636,27 @@ pub fn set_model(db: &Connection, id: &str, model: &str) -> Result<()> {
 }
 
 /// Language the user requested for one particular recording.
+/// Writes down a second language the recording holds, or forgets it when
+/// `language` is empty.
+///
+/// **`by_reader` is the whole point of the column beside it.** A language the
+/// reader named is an instruction about that recording and holds however the
+/// settings stand; one a fill wrote down is a convenience, and a convenience
+/// stops when the reader switches automatic filling off.
+pub fn set_second_language_choice(
+    db: &Connection,
+    id: &str,
+    language: &str,
+    by_reader: bool,
+) -> Result<()> {
+    db.execute(
+        "UPDATE recordings SET second_language_choice = ?2, second_language_by_reader = ?3
+          WHERE id = ?1",
+        params![id, language.trim().to_ascii_lowercase(), by_reader],
+    )?;
+    Ok(())
+}
+
 pub fn set_language_choice(db: &Connection, id: &str, language: &str) -> Result<()> {
     db.execute(
         "UPDATE recordings SET jazyk_volba = ?2 WHERE id = ?1",
@@ -1554,13 +1688,22 @@ fn recording_from_row(r: &rusqlite::Row) -> rusqlite::Result<Recording> {
         language_choice: r.get(10).unwrap_or_default(),
         folder: r.get(11).unwrap_or_default(),
         source_url: r.get(12).unwrap_or_default(),
+        second_language_choice: r.get(13).unwrap_or_default(),
+        second_language: r.get(14).unwrap_or_default(),
+        second_language_missing: r.get(15).unwrap_or_default(),
+        second_language_by_reader: r.get(16).unwrap_or(true),
     })
 }
 
 const RECORDING_SELECT_SQL: &str =
     "SELECT n.id, n.path, n.name, n.duration, n.created_at, n.status, n.model, n.error,
         (SELECT COUNT(*) FROM segments s WHERE s.recording_id = n.id), n.jazyk, n.jazyk_volba,
-        n.folder_id, n.source_url
+        n.folder_id, n.source_url, n.second_language_choice,
+        (SELECT sl.language FROM second_language sl
+          WHERE sl.recording_id = n.id AND sl.state = 'filled'),
+        (SELECT sl.language FROM second_language sl
+          WHERE sl.recording_id = n.id AND sl.state = 'offered'),
+        n.second_language_by_reader
      FROM recordings n";
 
 /// Every recording in the archive, and **a row that cannot be read is shown as
@@ -1609,6 +1752,10 @@ pub fn list_recordings(db: &Connection) -> Result<Vec<Recording>> {
                 model: String::new(),
                 language: String::new(),
                 language_choice: String::new(),
+                second_language_choice: String::new(),
+                second_language_by_reader: false,
+                second_language: None,
+                second_language_missing: None,
                 error: Some(
                     crate::user_message::UserMessage::new("archive.row_unreadable")
                         .with("id", &id)
@@ -1836,6 +1983,102 @@ pub fn delete_segments(db: &Connection, recording_id: &str) -> Result<()> {
     Ok(())
 }
 
+// ------------------------------------------------------- a second language
+
+/// What a sweep found: one recording speaks a second language, and where the
+/// reader stands on doing something about it.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+pub struct SecondLanguage {
+    pub recording_id: String,
+    pub language: String,
+    /// The fraction of sampled windows that came back this language.
+    pub share: f64,
+    pub state: String,
+    pub filled_at: Option<String>,
+}
+
+/// What `second_language.state` may say.
+///
+/// Constants rather than literals for the same reason as [`status`]: these
+/// travel as strings across the IPC boundary and inside SQL, so a missed rename
+/// goes on compiling and simply stops matching.
+pub mod second_language_state {
+    /// Found, and the reader has not answered.
+    pub const OFFERED: &str = "offered";
+    /// The missing language has been transcribed and merged in.
+    pub const FILLED: &str = "filled";
+    /// The reader said no. Not asked again for this transcript.
+    pub const REFUSED: &str = "refused";
+}
+
+pub fn second_language(db: &Connection, recording_id: &str) -> Result<Option<SecondLanguage>> {
+    Ok(db
+        .query_row(
+            "SELECT recording_id, language, share, state, filled_at
+             FROM second_language WHERE recording_id = ?1",
+            params![recording_id],
+            |r| {
+                Ok(SecondLanguage {
+                    recording_id: r.get(0)?,
+                    language: r.get(1)?,
+                    share: r.get(2)?,
+                    state: r.get(3)?,
+                    filled_at: r.get(4)?,
+                })
+            },
+        )
+        .optional()?)
+}
+
+/// Writes what a sweep found, replacing whatever stood there.
+///
+/// Replacing rather than ignoring a conflict: a fresh transcript is a fresh
+/// question, and a refusal recorded against text that no longer exists is not
+/// an answer to it.
+pub fn save_second_language(db: &Connection, found: &SecondLanguage) -> Result<()> {
+    db.execute(
+        "INSERT OR REPLACE INTO second_language
+             (recording_id, language, share, state, filled_at)
+         VALUES (?1, ?2, ?3, ?4, ?5)",
+        params![
+            found.recording_id,
+            found.language,
+            found.share,
+            found.state,
+            found.filled_at
+        ],
+    )?;
+    Ok(())
+}
+
+/// Moves the offer to `filled` or `refused`. Does nothing where nothing was
+/// ever offered, which is every recording in one language.
+pub fn set_second_language_state(db: &Connection, recording_id: &str, state: &str) -> Result<()> {
+    let filled_at =
+        (state == second_language_state::FILLED).then(|| chrono::Local::now().to_rfc3339());
+    db.execute(
+        "UPDATE second_language SET state = ?2, filled_at = ?3 WHERE recording_id = ?1",
+        params![recording_id, state, filled_at],
+    )?;
+    Ok(())
+}
+
+/// Forgets the offer entirely.
+///
+/// **Not called from `delete_segments`,** and that is the whole of the care
+/// here: separating speakers and the sentence-layout upgrade both delete every
+/// segment and write them back, and neither is a new transcript. Clearing the
+/// offer there would throw away a question the reader had not answered because
+/// they pressed *Rozpoznat znovu*. It belongs where a transcript is actually
+/// discarded or replaced.
+pub fn clear_second_language(db: &Connection, recording_id: &str) -> Result<()> {
+    db.execute(
+        "DELETE FROM second_language WHERE recording_id = ?1",
+        params![recording_id],
+    )?;
+    Ok(())
+}
+
 pub fn insert_segment(db: &Connection, s: &Segment) -> Result<()> {
     // `puvodni` belongs in this list. Two paths delete every segment of a
     // recording and insert them again from values that already carry it —
@@ -1845,10 +2088,11 @@ pub fn insert_segment(db: &Connection, s: &Segment) -> Result<()> {
     // shows only the segments whose original is known. The pencil marks
     // survived, so it read as a rendering fault rather than as deletion.
     db.execute(
-        "INSERT INTO segments (id, recording_id, position, start_time, end_time, text, speakers, confidence, edited, words, verified, original)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+        "INSERT INTO segments (id, recording_id, position, start_time, end_time, text, speakers, confidence, edited, words, verified, original, language)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
         params![s.id, s.recording_id, s.order, s.start, s.end, s.text, s.speakers,
-                s.confidence, s.edited as i64, s.words, s.verified as i64, s.original],
+                s.confidence, s.edited as i64, s.words, s.verified as i64, s.original,
+                s.language],
     )?;
     db.execute(
         "INSERT INTO segments_fts (text, segment_id, recording_id) VALUES (?1, ?2, ?3)",
@@ -1859,7 +2103,7 @@ pub fn insert_segment(db: &Connection, s: &Segment) -> Result<()> {
 
 pub fn segments(db: &Connection, recording_id: &str) -> Result<Vec<Segment>> {
     let mut st = db.prepare(
-        "SELECT id, recording_id, position, start_time, end_time, text, speakers, confidence, edited, words, verified, original
+        "SELECT id, recording_id, position, start_time, end_time, text, speakers, confidence, edited, words, verified, original, language
          FROM segments WHERE recording_id = ?1 ORDER BY position",
     )?;
     let rows = st.query_map(params![recording_id], |r| {
@@ -1876,6 +2120,10 @@ pub fn segments(db: &Connection, recording_id: &str) -> Result<Vec<Segment>> {
             words: r.get(9).ok(),
             verified: r.get::<_, i64>(10).unwrap_or(0) != 0,
             original: r.get(11).ok().flatten(),
+            // `.ok().flatten()` like `original` beside it: an archive migrated
+            // a moment ago has the column, one being read by an older build
+            // does not, and a missing column must not fail the read.
+            language: r.get(12).ok().flatten(),
         })
     })?;
     // Not `filter_map(|r| r.ok())`. Two paths delete every segment of a
@@ -2553,15 +2801,17 @@ mod cluster_threshold_migration_tests {
 #[cfg(test)]
 mod tests {
     use super::{
-        ai_outputs, align_word_timestamps, create_folder, delete_folder, delete_recording,
-        delete_recording_note, delete_segments, delete_speaker, dictionary, folder_recording_ids,
-        folders, has_table, insert_recording, insert_recording_note, insert_segment,
-        insert_speaker, keep_only_speakers, list_recordings, load_settings,
+        ai_outputs, align_word_timestamps, clear_second_language, create_folder, delete_folder,
+        delete_recording, delete_recording_note, delete_segments, delete_speaker, dictionary,
+        folder_recording_ids, folders, has_table, insert_recording, insert_recording_note,
+        insert_segment, insert_speaker, keep_only_speakers, list_recordings, load_settings,
         look_at_offered_archive, metadata_value, migrate_legacy_schema, move_to_folder, open,
         recording, recording_notes, recover_interrupted, save_ai_document, save_ai_output,
-        save_metadata_value, search, segments, speakers, status, update_recording_note,
+        save_metadata_value, save_second_language, search, second_language, second_language_state,
+        segments, set_second_language_state, speakers, status, update_recording_note,
         watch_file_imported, watch_file_is_stable, waveform, AiDocument, AiOutput,
-        ArchiveFromTheFuture, Offered, Recording, RecordingNote, Segment, Speaker, WaveformData,
+        ArchiveFromTheFuture, Offered, Recording, RecordingNote, SecondLanguage, Segment, Speaker,
+        WaveformData,
     };
     use rusqlite::{params, Connection};
 
@@ -2579,6 +2829,7 @@ mod tests {
             verified: false,
             words: Some(words.into()),
             original: None,
+            language: None,
         }
     }
 
@@ -2598,6 +2849,7 @@ mod tests {
         written.edited = true;
         written.verified = true;
         written.original = Some("Ahoj světe".into());
+        written.language = Some("en".into());
         insert_segment(&db, &written).unwrap();
 
         let read = segments(&db, "recording").unwrap();
@@ -2612,6 +2864,331 @@ mod tests {
             read[0].original, written.original,
             "what the machine wrote is what the corrections list is built from"
         );
+        assert_eq!(
+            read[0].language, written.language,
+            "a block the second-language pass wrote has to still say so after a rewrite"
+        );
+    }
+
+    /// Every transcript written before the second-language pass existed says
+    /// nothing about its language, and must go on saying nothing rather than
+    /// claiming one.
+    #[test]
+    fn a_segment_nobody_stamped_has_no_language() {
+        let db = Connection::open_in_memory().unwrap();
+        db.execute_batch(SEGMENT_SCHEMA).unwrap();
+        insert_segment(&db, &segment(0.0, 1.0, r#"[{"s":"ahoj","t":0.0}]"#)).unwrap();
+        assert_eq!(segments(&db, "recording").unwrap()[0].language, None);
+    }
+
+    // ------------------------------------------------------ a second language
+
+    const SECOND_LANGUAGE_SCHEMA: &str = "CREATE TABLE second_language (
+           recording_id  TEXT PRIMARY KEY,
+           language      TEXT NOT NULL,
+           share         REAL NOT NULL,
+           state         TEXT NOT NULL,
+           filled_at     TEXT
+         );";
+
+    fn offered(language: &str, share: f64) -> SecondLanguage {
+        SecondLanguage {
+            recording_id: "recording".into(),
+            language: language.into(),
+            share,
+            state: second_language_state::OFFERED.into(),
+            filled_at: None,
+        }
+    }
+
+    #[test]
+    fn a_recording_nobody_swept_offers_nothing() {
+        let db = Connection::open_in_memory().unwrap();
+        db.execute_batch(SECOND_LANGUAGE_SCHEMA).unwrap();
+        assert_eq!(second_language(&db, "recording").unwrap(), None);
+    }
+
+    #[test]
+    fn an_offer_reads_back_as_it_was_written() {
+        let db = Connection::open_in_memory().unwrap();
+        db.execute_batch(SECOND_LANGUAGE_SCHEMA).unwrap();
+        let found = offered("en", 0.21);
+        save_second_language(&db, &found).unwrap();
+        assert_eq!(second_language(&db, "recording").unwrap(), Some(found));
+    }
+
+    /// A refusal is an answer about this transcript, so it is kept — and it is
+    /// not a moment, so it stamps no time.
+    #[test]
+    fn a_refusal_is_remembered_and_stamps_no_time() {
+        let db = Connection::open_in_memory().unwrap();
+        db.execute_batch(SECOND_LANGUAGE_SCHEMA).unwrap();
+        save_second_language(&db, &offered("en", 0.21)).unwrap();
+        set_second_language_state(&db, "recording", second_language_state::REFUSED).unwrap();
+
+        let after = second_language(&db, "recording").unwrap().unwrap();
+        assert_eq!(after.state, second_language_state::REFUSED);
+        assert_eq!(after.filled_at, None);
+        assert_eq!(
+            after.language, "en",
+            "refusing does not forget what was found"
+        );
+    }
+
+    #[test]
+    fn filling_stamps_when_it_happened() {
+        let db = Connection::open_in_memory().unwrap();
+        db.execute_batch(SECOND_LANGUAGE_SCHEMA).unwrap();
+        save_second_language(&db, &offered("en", 0.21)).unwrap();
+        set_second_language_state(&db, "recording", second_language_state::FILLED).unwrap();
+
+        let after = second_language(&db, "recording").unwrap().unwrap();
+        assert_eq!(after.state, second_language_state::FILLED);
+        assert!(after.filled_at.is_some());
+    }
+
+    /// A new transcript is a new question. A refusal recorded against text that
+    /// no longer exists is not an answer to it.
+    #[test]
+    fn a_fresh_sweep_replaces_the_answer_to_the_old_one() {
+        let db = Connection::open_in_memory().unwrap();
+        db.execute_batch(SECOND_LANGUAGE_SCHEMA).unwrap();
+        save_second_language(&db, &offered("en", 0.21)).unwrap();
+        set_second_language_state(&db, "recording", second_language_state::REFUSED).unwrap();
+
+        save_second_language(&db, &offered("de", 0.44)).unwrap();
+        let after = second_language(&db, "recording").unwrap().unwrap();
+        assert_eq!(after.state, second_language_state::OFFERED);
+        assert_eq!(after.language, "de");
+    }
+
+    /// **The one that is easy to get wrong.** Separating speakers deletes every
+    /// segment of a recording and writes them back — and so does the
+    /// sentence-layout upgrade. Neither is a new transcript, so neither may
+    /// throw away a question the reader has not answered yet.
+    #[test]
+    fn rewriting_the_segments_does_not_forget_the_offer() {
+        let db = Connection::open_in_memory().unwrap();
+        db.execute_batch(SEGMENT_SCHEMA).unwrap();
+        db.execute_batch(SECOND_LANGUAGE_SCHEMA).unwrap();
+        insert_segment(&db, &segment(0.0, 1.0, r#"[{"s":"ahoj","t":0.0}]"#)).unwrap();
+        save_second_language(&db, &offered("en", 0.21)).unwrap();
+
+        delete_segments(&db, "recording").unwrap();
+
+        assert!(
+            second_language(&db, "recording").unwrap().is_some(),
+            "pressing Rozpoznat znovu must not answer a question nobody asked"
+        );
+    }
+
+    /// What the footer and the archive read: the language that is really in the
+    /// text. An offer the reader has not answered is not in the text yet.
+    #[test]
+    fn a_filled_language_is_read_with_the_recording_and_an_offered_one_is_not() {
+        let dir = std::env::temp_dir().join(format!("volocal-second-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let db = open(&dir.join("volocal.db")).unwrap();
+        insert_recording(
+            &db,
+            &Recording {
+                id: "recording".into(),
+                path: "x.wav".into(),
+                title: "x".into(),
+                duration: 1.0,
+                created_at: "2026-09-02".into(),
+                status: status::DONE.into(),
+                model: String::new(),
+                language: "cs".into(),
+                language_choice: String::new(),
+                second_language_choice: String::new(),
+                second_language_by_reader: false,
+                error: None,
+                segment_count: 0,
+                folder: None,
+                source_url: None,
+                second_language: None,
+                second_language_missing: None,
+            },
+        )
+        .unwrap();
+        save_second_language(&db, &offered("en", 0.2)).unwrap();
+        assert_eq!(recording(&db, "recording").unwrap().second_language, None);
+        set_second_language_state(&db, "recording", second_language_state::FILLED).unwrap();
+        assert_eq!(
+            recording(&db, "recording")
+                .unwrap()
+                .second_language
+                .as_deref(),
+            Some("en")
+        );
+        drop(db);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// The half-day builds wrote `1` into a column that meant *the reader named
+    /// this*, on rows a fill had named. The switch that turns automatic filling
+    /// off could then not stop them — reported on Paul Bartlett, who came back
+    /// bilingual with it off.
+    ///
+    /// The correction runs once. A reader who names a language afterwards must
+    /// not be demoted at the next start, which is what the marker is for.
+    #[test]
+    fn a_language_no_reader_could_have_named_is_not_read_as_theirs() {
+        let dir = std::env::temp_dir().join(format!("volocal-who-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("volocal.db");
+
+        {
+            let db = open(&path).unwrap();
+            db.execute(
+                "INSERT INTO recordings (id, path, name, duration, created_at, status, model,
+                     second_language_choice, second_language_by_reader)
+                 VALUES ('r', 'x.wav', 'Paul', 1.0, '2026-09-02', 'done', '', 'en', 1)",
+                [],
+            )
+            .unwrap();
+            // As an archive that has run one of those builds looks: the column
+            // is there, the correction has not been made.
+            db.execute(
+                "DELETE FROM settings WHERE key = ?1",
+                params![super::WHO_NAMED_THE_SECOND_LANGUAGE],
+            )
+            .unwrap();
+        }
+
+        let db = open(&path).unwrap();
+        assert!(
+            !recording(&db, "r").unwrap().second_language_by_reader,
+            "a fill named it, and the switch has to be able to stop it"
+        );
+
+        // Now the reader really does name one, and a restart leaves it alone.
+        super::set_second_language_choice(&db, "r", "de", true).unwrap();
+        drop(db);
+        let db = open(&path).unwrap();
+        assert!(
+            recording(&db, "r").unwrap().second_language_by_reader,
+            "the correction runs once, not at every start"
+        );
+
+        drop(db);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// What the reader is promised by switching automatic filling off: the
+    /// recording comes back in one language and the archive says so with the
+    /// mark, instead of quietly holding a language nobody asked to have
+    /// written in.
+    ///
+    /// The step that is easy to lose is the last one. A recording filled
+    /// earlier carries a `filled` row, and one recording has one row, so the
+    /// offer has to take its place — otherwise the archive would go on
+    /// claiming the transcript is bilingual while the text is not.
+    #[test]
+    fn a_language_only_offered_is_marked_as_missing_and_not_as_written() {
+        let dir = std::env::temp_dir().join(format!("volocal-offer-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let db = open(&dir.join("volocal.db")).unwrap();
+        db.execute(
+            "INSERT INTO recordings (id, path, name, duration, created_at, status, model)
+             VALUES ('r', 'x.wav', 'Paul', 1.0, '2026-09-02', 'done', '')",
+            [],
+        )
+        .unwrap();
+
+        // As it stands after a fill: the archive says English is in the text.
+        save_second_language(
+            &db,
+            &SecondLanguage {
+                recording_id: "r".into(),
+                language: "en".into(),
+                share: 0.4,
+                state: second_language_state::OFFERED.into(),
+                filled_at: None,
+            },
+        )
+        .unwrap();
+        set_second_language_state(&db, "r", second_language_state::FILLED).unwrap();
+        let after_filling = recording(&db, "r").unwrap();
+        assert_eq!(after_filling.second_language.as_deref(), Some("en"));
+        assert_eq!(after_filling.second_language_missing, None);
+
+        // Transcribed again with the switch off: heard, not written in.
+        save_second_language(
+            &db,
+            &SecondLanguage {
+                recording_id: "r".into(),
+                language: "en".into(),
+                share: 0.0,
+                state: second_language_state::OFFERED.into(),
+                filled_at: None,
+            },
+        )
+        .unwrap();
+
+        let now = recording(&db, "r").unwrap();
+        assert_eq!(
+            now.second_language, None,
+            "the transcript is in one language and the card must not say otherwise"
+        );
+        assert_eq!(
+            now.second_language_missing.as_deref(),
+            Some("en"),
+            "and the mark says which language is going begging"
+        );
+
+        drop(db);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn discarding_the_transcript_forgets_the_offer() {
+        let db = Connection::open_in_memory().unwrap();
+        db.execute_batch(SECOND_LANGUAGE_SCHEMA).unwrap();
+        save_second_language(&db, &offered("en", 0.21)).unwrap();
+        clear_second_language(&db, "recording").unwrap();
+        assert_eq!(second_language(&db, "recording").unwrap(), None);
+    }
+
+    /// An archive written before this existed has no `language` column. It
+    /// gains one, and every block already in it goes on saying nothing.
+    #[test]
+    fn a_transcript_from_an_older_build_gains_the_language_column() {
+        let db = Connection::open_in_memory().unwrap();
+        db.execute_batch(
+            "CREATE TABLE segments (
+               id           TEXT PRIMARY KEY,
+               recording_id  TEXT NOT NULL,
+               position       INTEGER NOT NULL,
+               start_time      REAL NOT NULL,
+               end_time        REAL NOT NULL,
+               text         TEXT NOT NULL,
+               speakers       TEXT,
+               confidence      REAL,
+               edited     INTEGER NOT NULL DEFAULT 0
+             );
+             CREATE VIRTUAL TABLE segments_fts USING fts5(
+               text, segment_id UNINDEXED, recording_id UNINDEXED
+             );",
+        )
+        .unwrap();
+        db.execute(
+            "INSERT INTO segments (id, recording_id, position, start_time, end_time, text)
+             VALUES ('s', 'recording', 0, 0.0, 1.0, 'Dobrý den')",
+            [],
+        )
+        .unwrap();
+
+        migrate_legacy_schema(&db);
+
+        let read = segments(&db, "recording").unwrap();
+        assert_eq!(read.len(), 1);
+        assert_eq!(read[0].text, "Dobrý den");
+        assert_eq!(read[0].language, None);
     }
 
     /// Recognising speakers rewrites who said what and nothing else. It does
@@ -3114,6 +3691,10 @@ mod tests {
                     model: String::new(),
                     language: String::new(),
                     language_choice: String::new(),
+                    second_language_choice: String::new(),
+                    second_language_by_reader: false,
+                    second_language: None,
+                    second_language_missing: None,
                     error: None,
                     segment_count: 0,
                     folder: None,
@@ -3179,6 +3760,10 @@ mod tests {
                 model: String::new(),
                 language: String::new(),
                 language_choice: String::new(),
+                second_language_choice: String::new(),
+                second_language_by_reader: false,
+                second_language: None,
+                second_language_missing: None,
                 error: None,
                 segment_count: 0,
                 folder: None,
@@ -3246,6 +3831,10 @@ mod tests {
                 model: String::new(),
                 language: String::new(),
                 language_choice: String::new(),
+                second_language_choice: String::new(),
+                second_language_by_reader: false,
+                second_language: None,
+                second_language_missing: None,
                 error: None,
                 segment_count: 0,
                 folder: None,
@@ -3430,7 +4019,8 @@ mod tests {
            edited     INTEGER NOT NULL DEFAULT 0,
            words        TEXT,
            verified      INTEGER NOT NULL DEFAULT 0,
-           original      TEXT
+           original      TEXT,
+           language      TEXT
          );
          CREATE VIRTUAL TABLE segments_fts USING fts5(
            text, segment_id UNINDEXED, recording_id UNINDEXED

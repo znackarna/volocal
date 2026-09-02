@@ -36,12 +36,16 @@ type DetailProps = ComponentProps<typeof Detail>;
  *  rest are the quiet defaults of a finished recording opened from the
  *  archive. */
 export function show(over: Partial<DetailProps> = {}) {
-  return render(
+  const tree = (props: Partial<DetailProps>) => (
     <I18nProvider>
       <PlayerProvider>
         <RecorderProvider>
           <Detail
             id={RECORDING_ID}
+            notices={{
+              state: { notice: null, closing: false },
+              actions: { error: vi.fn(), info: vi.fn(), dismiss: vi.fn() },
+            }}
             seekTime={null}
             liveSegments={[]}
             onBack={vi.fn()}
@@ -59,12 +63,21 @@ export function show(over: Partial<DetailProps> = {}) {
             onTranscribe={vi.fn().mockResolvedValue(true)}
             onDiarize={vi.fn()}
             diarizing={false}
-            {...over}
+            {...props}
           />
         </RecorderProvider>
       </PlayerProvider>
     </I18nProvider>
   );
+  const result = render(tree(over));
+  return {
+    ...result,
+    /** The same screen with different props, which is how the shell hands it
+     *  news: a run's progress arrives as a prop rather than as an event this
+     *  screen listens for. Building the tree twice by hand in a test would put
+     *  the defaults in two places and let them drift. */
+    handItAgain: (next: Partial<DetailProps>) => result.rerender(tree({ ...over, ...next })),
+  };
 }
 
 /** The transcript is drawn word by word, so that the word being played can be

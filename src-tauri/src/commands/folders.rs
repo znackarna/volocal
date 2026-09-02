@@ -294,6 +294,10 @@ pub fn delete_transcription(app: State<'_, AppState>, id: String) -> Reported<()
     let db = app.db.lock().unwrap();
     reported(db::delete_segments(&db, &id))?;
     reported(db::delete_speakers(&db, &id))?;
+    // The offer belonged to the text that has just been thrown away. Here and
+    // not in `delete_segments`: separating speakers deletes every segment too,
+    // and that is not a new transcript.
+    reported(db::clear_second_language(&db, &id))?;
     reported(db::set_status(&db, &id, db::status::NEW, None))
 }
 

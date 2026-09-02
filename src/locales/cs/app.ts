@@ -4,7 +4,12 @@ export const csApp = {
   "app.newTranscript": "Nový přepis",
 
   // ---------------------------------------------------------------- shell
-  "app.download.running": "Stahuji {name}",
+  /* Dvojtečka, protože jméno součásti je vlastní jméno a ne pokračování věty.
+     `Stahuji Menší model jazykové úpravy` se čte jako souvětí, kterému něco
+     chybí; `Stahuji: Menší model jazykové úpravy` je popisek a hodnota, což to
+     ve skutečnosti je. V bublině se jméno navíc zkracuje třemi tečkami, takže
+     věta stejně nikdy nedojde do konce. */
+  "app.download.running": "Stahuji: {name}",
   // Said when Transcribe is pressed while something needed is missing. The
   // archive's notice has been saying so above the list; this is what happens
   // when somebody presses anyway, and it carries the way out rather than only
@@ -31,6 +36,7 @@ export const csApp = {
   "app.shell.documentState": "Stav dokumentu",
   "app.shell.recordingDuration": "Délka nahrávky",
   "app.shell.language": "Jazyk",
+  "app.shell.twoLanguages": "{first}, {second}",
   "app.shell.segmentCount": "Počet úseků",
 
   // --------------------------------------------------------------- notice
@@ -49,11 +55,9 @@ export const csApp = {
   "app.recorder.label": "Záznam",
   "app.recorder.open": "Otevřít nahrávání",
   "app.recorder.stop": "Zastavit záznam",
-  "app.notice.audioSaved": "Zvuk byl uložen do {path}.",
   "app.audioFormat.mp3": "MP3 — otevře se všude",
   "app.audioFormat.m4a": "M4A — menší soubor",
   "app.audioFormat.wav": "WAV — bez komprese",
-  "app.audioFormat.same": "{format} — beze změny",
   "app.notice.recordingAdded": "Záznam je v archivu.",
   "app.notice.recordingAddedTranscribing": "Záznam je v archivu a přepis začal.",
   "app.notice.onlineAddedTranscribing": "Online nahrávka je přidaná a přepis začal.",
@@ -63,7 +67,7 @@ export const csApp = {
   "app.crash.title": "Aplikace narazila na chybu",
   "app.crash.text":
     "Okno se nepodařilo vykreslit. Nahrávky ani přepisy v archivu tím nijak netrpí.",
-  "app.crash.detailLabel": "Popis chyby, který se hodí poslat dál:",
+  "app.crash.detailLabel": "Popis chyby, který můžete poslat autorům aplikace:",
   "app.crash.reload": "Obnovit okno",
 
   // ----------------------------------------------------------- file picker
@@ -139,13 +143,13 @@ export const csAppContext: Partial<Record<keyof typeof csApp, string>> = {
   "app.shell.documentState":
     "Popisek položky v patičce; hodnotou je stav rozpracovaného přepisu, například „Uloženo“.",
   "app.shell.language": "Popisek položky v patičce; hodnotou je jazyk nahrávky.",
+  "app.shell.twoLanguages":
+    "Hodnota téže položky, když byl do přepisu doplněn druhý jazyk. Oba velkým písmenem, oddělené čárkou: „Čeština, Angličtina“.",
   "app.shell.segmentCount": "Popisek položky v patičce; hodnotou je počet úseků přepisu.",
   "app.notice.unsupportedFormat":
     "Hláška po přetažení souboru, který neumíme otevřít. Vyká uživateli, stejně jako zbytek aplikace.",
   "app.audioFormat.mp3":
     "Název formátu v systémovém dialogu pro uložení zvuku. Za pomlčkou je důvod, proč si ho vybrat.",
-  "app.audioFormat.same":
-    "Volba v dialogu pro uložení zvuku, když nahrávka už v tom formátu je: soubor se jen zkopíruje. {format} je zkratka jako FLAC.",
   "app.filePicker.audioAndVideo":
     "Název skupiny souborů v systémovém dialogu pro výběr souboru.",
   "app.watchFolder.transcribing.one":

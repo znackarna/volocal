@@ -204,6 +204,84 @@
 }
 .shortcuts-hide:hover { background: hsl(var(--ds-foreground) / 0.1); color: var(--text); }
 
+/* A language the transcript is missing.
+   Sits above the shortcuts strip and takes the same 7/18 padding and the same
+   bottom rule, so the two read as one band when both are up. What it does not
+   share is the quiet colour: this one is news, and news the reader is meant to
+   act on, so it carries the accent line the strip deliberately does not. */
+.second-language {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 10px 18px;
+  /* The notice bar's own ground (Jakub's ask): this is a notice about the
+     transcript, and the reader already knows what that blue means. Same
+     white on `--accent-solid` as `.notice` in 01-base.css. */
+  background: var(--accent-solid);
+  font-size: 13px; font-weight: 500; color: #fff;
+}
+.second-language-text { flex: 1; min-width: 220px; }
+/* The two buttons follow the notice bar's pair as well: the way on is the
+   bar's colour on white, the way out a darkened veil. */
+.second-language .button {
+  background: #fff; color: var(--accent-solid); border: 0;
+}
+.second-language .button.quiet {
+  background: rgb(0 0 0 / 0.18); color: #fff;
+}
+/* Choosing what to take away — from a marked passage, or from a whole
+   recording. One list for both, because it is one question: the audio for the
+   podcast, the subtitles for the video and the text for the quote come out of
+   the same minutes at the same moment. A row of five buttons said "pick one",
+   which is what it was wrong about. */
+.clip-dialog, .save-dialog { width: 520px; }
+/* The frame comes from `.about-panel`, which both lists carry as a class: the
+   bordered, rounded box with a rule between rows that the About page and the
+   backup summary already wear. Asked for on 2026-09-02 by pointing at one.
+   Only the list part is the choice's own — a row here is a box, a name and a
+   line about it, where `.about-row` is a label and a value. */
+.clip-shapes, .save-choices { list-style: none; padding: 0; }
+.clip-shapes li + li,
+.save-choices li + li { border-top: 1px solid var(--line); }
+.clip-shape,
+.save-choice {
+  /* `position: relative` because the real input is taken out of the flow and
+     has to anchor here rather than on some ancestor. */
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: baseline;
+  column-gap: 11px;
+  /* The panel's own 14 px sides; 10 above and below, because a row here holds
+     two lines where `.about-row` holds one. */
+  padding: 10px 14px;
+  cursor: pointer;
+}
+/* The box takes the place `.about-mark` has in that panel, so the names line
+   up on the same left edge as the labels there. */
+.clip-shape .check-box,
+.save-choice .check-box { margin: 1px 0; }
+/* The row lights up under the pointer, the same way the rows of files a
+   watched folder offers do — the other list in this application made of things
+   to tick. `--muted` over the panel's `--subtle` ground is one step, which is
+   all a row that is merely pickable should take.
+
+   Not a row that cannot be picked: a text format over a recording with no
+   transcript stays where it is, or the highlight would promise a click that
+   does nothing. */
+.clip-shape,
+.save-choice { transition: background var(--hover-duration) var(--hover-ease); }
+.clip-shape:hover,
+.save-choice:has(input:not(:disabled)):hover { background: var(--muted); }
+.clip-shape .check-box,
+.save-choice .check-box { grid-row: span 2; align-self: center; }
+.clip-shape-name,
+.save-choice-name { font-size: 14px; font-weight: 600; color: var(--text); }
+/* The line under each name says what it is for, so nobody has to know what VTT
+   stands for to choose it. */
+.clip-shape-note,
+.save-choice-note { font-size: 12.5px; color: var(--text-quiet); }
+/* There is no finished state to draw: a fill that is done is said in the
+   notice bar like every other confirmation, and this bar simply goes. */
+
 /* The strip used to borrow the sidebar's small-caps rule and then undo every
    part of it with `!important`. It has its own settings now; only the label
    is in small caps, as headings are everywhere else. */
@@ -394,6 +472,30 @@
 .speaker-list li { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 /* A column of the shared 38 px fields — the group has one question above it,
    so the fields carry only a placeholder each and no label of their own. */
+/* The language of the run under a speaker's name, where the transcript holds
+   two — set as a superscript, which is what a mark qualifying a name is.
+   It rides the heading's own colour at half strength rather than taking one of
+   its own: the name says who, this says in what, and neither should compete
+   with the words below.
+
+   `top` rather than the browser's own raise: `vertical-align: super` on a
+   heading with `line-height` this tight pushes the line box open and moves the
+   whole row. Positioned instead, so the name stays where it was. */
+.speaker-header-language {
+  position: relative; top: -0.45em;
+  margin-left: 3px;
+  font-size: 9.5px; font-weight: 600; letter-spacing: 0.06em;
+  vertical-align: baseline;
+  opacity: 0.55;
+  /* Out of anything the reader drags over. Dragging across the transcript is
+     how a passage is quoted and how a clip is marked, and `PAUL BARTLETTEN`
+     landing in the middle of a quotation is exactly the kind of thing nobody
+     notices until it is in a document. The written files never carry it —
+     every export is built in Rust from the blocks themselves — so this is the
+     one place it could leak. */
+  user-select: none; -webkit-user-select: none;
+}
+
 .speaker-names { display: flex; flex-direction: column; gap: 8px; }
 /* The shortlist drops onto its own line under the row it belongs to, so the
    sample button, the field and the share keep the geometry they always had. */

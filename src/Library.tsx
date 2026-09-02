@@ -6,6 +6,7 @@ import RecordingMetadataIcon from "./RecordingMetadataIcon";
 import type { RecordingMetadataKind } from "./RecordingMetadataIcon";
 import RecordingActionsMenu, { ActionMenu, MENU_ICONS } from "./RecordingActionsMenu";
 import NameDialog from "./NameDialog";
+import { CheckBox } from "./CheckBox";
 import { LineIcon } from "./icons";
 import Select from "./Select";
 import { formatTime, fileName, statusClass } from "./types";
@@ -68,6 +69,8 @@ interface Props {
   automatic: boolean;
   onAutomatic: (enabled: boolean) => void;
   onTranscriptionLanguage: (id: string, language: string) => void;
+  /** The reader names a second language the recording holds, or none. */
+  onSecondLanguage: (id: string, language: string) => void;
 }
 
 /** Fallback captions for the moment before the first report arrives.
@@ -427,7 +430,13 @@ export function RecordingMetadataItem({
   const { t } = useI18n();
   return (
     <span
-      className={`recording-metadata-item ${kind === "error" ? "error" : ""}`}
+      className={[
+        "recording-metadata-item",
+        kind === "error" ? "error" : "",
+        kind === "languageMissing" ? "missing" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
       aria-label={t("library.card.metadata", { label, value })}
       /* The value belongs in the tooltip too: in the compact list it is cut to
          one line, and the label alone would then be the only place to look and
@@ -481,6 +490,7 @@ export default function Library({
   automatic,
   onAutomatic,
   onTranscriptionLanguage,
+  onSecondLanguage,
 }: Props) {
   const { t, compare } = useI18n();
   const formats = useFormats();
@@ -838,6 +848,7 @@ export default function Library({
               onCancel={() => onCancel(n.id)}
               onDeleteTranscription={() => onDeleteTranscription(n.id)}
               onTranscriptionLanguage={(j) => onTranscriptionLanguage(n.id, j)}
+              onSecondLanguage={(j) => onSecondLanguage(n.id, j)}
               onRename={(title) => onRename(n.id, title)}
             />
           ))}
@@ -1005,15 +1016,12 @@ function WatchFolderNotice({
               <label className="watch-folder-file" title={file.path}>
                 <input
                   type="checkbox"
+                  className="check-box-input"
                   checked={selectedKeys.has(fileKey(file))}
                   onChange={() => toggleFile(file)}
                   disabled={running}
                 />
-                <span className="watch-folder-checkbox" aria-hidden>
-                  <svg width="12" height="10" viewBox="0 0 12 10" fill="none">
-                    <path d="m1.5 5 3 3 6-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </span>
+                <CheckBox />
                 <span className="watch-folder-file-name">{file.name}</span>
               </label>
               <button
@@ -1217,6 +1225,7 @@ function Row({
   onCancel,
   onDeleteTranscription,
   onTranscriptionLanguage,
+  onSecondLanguage,
   onRename,
 }: {
   recording: Recording;
@@ -1233,6 +1242,7 @@ function Row({
   onCancel: () => void;
   onDeleteTranscription: () => void;
   onTranscriptionLanguage: (language: string) => void;
+  onSecondLanguage: (language: string) => void;
   onRename: (title: string) => void;
 }) {
   const { t } = useI18n();
@@ -1270,10 +1280,17 @@ function Row({
           if (name !== recording.title) onRename(name);
         }}
       />
+      {/* Shut only while there is nothing behind it. A first transcription
+          has nothing to open until its blocks start arriving, and an empty
+          screen reads as a fault. But a recording that already holds a
+          transcript is being *added to* — filling another language, separating
+          speakers, transcribing again — and the reader wants to watch it
+          happen. Reported on 2026-09-02: after starting a fill, the only way
+          back to the transcript was the mouse's back button. */}
       <button
         className="row-main"
         onClick={onOpen}
-        disabled={running && !liveSegments.length}
+        disabled={running && !liveSegments.length && !recording.segment_count}
       >
         <RecordingCalendar value={recording.created_at} />
         <span className="row-text">
@@ -1293,7 +1310,33 @@ function Row({
               <RecordingMetadataItem
                 kind="language"
                 label={t("library.card.language")}
-                value={labels.languageCapitalized(recording.language)}
+                /* Both languages once a second one has been written in — the
+                   same sentence the footer uses, so the archive and the
+                   transcript never disagree about what a recording holds. */
+                value={
+                  recording.second_language
+                    ? t("app.shell.twoLanguages", {
+                        first: labels.languageCapitalized(recording.language),
+                        second: labels.languageCapitalized(recording.second_language),
+                      })
+                    : labels.languageCapitalized(recording.language)
+                }
+              />
+            )}
+            {recording.second_language_missing && (
+              /* Heard in the recording, not in the transcript. It stays until
+                 the offer is answered — Doplnit writes it in, Nechat být says
+                 no — so the archive and the transcript screen never disagree
+                 about what is outstanding. */
+              <RecordingMetadataItem
+                kind="languageMissing"
+                label={t("library.card.languageMissing")}
+                value={t("library.card.missing", {
+                  // Capitalised: it stands on its own on the card, where the
+                  // dictionary's lower-case form — written for the middle of a
+                  // sentence — would read as a mistake.
+                  language: labels.languageCapitalized(recording.second_language_missing),
+                })}
               />
             )}
             {recording.model && (
@@ -1358,6 +1401,13 @@ function Row({
               onRetranscribe={onTranscription}
               onDeleteTranscript={onDeleteTranscription}
               onTranscribeInLanguage={onTranscriptionLanguage}
+              language={recording.language || recording.language_choice}
+              secondLanguage={
+                recording.second_language ??
+                recording.second_language_missing ??
+                recording.second_language_choice
+              }
+              onSecondLanguage={onSecondLanguage}
               onRemove={onDelete}
             />
           </>

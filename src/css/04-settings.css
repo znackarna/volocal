@@ -120,9 +120,10 @@
    is. Everything below is about what is done with the words afterwards. */
 .settings-card-language { order: 2; }
 .settings-card-speakers { order: 3; }
-.settings-card-language-edit { order: 4; }
-.settings-card-dictionary { order: 5; }
-.settings-card-advanced { order: 6; }
+.settings-card-second-language { order: 4; }
+.settings-card-language-edit { order: 5; }
+.settings-card-dictionary { order: 6; }
+.settings-card-advanced { order: 7; }
 /* Výkon holds one card, and it still gets a number: without a rule it takes
    `order: 0` and the next card put beside it jumps above whatever asked for 1.
    That is the defect this whole block exists to prevent, and a tab with one
@@ -1012,6 +1013,19 @@
 /* A field is the dialog's last block; the footer owns the space above it. */
 .dialog .field { margin-bottom: 0; }
 .dialog-footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 22px; }
+/* A note carrying the dialog's opening sentence, in place of the plain `<p>`
+   the family's rhythm was written for. `.dialog h2 + p` owns the 18 px down to
+   the content; the note has to own the same, or the first row of a list sits
+   against the sentence explaining it — which is what the save dialogs did.
+
+   Eight above it when it follows the sentence rather than replacing it: the
+   two lines are one introduction and read as a pair, not as two blocks. */
+.dialog > .settings-info-note { margin-bottom: 18px; }
+.dialog h2 + .settings-info-note { margin-top: 0; }
+.dialog p + .settings-info-note { margin-top: 8px; }
+/* And where the note follows the sentence, the sentence gives up its own gap:
+   the two are one introduction, and 18 between them would read as two. */
+.dialog h2 + p:has(+ .settings-info-note) { margin-bottom: 0; }
 /* What is in an update, in the dialog that offers it. No margin of its own:
    `.dialog h2 + p` owns the gap above, like every other block in a dialog.
    240 px is about eight items — beyond that the box scrolls, so a talkative
@@ -1531,6 +1545,15 @@ button.mic-play:disabled { cursor: default; opacity: 0.6; }
   border: 1px solid var(--line-field); border-radius: var(--r-pill);
   background: var(--panel); color: var(--text); font: inherit;
   font-size: 13px; font-weight: 600; text-align: center;
+  /* No spinner. The browser puts a pair of arrows inside every number field,
+     and they are for walking a value one step at a time — here the reader
+     already has 1 to 4 as buttons beside this and types the exception. Two
+     arrows in a pill 84 px wide are furniture that does nothing. */
+  appearance: textfield; -moz-appearance: textfield;
+}
+.speaker-count-input::-webkit-outer-spin-button,
+.speaker-count-input::-webkit-inner-spin-button {
+  appearance: none; -webkit-appearance: none; margin: 0;
 }
 .speaker-count-input:focus {
   outline: 0; border-color: var(--accent); box-shadow: var(--ring-field);

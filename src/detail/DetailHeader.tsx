@@ -18,7 +18,6 @@ import { MiniRecorder } from "../recorder";
 import { Wordmark } from "../Brand";
 import NameDialog from "../NameDialog";
 import RecordingActionsMenu from "../RecordingActionsMenu";
-import { ExportMenu } from "./documents";
 import { LineIcon } from "../icons";
 import { fileName, statusClass } from "../types";
 import type { Folder } from "../types";
@@ -46,7 +45,19 @@ export function DetailHeader({
 }: {
   /** What this screen is about. One object, because the header reads five of
    *  its fields and none of them mean anything apart. */
-  recording: { title: string; path: string; status: string; folder: string | null };
+  recording: {
+    title: string;
+    path: string;
+    status: string;
+    folder: string | null;
+    /** What the transcript is written in, so the menu does not offer it as the
+     *  second language too. */
+    language: string;
+    /** And what it holds beside that, so the menu can show a language its own
+     *  list does not offer — Welsh, Mongolian, any of the other eighty-odd
+     *  whisper hears. */
+    secondLanguage?: string | null;
+  };
   /** What is already happening to it. */
   busy: { running: boolean; diarizing: boolean };
   /** Everything behind the three dots. The two destructive ones take no
@@ -58,6 +69,7 @@ export function DetailHeader({
     onExportAudio: () => void;
     onRetranscribe: () => void;
     onTranscribeInLanguage: (language: string) => void;
+    onSecondLanguage: (language: string) => void;
     onDeleteTranscript: () => void;
     onRemove: () => void;
   };
@@ -72,7 +84,9 @@ export function DetailHeader({
   /** Travels to whatever else is playing, when something else is. */
   onOpenOther: () => void;
   otherRecordingId: string | null;
-  onExport: (format: string) => void;
+  /** Opens the one save dialog. It took a format when the header held a
+   *  dropdown of them; the dialog asks that question now. */
+  onExport: () => void;
   onRecognizeSpeakers: () => void;
   speakersBusy: boolean;
   speakersReady: boolean;
@@ -183,6 +197,9 @@ export function DetailHeader({
               onRetranscribe={menu.onRetranscribe}
               onDeleteTranscript={menu.onDeleteTranscript}
               onTranscribeInLanguage={menu.onTranscribeInLanguage}
+              language={recording.language}
+              secondLanguage={recording.secondLanguage}
+              onSecondLanguage={menu.onSecondLanguage}
               onRemove={menu.onRemove}
             />
           )}
@@ -247,14 +264,23 @@ export function DetailHeader({
           ? t("detail.header.improvedButton")
           : t("detail.header.improveButton")}
       </button>
-      {/* Five format abbreviations side by side read as a toolbar and
-          overpowered the file name. Saving is one action, not five. */}
-      <ExportMenu
+      {/* One button, one dialog — the same one the archive card opens through
+          `Uložit jako…`. It was a dropdown of five formats, and the audio was
+          nowhere in it: taking the sound out of a recording lived behind a
+          different menu on a different screen. Asked about on 2026-09-02:
+          *v Uložit na detailu by taky měl být zvuk, ne?* */}
+      <button
+        className="button save-button"
+        onClick={onExport}
         disabled={!hasSegments}
-        onChoose={onExport}
-        hasAiDocument={!!ai.state.document && !ai.state.document.stale}
-        onChooseAi={ai.actions.saveImproved}
-      />
+      >
+        <svg width="15" height="15" viewBox="0 0 15 15" aria-hidden>
+          <path d="M8 2v8M4.6 6.8 8 10.2l3.4-3.4M2.5 12.5h11"
+                stroke="currentColor" strokeWidth="1.5"
+                strokeLinecap="round" strokeLinejoin="round" fill="none" />
+        </svg>
+        {t("detail.export.button")}
+      </button>
       <button
         className="icon-button header-icon-button"
         onClick={onNew}

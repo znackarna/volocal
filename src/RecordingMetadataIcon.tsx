@@ -3,6 +3,7 @@ export type RecordingMetadataKind =
   | "language"
   | "model"
   | "segments"
+  | "languageMissing"
   | "saved"
   | "folder"
   | "error";
@@ -29,6 +30,18 @@ export default function RecordingMetadataIcon({ kind }: { kind: RecordingMetadat
       <svg {...common}>
         <circle cx="8" cy="8" r="5.7" />
         <path d="M2.5 8h11M8 2.3c1.7 1.6 2.5 3.5 2.5 5.7S9.7 12.1 8 13.7M8 2.3C6.3 3.9 5.5 5.8 5.5 8s.8 4.1 2.5 5.7" />
+      </svg>
+    );
+  }
+  if (kind === "languageMissing") {
+    /* Half of the circle drawn in: half the speech is in the transcript and
+       half is not. The same circle the clock, the globe and the model are
+       drawn on, so it belongs to the row it sits in — and it says *there is
+       more here*, not *something is wrong*, which is the truth of it. */
+    return (
+      <svg {...common}>
+        <circle cx="8" cy="8" r="5.7" />
+        <path d="M8 2.3a5.7 5.7 0 0 0 0 11.4z" fill="currentColor" stroke="none" />
       </svg>
     );
   }

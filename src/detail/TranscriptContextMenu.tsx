@@ -132,5 +132,7 @@ export const MENU_ICONS = {
   speaker: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z M4 20a8 8 0 0 1 16 0",
   // A person with a plus: somebody the machine never found.
   newVoice: "M10 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z M3.5 20a6.5 6.5 0 0 1 11 -4.7 M17 15v6 M14 18h6",
+  // A bracket around a stretch: this block, and everything to the mark.
+  clip: "M8 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h3 M16 4h3a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-3 M9 12h6",
 } as const;
 

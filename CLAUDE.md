@@ -111,6 +111,54 @@ Asked for on 2026-08-21, after a rewritten `SECURITY.md` opened with a note
 explaining its own bilingualism and described the interface as *rozhraní
 zabalené v programu* — which tells a reader nothing.
 
+## A feature brings its own file
+
+**A new feature is written beside the screen, never inside it.** Its state, the
+things it can do, and the part of the interface that shows it arrive together
+in files of their own; the screen is handed the result and composes.
+
+This is not a rule about size. A long file that does one thing is better than a
+short one with an API nobody can read, and nothing here caps a line count.
+
+It is a rule about the one moment nobody was having. `Detail.tsx` reached 3 507
+lines and 53 pieces of state without a single bad decision in it: a feature was
+added, two or three values went into the screen because that is one step
+cheaper than starting a file, and that happened fifty-three times. Nobody was
+ever wrong. Nobody was ever asked.
+
+**The question to ask of every new piece of state.** Whose is it?
+
+| it belongs to | it lives in |
+|---|---|
+| one feature — its data, its drafts, what it is doing | that feature's controller |
+| one component and nothing else | that component |
+| the window — which screen is open, what may start | the screen |
+
+**What a controller hands back is a named model and named actions**, not a row
+of setters whose order the caller has to know. And what it is *not* given
+matters as much: the player, the confirmation dialog, telling the reader about
+a failure and fetching the recording again all belong to the screen, and a
+controller asks for them by name rather than reaching for them.
+
+**A controller does not distribute what it fetches.** One visit to the backend
+brings back things belonging to several owners; handing them out is the
+screen's job. A hook that called into four other features would be the same
+concentration one file further across.
+
+**Two boundaries that outrank tidiness.** Transcription and speaker separation
+are started through the shell, which puts a question first — a screen that
+reached the backend directly would skip it. And anything a hook returns that
+something else lists among its dependencies is memoised, or the effect that
+lists it re-arms on every render; that cost two defects in one afternoon, and
+both were invisible until something else went wrong.
+
+`SetupWizard.tsx` and `Library.tsx` were left whole on purpose. Neither is a
+problem yet. Both are growing the way the other three grew, and this rule is
+what makes dividing them unnecessary rather than overdue.
+
+Asked for on 2026-09-01, the day the three largest screens came apart, by
+somebody who did not want to pay for it twice.
+
 ## Visual system
 
 These are the values a new screen inherits rather than re-invents. An exception

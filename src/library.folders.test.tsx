@@ -47,6 +47,10 @@ function recording(id: string): Recording {
     segment_count: 4,
     folder: null,
     source_url: null,
+  second_language_choice: "",
+  second_language_by_reader: true,
+  second_language: null,
+  second_language_missing: null,
   };
 }
 
@@ -99,6 +103,7 @@ function show({
         automatic={false}
         onAutomatic={() => {}}
         onTranscriptionLanguage={() => {}}
+      onSecondLanguage={() => {}}
       />
     </I18nProvider>
   );

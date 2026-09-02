@@ -624,6 +624,60 @@ pub fn format_duration(s: f64) -> String {
     }
 }
 
+/// The blocks of one stretch of a transcript, for a clip.
+///
+/// A block counts as inside when it starts inside — the same rule the
+/// interface selects by, so what the reader sees marked is exactly what comes
+/// out. A block straddling the end therefore comes whole rather than cut in
+/// half mid-sentence, which is what somebody quoting a passage wants.
+pub fn between(segments: &[Segment], from: f64, to: f64) -> Vec<Segment> {
+    segments
+        .iter()
+        .filter(|s| s.start >= from - 0.0005 && s.start < to)
+        .cloned()
+        .collect()
+}
+
+/// The same blocks with the clip's own start as zero — for subtitles laid
+/// under a cut-out piece of audio, where the recording's original clock means
+/// nothing.
+///
+/// A copy. **Nothing in the archive moves**, here or anywhere else: stored
+/// times were measured against the decoded audio and are correct, and the one
+/// rule this program has never broken is that they are not stretched or
+/// shifted to make something else line up.
+///
+/// Word timings move with their block, because the captions are built from
+/// them — shifting only the block would put every caption back where it was.
+pub fn from_zero(segments: &[Segment], from: f64) -> Vec<Segment> {
+    let place = |t: f64| (((t - from).max(0.0)) * 1000.0).round() / 1000.0;
+    segments
+        .iter()
+        .map(|s| {
+            let mut moved = s.clone();
+            moved.start = place(s.start);
+            moved.end = place(s.end);
+            if let Some(words) = s
+                .words
+                .as_deref()
+                .and_then(|w| serde_json::from_str::<Vec<serde_json::Value>>(w).ok())
+            {
+                let shifted: Vec<serde_json::Value> = words
+                    .into_iter()
+                    .map(|mut word| {
+                        if let Some(t) = word["t"].as_f64() {
+                            word["t"] = serde_json::json!(place(t));
+                        }
+                        word
+                    })
+                    .collect();
+                moved.words = serde_json::to_string(&shifted).ok();
+            }
+            moved
+        })
+        .collect()
+}
+
 pub fn extension(format: &str) -> &'static str {
     match format {
         "txt" => "txt",
@@ -651,6 +705,60 @@ pub fn create(
 
 #[cfg(test)]
 mod tests {
+    /// The screen and the backend must agree about which blocks a clip covers,
+    /// or the file is not what was highlighted. Both take the blocks that
+    /// *begin* inside it.
+    #[test]
+    fn a_clip_takes_the_blocks_that_begin_inside_it() {
+        let all = vec![
+            clip_block("a", 0.0, 4.0),
+            clip_block("b", 4.0, 9.0),
+            clip_block("c", 9.0, 14.0),
+            clip_block("d", 14.0, 20.0),
+        ];
+        let chosen = super::between(&all, 4.0, 14.0);
+        assert_eq!(
+            chosen.iter().map(|s| s.id.as_str()).collect::<Vec<_>>(),
+            ["b", "c"]
+        );
+    }
+
+    /// **Nothing in the archive moves.** The clip's own clock is a copy, and
+    /// the word timings move with their block — the subtitles are built from
+    /// the words, so shifting only the block would put every caption back
+    /// where it started.
+    #[test]
+    fn subtitles_from_zero_move_the_words_with_their_block() {
+        let mut block = clip_block("b", 12.5, 17.0);
+        block.words = Some(r#"[{"s":"ahoj","t":12.5},{"s":"tam","t":13.25}]"#.into());
+
+        let moved = super::from_zero(&[block], 12.5);
+        assert_eq!(moved[0].start, 0.0);
+        assert_eq!(moved[0].end, 4.5);
+        let words: Vec<serde_json::Value> =
+            serde_json::from_str(moved[0].words.as_deref().unwrap()).unwrap();
+        assert_eq!(words[0]["t"].as_f64().unwrap(), 0.0);
+        assert_eq!(words[1]["t"].as_f64().unwrap(), 0.75);
+    }
+
+    fn clip_block(id: &str, start: f64, end: f64) -> Segment {
+        Segment {
+            id: id.into(),
+            recording_id: "r".into(),
+            order: 0,
+            start,
+            end,
+            text: id.into(),
+            speakers: None,
+            confidence: None,
+            edited: false,
+            verified: false,
+            words: None,
+            original: None,
+            language: None,
+        }
+    }
+
     use super::*;
 
     fn prose_segment(
@@ -745,6 +853,10 @@ mod tests {
             model: "large-v3".to_string(),
             language: "cs".to_string(),
             language_choice: "cs".to_string(),
+            second_language_choice: String::new(),
+            second_language_by_reader: false,
+            second_language: None,
+            second_language_missing: None,
             error: None,
             segment_count: 0,
             folder: None,

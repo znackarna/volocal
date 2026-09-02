@@ -19,6 +19,18 @@ interface Props {
   onRetranscribe: () => void;
   onDeleteTranscript: () => void;
   onTranscribeInLanguage: (language: string) => void;
+  /** What the transcript is written in, so it is not offered as the *second*
+   *  language as well — the backend refuses that, and an option that always
+   *  fails does not belong in a menu. */
+  language: string;
+  /** The second language already on this recording, if any — named by the
+   *  reader or written down by a fill. whisper hears ninety-nine languages and
+   *  the list below offers the dozen a reader is likely to pick, so this is how
+   *  a menu that would otherwise hide what is set gets to show it. */
+  secondLanguage?: string | null;
+  /** Which second language the recording holds, or none. On a finished
+   *  transcript this also starts writing it in. */
+  onSecondLanguage: (language: string) => void;
   onRemove: () => void;
   className?: string;
 }
@@ -35,11 +47,21 @@ export default function RecordingActionsMenu({
   onRetranscribe,
   onDeleteTranscript,
   onTranscribeInLanguage,
+  language,
+  secondLanguage,
+  onSecondLanguage,
   onRemove,
   className = "",
 }: Props) {
   const { t } = useI18n();
   const labels = useLabels();
+  const held = secondLanguage?.trim().toLowerCase() ?? "";
+  const offered = labels
+    .languageOptions()
+    .filter(
+      (option) =>
+        option.value !== "auto" && option.value.toLowerCase() !== language.toLowerCase()
+    );
   const items: ActionItem[] = [
     { label: t("common.rename"), icon: Icons.rename, action: onRename },
     ...(status === "done"
@@ -49,22 +71,78 @@ export default function RecordingActionsMenu({
             icon: Icons.retranscribe,
             action: onRetranscribe,
           },
-          /* Transcribing again and transcribing again in another language are
-             the same act with one extra decision, so they stand together
-             (Jakub's call) rather than with a submenu's worth of list between
-             them. */
-          {
-            label: t("dialogs.recordingMenu.transcribeInLanguage"),
-            icon: Icons.language,
-            children: labels.languageOptions().map((language) => ({
-              label: language.label,
-              action: () => onTranscribeInLanguage(language.value),
-            })),
-          },
           {
             label: t("dialogs.recordingMenu.deleteTranscript"),
             icon: Icons.deleteTranscript,
             action: onDeleteTranscript,
+          },
+        ]
+      : []),
+    /* Everything about language under one word, with the two halves as the
+       next step (Jakub's shape). They were two items side by side and read as
+       two versions of one thing; they are one thing with two halves. The
+       *main* language is what the whole transcript is written in — choosing it
+       transcribes again, which is why it needs a transcript to redo and is
+       absent before one exists. The *second* language is the one the first
+       pass could not write, filled in from the stretches between its words;
+       it is a standing instruction, so it is offered before a transcript as
+       well. `auto` belongs only to the main one: a second language is by
+       definition the one whisper did not pick. */
+    ...(status !== "transcribing"
+      ? [
+          {
+            label: t("dialogs.recordingMenu.languages"),
+            icon: Icons.language,
+            children: [
+              ...(status === "done"
+                ? [
+                    {
+                      label: t("dialogs.recordingMenu.mainLanguage"),
+                      hint: t("dialogs.recordingMenu.mainLanguageHint"),
+                      children: labels.languageOptions().map((language) => ({
+                        label: language.label,
+                        action: () => onTranscribeInLanguage(language.value),
+                      })),
+                    },
+                  ]
+                : []),
+              {
+                label: t("dialogs.recordingMenu.secondLanguage"),
+                hint: t("dialogs.recordingMenu.secondLanguageHint"),
+                children: [
+                  /* First, because it is the answer most readers want and the
+                     only one they cannot get wrong: Volocal listens across the
+                     whole recording and fills in whatever it finds. The dozen
+                     below are for saying it outright. */
+                  {
+                    label: t("dialogs.recordingMenu.automaticSecondLanguage"),
+                    action: () => onSecondLanguage("auto"),
+                  },
+                  /* A language the detection heard but the list does not
+                     offer — Welsh, Mongolian, any of the other eighty-odd —
+                     goes in at the top rather than being left out. The pass
+                     handles every language whisper knows; without this the
+                     menu would show a dozen options and none of them the one
+                     the recording actually holds. */
+                  ...(held && !offered.some((o) => o.value === held)
+                    ? [
+                        {
+                          label: labels.languageCapitalized(held),
+                          action: () => onSecondLanguage(held),
+                        },
+                      ]
+                    : []),
+                  ...offered.map((language) => ({
+                    label: language.label,
+                    action: () => onSecondLanguage(language.value),
+                  })),
+                  {
+                    label: t("dialogs.recordingMenu.noSecondLanguage"),
+                    action: () => onSecondLanguage(""),
+                  },
+                ],
+              },
+            ],
           },
         ]
       : []),
@@ -127,6 +205,9 @@ const Icons = {
   deleteTranscript:
     "M7.5 17.5l7-7a2 2 0 0 1 2.9 0l2.1 2.1a2 2 0 0 1 0 2.9L16 19H9l-1.5-1.5Z M11.5 13.5l4.5 4.5 M4 20h16",
   language: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z M3.6 9h16.8 M3.6 15h16.8 M12 3c2.3 2.4 3.5 5.6 3.5 9S14.3 18.6 12 21c-2.3-2.4-3.5-5.6-3.5-9S9.7 5.4 12 3Z",
+  /* Two speech bubbles, one behind the other: two voices in one recording. */
+  secondLanguage:
+    "M4 6.5A2.5 2.5 0 0 1 6.5 4h7A2.5 2.5 0 0 1 16 6.5v4a2.5 2.5 0 0 1-2.5 2.5H9l-3.5 3v-3H6.5A2.5 2.5 0 0 1 4 10.5v-4Z M18 9.5a2.5 2.5 0 0 1 2 2.45v4A2.5 2.5 0 0 1 17.5 18.5H17v3l-3.5-3H12",
   /* From the shared registry: the panel's speaker rows draw the same can. */
   remove: LINE_ICONS.remove,
   /* From the shared registry: three places draw a folder, and they must not
@@ -144,8 +225,11 @@ const Icons = {
   folderNew: `${LINE_ICONS.folder} M12 10.75v5 M9.5 13.25h5`,
   folderOut: `${LINE_ICONS.folder} M12 15.75v-5 M9.5 13.25l2.5-2.5 2.5 2.5`,
   /* A note over a tray: the audio itself, saved out of the archive. */
-  exportAudio:
-    "M8.5 17.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z M11 15V5l7 2v8 M18 15a2.5 2.5 0 1 1-5 0 M4 20h16",
+  /* A download arrow over a line — the same shape the transcript's own save
+     button wears. It was a musical note while the item saved the audio alone;
+     since it saves whatever the reader ticks, a note would name one row of
+     six. */
+  exportAudio: "M12 3v10M7.8 8.8 12 13l4.2-4.2M4 19h16",
 } as const;
 
 function MenuIcon({ path }: { path: string }) {
@@ -162,6 +246,9 @@ function MenuIcon({ path }: { path: string }) {
 
 export interface ActionItem {
   label: string;
+  /** A quiet second line saying what choosing this leads to — *Přepsat znovu*
+   *  under *Hlavní jazyk* — for an entry whose name alone does not say. */
+  hint?: string;
   action?: () => void;
   warning?: boolean;
   icon?: string;
@@ -177,11 +264,15 @@ export function ActionMenu({
 }) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
-  const [submenu, setSubmenu] = useState<ActionItem | null>(null);
+  /* Where the reader has walked in, outermost first. A single `submenu` was
+     enough while nothing went two levels deep; the language item does, and
+     Back from its second level has to return to its first, not to the top. */
+  const [trail, setTrail] = useState<ActionItem[]>([]);
+  const submenu = trail[trail.length - 1] ?? null;
   const container = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!open) setSubmenu(null);
+    if (!open) setTrail([]);
   }, [open]);
 
   useEffect(() => {
@@ -214,7 +305,7 @@ export function ActionMenu({
       {open && (
         <div className="action-menu-list" role="menu">
           {submenu && (
-            <button className="menu-back" onClick={() => setSubmenu(null)}>
+            <button className="menu-back" onClick={() => setTrail((t) => t.slice(0, -1))}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
                 <path d="M15 5l-7 7 7 7" stroke="currentColor" strokeWidth="2"
                       strokeLinecap="round" strokeLinejoin="round" />
@@ -226,14 +317,17 @@ export function ActionMenu({
             <button key={item.label} role="menuitem" className={item.warning ? "destructive-item" : ""}
                     onClick={() => {
                       if (item.children) {
-                        setSubmenu(item);
+                        setTrail((t) => [...t, item]);
                         return;
                       }
                       setOpen(false);
                       item.action?.();
                     }}>
               {item.icon && <MenuIcon path={item.icon} />}
-              <span className="menu-label">{item.label}</span>
+              <span className="menu-label">
+                {item.label}
+                {item.hint && <span className="menu-hint">{item.hint}</span>}
+              </span>
               {item.children && (
                 <svg className="menu-arrow" width="14" height="14" viewBox="0 0 24 24"
                      fill="none" aria-hidden>

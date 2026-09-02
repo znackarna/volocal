@@ -25,6 +25,7 @@ import { useFolderManagement } from "./app/useFolderManagement";
 import { AppFooter } from "./app/AppFooter";
 import { AppDialogs } from "./app/AppDialogs";
 import { NoticeBar } from "./app/NoticeBar";
+import { SaveRecordingDialog } from "./SaveRecordingDialog";
 import { rememberSpeakerNames } from "./speakerNames";
 import { computeFellBack } from "./compute";
 import { useI18n } from "./i18n";
@@ -129,49 +130,6 @@ function sameCandidates(a: WatchFolderCandidate[], b: WatchFolderCandidate[]): b
 /** How long the notice bar stays before it leaves on its own. The countdown
  *  ring in the bar is handed the same number, so the picture and the timer
  *  cannot disagree. */
-/** The order the pipeline goes through. Used only to spot a report that
- *  arrives out of turn. */
-const PHASE_ORDER = [
-  // A run that found another one ahead of it starts here, before it has done
-  // anything. Listing it keeps a late report from throwing the caption back to
-  // the queue after the work has begun.
-  "queued",
-  "preparation",
-  "playback",
-  "transcription",
-  "diarization",
-  "saving",
-];
-
-/** Phases that end a run. After one of them anything may follow — a new run
- *  legitimately starts from the beginning. */
-const FINAL_PHASES = ["complete", "error", "cancelled"];
-
-/**
- * Should this report replace the one currently shown?
- *
- * Progress arrives from several places at once: the conversion, the thread
- * reading whisper's output, diarization. They are not synchronised with each
- * other, so a late report can turn up after a newer one and throw the caption
- * back a step — which looked like the label flicking between "Převádím zvuk"
- * and "Přepisuji" at random. Anything that would move the run backwards is
- * dropped; going back is only allowed once the previous run has ended.
- */
-function keepsMovingForward(
-  previous: TranscriptionProgress | undefined,
-  next: TranscriptionProgress
-): boolean {
-  if (!previous) return true;
-  if (FINAL_PHASES.includes(previous.phase)) return true;
-  if (FINAL_PHASES.includes(next.phase)) return true;
-
-  const before = PHASE_ORDER.indexOf(previous.phase);
-  const after = PHASE_ORDER.indexOf(next.phase);
-  if (before === -1 || after === -1) return true;
-  if (after !== before) return after > before;
-  return next.percent >= previous.percent;
-}
-
 export default function App() {
   const { t, tPlural, tDynamic } = useI18n();
   const labels = useLabels();
@@ -788,36 +746,28 @@ export default function App() {
     [foldersModel.actions, t, tPlural]
   );
 
-  const exportAudio = useCallback(
-    async (id: string) => {
-      const recording = recordings.find((item) => item.id === id);
-      if (!recording) return;
-      const source = recording.path.split(".").pop()?.toLowerCase() ?? "";
-      const name = (recording.title || fileName(recording.path)).replace(/\.[^.]+$/, "");
-      /* An audio-only source keeps its own format first, because that one is
-         handed over untouched; a video's audio has to be written out, and
-         MP3 is the format nobody has to think about. */
-      const offered = AUDIO_ONLY_EXTENSIONS.includes(source)
-        ? [source, ...AUDIO_EXPORT_FORMATS.filter((format) => format !== source)]
-        : [...AUDIO_EXPORT_FORMATS];
-      const destination = await save({
-        defaultPath: `${name}.${offered[0]}`,
-        filters: offered.map((format) => ({
-          name: AUDIO_FORMAT_LABELS[format]
-            ? t(AUDIO_FORMAT_LABELS[format])
-            : t("app.audioFormat.same", { format: format.toUpperCase() }),
-          extensions: [format],
-        })),
-      });
-      if (!destination) return;
+  /* Saving something out of a recording: the audio, the transcript, or both.
+     One dialog for the whole application, opened from either menu — the card
+     in the archive and the transcript's header both ask the same question, and
+     until 2026-09-02 they answered it with two different doors: `Uložit zvuk…`
+     for the audio alone and a dropdown of formats for the text. */
+  const [saving, setSaving] = useState<string | null>(null);
+  const savingRecording = recordings.find((item) => item.id === saving) ?? null;
+
+  /* Naming a second language on a recording. The backend writes it on the
+     recording and, when there is already a transcript, starts filling it in —
+     which reports like a run, so nothing here has to watch it. The list is
+     fetched again because the row's language changed. */
+  const nameSecondLanguage = useCallback(
+    async (id: string, language: string) => {
       try {
-        await api.exportAudio(id, destination);
-        reportInfo(t("app.notice.audioSaved", { path: destination }));
+        await api.setSecondLanguageChoice(id, language);
+        await loadRecordings();
       } catch (error) {
         reportError(userMessage(error));
       }
     },
-    [recordings, reportError, reportInfo, t, userMessage]
+    [loadRecordings, reportError, userMessage]
   );
 
   // -------------------------------------------------- navigation
@@ -1063,7 +1013,30 @@ export default function App() {
       </header>
       )}
 
-      <NoticeBar notices={notices} />
+      {/* Under whichever header is showing. The archive's header is the one
+          above, and the transcript screen draws its own — so on that screen the
+          bar is handed down and rendered there instead of here, where it would
+          sit above the header and read as pinned to the window rather than
+          belonging to the screen. Asked about on 2026-09-02. */}
+      {screen !== "detail" && <NoticeBar notices={notices} />}
+
+      <SaveRecordingDialog
+        recording={savingRecording}
+        chooseFile={(name) => save({ defaultPath: name })}
+        chooseFolder={async () => {
+          const chosen = await open({ directory: true });
+          return typeof chosen === "string" ? chosen : null;
+        }}
+        onClose={() => setSaving(null)}
+        onError={(message) => reportError(userMessage(message))}
+        onSaved={(paths) =>
+          reportInfo(
+            paths.length === 1
+              ? t("save.saved", { path: paths[0] })
+              : tPlural("save.savedMany", paths.length)
+          )
+        }
+      />
 
       {screen === "library" && (
         <Library
@@ -1079,7 +1052,7 @@ export default function App() {
           onIgnoreWatchCandidates={watch.actions.ignore}
           onAddWatchCandidates={watch.actions.add}
           onOpen={openRecording}
-          onExportAudio={exportAudio}
+          onExportAudio={setSaving}
           folders={folders}
           openFolder={openFolder}
           onOpenFolder={foldersModel.actions.show}
@@ -1139,6 +1112,7 @@ export default function App() {
             loadRecordings();
           }}
           onTranscriptionLanguage={(id, j) => void beginTranscription([id], j)}
+          onSecondLanguage={(id, language) => void nameSecondLanguage(id, language)}
           automatic={automatic}
           onAutomatic={(z) => {
             setAutomatic(z);
@@ -1160,6 +1134,7 @@ export default function App() {
                showing the previous recording's text, status and waveform. */
             key={selectedId}
             id={selectedId}
+            notices={notices}
             seekTime={seekTime}
             progress={progress[selectedId]}
             liveSegments={liveSegments[selectedId] ?? []}
@@ -1176,7 +1151,7 @@ export default function App() {
               setAddRecordingOpen(true);
             }}
             onOpenRecording={openRecording}
-            onExportAudio={() => void exportAudio(selectedId)}
+            onExportAudio={() => setSaving(selectedId)}
             folders={folders}
             onMoveToFolder={(folder) => void foldersModel.actions.move(selectedId, folder)}
             onCreateFolderFor={() =>

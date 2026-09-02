@@ -25,7 +25,7 @@ export const csDialogs = {
   "dialogs.speakers.introMany.other":
     "Pokud znáte počet mluvčích, nástroj pro rozpoznání bude mít lehčí úkol. Platí pro {count} nahrávek.",
   "dialogs.speakers.exactLabel": "Přesný počet mluvčích",
-  "dialogs.speakers.morePlaceholder": "víc",
+  "dialogs.speakers.morePlaceholder": "více",
   "dialogs.speakers.note": "Odpověď platí jen pro tento přepis, v nastavení se nic nemění.",
   "dialogs.speakers.unknown": "Nevím",
   "dialogs.speakers.confirm": "Přepsat",
@@ -91,7 +91,7 @@ export const csDialogs = {
   "dialogs.recordingMenu.moveToFolder": "Vložit do složky",
   "dialogs.recordingMenu.newFolder": "Nová složka…",
   "dialogs.recordingMenu.outOfFolder": "Vyjmout ze složky",
-  "dialogs.recordingMenu.exportAudio": "Uložit zvuk…",
+  "dialogs.recordingMenu.exportAudio": "Uložit jako…",
   "dialogs.rename.title": "Přejmenovat přepis",
   "dialogs.rename.text": "Přejmenuje položku v archivu, ne soubor na disku.",
   "dialogs.rename.label": "Název přepisu",
@@ -114,7 +114,13 @@ export const csDialogs = {
     "Složka obsahuje {count} přepisů. Můžete je přesunout do archivu, nebo smazat spolu se složkou.",
   "dialogs.folder.deleteKeep": "Jen složku",
   "dialogs.folder.deleteAll": "Včetně přepisů",
-  "dialogs.recordingMenu.transcribeInLanguage": "Přepsat v jazyce",
+  "dialogs.recordingMenu.languages": "Jazyk",
+  "dialogs.recordingMenu.mainLanguage": "Přepsat v jazyce",
+  "dialogs.recordingMenu.mainLanguageHint": "Nahradí celý přepis",
+  "dialogs.recordingMenu.secondLanguage": "Doplnit druhý jazyk",
+  "dialogs.recordingMenu.secondLanguageHint": "Doplní, co první přepis vynechal",
+  "dialogs.recordingMenu.automaticSecondLanguage": "Automaticky",
+  "dialogs.recordingMenu.noSecondLanguage": "Žádný druhý jazyk",
   "dialogs.recordingMenu.remove": "Odebrat z archivu",
 } as const;
 
@@ -211,8 +217,20 @@ export const csDialogsContext: Partial<Record<keyof typeof csDialogs, string>> =
     "Tlačítko: smaže složku, ale přepisy z ní vrátí do archivu.",
   "dialogs.recordingMenu.exportAudio":
     "Uloží zvukový soubor nahrávky jinam. Vlastní záznamy a stažená videa leží ve složce aplikace, kde je nikdo nehledá.",
-  "dialogs.recordingMenu.transcribeInLanguage":
-    "Položka, která otevírá podnabídku se seznamem jazyků. Jazyk se vybírá až v ní.",
+  "dialogs.recordingMenu.languages":
+    "Položka, pod kterou jsou obě volby jazyka: hlavní (přepíše znovu) a druhý (doplní chybějící řeč).",
+  "dialogs.recordingMenu.mainLanguage":
+    "První řádek podnabídky Jazyky. Vede na seznam jazyků; výběr spustí přepis znovu v tom jazyce.",
+  "dialogs.recordingMenu.mainLanguageHint":
+    "Tichý druhý řádek pod „Hlavní jazyk“ — říká, co volba udělá.",
+  "dialogs.recordingMenu.secondLanguage":
+    "Druhý řádek podnabídky Jazyky: kterým dalším jazykem se v nahrávce mluví. U hotového přepisu se hned doplní.",
+  "dialogs.recordingMenu.secondLanguageHint":
+    "Tichý druhý řádek pod „Druhý jazyk“ — říká, co volba udělá.",
+  "dialogs.recordingMenu.automaticSecondLanguage":
+    "První položka podnabídky Doplnit druhý jazyk: Volocal si jazyk najde sám a rovnou ho doplní.",
+  "dialogs.recordingMenu.noSecondLanguage":
+    "Poslední položka té podnabídky — nahrávka žádný druhý jazyk nemá.",
   "dialogs.recordingMenu.remove":
     "Odstraní nahrávku z archivu. Není to totéž co „Smazat přepis“, který nahrávku nechává být.",
 };

@@ -9,8 +9,6 @@ export const csDetail = {
   "detail.format.json": "Data pro aplikace",
 
   "detail.export.button": "Uložit",
-  "detail.export.rawGroup": "Hrubý přepis",
-  "detail.export.improvedGroup": "Vylepšený přepis",
 
   "detail.header.speakersButton": "Mluvčí",
   "detail.header.improveButton": "AI nástroje",
@@ -88,6 +86,27 @@ export const csDetail = {
   "detail.speakers.nameHint": "Stejné jméno sloučí mluvčí.",
   "detail.speakers.nameLabel": "Jméno mluvčího",
   "detail.speakers.add": "Přidat",
+  "detail.clip.dialogTitle": "Jak chcete výběr uložit?",
+  "detail.clip.dialogText": "Vybráno od {from} do {to}, celkem {length}.",
+  "detail.clip.several": "Můžete zvolit více možností najednou.",
+  "detail.clip.shape.audio": "Zvuk",
+  "detail.clip.shapeNote.audio": "Vyříznutý kus nahrávky",
+  "detail.clip.shape.txt": "Text",
+  "detail.clip.shapeNote.txt": "Čistý přepis pro citaci",
+  "detail.clip.shape.md": "Markdown",
+  "detail.clip.shapeNote.md": "Text s mluvčími a časy",
+  "detail.clip.shape.srt": "Titulky SRT",
+  "detail.clip.shapeNote.srt": "Pro střihové programy a přehrávače",
+  "detail.clip.shape.vtt": "Titulky VTT",
+  "detail.clip.shapeNote.vtt": "Pro web a videa v prohlížeči",
+  "detail.clip.saveButton": "Uložit",
+  "detail.clip.saving": "Ukládám…",
+  "detail.clip.saved": "Uloženo do {path}.",
+  "detail.clip.savedMany.one": "Uložen {count} soubor.",
+  "detail.clip.savedMany.few": "Uloženy {count} soubory.",
+  "detail.clip.savedMany.many": "Uloženo {count} souboru.",
+  "detail.clip.savedMany.other": "Uloženo {count} souborů.",
+  "detail.menu.clipSelection": "Exportovat výběr",
   "detail.speakers.addTitle": "Přidat mluvčího",
   "detail.speakers.remove": "Odstranit mluvčího",
   "detail.speakers.removeTitle": "Odstranit mluvčího?",
@@ -238,6 +257,20 @@ export const csDetail = {
   "detail.dictionary.savedApplied.other":
     "„{from}“ → „{to}“ je ve slovníku. Opraveno i na {count} dalších místech.",
 
+  // Jazyk, který v nahrávce zazněl a v přepisu chybí. Objeví se jen tehdy,
+  // když ho vzorkování opravdu našlo — u jednojazyčné nahrávky nikdy.
+  "detail.secondLanguage.missing":
+    "V nahrávce zní také {language}. Chcete doplnit přepis?",
+  "detail.secondLanguage.fill": "Doplnit",
+  "detail.secondLanguage.filling": "Doplňuji…",
+  "detail.secondLanguage.no": "Nechat být",
+  "detail.secondLanguage.added.one": "Doplnili jsme jeden chybějící úsek.",
+  "detail.secondLanguage.added.few": "Doplnili jsme {count} chybějící úseky.",
+  "detail.secondLanguage.added.many": "Doplnili jsme {count} chybějících úseků.",
+  "detail.secondLanguage.added.other": "Doplnili jsme {count} chybějících úseků.",
+
+  // Jména jazyků ve větě „mluví se také anglicky“, tedy příslovce.
+
   "detail.segment.wordHint": "Kliknutí přesune přehrávání, dvojklik otevře úpravu textu",
   "detail.segment.editedHint": "Ručně upraveno",
 } as const;
@@ -250,11 +283,7 @@ export const csDetailContext: Partial<Record<keyof typeof csDetail, string>> = {
   "detail.format.json":
     "Popis formátu JSON: strojově čitelná data pro další zpracování v jiném programu.",
 
-  "detail.export.button": "Tlačítko v hlavičce, které otevře nabídku formátů uložení.",
-  "detail.export.rawGroup":
-    "Nadpis skupiny v nabídce uložení. Přepis přímo z rozpoznávání řeči, bez jazykové úpravy.",
-  "detail.export.improvedGroup":
-    "Nadpis skupiny v nabídce uložení. Verze přepisu upravená jazykovým modelem.",
+  "detail.export.button": "Tlačítko v hlavičce, které otevře dialog uložení.",
 
   "detail.header.speakersButton":
     "Tlačítko v hlavičce, které spustí rozpoznání mluvčích. Jen podstatné jméno, protože v hlavičce stojí v řadě jmen — vedle „AI nástroje“. Sloveso „Rozpoznat mluvčí“ zůstává v postranním panelu, kde je nadpis už řekl, o co jde.",

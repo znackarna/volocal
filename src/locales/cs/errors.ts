@@ -51,6 +51,8 @@ export const csErrors = {
   // Files and recordings.
   "errors.file.not_found": "Soubor neexistuje: {path}",
   "errors.file.write_failed": "Zápis selhal: {detail}",
+  "errors.file.same_file": "Výřez by přepsal samotnou nahrávku. Vyberte jiné místo.",
+  "errors.clip.audio_failed": "Zvuk výřezu se nepodařilo vyříznout: {reason}",
   "errors.recording.path_not_found": "Takový soubor neexistuje.",
   "errors.note.empty": "Poznámka nemůže být prázdná.",
   "errors.note.invalid_time": "Čas poznámky není platný.",
@@ -96,6 +98,16 @@ export const csErrors = {
   "errors.playback.ffmpeg_missing":
     "Chybí ffmpeg, takže nejde připravit přesné přehrávání MP3.",
   "errors.playback.source_missing": "Zvukový soubor už na svém místě není.",
+  // Vzorkování jazyků nemá co s čím porovnat, dokud přepis neexistuje.
+  "errors.second_language.no_transcript":
+    "Nahrávka zatím nemá přepis, se kterým by šlo jazyky porovnat.",
+  "errors.second_language.interrupted": "Doplnění dalšího jazyka se přerušilo.",
+  "errors.second_language.same_as_first":
+    "Druhý jazyk musí být jiný než ten, kterým je nahrávka přepsaná.",
+  "errors.second_language.none_found":
+    "V nahrávce jsme žádný další jazyk neslyšeli.",
+  "errors.second_language.nothing_offered":
+    "U této nahrávky se žádný další jazyk nenašel.",
   "errors.playback.conversion_failed": "Nepodařilo se připravit přesné přehrávání: {reason}",
   "errors.playback.preparation_interrupted": "Příprava přehrávání selhala: {detail}",
 

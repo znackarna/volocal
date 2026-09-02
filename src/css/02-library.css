@@ -206,23 +206,6 @@
   transition: background var(--hover-duration) var(--hover-ease);
 }
 .watch-folder-files li:hover { background: var(--muted); }
-.watch-folder-file input {
-  position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none;
-}
-.watch-folder-checkbox {
-  /* 5 px, not --r-small: on an 18 px box 8 would be nearly a circle, and a
-     circle is what this application uses for a radio, not a checkbox. */
-  display: grid; place-items: center; width: 18px; height: 18px; flex: 0 0 auto;
-  border: 1px solid var(--line-field); border-radius: 5px;
-  background: var(--panel); color: transparent;
-  transition: background var(--hover-duration) var(--hover-ease),
-    border-color var(--hover-duration) var(--hover-ease),
-    color var(--hover-duration) var(--hover-ease);
-}
-.watch-folder-file input:checked + .watch-folder-checkbox {
-  border-color: var(--accent); background: var(--accent); color: #fff;
-}
-.watch-folder-file input:focus-visible + .watch-folder-checkbox { box-shadow: var(--ring-field); }
 .watch-folder-file input:disabled ~ * { opacity: 0.55; }
 .watch-folder-file-name {
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -546,6 +529,12 @@
 }
 .recording-metadata-item > svg { flex: 0 0 auto; opacity: 0.72; }
 .recording-metadata-item.error { color: var(--danger); }
+/* A language heard but not written in. Amber, not red: nothing is broken —
+   there is simply more of the recording to be had. The icon keeps its full
+   strength here, where every other one is dimmed, because the mark is the
+   point of the item. */
+.recording-metadata-item.missing { color: hsl(var(--ds-amber)); }
+.recording-metadata-item.missing > svg { opacity: 1; }
 /* Buttons centred in the block, not pinned to the top. */
 .row-actions { display: flex; gap: 4px; align-items: center; }
 
@@ -573,7 +562,11 @@
 .action-menu-list button:hover { background: var(--muted); }
 /* The label takes the remaining space so the arrow always meets the right edge
    and it is obvious at a glance that the item leads somewhere. */
-.menu-label { flex: 1 1 auto; }
+.menu-label { flex: 1 1 auto; display: flex; flex-direction: column; gap: 1px; }
+/* The second line under a menu entry: what choosing it leads to. Quiet and one
+   size down, so the entry still reads as one line with a note under it rather
+   than as two entries. */
+.menu-hint { font-size: 11.5px; color: var(--text-quiet); font-weight: 500; }
 .menu-arrow { color: var(--text-quiet); flex: 0 0 auto; margin-left: 18px; }
 .action-menu-list button:hover .menu-arrow { color: var(--text); }
 .menu-back {

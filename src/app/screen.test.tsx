@@ -40,6 +40,8 @@ vi.mock("@tauri-apps/api/app", () => ({ getVersion: () => Promise.resolve("1.2.2
 installBrowserStubs();
 
 import { emit, show } from "./screen.harness";
+import { enLibrary } from "../locales/en/library";
+import { enDomain } from "../locales/en/domain";
 
 beforeEach(resetApp);
 afterEach(cleanup);
@@ -65,6 +67,32 @@ describe("moving between the screens", () => {
 
     await waitFor(() => expect(container.textContent).toContain("Porada"));
     expect(onDetail()).toBe(false);
+  });
+
+  /** **A recording that is missing a language says so where it is filed.**
+   *  With automatic filling off, a bilingual recording is transcribed in one
+   *  language and the offer stands; before this the archive showed nothing and
+   *  the recording sat there looking complete. The mark leaves the moment the
+   *  offer is answered, which is why it is read from the offer rather than
+   *  from the recording's own columns. */
+  test("the archive marks a recording whose transcript is missing a language", async () => {
+    setRecordings([recording({ second_language_missing: "en" })]);
+    const { container } = show();
+
+    await waitFor(() => expect(container.textContent).toContain("Porada"));
+    expect(container.textContent).toContain(enLibrary["library.card.missing"]!.replace(
+      "{language}",
+      enDomain["domain.language.en"]!
+    ));
+    expect(container.querySelector(".recording-metadata-item.missing")).not.toBeNull();
+  });
+
+  test("a recording with nothing outstanding is not marked", async () => {
+    setRecordings([recording()]);
+    const { container } = show();
+
+    await waitFor(() => expect(container.textContent).toContain("Porada"));
+    expect(container.querySelector(".recording-metadata-item.missing")).toBeNull();
   });
 
   test("a recording opens its transcript, and the way back returns to the archive", async () => {

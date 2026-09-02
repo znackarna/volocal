@@ -43,6 +43,12 @@ import type { SidebarOpenSections, SidebarSectionName } from "./detail/sidebar";
 import { transcriptKey } from "./detail/keys";
 import { TranscriptSearch } from "./detail/TranscriptSearch";
 import { TranscriptTips } from "./detail/TranscriptTips";
+import { SecondLanguageBar } from "./detail/SecondLanguageBar";
+import { NoticeBar } from "./app/NoticeBar";
+import type { Notices } from "./app/useNotices";
+import { ClipSaveDialog } from "./detail/ClipSaveDialog";
+import { selectedSegmentIds, useClipSelection } from "./detail/useClipSelection";
+import { useSecondLanguage } from "./detail/useSecondLanguage";
 import { DetailProgress } from "./detail/DetailProgress";
 import { DetailHeader } from "./detail/DetailHeader";
 import { NotesSection } from "./detail/NotesSection";
@@ -74,6 +80,10 @@ import type {
 
 interface Props {
   id: string;
+  /** The window's one notice bar, drawn under this screen's own header. The
+   *  archive draws it under the header above; this screen has a header of its
+   *  own, so the bar comes down here rather than being left to sit above it. */
+  notices: Notices;
   seekTime: number | null;
   progress?: TranscriptionProgress;
   liveSegments: LiveSegment[];
@@ -84,6 +94,7 @@ interface Props {
   /** Travels to another recording's detail — the mini player's click. */
   onOpenRecording: (recordingId: string) => void;
   /** Hands this recording's audio file over to a place of the user's choosing. */
+  /** Opens the one save dialog. */
   onExportAudio: () => void;
   folders: Folder[];
   onMoveToFolder: (folder: string | null) => void;
@@ -111,6 +122,7 @@ interface Props {
 
 export default function Detail({
   id,
+  notices,
   seekTime,
   progress,
   liveSegments,
@@ -170,7 +182,7 @@ export default function Detail({
     drawnBlocks,
   });
   const { time, isPlaying, isCurrentRecording, trackDuration, waveform, active } = playback.state;
-  const { seek, updateCursor, playFrom, togglePlayback } = playback.actions;
+  const { seek, updateCursor, playFrom, playRange, togglePlayback } = playback.actions;
 
   /** The strip of shortcuts under the player. Useful the first few times and
    *  then just a line of text in the way, so it is dismissed here — and brought
@@ -238,15 +250,20 @@ export default function Detail({
   /* An interjection is clicked in order to *hear* it — a third of a second of
      text says nothing about whose voice it is. Same reasoning as a note's time
      chip, and the opposite of `goTo`, which stays quiet because stepping
-     through uncertain spots is reading. */
+     through uncertain spots is reading.
+
+     **And it stops at the end of that place.** The question being answered is
+     *is this word right*, which the next sentence does not help with; letting
+     the recording run on means reaching for pause before the next one can be
+     checked. Asked for on 2026-09-02. */
   const hear = useCallback(
     (segment: Segment) => {
       document
         .getElementById(`segment-${segment.id}`)
         ?.scrollIntoView({ behavior: "smooth", block: "center" });
-      playFrom(segment.start);
+      playRange(segment.start, segment.end);
     },
-    [playFrom]
+    [playRange]
   );
 
   /* Finding a word in this transcript. The whole of it — the bar, the hits and
@@ -254,6 +271,37 @@ export default function Detail({
      is the keyboard, which belongs to the screen. */
   const search = useTranscriptSearch(segments);
 
+  /* A language the recording holds and the transcript does not. It draws
+     nothing at all unless a sweep found one, which on an ordinary recording is
+     never. `load` is handed in because filling rewrites every block. */
+  const secondLanguage = useSecondLanguage({ recordingId: id, onError, onInfo, reload: load });
+
+  /* One stretch of the transcript, marked to be cut out of it. It draws
+     nothing until the reader starts one, and stores nothing when they are
+     done: the clip is the file that comes out. */
+  const clip = useClipSelection();
+
+  /* Asked again when a run ends, and it has to be: the sweep is the last thing
+     a transcription does, so its answer lands *after* this screen asked once
+     and was told nothing. Without this a reader watching a run finish would
+     have to leave the transcript and come back to be told half of it is
+     missing.
+
+     Its own effect, beside the hook it calls, rather than a line inside the
+     reload effect further up — that one is declared before this hook exists,
+     and reaching it from there needed a ref written during render, which is
+     exactly the shape hot reloading turns into `secondLanguageRef is not
+     defined` on a screen somebody has open. */
+  const rereadSecondLanguage = secondLanguage.actions.reread;
+  useEffect(() => {
+    if (["complete", "cancelled", "error"].includes(progress?.phase ?? "")) {
+      void rereadSecondLanguage();
+    }
+  }, [progress?.phase, rereadSecondLanguage]);
+
+  /* Saving the transcript in one named format. The header's own button opens
+     the dialog instead, but the language model's preview still saves what it
+     is showing — one format, already chosen, straight to a file. */
   const exportRecording = useCallback(
     async (format: string) => {
       try {
@@ -363,6 +411,15 @@ export default function Detail({
   const revealSpeakers = useCallback(() => {
     setOpenSections((s) => ({ ...s, speakers: true }));
   }, []);
+
+  /* Whether this transcript holds a second language at all. A block carries
+     one only where the second-language pass wrote it, so an unlabelled block
+     is the recording's own — which is what makes a bilingual transcript look
+     monolingual if the languages are read literally. */
+  const twoLanguages = useMemo(
+    () => segments.some((s) => s.language && s.language.toLowerCase() !== language.toLowerCase()),
+    [segments, language]
+  );
 
   const speakers = useSpeakerManagement({
     recordingId: id,
@@ -491,9 +548,14 @@ export default function Detail({
   }, [id, onError, userMessage]);
 
   /** What was pointed at, and where the menu should appear. */
-  const [transcriptMenu, setTranscriptMenu] = useState<
-    { x: number; y: number; segment: Segment; time: number } | null
-  >(null);
+  const [transcriptMenu, setTranscriptMenu] = useState<{
+    x: number;
+    y: number;
+    segment: Segment;
+    time: number;
+    /** Ids of the blocks a text selection was touching when the menu opened. */
+    selected: string[];
+  } | null>(null);
 
   const openTranscriptMenu = useCallback((segment: Segment, event: ReactMouseEvent) => {
     event.preventDefault();
@@ -506,6 +568,10 @@ export default function Detail({
       y: event.clientY,
       segment,
       time: Number.isFinite(spoken) ? spoken : segment.start,
+      /* Read here rather than when the item is clicked. Opening the menu can
+         take the selection away — clicking inside it collapses it in some
+         browsers — and by then the reader's passage would be gone. */
+      selected: selectedSegmentIds(),
     });
   }, []);
 
@@ -571,7 +637,17 @@ export default function Detail({
   return (
     <main className="detail">
       <DetailHeader
-        recording={{ title, path, status, folder }}
+        recording={{
+          title,
+          path,
+          status,
+          folder,
+          language,
+          // What this screen knows about a second language is the standing
+          // offer; a language already written in shows on the archive card,
+          // which reads the recording's own row.
+          secondLanguage: secondLanguage.state.found?.language,
+        }}
         busy={{ running, diarizing }}
         menu={{
           folders,
@@ -580,6 +656,14 @@ export default function Detail({
           onExportAudio,
           onRetranscribe: startTranscription,
           onTranscribeInLanguage: startTranscriptionInLanguage,
+          /* Written on the recording, and on a finished transcript the fill
+             starts at once — it reports like a run, so this screen learns of
+             it the way it learns of any run, through `progress`. */
+          onSecondLanguage: (language) =>
+            void api
+              .setSecondLanguageChoice(id, language)
+              .then(() => secondLanguage.actions.reread())
+              .catch((error) => onError(userMessage(error))),
           onDeleteTranscript: () =>
             setConfirmation({
               title: t("detail.header.deleteTranscriptTitle"),
@@ -618,7 +702,7 @@ export default function Detail({
         onOpenOther={() => {
           if (player.recordingId) onOpenRecording(player.recordingId);
         }}
-        onExport={exportRecording}
+        onExport={onExportAudio}
         onRecognizeSpeakers={recognizeSpeakers}
         speakersBusy={speakersBusy}
         speakersReady={speakersReady}
@@ -718,6 +802,35 @@ export default function Detail({
         />
       )}
 
+      <NoticeBar notices={notices} />
+
+      {/* Above the shortcuts, because it is news about this transcript rather
+          than help with reading it — and it is the one thing on this screen
+          that says the text in front of the reader is incomplete. */}
+      {/* Not while anything runs on this recording. A fill started from the
+          menu is a run like any other, and a bar still offering to start it —
+          with the button live — beside the bubble that shows it running was
+          two doors to one room. When the run ends the answer is read again,
+          and a filled one draws nothing. */}
+      {!running && segments.length > 0 && <SecondLanguageBar offer={secondLanguage} />}
+      <ClipSaveDialog
+        clip={clip}
+        recordingId={id}
+        chooseFile={(name) => save({ defaultPath: name })}
+        chooseFolder={async () => {
+          const chosen = await open({ directory: true });
+          return typeof chosen === "string" ? chosen : null;
+        }}
+        onError={(message) => onError(userMessage(message))}
+        onSaved={(paths) =>
+          onInfo(
+            paths.length === 1
+              ? t("detail.clip.saved", { path: paths[0] })
+              : tPlural("detail.clip.savedMany", paths.length)
+          )
+        }
+      />
+
       {/* Only over a transcript: the shortcuts are about reading one. */}
       {segments.length > 0 && <TranscriptTips />}
 
@@ -755,6 +868,16 @@ export default function Detail({
                 {newSpeakers && m && (
                   <div className="speaker-header" style={{ color: m.color }}>
                     {m.name}
+                    {/* Which language this run is in, where the transcript
+                        holds two. Beside the name and not in the sidebar: it
+                        belongs to what is being read, and here it changes as
+                        the transcript does — an interpreter answering in the
+                        other language says so on the spot. */}
+                    {twoLanguages && (
+                      <sup className="speaker-header-language">
+                        {(s.language || language).toUpperCase()}
+                      </sup>
+                    )}
                   </div>
                 )}
                 {/* The handlers must not be created here. Were they built
@@ -918,7 +1041,18 @@ export default function Detail({
         )}
       </div>
 
-      {transcriptMenu && (
+      {transcriptMenu &&
+        (() => {
+          /* The passage the reader had marked, as its first and last block.
+             Nothing to export when the selection touched only what is not a
+             block, or when the transcript has moved under it since. */
+          const touched = transcriptMenu.selected
+            .map((id) => segments.find((s) => s.id === id))
+            .filter((s): s is Segment => s !== undefined)
+            .sort((a, b) => a.start - b.start);
+          const selectedClip: [Segment, Segment] | null =
+            touched.length > 0 ? [touched[0], touched[touched.length - 1]] : null;
+          return (
         <TranscriptContextMenu
           x={transcriptMenu.x}
           y={transcriptMenu.y}
@@ -944,6 +1078,28 @@ export default function Detail({
               icon: MENU_ICONS.note,
               action: () => notes.actions.beginAt(transcriptMenu.time),
             },
+            /* One item that reads as two, because it is one gesture: the first
+               block starts the clip and any later one closes it. Two separate
+               items would have made the reader decide which of them applies
+               before they had a clip at all. */
+            /* One way in, and it is the reader's own: drag over a passage,
+               right-click, export it. It shows only when there is a passage,
+               so the ordinary menu is no longer for it.
+
+               There was a second way — mark a block, scroll, mark a later one,
+               watch a bar over the transcript. It went the evening it was
+               tried: a procedure to learn beside a gesture people already
+               have. */
+            ...(selectedClip
+              ? [
+                  {
+                    label: t("detail.menu.clipSelection"),
+                    icon: MENU_ICONS.clip,
+                    action: () =>
+                      clip.actions.markAndSave(selectedClip[0], selectedClip[1]),
+                  },
+                ]
+              : []),
             /* One question — who said this — and every answer to it in one
                place. The speakers by name, rather than the block above and the
                block below: those two were the machine's way of pointing at a
@@ -976,7 +1132,8 @@ export default function Detail({
             },
           ]}
         />
-      )}
+          );
+        })()}
 
       {/* The one question about language editing, asked where it is wanted.
           It used to be a notice saying the feature was not ready and a button

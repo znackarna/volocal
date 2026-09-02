@@ -414,6 +414,35 @@ button, input, select, textarea { font: inherit; color: inherit; }
   from { max-height: 0; padding-block: 0; opacity: 0; transform: translateY(-2px); }
   to { max-height: 120px; padding-block: 10px; opacity: 1; transform: none; }
 }
+/* The application's checkbox.
+   An 18 px box that fills with the accent and shows a white tick. It was
+   `.watch-folder-checkbox`, drawn for the list of files a watched folder
+   offers; the clip dialog needs the same control for the same question —
+   which of these do you want — so it moved here rather than being drawn a
+   second time. The input beside it is hidden rather than styled, because no
+   browser lets a native box be drawn to this system.
+
+   5 px radius, not `--r-small`: on an 18 px box 8 would read as a circle, and
+   a circle is what this application uses for a radio. And green is not an
+   option: the grass circle with a tick means *done* or *installed* wherever it
+   appears — a control the reader is choosing with must not borrow it. */
+.check-box {
+  display: grid; place-items: center; width: 18px; height: 18px; flex: 0 0 auto;
+  border: 1px solid var(--line-field); border-radius: 5px;
+  background: var(--panel); color: transparent;
+  transition: background var(--hover-duration) var(--hover-ease),
+    border-color var(--hover-duration) var(--hover-ease),
+    color var(--hover-duration) var(--hover-ease);
+}
+.check-box-input {
+  position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none;
+}
+.check-box-input:checked + .check-box {
+  border-color: var(--accent); background: var(--accent); color: #fff;
+}
+.check-box-input:focus-visible + .check-box { box-shadow: var(--ring-field); }
+.check-box-input:disabled ~ * { opacity: 0.55; }
+
 @keyframes notice-leave {
   from { max-height: 120px; padding-block: 10px; opacity: 1; transform: none; }
   to { max-height: 0; padding-block: 0; opacity: 0; transform: translateY(-2px); }
