@@ -174,6 +174,26 @@ where
     }
 }
 
+/// Says on the row itself that this recording is working, from the moment it
+/// joins the queue.
+///
+/// **The archive draws a run from the status, not from the events.** A
+/// recording waiting its turn was emitting `queued` — which the transcript
+/// screen showed in its bubble — while its row in the archive sat there
+/// looking untouched, because the status still said the run had not begun.
+/// Reported on 2026-09-02: *to čekání ve frontě je jen na bublině v detailu*.
+///
+/// Both ways out put the status back: a cancelled run restores it, and a
+/// finished one writes what it finished as.
+fn mark_as_working(db_path: &Path, recording_id: &str) {
+    match db::open(db_path) {
+        Ok(connection) => {
+            let _ = db::set_status(&connection, recording_id, db::status::TRANSCRIBING, None);
+        }
+        Err(error) => crate::note!("queued but not marked as working: {error}"),
+    }
+}
+
 pub fn start_in_thread(
     app: AppHandle,
     db_path: PathBuf,
@@ -189,6 +209,7 @@ pub fn start_in_thread(
     // for a waiting recording as well as for a working one.
     let waiting = task.enqueue(&recording_id);
     task.begin(&recording_id);
+    mark_as_working(&db_path, &recording_id);
     if waiting {
         status(
             &app,
@@ -303,6 +324,7 @@ pub fn start_diarization_in_thread(
     // machine, so it stands in the same queue rather than beside it.
     let waiting = task.enqueue(&recording_id);
     task.begin(&recording_id);
+    mark_as_working(&db_path, &recording_id);
     if waiting {
         status(
             &app,
