@@ -1,7 +1,7 @@
 /** Taking something away from a recording: the audio, the transcript, or both. */
 export const csSave = {
   "save.title": "Jak chcete nahrávku uložit?",
-  "save.text": "Z nahrávky {name}.",
+  "save.text": "Můžete vybrat víc možností najednou.",
   "save.shape.audio": "Zvuk",
   "save.shapeNote.audio": "Původní nahrávka",
   "save.shape.txt": "Text",
@@ -30,7 +30,7 @@ export const csSave = {
 /** Notes for the translator, for keys whose meaning the text alone does
  *  not carry. Leave a whole, plain sentence without one. */
 export const csSaveContext: Partial<Record<keyof typeof csSave, string>> = {
-  "save.text": "Podnadpis dialogu; {name} je název nahrávky.",
+  "save.text": "Věta pod nadpisem u seznamu se zaškrtávátky.",
   "save.needsTranscript":
     "Stojí místo popisu u tvarů, které potřebují přepis, dokud nahrávka žádný nemá.",
 };

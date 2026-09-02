@@ -16,21 +16,10 @@ import { useI18n } from "./i18n";
 import type { TranslationKey } from "./i18n";
 import { useDialog } from "./useDialog";
 import { CheckBox } from "./CheckBox";
-import { api } from "./api";
+import InfoNote from "./InfoNote";
 import type { Recording, UserMessage } from "./types";
-
-/** What may come out of a recording. Audio first: it is the one thing here
- *  that is not the transcript. The last two are the language model's tidied
- *  version, and appear only when there is one. */
-export type SaveShape =
-  | "audio"
-  | "txt"
-  | "md"
-  | "srt"
-  | "vtt"
-  | "json"
-  | "improved-txt"
-  | "improved-md";
+import { saveRecording } from "./saveRecording";
+import type { SaveShape } from "./saveRecording";
 
 /** The shapes, their words and the line under each — spelled out rather than
  *  built from the shape's name, so `i18n:check` can see the keys and catch a
@@ -49,73 +38,6 @@ const IMPROVED = [
   ["improved-txt", "save.shape.improvedTxt", "save.shapeNote.improved"],
   ["improved-md", "save.shape.improvedMd", "save.shapeNote.improved"],
 ] as const satisfies ReadonlyArray<readonly [SaveShape, TranslationKey, TranslationKey]>;
-
-/** The name a file gets when several are written at once and nobody is asked
- *  for one. The recording's title, minus the characters a file name cannot
- *  hold. */
-function nameFor(recording: Recording, shape: SaveShape): string {
-  const plain = (recording.title || "nahravka").replace(/[\\/:*?"<>|]/g, "-");
-  // The tidied version is a second file beside the plain one, so its name has
-  // to differ. `-upraveny` rather than a word from the dictionary: a file name
-  // is not interface copy, and it goes onto a disk that may not speak Czech.
-  if (shape.startsWith("improved-")) return `${plain}-upraveny.${shape.slice(9)}`;
-  if (shape !== "audio") return `${plain}.${shape}`;
-  // Audio keeps the source's own container, so it plays wherever the recording
-  // plays and is handed over without being re-encoded.
-  const extension = recording.path.split(".").pop()?.toLowerCase() || "mp3";
-  return `${plain}.${extension}`;
-}
-
-export async function saveRecording({
-  recording,
-  shapes,
-  chooseFile,
-  chooseFolder,
-  onError,
-  onSaved,
-}: {
-  recording: Recording;
-  shapes: SaveShape[];
-  chooseFile: (name: string) => Promise<string | null>;
-  chooseFolder: () => Promise<string | null>;
-  onError: (message: UserMessage) => void;
-  onSaved: (paths: string[]) => void;
-}): Promise<void> {
-  if (shapes.length === 0) return;
-  const written: string[] = [];
-  try {
-    const names = shapes.map((shape) => nameFor(recording, shape));
-
-    let destinations: string[];
-    if (shapes.length === 1) {
-      const chosen = await chooseFile(names[0]);
-      if (!chosen) return;
-      destinations = [chosen];
-    } else {
-      const folder = await chooseFolder();
-      if (!folder) return;
-      destinations = names.map((name) => `${folder}\\${name}`);
-    }
-
-    for (const [index, shape] of shapes.entries()) {
-      const path = destinations[index];
-      if (shape === "audio") {
-        await api.exportAudio(recording.id, path);
-        written.push(path);
-      } else if (shape.startsWith("improved-")) {
-        written.push(
-          await api.saveAiDocument(recording.id, shape.slice(9) as "txt" | "md", path)
-        );
-      } else {
-        written.push(await api.saveExport(recording.id, shape, path));
-      }
-    }
-    onSaved(written);
-  } catch (error) {
-    if (written.length > 0) onSaved(written);
-    onError(error as UserMessage);
-  }
-}
 
 export function SaveRecordingDialog({
   recording,
@@ -188,11 +110,11 @@ export function SaveRecordingDialog({
         onMouseDown={(event) => event.stopPropagation()}
       >
         <h2 id="save-dialog-title">{t("save.title")}</h2>
-        {/* The title comes from a file name and can carry runs of spaces —
-            "Host：   Paul Bartlett" — which read as a mistake in a sentence.
-            Collapsed here rather than in the archive: the name is the reader's
-            and is not rewritten, only set. */}
-        <p>{t("save.text", { name: recording.title.replace(/\s+/g, " ").trim() })}</p>
+        {/* The recording's name stood here and said nothing: the reader
+            opened this from that very recording. The one thing they cannot see
+            from the list is that the boxes are boxes — that all of it can come
+            out at once — so the line says that instead. */}
+        <InfoNote compact>{t("save.text")}</InfoNote>
 
         <ul className="save-choices">
           {rows.map(([shape, word, note]) => (

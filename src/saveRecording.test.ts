@@ -8,7 +8,7 @@
  * re-encoded.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { saveRecording } from "./SaveRecordingDialog";
+import { saveRecording } from "./saveRecording";
 import type { Recording } from "./types";
 
 const exportAudio = vi.fn(async (_id: string, _path: string) => {});

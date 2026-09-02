@@ -18,6 +18,7 @@ import { useI18n } from "../i18n";
 import type { TranslationKey } from "../i18n";
 import { useDialog } from "../useDialog";
 import { CheckBox } from "../CheckBox";
+import InfoNote from "../InfoNote";
 import { formatTime } from "../types";
 import type { UserMessage } from "../types";
 import { saveClip } from "./useClipSelection";
@@ -105,6 +106,7 @@ export function ClipSaveDialog({
             length: formatTime(state.seconds),
           })}
         </p>
+        <InfoNote compact>{t("detail.clip.several")}</InfoNote>
 
         <ul className="clip-shapes">
           {SHAPES.map(([shape, word, note]) => (

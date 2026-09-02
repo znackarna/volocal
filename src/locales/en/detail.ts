@@ -75,6 +75,7 @@ export const enDetail: Partial<Record<keyof typeof csDetail, string>> = {
   "detail.speakers.add": "Add",
   "detail.clip.dialogTitle": "How would you like to save the selection?",
   "detail.clip.dialogText": "Selected from {from} to {to}, {length} in all.",
+  "detail.clip.several": "You can pick more than one at a time.",
   "detail.clip.shape.audio": "Audio",
   "detail.clip.shapeNote.audio": "The passage cut out of the recording",
   "detail.clip.shape.txt": "Text",

@@ -90,6 +90,7 @@ export const csDetail = {
   "detail.speakers.add": "Přidat",
   "detail.clip.dialogTitle": "Jak chcete výběr uložit?",
   "detail.clip.dialogText": "Vybráno od {from} do {to}, celkem {length}.",
+  "detail.clip.several": "Můžete vybrat víc možností najednou.",
   "detail.clip.shape.audio": "Zvuk",
   "detail.clip.shapeNote.audio": "Vyříznutý kus nahrávky",
   "detail.clip.shape.txt": "Text",
