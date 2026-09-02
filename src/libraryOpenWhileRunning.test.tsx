@@ -20,7 +20,7 @@ vi.mock("./api", () => ({ api: { search: () => Promise.resolve([]) } }));
 
 import Library from "./Library";
 
-function recording(status: string, segment_count: number): Recording {
+function recording(status: Recording["status"], segment_count: number): Recording {
   return {
     id: "r",
     path: "C:\nahravky\paul.mp3",
