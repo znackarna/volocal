@@ -38,7 +38,7 @@ export const enApp: Partial<Record<keyof typeof csApp, string>> = {
   "app.notice.onlineAdded": "The online recording was added to the archive.",
   "app.crash.title": "The application ran into an error",
   "app.crash.text": "The window could not be drawn. Your recordings and transcripts in the archive are unaffected.",
-  "app.crash.detailLabel": "The error, worth sending on:",
+  "app.crash.detailLabel": "The error, to send to the people who made this:",
   "app.crash.reload": "Reload the window",
   "app.filePicker.audioAndVideo": "Audio and video",
   "app.watchFolder.transcribing.one": "The recording was added to the Archive and Volocal started transcribing.",

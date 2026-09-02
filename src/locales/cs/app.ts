@@ -67,7 +67,7 @@ export const csApp = {
   "app.crash.title": "Aplikace narazila na chybu",
   "app.crash.text":
     "Okno se nepodařilo vykreslit. Nahrávky ani přepisy v archivu tím nijak netrpí.",
-  "app.crash.detailLabel": "Popis chyby, který se hodí poslat dál:",
+  "app.crash.detailLabel": "Popis chyby, který můžete poslat autorům aplikace:",
   "app.crash.reload": "Obnovit okno",
 
   // ----------------------------------------------------------- file picker
