@@ -487,6 +487,13 @@
   font-size: 9.5px; font-weight: 600; letter-spacing: 0.06em;
   vertical-align: baseline;
   opacity: 0.55;
+  /* Out of anything the reader drags over. Dragging across the transcript is
+     how a passage is quoted and how a clip is marked, and `PAUL BARTLETTEN`
+     landing in the middle of a quotation is exactly the kind of thing nobody
+     notices until it is in a document. The written files never carry it —
+     every export is built in Rust from the blocks themselves — so this is the
+     one place it could leak. */
+  user-select: none; -webkit-user-select: none;
 }
 
 .speaker-names { display: flex; flex-direction: column; gap: 8px; }
