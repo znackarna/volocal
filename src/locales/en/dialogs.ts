@@ -87,7 +87,7 @@ export const enDialogs: Partial<Record<keyof typeof csDialogs, string>> = {
   "dialogs.recordingMenu.mainLanguageHint": "Replaces the whole transcript",
   "dialogs.recordingMenu.secondLanguage": "Fill in a second language",
   "dialogs.recordingMenu.secondLanguageHint": "Writes in what the first pass missed",
-  "dialogs.recordingMenu.automaticSecondLanguage": "Work it out",
+  "dialogs.recordingMenu.automaticSecondLanguage": "Automatic",
   "dialogs.recordingMenu.noSecondLanguage": "No second language",
   "dialogs.recordingMenu.remove": "Remove from archive",
 };

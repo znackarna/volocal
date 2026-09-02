@@ -135,7 +135,7 @@ export const csDomain = {
   "domain.language.su": "sundština",
   "domain.language.yue": "kantonština",
   "domain.language.auto": "rozpoznaný",
-  "domain.language.autoOption": "Rozpoznat automaticky",
+  "domain.language.autoOption": "Automaticky",
 
   "domain.font.system": "Systémové (Segoe UI)",
 

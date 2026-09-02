@@ -121,7 +121,7 @@ export const enDomain: Partial<Record<keyof typeof csDomain, string>> = {
   "domain.language.su": "Sundanese",
   "domain.language.yue": "Cantonese",
   "domain.language.auto": "detected",
-  "domain.language.autoOption": "Detect automatically",
+  "domain.language.autoOption": "Automatic",
   "domain.font.system": "System (Segoe UI)",
   "domain.appLanguage.cs": "Czech",
   "domain.appLanguage.en": "English",
