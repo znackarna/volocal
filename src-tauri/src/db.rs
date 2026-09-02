@@ -3078,6 +3078,73 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
+    /// What the reader is promised by switching automatic filling off: the
+    /// recording comes back in one language and the archive says so with the
+    /// mark, instead of quietly holding a language nobody asked to have
+    /// written in.
+    ///
+    /// The step that is easy to lose is the last one. A recording filled
+    /// earlier carries a `filled` row, and one recording has one row, so the
+    /// offer has to take its place — otherwise the archive would go on
+    /// claiming the transcript is bilingual while the text is not.
+    #[test]
+    fn a_language_only_offered_is_marked_as_missing_and_not_as_written() {
+        let dir = std::env::temp_dir().join(format!("volocal-offer-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let db = open(&dir.join("volocal.db")).unwrap();
+        db.execute(
+            "INSERT INTO recordings (id, path, name, duration, created_at, status, model)
+             VALUES ('r', 'x.wav', 'Paul', 1.0, '2026-09-02', 'done', '')",
+            [],
+        )
+        .unwrap();
+
+        // As it stands after a fill: the archive says English is in the text.
+        save_second_language(
+            &db,
+            &SecondLanguage {
+                recording_id: "r".into(),
+                language: "en".into(),
+                share: 0.4,
+                state: second_language_state::OFFERED.into(),
+                filled_at: None,
+            },
+        )
+        .unwrap();
+        set_second_language_state(&db, "r", second_language_state::FILLED).unwrap();
+        let after_filling = recording(&db, "r").unwrap();
+        assert_eq!(after_filling.second_language.as_deref(), Some("en"));
+        assert_eq!(after_filling.second_language_missing, None);
+
+        // Transcribed again with the switch off: heard, not written in.
+        save_second_language(
+            &db,
+            &SecondLanguage {
+                recording_id: "r".into(),
+                language: "en".into(),
+                share: 0.0,
+                state: second_language_state::OFFERED.into(),
+                filled_at: None,
+            },
+        )
+        .unwrap();
+
+        let now = recording(&db, "r").unwrap();
+        assert_eq!(
+            now.second_language, None,
+            "the transcript is in one language and the card must not say otherwise"
+        );
+        assert_eq!(
+            now.second_language_missing.as_deref(),
+            Some("en"),
+            "and the mark says which language is going begging"
+        );
+
+        drop(db);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
     #[test]
     fn discarding_the_transcript_forgets_the_offer() {
         let db = Connection::open_in_memory().unwrap();
