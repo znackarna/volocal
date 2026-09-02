@@ -91,7 +91,7 @@ export const csDialogs = {
   "dialogs.recordingMenu.moveToFolder": "Vložit do složky",
   "dialogs.recordingMenu.newFolder": "Nová složka…",
   "dialogs.recordingMenu.outOfFolder": "Vyjmout ze složky",
-  "dialogs.recordingMenu.exportAudio": "Uložit zvuk…",
+  "dialogs.recordingMenu.exportAudio": "Uložit jako…",
   "dialogs.rename.title": "Přejmenovat přepis",
   "dialogs.rename.text": "Přejmenuje položku v archivu, ne soubor na disku.",
   "dialogs.rename.label": "Název přepisu",

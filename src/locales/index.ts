@@ -29,6 +29,7 @@ import { csErrors, csErrorsContext } from "./cs/errors";
 import { csLibrary, csLibraryContext } from "./cs/library";
 import { csPlayer, csPlayerContext } from "./cs/player";
 import { csProgress, csProgressContext } from "./cs/progress";
+import { csSave, csSaveContext } from "./cs/save";
 import { csSettings, csSettingsContext } from "./cs/settings";
 import { csWizard, csWizardContext } from "./cs/wizard";
 
@@ -42,6 +43,7 @@ import { enErrors } from "./en/errors";
 import { enLibrary } from "./en/library";
 import { enPlayer } from "./en/player";
 import { enProgress } from "./en/progress";
+import { enSave } from "./en/save";
 import { enSettings } from "./en/settings";
 import { enWizard } from "./en/wizard";
 
@@ -56,6 +58,7 @@ export const cs = {
   ...csLibrary,
   ...csPlayer,
   ...csProgress,
+  ...csSave,
   ...csSettings,
   ...csWizard,
 };
@@ -73,6 +76,7 @@ export const en: Partial<Record<TranslationKey, string>> = {
   ...enLibrary,
   ...enPlayer,
   ...enProgress,
+  ...enSave,
   ...enSettings,
   ...enWizard,
 };
@@ -89,6 +93,7 @@ export const csContext: Partial<Record<TranslationKey, string>> = {
   ...csLibraryContext,
   ...csPlayerContext,
   ...csProgressContext,
+  ...csSaveContext,
   ...csSettingsContext,
   ...csWizardContext,
 };
@@ -104,6 +109,7 @@ export const NAMESPACES = [
   "library",
   "player",
   "progress",
+  "save",
   "settings",
   "wizard",
 ] as const;

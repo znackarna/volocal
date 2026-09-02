@@ -25,6 +25,7 @@ import { useFolderManagement } from "./app/useFolderManagement";
 import { AppFooter } from "./app/AppFooter";
 import { AppDialogs } from "./app/AppDialogs";
 import { NoticeBar } from "./app/NoticeBar";
+import { SaveRecordingDialog } from "./SaveRecordingDialog";
 import { rememberSpeakerNames } from "./speakerNames";
 import { computeFellBack } from "./compute";
 import { useI18n } from "./i18n";
@@ -745,37 +746,13 @@ export default function App() {
     [foldersModel.actions, t, tPlural]
   );
 
-  const exportAudio = useCallback(
-    async (id: string) => {
-      const recording = recordings.find((item) => item.id === id);
-      if (!recording) return;
-      const source = recording.path.split(".").pop()?.toLowerCase() ?? "";
-      const name = (recording.title || fileName(recording.path)).replace(/\.[^.]+$/, "");
-      /* An audio-only source keeps its own format first, because that one is
-         handed over untouched; a video's audio has to be written out, and
-         MP3 is the format nobody has to think about. */
-      const offered = AUDIO_ONLY_EXTENSIONS.includes(source)
-        ? [source, ...AUDIO_EXPORT_FORMATS.filter((format) => format !== source)]
-        : [...AUDIO_EXPORT_FORMATS];
-      const destination = await save({
-        defaultPath: `${name}.${offered[0]}`,
-        filters: offered.map((format) => ({
-          name: AUDIO_FORMAT_LABELS[format]
-            ? t(AUDIO_FORMAT_LABELS[format])
-            : t("app.audioFormat.same", { format: format.toUpperCase() }),
-          extensions: [format],
-        })),
-      });
-      if (!destination) return;
-      try {
-        await api.exportAudio(id, destination);
-        reportInfo(t("app.notice.audioSaved", { path: destination }));
-      } catch (error) {
-        reportError(userMessage(error));
-      }
-    },
-    [recordings, reportError, reportInfo, t, userMessage]
-  );
+  /* Saving something out of a recording: the audio, the transcript, or both.
+     One dialog for the whole application, opened from either menu — the card
+     in the archive and the transcript's header both ask the same question, and
+     until 2026-09-02 they answered it with two different doors: `Uložit zvuk…`
+     for the audio alone and a dropdown of formats for the text. */
+  const [saving, setSaving] = useState<string | null>(null);
+  const savingRecording = recordings.find((item) => item.id === saving) ?? null;
 
   /* Naming a second language on a recording. The backend writes it on the
      recording and, when there is already a transcript, starts filling it in —
@@ -1043,6 +1020,24 @@ export default function App() {
           belonging to the screen. Asked about on 2026-09-02. */}
       {screen !== "detail" && <NoticeBar notices={notices} />}
 
+      <SaveRecordingDialog
+        recording={savingRecording}
+        chooseFile={(name) => save({ defaultPath: name })}
+        chooseFolder={async () => {
+          const chosen = await open({ directory: true });
+          return typeof chosen === "string" ? chosen : null;
+        }}
+        onClose={() => setSaving(null)}
+        onError={(message) => reportError(userMessage(message))}
+        onSaved={(paths) =>
+          reportInfo(
+            paths.length === 1
+              ? t("save.saved", { path: paths[0] })
+              : tPlural("save.savedMany", paths.length)
+          )
+        }
+      />
+
       {screen === "library" && (
         <Library
           recordings={recordings}
@@ -1057,7 +1052,7 @@ export default function App() {
           onIgnoreWatchCandidates={watch.actions.ignore}
           onAddWatchCandidates={watch.actions.add}
           onOpen={openRecording}
-          onExportAudio={exportAudio}
+          onExportAudio={setSaving}
           folders={folders}
           openFolder={openFolder}
           onOpenFolder={foldersModel.actions.show}
@@ -1156,7 +1151,7 @@ export default function App() {
               setAddRecordingOpen(true);
             }}
             onOpenRecording={openRecording}
-            onExportAudio={() => void exportAudio(selectedId)}
+            onExportAudio={() => setSaving(selectedId)}
             folders={folders}
             onMoveToFolder={(folder) => void foldersModel.actions.move(selectedId, folder)}
             onCreateFolderFor={() =>

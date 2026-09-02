@@ -65,7 +65,7 @@ export const enDialogs: Partial<Record<keyof typeof csDialogs, string>> = {
   "dialogs.recordingMenu.moveToFolder": "Move to folder",
   "dialogs.recordingMenu.newFolder": "New folder…",
   "dialogs.recordingMenu.outOfFolder": "Take out of the folder",
-  "dialogs.recordingMenu.exportAudio": "Save audio…",
+  "dialogs.recordingMenu.exportAudio": "Save as…",
   "dialogs.rename.title": "Rename transcript",
   "dialogs.rename.text": "Renames the item in the archive, not the file on disk.",
   "dialogs.rename.label": "Transcript name",
