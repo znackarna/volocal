@@ -224,7 +224,7 @@ export const csSettings = {
 
   "settings.secondLanguage.title": "Vícejazyčná nahrávka",
   "settings.secondLanguage.description":
-    "Po každém přepisu Volocal chvíli poslouchá, jestli se v nahrávce nemluví i jiným jazykem, a nabídne ho doplnit. Když víte, že nahrávka má dva jazyky, je jistější je určit přímo u ní.",
+    "Volocal bude v nahrávce hledat druhý jazyk a nabídne ho k doplnění přepisu.",
   "settings.speakers.title": "Rozlišení mluvčích",
   "settings.speakers.description":
     "Spouští rozlišení mluvčích během prvního přepisu.",
