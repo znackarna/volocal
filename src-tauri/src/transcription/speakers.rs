@@ -59,6 +59,40 @@ fn report_every(total: usize) -> usize {
     (total / 50).max(1)
 }
 
+/// One voice, when the reader has said there is one — and no listening at all.
+///
+/// Everything below this used to run anyway: a mel window for every second of
+/// the recording, then the model over each of them, minutes of work to reach
+/// the answer that was given before it started. All it produced was one label
+/// on every block, which is what a single turn over the whole transcript says
+/// in one line.
+///
+/// It also means a recording with one speaker needs no speaker model at all —
+/// see the two callers, which stop asking for one when the answer is one.
+///
+/// `None` when the reader did not say one, which is every other case.
+/// Asked for on 2026-09-02: *dává to smysl?* It did as an answer, and did not
+/// as a price.
+pub(crate) fn one_voice_throughout(
+    settings: &Settings,
+    segments: &[Segment],
+) -> Option<Vec<SpeakerTurn>> {
+    if settings.speaker_count != 1 {
+        return None;
+    }
+    let last = segments.iter().map(|s| s.end).fold(0.0_f64, f64::max);
+    if last <= 0.0 {
+        return Some(Vec::new());
+    }
+    // From nothing to the end of the transcript, so no block falls outside it —
+    // not even one whose words start before its own beginning.
+    Some(vec![SpeakerTurn {
+        start: 0.0,
+        end: last,
+        key: "speaker_0".to_string(),
+    }])
+}
+
 /// Who speaks when, computed here rather than by a downloaded program.
 ///
 /// Until today this spawned `sherpa-onnx-offline-speaker-diarization.exe`,
@@ -90,6 +124,10 @@ pub(crate) fn diarize(
     recording_id: &str,
     report: Option<(&AppHandle, &str, f64, f64)>,
 ) -> Reported<Vec<SpeakerTurn>> {
+    if let Some(alone) = one_voice_throughout(settings, segments) {
+        return Ok(alone);
+    }
+
     let model = check
         .embedding_model
         .as_ref()
@@ -775,6 +813,73 @@ pub(crate) fn assign_speakers(segments: Vec<Segment>, turns: &[SpeakerTurn]) -> 
         s.order = i as i64;
     }
     output
+}
+
+#[cfg(test)]
+mod one_voice_tests {
+    use super::*;
+
+    fn block(start: f64, end: f64) -> Segment {
+        Segment {
+            id: format!("{start}"),
+            recording_id: "r".into(),
+            order: 0,
+            start,
+            end,
+            text: "…".into(),
+            speakers: None,
+            confidence: None,
+            edited: false,
+            verified: false,
+            words: None,
+            original: None,
+            language: None,
+        }
+    }
+
+    fn asking_for(count: i64) -> Settings {
+        Settings {
+            speaker_count: count,
+            ..Settings::default()
+        }
+    }
+
+    /// The whole point: told there is one speaker, nothing below is run. What
+    /// comes back has to cover every block, or the shortcut would cost the
+    /// reader the speaker they asked for.
+    #[test]
+    fn one_speaker_is_answered_without_listening() {
+        let blocks = vec![block(0.4, 2.0), block(2.0, 5.5), block(9.0, 12.25)];
+        let turns = one_voice_throughout(&asking_for(1), &blocks).expect("answered");
+
+        let given = assign_speakers(blocks, &turns);
+        assert_eq!(
+            given
+                .iter()
+                .map(|s| s.speakers.as_deref().unwrap_or("-"))
+                .collect::<Vec<_>>(),
+            ["speaker_0", "speaker_0", "speaker_0"]
+        );
+    }
+
+    #[test]
+    fn any_other_answer_is_listened_to() {
+        for count in [0, 2, 3, 9] {
+            assert!(
+                one_voice_throughout(&asking_for(count), &[block(0.0, 1.0)]).is_none(),
+                "{count} speakers cannot be answered from the number alone"
+            );
+        }
+    }
+
+    /// A transcript with nothing in it has nobody in it either, and must not
+    /// hand back a turn that ends where it starts.
+    #[test]
+    fn one_speaker_and_no_blocks_is_nobody() {
+        assert!(one_voice_throughout(&asking_for(1), &[])
+            .expect("answered")
+            .is_empty());
+    }
 }
 
 #[cfg(test)]

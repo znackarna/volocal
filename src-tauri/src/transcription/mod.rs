@@ -390,7 +390,13 @@ fn run_diarization(
     let recording = db::recording(&connection, recording_id)?;
 
     let check = tools::check(&settings);
-    if let Some(issue) = check.issues_diarization.first() {
+    // One speaker is answered without the model, so a missing one is not a
+    // reason to refuse the work.
+    if let Some(issue) = check
+        .issues_diarization
+        .first()
+        .filter(|_| settings.speaker_count != 1)
+    {
         return Err(issue.clone());
     }
     let ffmpeg = check
@@ -833,7 +839,13 @@ fn run(
 
     // ---------------------------------------------------------- diarisation
     if settings.diarization {
-        if let Some(issue) = check.issues_diarization.first() {
+        // As in `run_diarization`: told there is one speaker, nothing is
+        // listened to, so nothing is missing.
+        if let Some(issue) = check
+            .issues_diarization
+            .first()
+            .filter(|_| settings.speaker_count != 1)
+        {
             status(
                 app,
                 recording_id,
