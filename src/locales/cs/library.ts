@@ -91,7 +91,7 @@ export const csLibrary = {
   "library.card.duration": "Délka nahrávky",
   "library.card.language": "Jazyk",
   "library.card.languageMissing": "Chybí jazyk",
-  "library.card.missing": "Chybí {language}",
+  "library.card.missing": "{language}",
   "library.card.model": "Model",
   "library.card.segments": "Počet úseků",
   "library.card.error": "Chyba",

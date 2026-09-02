@@ -1332,7 +1332,10 @@ function Row({
                 kind="languageMissing"
                 label={t("library.card.languageMissing")}
                 value={t("library.card.missing", {
-                  language: labels.language(recording.second_language_missing),
+                  // Capitalised: it stands on its own on the card, where the
+                  // dictionary's lower-case form — written for the middle of a
+                  // sentence — would read as a mistake.
+                  language: labels.languageCapitalized(recording.second_language_missing),
                 })}
               />
             )}

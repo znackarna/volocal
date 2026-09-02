@@ -261,7 +261,7 @@ export const csDetail = {
   // Jazyk, který v nahrávce zazněl a v přepisu chybí. Objeví se jen tehdy,
   // když ho vzorkování opravdu našlo — u jednojazyčné nahrávky nikdy.
   "detail.secondLanguage.missing":
-    "V nahrávce se mluví také {language}. Chcete doplnit přepis?",
+    "V nahrávce zní také {language}. Chcete doplnit přepis?",
   "detail.secondLanguage.fill": "Doplnit",
   "detail.secondLanguage.filling": "Doplňuji…",
   "detail.secondLanguage.no": "Nechat být",
