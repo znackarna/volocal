@@ -656,10 +656,10 @@ const LEAST_SEEDS: usize = 3;
 /// Which pieces are asked whisper about directly: the longest in every
 /// [`SEED_EVERY`] seconds, so that every voice in the recording is heard
 /// several times and a long piece — the surest kind — is what is heard.
-pub(crate) fn seeds_of(pieces: &[(f64, f64)]) -> Vec<usize> {
+pub(crate) fn seeds_of(pieces: &[(f64, f64)], every: f64) -> Vec<usize> {
     let mut longest: Vec<Option<usize>> = Vec::new();
     for (index, (from, to)) in pieces.iter().enumerate() {
-        let bucket = (from / SEED_EVERY) as usize;
+        let bucket = (from / every) as usize;
         if longest.len() <= bucket {
             longest.resize(bucket + 1, None);
         }
@@ -784,19 +784,6 @@ pub(crate) struct Heard {
 }
 
 impl Heard {
-    /// Every language a seed was confidently heard in, most seeds first.
-    pub(crate) fn languages(&self) -> Vec<(String, usize)> {
-        let mut tally: HashMap<String, usize> = HashMap::new();
-        for (code, probability) in self.readings.iter().flatten() {
-            if *probability >= CONFIDENT {
-                *tally.entry(code.to_ascii_lowercase()).or_default() += 1;
-            }
-        }
-        let mut out: Vec<(String, usize)> = tally.into_iter().collect();
-        out.sort_by(|left, right| right.1.cmp(&left.1).then(left.0.cmp(&right.0)));
-        out
-    }
-
     /// The audio can go once nothing more will be asked about it.
     pub(crate) fn done_with_the_audio(&self) {
         let _ = std::fs::remove_dir_all(&self.folder);
@@ -860,7 +847,7 @@ pub(crate) fn listen_to_pieces(
     let names = write_pieces(&folder, samples, rate, &pieces)?;
     stop_if_cancelled(run.task, run.recording_id)?;
 
-    let seeds = seeds_of(&pieces);
+    let seeds = seeds_of(&pieces, SEED_EVERY);
     let seed_names: Vec<String> = seeds.iter().map(|at| names[*at].clone()).collect();
     let readings = languages_of_files(run, settings, check, &folder, &seed_names, |done| {
         say(
@@ -878,6 +865,20 @@ pub(crate) fn listen_to_pieces(
     })
 }
 
+/// How often a sample is taken when the only question is whether there is a
+/// second language at all.
+///
+/// One a minute, against one every half minute for the labelling that follows.
+/// The two questions are not the same size: labelling needs an anchor near
+/// every piece, and this needs only to notice that somebody speaks something
+/// else. Measured on the reference recording, samples a minute apart heard
+/// English 17 times and samples three minutes apart still heard it 6 times.
+const ASK_EVERY: f64 = 60.0;
+
+/// However short the recording, at least this many samples — otherwise a
+/// four-minute one would be judged on four.
+const LEAST_ASKED: usize = 16;
+
 /// Are two languages spoken here? Asked *before* an ordinary transcription, so
 /// that a bilingual recording is never transcribed twice.
 ///
@@ -885,12 +886,19 @@ pub(crate) fn listen_to_pieces(
 /// whole in one language, then swept, then transcribed again in two — and the
 /// first transcript, minutes of work, was thrown away unread.
 ///
+/// **It is deliberately the cheap version of the listening.** Only the samples
+/// are cut out and asked about, not every piece, and there are half as many of
+/// them; no voice is described at all. On a recording in one language — which
+/// is nearly all of them — that is the whole cost of having the setting on:
+/// about four seconds against the forty-nine an ordinary transcription of a
+/// forty-seven-minute talk takes. A recording that turns out to be bilingual
+/// pays those four seconds twice over, and against its own three minutes that
+/// is nothing.
+///
 /// The second language has to come back from more than one place: a single
-/// answer is a name, a quotation, a song.
-/// What the question before a transcription answers: the two languages, when
-/// there are two, and everything that was heard while finding out.
-pub(crate) type TwoLanguages = (Option<(String, String)>, Option<Heard>);
-
+/// answer is a name, a quotation, a song. A language spoken in less than about
+/// one part in twenty of a recording may go unnoticed, which is the same as it
+/// ever was.
 pub(crate) fn two_languages_heard(
     run: &Run,
     settings: &Settings,
@@ -898,28 +906,49 @@ pub(crate) fn two_languages_heard(
     wav: &Path,
     working: &Path,
     say: &dyn Fn(u32, &str),
-) -> Reported<TwoLanguages> {
+) -> Reported<Option<(String, String)>> {
     let Some((samples, rate)) = read_pcm16(wav) else {
-        return Ok((None, None));
+        return Ok(None);
     };
-    let heard = listen_to_pieces(run, settings, check, &samples, rate, working, say)?;
-    let languages = heard.languages();
+    let pieces = pieces_of_speech(&samples, rate);
+    if pieces.is_empty() {
+        return Ok(None);
+    }
+    let seconds = samples.len() as f64 / f64::from(rate.max(1));
+    let mut asked = seeds_of(&pieces, ASK_EVERY);
+    if asked.len() < LEAST_ASKED {
+        asked = seeds_of(&pieces, (seconds / LEAST_ASKED as f64).max(1.0));
+    }
+    let folder = working.join("asking");
+    let spans: Vec<(f64, f64)> = asked.iter().map(|at| pieces[*at]).collect();
+    let names = write_pieces(&folder, &samples, rate, &spans)?;
+    let readings = languages_of_files(run, settings, check, &folder, &names, |done| {
+        say(
+            2 + (6 * done / names.len().max(1)) as u32,
+            "second_language.listening",
+        );
+    })?;
+    let _ = std::fs::remove_dir_all(&folder);
+
+    let mut tally: HashMap<String, usize> = HashMap::new();
+    for (code, probability) in readings.iter().flatten() {
+        if *probability >= CONFIDENT {
+            *tally.entry(code.to_ascii_lowercase()).or_default() += 1;
+        }
+    }
+    let mut heard: Vec<(String, usize)> = tally.into_iter().collect();
+    heard.sort_by(|left, right| right.1.cmp(&left.1).then(left.0.cmp(&right.0)));
     crate::note!(
         "second language: {} pieces, {} asked, heard {:?}",
-        heard.pieces.len(),
-        heard.seeds.len(),
-        languages
+        pieces.len(),
+        asked.len(),
+        heard
     );
-    match languages.as_slice() {
-        // What was heard is handed on rather than listened to again: the fill
-        // needs exactly these pieces, these voices and these first answers.
+    match heard.as_slice() {
         [(own, _), (second, times), ..] if *times >= LEAST_AGREEING => {
-            Ok((Some((own.clone(), second.clone())), Some(heard)))
+            Ok(Some((own.clone(), second.clone())))
         }
-        _ => {
-            heard.done_with_the_audio();
-            Ok((None, None))
-        }
+        _ => Ok(None),
     }
 }
 
@@ -1282,7 +1311,6 @@ pub(crate) fn fill_with_audio(
     wav: &Path,
     working: &Path,
     task: &TranscriptionTask,
-    already: Option<Heard>,
 ) -> Reported<Written> {
     let recording_id = recording.id.as_str();
     let say = |percent: u32, code: &str| {
@@ -1305,18 +1333,15 @@ pub(crate) fn fill_with_audio(
     // Whatever the question before the transcription already heard is handed
     // over rather than listened to again: the pieces, the voices and the first
     // answers are the same ones.
-    let mut heard = match already {
-        Some(heard) => heard,
-        None => listen_to_pieces(
-            &run,
-            settings,
-            check,
-            &samples,
-            rate,
-            working,
-            &|percent, code| say(percent, code),
-        )?,
-    };
+    let mut heard = listen_to_pieces(
+        &run,
+        settings,
+        check,
+        &samples,
+        rate,
+        working,
+        &|percent, code| say(percent, code),
+    )?;
     heard.describe_the_voices(
         check,
         &samples,
@@ -1668,7 +1693,6 @@ pub fn fill(
             &wav,
             &working,
             task,
-            None,
         )
         .map(|written| written.in_second)
     });
@@ -2243,16 +2267,26 @@ mod tests {
         let (samples, rate) = read_pcm16(Path::new(&wav)).expect("the audio reads");
         let started = std::time::Instant::now();
         let pieces = pieces_of_speech(&samples, rate);
-        let folder = working.join("pieces");
-        let names = write_pieces(&folder, &samples, rate, &pieces).unwrap();
-        println!("{} pieces", pieces.len());
-
-        let prints =
-            voiceprints_of(&check, &samples, rate, &pieces, &task, "measure", |_| {}).unwrap();
         println!(
-            "voices described in {:.0} s",
+            "{} pieces, cut in {:.1} s",
+            pieces.len(),
             started.elapsed().as_secs_f64()
         );
+
+        // What the question before a transcription costs: these samples cut
+        // out and asked about, and nothing else.
+        let question = std::time::Instant::now();
+        let mut asked = seeds_of(&pieces, ASK_EVERY);
+        if asked.len() < LEAST_ASKED {
+            let seconds = samples.len() as f64 / f64::from(rate.max(1));
+            asked = seeds_of(&pieces, (seconds / LEAST_ASKED as f64).max(1.0));
+        }
+        let asking = working.join("asking");
+        let spans: Vec<(f64, f64)> = asked.iter().map(|at| pieces[*at]).collect();
+        let sample_names = write_pieces(&asking, &samples, rate, &spans).unwrap();
+
+        let folder = working.join("pieces");
+        let names = write_pieces(&folder, &samples, rate, &pieces).unwrap();
 
         let program = Path::new(&whisper);
         let available = program_help(program);
@@ -2281,7 +2315,23 @@ mod tests {
             names.iter().map(|n| heard.get(n).cloned()).collect()
         };
 
-        let seeds = seeds_of(&pieces);
+        let _ = ask(&asking, &sample_names);
+        println!(
+            "the question before a transcription: {} samples, {:.1} s",
+            sample_names.len(),
+            question.elapsed().as_secs_f64()
+        );
+        let _ = std::fs::remove_dir_all(&asking);
+
+        let described = std::time::Instant::now();
+        let prints =
+            voiceprints_of(&check, &samples, rate, &pieces, &task, "measure", |_| {}).unwrap();
+        println!(
+            "voices described in {:.0} s",
+            described.elapsed().as_secs_f64()
+        );
+
+        let seeds = seeds_of(&pieces, SEED_EVERY);
         let seed_names: Vec<String> = seeds.iter().map(|at| names[*at].clone()).collect();
         let seed_readings = ask(&folder, &seed_names);
         let allowed =

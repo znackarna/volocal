@@ -593,7 +593,6 @@ fn run(
             &wav,
             &working_directory,
             task,
-            None,
         )?;
         let _ = std::fs::remove_dir_all(&working_directory);
         return Ok(written.blocks);
@@ -631,7 +630,7 @@ fn run(
         );
         stop_if_cancelled(task, recording_id)?;
         match found {
-            Ok((Some((own, second)), already)) => {
+            Ok(Some((own, second))) => {
                 // Both go on the recording: the second language so that the
                 // next transcription of it is bilingual from its first second,
                 // and its own so the archive card says what it is in.
@@ -658,12 +657,11 @@ fn run(
                     &wav,
                     &working_directory,
                     task,
-                    already,
                 )?;
                 let _ = std::fs::remove_dir_all(&working_directory);
                 return Ok(written.blocks);
             }
-            Ok((None, _)) => {
+            Ok(None) => {
                 if let Err(error) = db::clear_second_language(&connection, recording_id) {
                     crate::note!("second language: the old offer could not be cleared: {error}");
                 }
