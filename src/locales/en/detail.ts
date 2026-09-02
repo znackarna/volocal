@@ -73,7 +73,7 @@ export const enDetail: Partial<Record<keyof typeof csDetail, string>> = {
   "detail.speakers.nameHint": "The same name merges two speakers.",
   "detail.speakers.nameLabel": "Speaker name",
   "detail.speakers.add": "Add",
-  "detail.clip.dialogTitle": "What should the selection be saved as?",
+  "detail.clip.dialogTitle": "How would you like to save the selection?",
   "detail.clip.dialogText": "Selected from {from} to {to}, {length} in all.",
   "detail.clip.shape.audio": "Audio",
   "detail.clip.shapeNote.audio": "The passage cut out of the recording",

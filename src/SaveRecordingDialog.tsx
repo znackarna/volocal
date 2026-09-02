@@ -188,7 +188,11 @@ export function SaveRecordingDialog({
         onMouseDown={(event) => event.stopPropagation()}
       >
         <h2 id="save-dialog-title">{t("save.title")}</h2>
-        <p>{t("save.text", { name: recording.title })}</p>
+        {/* The title comes from a file name and can carry runs of spaces —
+            "Host：   Paul Bartlett" — which read as a mistake in a sentence.
+            Collapsed here rather than in the archive: the name is the reader's
+            and is not rewritten, only set. */}
+        <p>{t("save.text", { name: recording.title.replace(/\s+/g, " ").trim() })}</p>
 
         <ul className="save-choices">
           {rows.map(([shape, word, note]) => (

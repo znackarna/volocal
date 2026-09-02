@@ -1,6 +1,6 @@
 /** Taking something away from a recording: the audio, the transcript, or both. */
 export const csSave = {
-  "save.title": "Co z nahrávky uložit?",
+  "save.title": "Jak chcete nahrávku uložit?",
   "save.text": "Z nahrávky {name}.",
   "save.shape.audio": "Zvuk",
   "save.shapeNote.audio": "Původní nahrávka",

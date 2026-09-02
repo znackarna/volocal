@@ -2,7 +2,7 @@ import type { csSave } from "../cs/save";
 
 /** Filled by `npm run i18n:import`. Missing keys fall back to Czech. */
 export const enSave: Partial<Record<keyof typeof csSave, string>> = {
-  "save.title": "What should be saved from this recording?",
+  "save.title": "How would you like to save the recording?",
   "save.text": "From {name}.",
   "save.shape.audio": "Audio",
   "save.shapeNote.audio": "The recording itself",

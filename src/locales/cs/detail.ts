@@ -88,7 +88,7 @@ export const csDetail = {
   "detail.speakers.nameHint": "Stejné jméno sloučí mluvčí.",
   "detail.speakers.nameLabel": "Jméno mluvčího",
   "detail.speakers.add": "Přidat",
-  "detail.clip.dialogTitle": "Co z výběru uložit?",
+  "detail.clip.dialogTitle": "Jak chcete výběr uložit?",
   "detail.clip.dialogText": "Vybráno od {from} do {to}, celkem {length}.",
   "detail.clip.shape.audio": "Zvuk",
   "detail.clip.shapeNote.audio": "Vyříznutý kus nahrávky",
