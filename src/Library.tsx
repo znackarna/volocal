@@ -1299,7 +1299,17 @@ function Row({
               <RecordingMetadataItem
                 kind="language"
                 label={t("library.card.language")}
-                value={labels.languageCapitalized(recording.language)}
+                /* Both languages once a second one has been written in — the
+                   same sentence the footer uses, so the archive and the
+                   transcript never disagree about what a recording holds. */
+                value={
+                  recording.second_language
+                    ? t("app.shell.twoLanguages", {
+                        first: labels.languageCapitalized(recording.language),
+                        second: labels.language(recording.second_language),
+                      })
+                    : labels.languageCapitalized(recording.language)
+                }
               />
             )}
             {recording.model && (
