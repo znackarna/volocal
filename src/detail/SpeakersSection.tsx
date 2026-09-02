@@ -118,6 +118,15 @@ export function SpeakersSection({
                   }}
                   spellCheck={false}
                 />
+                {/* The code of the language this voice speaks, and only on a
+                    transcript holding two. Grey and small on purpose: it is a
+                    hint about who is who while the reader names them, not a
+                    fact the row is about. */}
+                {state.languages.get(speaker.key) && (
+                  <span className="speaker-language">
+                    {state.languages.get(speaker.key)?.toUpperCase()}
+                  </span>
+                )}
                 <span className="speaker-share">
                   {Math.round((state.share.get(speaker.key) ?? 0) * 100)} %
                 </span>

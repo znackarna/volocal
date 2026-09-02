@@ -38,6 +38,13 @@ export interface SpeakerManagement {
     speakers: Speaker[];
     /** By key, for anything that has a key and wants the person. */
     byKey: Map<string, Speaker>;
+    /** The language each voice speaks, as a code, and only on a transcript
+     *  that holds more than one. On an interpreted recording it is the
+     *  strongest hint about who is who — the English voice is the speaker and
+     *  the Czech one the interpreter — and it is there before anybody plays a
+     *  sample. Empty on an ordinary transcript, where naming the one language
+     *  every voice speaks would be noise. */
+    languages: Map<string, string>;
     /** Each voice's share of the spoken time, so a cluster holding two seconds
      *  is obvious. */
     share: Map<string, number>;
@@ -150,6 +157,31 @@ export function useSpeakerManagement({
     }
     const out = new Map<string, number>();
     for (const [key, value] of seconds) out.set(key, total > 0 ? value / total : 0);
+    return out;
+  }, [segments]);
+
+  /* The language a voice speaks, by the time it spends in each — not by the
+     number of blocks, which counts a two-second interjection against a minute
+     of speech. Only where the transcript really holds two: `keep_voices_to_
+     one_language` ties a voice to one, so a second code appearing here would
+     be worth seeing rather than hidden. */
+  const languages = useMemo(() => {
+    const seconds = new Map<string, Map<string, number>>();
+    const heard = new Set<string>();
+    for (const segment of segments) {
+      const language = segment.language?.trim().toLowerCase();
+      if (!segment.speakers || !language) continue;
+      heard.add(language);
+      const per = seconds.get(segment.speakers) ?? new Map<string, number>();
+      per.set(language, (per.get(language) ?? 0) + Math.max(0, segment.end - segment.start));
+      seconds.set(segment.speakers, per);
+    }
+    const out = new Map<string, string>();
+    if (heard.size < 2) return out;
+    for (const [key, per] of seconds) {
+      const most = [...per].sort((a, b) => b[1] - a[1])[0];
+      if (most) out.set(key, most[0]);
+    }
     return out;
   }, [segments]);
 
@@ -366,6 +398,7 @@ export function useSpeakerManagement({
     state: {
       speakers,
       byKey,
+      languages,
       share,
       naming,
       namePool,

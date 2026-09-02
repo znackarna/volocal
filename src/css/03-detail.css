@@ -470,6 +470,16 @@
 .detail-body.no-panel .search-transcript { right: 26px; }
 
 .speaker-list li { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+/* The language a voice speaks, on a bilingual transcript. Quiet and out of the
+   way: it helps the reader tell the speaker from the interpreter while naming
+   them, and says nothing anybody needs after that. Tabular so two codes under
+   each other line up, and the micro-label's own tracking so it reads as a code
+   rather than a shouted word. */
+.speaker-language {
+  flex: 0 0 auto;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.09em;
+  color: var(--text-quiet);
+}
 /* A column of the shared 38 px fields — the group has one question above it,
    so the fields carry only a placeholder each and no label of their own. */
 .speaker-names { display: flex; flex-direction: column; gap: 8px; }
