@@ -759,7 +759,7 @@ export default function Detail({
           with the button live — beside the bubble that shows it running was
           two doors to one room. When the run ends the answer is read again,
           and a filled one draws nothing. */}
-      {!running && <SecondLanguageBar offer={secondLanguage} />}
+      {!running && segments.length > 0 && <SecondLanguageBar offer={secondLanguage} />}
 
       {/* Only over a transcript: the shortcuts are about reading one. */}
       {segments.length > 0 && <TranscriptTips />}

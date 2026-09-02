@@ -32,6 +32,9 @@ pub fn second_language(
 #[tauri::command]
 pub fn refuse_second_language(app: State<'_, AppState>, id: String) -> Reported<()> {
     let db = app.db.lock().unwrap();
+    // The standing choice goes with it, or the next transcription would write
+    // in the very language the reader has just declined.
+    reported(db::set_second_language_choice(&db, &id, ""))?;
     reported(db::set_second_language_state(
         &db,
         &id,
@@ -118,6 +121,15 @@ pub async fn set_second_language_choice(
         }
         reported(db::set_second_language_choice(&db, &id, &language))?;
         let chosen = language.trim();
+        let has_transcript = recording.status == db::status::DONE && recording.segment_count > 0;
+        if !chosen.is_empty() && !has_transcript {
+            /* Named before there is a transcript — the ordinary way to say it,
+            on a recording just added. The choice is written and that is all:
+            the run that transcribes it reads the choice and fills the language
+            in at its end. An offer row here would draw a bar offering to fill
+            a transcript that does not exist, and its button would fail. */
+            return Ok(());
+        }
         if chosen.is_empty() {
             // *None* answers a standing offer as well: a bar still asking to
             // fill in a language the reader has just said is not there would
@@ -140,7 +152,7 @@ pub async fn set_second_language_choice(
                 filled_at: None,
             },
         ))?;
-        let starts = recording.status == db::status::DONE && recording.segment_count > 0;
+        let starts = has_transcript;
         if starts {
             // The archive draws a progress bar only on a recording that is
             // transcribing, and this is a run in every sense the reader can
@@ -176,9 +188,14 @@ fn run_fill(
             Err(UserMessage::new("transcription.cancelled"))
         };
         let cancelled = task.was_cancelled(&id);
+        /* `done` is written *before* the job is forgotten. `cancel_transcription`
+        answers a click that lands after the work finished by setting a
+        still-transcribing row to `new`; with the order the other way round
+        there was a moment where the job was gone and the row still said
+        transcribing, and a finished transcript would have become `new`. */
+        back_to_done(&db_path, &id);
         task.leave_queue(&id);
         task.cleanup(&id);
-        back_to_done(&db_path, &id);
         match (&done, cancelled) {
             (_, true) => {
                 let _ = window.emit(
@@ -281,9 +298,14 @@ pub async fn fill_second_language(
             Err(UserMessage::new("transcription.cancelled"))
         };
         let cancelled = task.was_cancelled(&id);
+        /* `done` is written *before* the job is forgotten. `cancel_transcription`
+        answers a click that lands after the work finished by setting a
+        still-transcribing row to `new`; with the order the other way round
+        there was a moment where the job was gone and the row still said
+        transcribing, and a finished transcript would have become `new`. */
+        back_to_done(&db_path, &id);
         task.leave_queue(&id);
         task.cleanup(&id);
-        back_to_done(&db_path, &id);
         match (&done, cancelled) {
             (Ok(added), false) => announce_done(&window, &id, *added),
             (Err(error), false) => {

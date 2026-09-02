@@ -65,10 +65,21 @@ export default function RecordingActionsMenu({
               action: () => onTranscribeInLanguage(language.value),
             })),
           },
-          /* A recording where two languages are spoken, said by the reader
-             rather than guessed. `auto` is left out: a second language is by
-             definition the one whisper did not pick. The last entry takes the
-             statement back. */
+          {
+            label: t("dialogs.recordingMenu.deleteTranscript"),
+            icon: Icons.deleteTranscript,
+            action: onDeleteTranscript,
+          },
+        ]
+      : []),
+    /* A recording where two languages are spoken, said by the reader rather
+       than guessed. Offered on any recording that is not mid-run — before a
+       transcript exists it is a standing instruction the run will follow, and
+       after one it starts the fill at once. `auto` is left out: a second
+       language is by definition the one whisper did not pick. The last entry
+       takes the statement back. */
+    ...(status !== "transcribing"
+      ? [
           {
             label: t("dialogs.recordingMenu.secondLanguage"),
             icon: Icons.secondLanguage,
@@ -85,11 +96,6 @@ export default function RecordingActionsMenu({
                 action: () => onSecondLanguage(""),
               },
             ],
-          },
-          {
-            label: t("dialogs.recordingMenu.deleteTranscript"),
-            icon: Icons.deleteTranscript,
-            action: onDeleteTranscript,
           },
         ]
       : []),

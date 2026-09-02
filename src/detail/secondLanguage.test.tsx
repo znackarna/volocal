@@ -16,6 +16,7 @@ import {
   RECORDING_ID,
   fillSecondLanguage,
   installBrowserStubs,
+  recording,
   refuseSecondLanguage,
   secondLanguage,
   segment,
@@ -116,6 +117,17 @@ describe("a language the transcript is missing", () => {
     await waitFor(() =>
       expect(container.textContent).toContain(say("detail.secondLanguage.fill"))
     );
+  });
+
+  /** An offer is about a transcript. Over a recording that has none — never
+   *  transcribed, or its transcript discarded — there is nothing to fill, and
+   *  the button would only fail. */
+  test("says nothing over a recording with no transcript", async () => {
+    secondLanguage.mockResolvedValue(offered());
+    setDetail(detailData({ recording: recording({ status: "new", segment_count: 0 }), segments: [] }));
+    const { container } = show();
+    await waitFor(() => expect(secondLanguage).toHaveBeenCalled());
+    expect(container.textContent).not.toContain(say("detail.secondLanguage.fill"));
   });
 
   /** Two doors to one room. A fill started from the menu is a run, and the
