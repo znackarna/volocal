@@ -1435,8 +1435,11 @@ pub(crate) fn fill_with_audio(
         db::set_second_language_state(connection, recording_id, db::second_language_state::FILLED)?;
         // From now on the recording is bilingual, and says so itself — as the
         // fill's memory, not as the reader's instruction, so switching
-        // automatic filling off is enough to stop it happening again.
-        if recording.second_language_choice.trim().is_empty() && own != second {
+        // automatic filling off is enough to stop it happening again. `auto`
+        // is replaced too: it was an instruction for one run, and leaving it
+        // there would send every later transcription looking again.
+        let standing = recording.second_language_choice.trim().to_ascii_lowercase();
+        if (standing.is_empty() || standing == "auto") && own != second {
             db::set_second_language_choice(connection, recording_id, &second, false)?;
         }
         Ok(())
@@ -1467,8 +1470,26 @@ pub fn fill(
     let connection = db::open(db_path)?;
     let settings = db::load_settings(&connection)?;
     let recording = db::recording(&connection, recording_id)?;
-    let offer = db::second_language(&connection, recording_id)?
-        .ok_or_else(|| UserMessage::new("second_language.nothing_offered"))?;
+    /* **Which language, and who decided.** Three ways in, and the fill is the
+    same work for all of them:
+
+    - a standing offer, from the question a transcription asked;
+    - a language the reader named in the menu — which used to write only the
+      choice and leave nothing here to read, so a fill started that way failed
+      with *nothing_offered*;
+    - `auto`, the reader saying *work it out* about this one recording, which
+      is answered below once the audio is ready.
+
+    A refused offer is not a language: saying no and then pressing Doplnit
+    should not fill in what was declined. */
+    let named = recording.second_language_choice.trim().to_ascii_lowercase();
+    let mut wanted = db::second_language(&connection, recording_id)?
+        .filter(|offer| offer.state != db::second_language_state::REFUSED)
+        .map(|offer| offer.language)
+        .or_else(|| (!named.is_empty() && named != "auto").then_some(named.clone()));
+    if wanted.is_none() && named != "auto" {
+        return Err(UserMessage::new("second_language.nothing_offered"));
+    }
 
     let check = tools::check(&settings);
     if let Some(issue) = check.issues.first() {
@@ -1506,13 +1527,36 @@ pub fn fill(
     )
     .and_then(|()| stop_if_cancelled(task, recording_id))
     .and_then(|()| {
+        /* *Work it out yourself* — the same listening a transcription does
+        before it starts, run here over a transcript that already exists. It
+        costs a few seconds and answers the one thing the reader could not:
+        which language it is. */
+        if wanted.is_none() {
+            let asking = Run {
+                app,
+                recording_id,
+                task,
+            };
+            let heard =
+                two_languages_heard(&asking, &settings, &check, &wav, &working, &|p, c| {
+                    status(app, recording_id, "second_language", p, step(c))
+                })?;
+            stop_if_cancelled(task, recording_id)?;
+            wanted = heard.second;
+            if let Some(own) = heard.own {
+                let _ = db::set_language(&connection, recording_id, &own);
+            }
+        }
+        let Some(second) = wanted.clone() else {
+            return Err(UserMessage::new("second_language.none_found"));
+        };
         fill_with_audio(
             app,
             &connection,
             &check,
             &settings,
             &recording,
-            &offer.language,
+            &second,
             &wav,
             &working,
             task,

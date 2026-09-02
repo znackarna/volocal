@@ -75,6 +75,9 @@ pub async fn set_second_language_choice(
         {
             return Err(UserMessage::new("second_language.same_as_first"));
         }
+        /* `auto` is an instruction, not a language: *work it out on this
+        recording*. It is written down like any other choice so the fill can
+        read it, and the fill replaces it with what it actually found. */
         reported(db::set_second_language_choice(&db, &id, chosen, true))?;
         let has_transcript = recording.status == db::status::DONE && recording.segment_count > 0;
         if !chosen.is_empty() && !has_transcript {

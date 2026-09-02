@@ -104,6 +104,8 @@ export const csErrors = {
   "errors.second_language.interrupted": "Doplnění dalšího jazyka se přerušilo.",
   "errors.second_language.same_as_first":
     "Druhý jazyk musí být jiný než ten, kterým je nahrávka přepsaná.",
+  "errors.second_language.none_found":
+    "V nahrávce jsme žádný další jazyk neslyšeli.",
   "errors.second_language.nothing_offered":
     "U této nahrávky se žádný další jazyk nenašel.",
   "errors.playback.conversion_failed": "Nepodařilo se připravit přesné přehrávání: {reason}",

@@ -61,6 +61,7 @@ export const enErrors: Partial<Record<keyof typeof csErrors, string>> = {
   "errors.second_language.interrupted": "Writing the other language in was interrupted.",
   "errors.second_language.same_as_first":
     "The second language has to differ from the one the recording is transcribed in.",
+  "errors.second_language.none_found": "We did not hear another language in this recording.",
   "errors.second_language.nothing_offered":
     "No second language was found in this recording.",
   "errors.playback.conversion_failed": "Could not prepare precise playback: {reason}",

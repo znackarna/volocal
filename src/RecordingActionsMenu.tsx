@@ -110,6 +110,14 @@ export default function RecordingActionsMenu({
                 label: t("dialogs.recordingMenu.secondLanguage"),
                 hint: t("dialogs.recordingMenu.secondLanguageHint"),
                 children: [
+                  /* First, because it is the answer most readers want and the
+                     only one they cannot get wrong: Volocal listens across the
+                     whole recording and fills in whatever it finds. The dozen
+                     below are for saying it outright. */
+                  {
+                    label: t("dialogs.recordingMenu.automaticSecondLanguage"),
+                    action: () => onSecondLanguage("auto"),
+                  },
                   /* A language the detection heard but the list does not
                      offer — Welsh, Mongolian, any of the other eighty-odd —
                      goes in at the top rather than being left out. The pass

@@ -115,11 +115,12 @@ export const csDialogs = {
   "dialogs.folder.deleteKeep": "Jen složku",
   "dialogs.folder.deleteAll": "Včetně přepisů",
   "dialogs.recordingMenu.languages": "Jazyk",
-  "dialogs.recordingMenu.mainLanguage": "Hlavní jazyk",
-  "dialogs.recordingMenu.mainLanguageHint": "Přepsat znovu",
-  "dialogs.recordingMenu.secondLanguage": "Druhý jazyk",
-  "dialogs.recordingMenu.secondLanguageHint": "Vybrat druhý jazyk",
-  "dialogs.recordingMenu.noSecondLanguage": "Žádný",
+  "dialogs.recordingMenu.mainLanguage": "Přepsat v jazyce",
+  "dialogs.recordingMenu.mainLanguageHint": "Nahradí celý přepis",
+  "dialogs.recordingMenu.secondLanguage": "Doplnit druhý jazyk",
+  "dialogs.recordingMenu.secondLanguageHint": "Dopíše, co první přepis vynechal",
+  "dialogs.recordingMenu.automaticSecondLanguage": "Automatický výběr",
+  "dialogs.recordingMenu.noSecondLanguage": "Žádný druhý jazyk",
   "dialogs.recordingMenu.remove": "Odebrat z archivu",
 } as const;
 
@@ -226,6 +227,8 @@ export const csDialogsContext: Partial<Record<keyof typeof csDialogs, string>> =
     "Druhý řádek podnabídky Jazyky: kterým dalším jazykem se v nahrávce mluví. U hotového přepisu se hned doplní.",
   "dialogs.recordingMenu.secondLanguageHint":
     "Tichý druhý řádek pod „Druhý jazyk“ — říká, co volba udělá.",
+  "dialogs.recordingMenu.automaticSecondLanguage":
+    "První položka podnabídky Doplnit druhý jazyk: Volocal si jazyk najde sám a rovnou ho doplní.",
   "dialogs.recordingMenu.noSecondLanguage":
     "Poslední položka té podnabídky — nahrávka žádný druhý jazyk nemá.",
   "dialogs.recordingMenu.remove":
