@@ -18,7 +18,6 @@ import { MiniRecorder } from "../recorder";
 import { Wordmark } from "../Brand";
 import NameDialog from "../NameDialog";
 import RecordingActionsMenu from "../RecordingActionsMenu";
-import { ExportMenu } from "./documents";
 import { LineIcon } from "../icons";
 import { fileName, statusClass } from "../types";
 import type { Folder } from "../types";
@@ -85,7 +84,9 @@ export function DetailHeader({
   /** Travels to whatever else is playing, when something else is. */
   onOpenOther: () => void;
   otherRecordingId: string | null;
-  onExport: (format: string) => void;
+  /** Opens the one save dialog. It took a format when the header held a
+   *  dropdown of them; the dialog asks that question now. */
+  onExport: () => void;
   onRecognizeSpeakers: () => void;
   speakersBusy: boolean;
   speakersReady: boolean;
@@ -263,14 +264,23 @@ export function DetailHeader({
           ? t("detail.header.improvedButton")
           : t("detail.header.improveButton")}
       </button>
-      {/* Five format abbreviations side by side read as a toolbar and
-          overpowered the file name. Saving is one action, not five. */}
-      <ExportMenu
+      {/* One button, one dialog — the same one the archive card opens through
+          `Uložit jako…`. It was a dropdown of five formats, and the audio was
+          nowhere in it: taking the sound out of a recording lived behind a
+          different menu on a different screen. Asked about on 2026-09-02:
+          *v Uložit na detailu by taky měl být zvuk, ne?* */}
+      <button
+        className="button save-button"
+        onClick={onExport}
         disabled={!hasSegments}
-        onChoose={onExport}
-        hasAiDocument={!!ai.state.document && !ai.state.document.stale}
-        onChooseAi={ai.actions.saveImproved}
-      />
+      >
+        <svg width="15" height="15" viewBox="0 0 15 15" aria-hidden>
+          <path d="M8 2v8M4.6 6.8 8 10.2l3.4-3.4M2.5 12.5h11"
+                stroke="currentColor" strokeWidth="1.5"
+                strokeLinecap="round" strokeLinejoin="round" fill="none" />
+        </svg>
+        {t("detail.export.button")}
+      </button>
       <button
         className="icon-button header-icon-button"
         onClick={onNew}

@@ -187,7 +187,7 @@ function usedKeys() {
       if (!/\.tsx?$/.test(entry.name)) continue;
       const source = readFileSync(path, "utf8");
       for (const match of source.matchAll(/\b(?:t|tPlural)\(\s*"([^"]+)"/g)) used.add(match[1]);
-      for (const match of source.matchAll(/"((?:common|app|library|detail|settings|wizard|domain|dialogs|player|errors|progress|catalog)\.[\w.\-@]+)"/g))
+      for (const match of source.matchAll(/"((?:common|app|library|detail|save|settings|wizard|domain|dialogs|player|errors|progress|catalog)\.[\w.\-@]+)"/g))
         used.add(match[1]);
     }
   };

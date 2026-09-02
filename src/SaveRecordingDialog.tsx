@@ -20,8 +20,17 @@ import { api } from "./api";
 import type { Recording, UserMessage } from "./types";
 
 /** What may come out of a recording. Audio first: it is the one thing here
- *  that is not the transcript. */
-export type SaveShape = "audio" | "txt" | "md" | "srt" | "vtt" | "json";
+ *  that is not the transcript. The last two are the language model's tidied
+ *  version, and appear only when there is one. */
+export type SaveShape =
+  | "audio"
+  | "txt"
+  | "md"
+  | "srt"
+  | "vtt"
+  | "json"
+  | "improved-txt"
+  | "improved-md";
 
 /** The shapes, their words and the line under each — spelled out rather than
  *  built from the shape's name, so `i18n:check` can see the keys and catch a
@@ -35,11 +44,21 @@ const SHAPES = [
   ["json", "save.shape.json", "save.shapeNote.json"],
 ] as const satisfies ReadonlyArray<readonly [SaveShape, TranslationKey, TranslationKey]>;
 
+/** Shown only over a recording that has one. */
+const IMPROVED = [
+  ["improved-txt", "save.shape.improvedTxt", "save.shapeNote.improved"],
+  ["improved-md", "save.shape.improvedMd", "save.shapeNote.improved"],
+] as const satisfies ReadonlyArray<readonly [SaveShape, TranslationKey, TranslationKey]>;
+
 /** The name a file gets when several are written at once and nobody is asked
  *  for one. The recording's title, minus the characters a file name cannot
  *  hold. */
 function nameFor(recording: Recording, shape: SaveShape): string {
   const plain = (recording.title || "nahravka").replace(/[\\/:*?"<>|]/g, "-");
+  // The tidied version is a second file beside the plain one, so its name has
+  // to differ. `-upraveny` rather than a word from the dictionary: a file name
+  // is not interface copy, and it goes onto a disk that may not speak Czech.
+  if (shape.startsWith("improved-")) return `${plain}-upraveny.${shape.slice(9)}`;
   if (shape !== "audio") return `${plain}.${shape}`;
   // Audio keeps the source's own container, so it plays wherever the recording
   // plays and is handed over without being re-encoded.
@@ -83,6 +102,10 @@ export async function saveRecording({
       if (shape === "audio") {
         await api.exportAudio(recording.id, path);
         written.push(path);
+      } else if (shape.startsWith("improved-")) {
+        written.push(
+          await api.saveAiDocument(recording.id, shape.slice(9) as "txt" | "md", path)
+        );
       } else {
         written.push(await api.saveExport(recording.id, shape, path));
       }
@@ -98,12 +121,17 @@ export function SaveRecordingDialog({
   recording,
   chooseFile,
   chooseFolder,
+  improved,
   onClose,
   onError,
   onSaved,
 }: {
   /** The recording being saved, or null when the dialog is shut. */
   recording: Recording | null;
+  /** Whether the language model's tidied version exists and is current. Two
+   *  more rows when it does — it used to live in a dropdown of its own in the
+   *  transcript header, which is the second door this dialog closed. */
+  improved?: boolean;
   chooseFile: (name: string) => Promise<string | null>;
   chooseFolder: () => Promise<string | null>;
   onClose: () => void;
@@ -127,9 +155,11 @@ export function SaveRecordingDialog({
       current.includes(shape) ? current.filter((s) => s !== shape) : [...current, shape]
     );
 
-  const chosen = SHAPES.map(([shape]) => shape).filter(
-    (shape) => ticked.includes(shape) && !(noTranscript && shape !== "audio")
-  );
+  const rows = improved ? [...SHAPES, ...IMPROVED] : SHAPES;
+  const offered = (shape: SaveShape) => !(noTranscript && shape !== "audio");
+  const chosen = rows
+    .map(([shape]) => shape)
+    .filter((shape) => ticked.includes(shape) && offered(shape));
 
   const save = async () => {
     setBusy(true);
@@ -161,20 +191,20 @@ export function SaveRecordingDialog({
         <p>{t("save.text", { name: recording.title })}</p>
 
         <ul className="save-choices">
-          {SHAPES.map(([shape, word, note]) => (
+          {rows.map(([shape, word, note]) => (
             <li key={shape}>
               <label className="save-choice">
                 <input
                   type="checkbox"
                   className="check-box-input"
-                  checked={ticked.includes(shape) && !(noTranscript && shape !== "audio")}
-                  disabled={noTranscript && shape !== "audio"}
+                  checked={ticked.includes(shape) && offered(shape)}
+                  disabled={!offered(shape)}
                   onChange={() => toggle(shape)}
                 />
                 <CheckBox />
                 <span className="save-choice-name">{t(word)}</span>
                 <span className="save-choice-note">
-                  {noTranscript && shape !== "audio" ? t("save.needsTranscript") : t(note)}
+                  {offered(shape) ? t(note) : t("save.needsTranscript")}
                 </span>
               </label>
             </li>

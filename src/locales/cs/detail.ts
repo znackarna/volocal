@@ -93,7 +93,7 @@ export const csDetail = {
   "detail.clip.shape.audio": "Zvuk",
   "detail.clip.shapeNote.audio": "Vyříznutý kus nahrávky",
   "detail.clip.shape.txt": "Text",
-  "detail.clip.shapeNote.txt": "Holý přepis pro citaci",
+  "detail.clip.shapeNote.txt": "Čistý přepis pro citaci",
   "detail.clip.shape.md": "Markdown",
   "detail.clip.shapeNote.md": "Text s mluvčími a časy",
   "detail.clip.shape.srt": "Titulky SRT",

@@ -217,8 +217,11 @@ const Icons = {
   folderNew: `${LINE_ICONS.folder} M12 10.75v5 M9.5 13.25h5`,
   folderOut: `${LINE_ICONS.folder} M12 15.75v-5 M9.5 13.25l2.5-2.5 2.5 2.5`,
   /* A note over a tray: the audio itself, saved out of the archive. */
-  exportAudio:
-    "M8.5 17.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z M11 15V5l7 2v8 M18 15a2.5 2.5 0 1 1-5 0 M4 20h16",
+  /* A download arrow over a line — the same shape the transcript's own save
+     button wears. It was a musical note while the item saved the audio alone;
+     since it saves whatever the reader ticks, a note would name one row of
+     six. */
+  exportAudio: "M12 3v10M7.8 8.8 12 13l4.2-4.2M4 19h16",
 } as const;
 
 function MenuIcon({ path }: { path: string }) {

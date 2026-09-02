@@ -55,11 +55,9 @@ export const csApp = {
   "app.recorder.label": "Záznam",
   "app.recorder.open": "Otevřít nahrávání",
   "app.recorder.stop": "Zastavit záznam",
-  "app.notice.audioSaved": "Zvuk byl uložen do {path}.",
   "app.audioFormat.mp3": "MP3 — otevře se všude",
   "app.audioFormat.m4a": "M4A — menší soubor",
   "app.audioFormat.wav": "WAV — bez komprese",
-  "app.audioFormat.same": "{format} — beze změny",
   "app.notice.recordingAdded": "Záznam je v archivu.",
   "app.notice.recordingAddedTranscribing": "Záznam je v archivu a přepis začal.",
   "app.notice.onlineAddedTranscribing": "Online nahrávka je přidaná a přepis začal.",
@@ -152,8 +150,6 @@ export const csAppContext: Partial<Record<keyof typeof csApp, string>> = {
     "Hláška po přetažení souboru, který neumíme otevřít. Vyká uživateli, stejně jako zbytek aplikace.",
   "app.audioFormat.mp3":
     "Název formátu v systémovém dialogu pro uložení zvuku. Za pomlčkou je důvod, proč si ho vybrat.",
-  "app.audioFormat.same":
-    "Volba v dialogu pro uložení zvuku, když nahrávka už v tom formátu je: soubor se jen zkopíruje. {format} je zkratka jako FLAC.",
   "app.filePicker.audioAndVideo":
     "Název skupiny souborů v systémovém dialogu pro výběr souboru.",
   "app.watchFolder.transcribing.one":
