@@ -11,13 +11,12 @@
  * sat behind another. Asked for on 2026-09-02: *Uložit zvuk bych změnil na
  * Uložit jako*.
  */
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useI18n } from "./i18n";
 import type { TranslationKey } from "./i18n";
 import { useDialog } from "./useDialog";
 import { CheckBox } from "./CheckBox";
 import InfoNote from "./InfoNote";
-import { api } from "./api";
 import type { Recording, UserMessage } from "./types";
 import { saveRecording } from "./saveRecording";
 import type { SaveShape } from "./saveRecording";
@@ -34,27 +33,16 @@ const SHAPES = [
   ["json", "save.shape.json", "save.shapeNote.json"],
 ] as const satisfies ReadonlyArray<readonly [SaveShape, TranslationKey, TranslationKey]>;
 
-/** Shown only over a recording that has one. */
-const IMPROVED = [
-  ["improved-txt", "save.shape.improvedTxt", "save.shapeNote.improved"],
-  ["improved-md", "save.shape.improvedMd", "save.shapeNote.improved"],
-] as const satisfies ReadonlyArray<readonly [SaveShape, TranslationKey, TranslationKey]>;
-
 export function SaveRecordingDialog({
   recording,
   chooseFile,
   chooseFolder,
-  improved,
   onClose,
   onError,
   onSaved,
 }: {
   /** The recording being saved, or null when the dialog is shut. */
   recording: Recording | null;
-  /** Whether the language model's tidied version exists and is current, when
-   *  the caller already knows. The transcript screen does; the archive card
-   *  does not, and the dialog asks for itself. */
-  improved?: boolean;
   chooseFile: (name: string) => Promise<string | null>;
   chooseFolder: () => Promise<string | null>;
   onClose: () => void;
@@ -64,32 +52,7 @@ export function SaveRecordingDialog({
   const { t } = useI18n();
   const [ticked, setTicked] = useState<SaveShape[]>(["audio"]);
   const [busy, setBusy] = useState(false);
-  /* Whether a tidied version is there to offer. The transcript screen knows
-     and says so; opened from the archive card, nobody has asked yet — so the
-     dialog asks, once, on the way up. Two rows appearing a moment late is
-     better than a card that cannot offer what the recording holds. */
-  const [found, setFound] = useState(false);
   const dialog = useDialog<HTMLDivElement>(onClose, recording !== null);
-
-  const id = recording?.id;
-  useEffect(() => {
-    if (!id || improved) {
-      setFound(false);
-      return;
-    }
-    let current = true;
-    api
-      .aiEditStatus(id)
-      .then((status) => {
-        if (current) setFound(!!status.document && !status.document.stale);
-      })
-      .catch(() => {
-        if (current) setFound(false);
-      });
-    return () => {
-      current = false;
-    };
-  }, [id, improved]);
 
   if (!recording) return null;
 
@@ -103,7 +66,12 @@ export function SaveRecordingDialog({
       current.includes(shape) ? current.filter((s) => s !== shape) : [...current, shape]
     );
 
-  const rows = improved || found ? [...SHAPES, ...IMPROVED] : SHAPES;
+  /* The language model's tidied version is not here. It lives in the AI tools,
+     beside the thing that made it, and putting it in this list as well made six
+     rows into eight — for a document most recordings never have. His call, on
+     2026-09-02: *nenecháme ho jen v nabídce AI nástrojů, ať ta nabídka není tak
+     dlouhá?* */
+  const rows = SHAPES;
   const offered = (shape: SaveShape) => !(noTranscript && shape !== "audio");
   const chosen = rows
     .map(([shape]) => shape)

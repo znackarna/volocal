@@ -94,10 +94,8 @@ interface Props {
   /** Travels to another recording's detail — the mini player's click. */
   onOpenRecording: (recordingId: string) => void;
   /** Hands this recording's audio file over to a place of the user's choosing. */
-  /** Opens the one save dialog. The flag says whether the language model's
-   *  tidied version is worth offering — this screen is the only place that
-   *  knows, and the dialog lives up in the application. */
-  onExportAudio: (improved: boolean) => void;
+  /** Opens the one save dialog. */
+  onExportAudio: () => void;
   folders: Folder[];
   onMoveToFolder: (folder: string | null) => void;
   onCreateFolderFor: () => void;
@@ -333,10 +331,6 @@ export default function Detail({
     reload: load,
     saveTranscript: exportRecording,
   });
-
-  /** A tidied version worth saving beside the transcript: it exists and the
-   *  transcript has not changed under it since. */
-  const hasImproved = !!ai.state.document && !ai.state.document.stale;
 
   const editing = useTranscriptEditing({
     recordingId: id,
@@ -650,7 +644,7 @@ export default function Detail({
           folders,
           onMoveToFolder,
           onCreateFolderFor,
-          onExportAudio: () => onExportAudio(hasImproved),
+          onExportAudio,
           onRetranscribe: startTranscription,
           onTranscribeInLanguage: startTranscriptionInLanguage,
           /* Written on the recording, and on a finished transcript the fill
@@ -699,7 +693,7 @@ export default function Detail({
         onOpenOther={() => {
           if (player.recordingId) onOpenRecording(player.recordingId);
         }}
-        onExport={() => onExportAudio(hasImproved)}
+        onExport={onExportAudio}
         onRecognizeSpeakers={recognizeSpeakers}
         speakersBusy={speakersBusy}
         speakersReady={speakersReady}

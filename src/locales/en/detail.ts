@@ -8,8 +8,6 @@ export const enDetail: Partial<Record<keyof typeof csDetail, string>> = {
   "detail.format.vtt": "Web subtitles",
   "detail.format.json": "Data for apps",
   "detail.export.button": "Save",
-  "detail.export.rawGroup": "Raw transcript",
-  "detail.export.improvedGroup": "Enhanced transcript",
   "detail.header.speakersButton": "Speakers",
   "detail.header.improveButton": "AI tools",
   "detail.header.improvedButton": "Enhanced transcript",

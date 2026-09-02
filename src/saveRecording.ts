@@ -12,17 +12,12 @@ import { api } from "./api";
 import type { Recording, UserMessage } from "./types";
 
 /** What may come out of a recording. Audio first: it is the one thing here
- *  that is not the transcript. The last two are the language model's tidied
- *  version, and appear only when there is one. */
-export type SaveShape =
-  | "audio"
-  | "txt"
-  | "md"
-  | "srt"
-  | "vtt"
-  | "json"
-  | "improved-txt"
-  | "improved-md";
+ *  that is not the transcript.
+ *
+ *  The language model's tidied version is deliberately not among them — it is
+ *  saved from the AI tools, beside the thing that made it, and adding it here
+ *  made a six-row list into eight for a document most recordings never have. */
+export type SaveShape = "audio" | "txt" | "md" | "srt" | "vtt" | "json";
 
 /** The name a file gets when several are written at once and nobody is asked
  *  for one. The recording's title, minus the characters a file name cannot
@@ -32,7 +27,6 @@ function nameFor(recording: Recording, shape: SaveShape): string {
   // The tidied version is a second file beside the plain one, so its name has
   // to differ. `-upraveny` rather than a word from the dictionary: a file name
   // is not interface copy, and it goes onto a disk that may not speak Czech.
-  if (shape.startsWith("improved-")) return `${plain}-upraveny.${shape.slice(9)}`;
   if (shape !== "audio") return `${plain}.${shape}`;
   // Audio keeps the source's own container, so it plays wherever the recording
   // plays and is handed over without being re-encoded.
@@ -76,10 +70,6 @@ export async function saveRecording({
       if (shape === "audio") {
         await api.exportAudio(recording.id, path);
         written.push(path);
-      } else if (shape.startsWith("improved-")) {
-        written.push(
-          await api.saveAiDocument(recording.id, shape.slice(9) as "txt" | "md", path)
-        );
       } else {
         written.push(await api.saveExport(recording.id, shape, path));
       }

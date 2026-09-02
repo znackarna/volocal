@@ -9,8 +9,6 @@ export const csDetail = {
   "detail.format.json": "Data pro aplikace",
 
   "detail.export.button": "Uložit",
-  "detail.export.rawGroup": "Hrubý přepis",
-  "detail.export.improvedGroup": "Vylepšený přepis",
 
   "detail.header.speakersButton": "Mluvčí",
   "detail.header.improveButton": "AI nástroje",
@@ -285,11 +283,7 @@ export const csDetailContext: Partial<Record<keyof typeof csDetail, string>> = {
   "detail.format.json":
     "Popis formátu JSON: strojově čitelná data pro další zpracování v jiném programu.",
 
-  "detail.export.button": "Tlačítko v hlavičce, které otevře nabídku formátů uložení.",
-  "detail.export.rawGroup":
-    "Nadpis skupiny v nabídce uložení. Přepis přímo z rozpoznávání řeči, bez jazykové úpravy.",
-  "detail.export.improvedGroup":
-    "Nadpis skupiny v nabídce uložení. Verze přepisu upravená jazykovým modelem.",
+  "detail.export.button": "Tlačítko v hlavičce, které otevře dialog uložení.",
 
   "detail.header.speakersButton":
     "Tlačítko v hlavičce, které spustí rozpoznání mluvčích. Jen podstatné jméno, protože v hlavičce stojí v řadě jmen — vedle „AI nástroje“. Sloveso „Rozpoznat mluvčí“ zůstává v postranním panelu, kde je nadpis už řekl, o co jde.",

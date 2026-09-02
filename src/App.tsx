@@ -752,7 +752,6 @@ export default function App() {
      until 2026-09-02 they answered it with two different doors: `Uložit zvuk…`
      for the audio alone and a dropdown of formats for the text. */
   const [saving, setSaving] = useState<string | null>(null);
-  const [savingImproved, setSavingImproved] = useState(false);
   const savingRecording = recordings.find((item) => item.id === saving) ?? null;
 
   /* Naming a second language on a recording. The backend writes it on the
@@ -1023,7 +1022,6 @@ export default function App() {
 
       <SaveRecordingDialog
         recording={savingRecording}
-        improved={savingImproved}
         chooseFile={(name) => save({ defaultPath: name })}
         chooseFolder={async () => {
           const chosen = await open({ directory: true });
@@ -1054,12 +1052,7 @@ export default function App() {
           onIgnoreWatchCandidates={watch.actions.ignore}
           onAddWatchCandidates={watch.actions.add}
           onOpen={openRecording}
-          onExportAudio={(id) => {
-            // The archive does not know whether a tidied version exists; the
-            // transcript screen does, and says so when it opens the dialog.
-            setSavingImproved(false);
-            setSaving(id);
-          }}
+          onExportAudio={setSaving}
           folders={folders}
           openFolder={openFolder}
           onOpenFolder={foldersModel.actions.show}
@@ -1158,10 +1151,7 @@ export default function App() {
               setAddRecordingOpen(true);
             }}
             onOpenRecording={openRecording}
-            onExportAudio={(improved) => {
-              setSavingImproved(improved);
-              setSaving(selectedId);
-            }}
+            onExportAudio={() => setSaving(selectedId)}
             folders={folders}
             onMoveToFolder={(folder) => void foldersModel.actions.move(selectedId, folder)}
             onCreateFolderFor={() =>
