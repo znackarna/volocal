@@ -874,9 +874,9 @@ export default function Detail({
                         the transcript does — an interpreter answering in the
                         other language says so on the spot. */}
                     {twoLanguages && (
-                      <span className="speaker-header-language">
+                      <sup className="speaker-header-language">
                         {(s.language || language).toUpperCase()}
-                      </span>
+                      </sup>
                     )}
                   </div>
                 )}

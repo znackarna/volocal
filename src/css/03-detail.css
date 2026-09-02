@@ -473,12 +473,19 @@
 /* A column of the shared 38 px fields — the group has one question above it,
    so the fields carry only a placeholder each and no label of their own. */
 /* The language of the run under a speaker's name, where the transcript holds
-   two. It rides the heading's own colour at half strength rather than taking a
-   colour of its own: the name says who, this says in what, and neither should
-   compete with the words below them. */
+   two — set as a superscript, which is what a mark qualifying a name is.
+   It rides the heading's own colour at half strength rather than taking one of
+   its own: the name says who, this says in what, and neither should compete
+   with the words below.
+
+   `top` rather than the browser's own raise: `vertical-align: super` on a
+   heading with `line-height` this tight pushes the line box open and moves the
+   whole row. Positioned instead, so the name stays where it was. */
 .speaker-header-language {
-  margin-left: 7px;
+  position: relative; top: -0.45em;
+  margin-left: 3px;
   font-size: 9.5px; font-weight: 600; letter-spacing: 0.06em;
+  vertical-align: baseline;
   opacity: 0.55;
 }
 
