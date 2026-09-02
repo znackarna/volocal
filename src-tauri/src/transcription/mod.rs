@@ -557,6 +557,44 @@ fn run(
     // arrived during preparation is how `Zrušit` used to look like it did
     // nothing at all: the request was noted and the run went on for minutes.
     stop_if_cancelled(task, recording_id)?;
+
+    /* **A recording in two languages is transcribed in two from the start.**
+    The second language on its row — named by the reader, or written there by
+    the fill that once found it — means the single-language pass would only
+    be thrown away and replaced. So it is skipped: the multilingual pass does
+    the whole transcript, speakers and all, and writes it itself. Its failure
+    is the run's here, because there is no other transcript to fall back on.
+
+    Asked for on 2026-09-02, the morning the pass was rebuilt: a transcript
+    that was once bilingual has to come back bilingual without being asked,
+    and without the two minutes of a pass nobody will read. */
+    let named = recording.second_language_choice.trim().to_ascii_lowercase();
+    if !named.is_empty() {
+        db::save_second_language(
+            &connection,
+            &db::SecondLanguage {
+                recording_id: recording_id.to_string(),
+                language: named.clone(),
+                share: 0.0,
+                state: db::second_language_state::OFFERED.to_string(),
+                filled_at: None,
+            },
+        )?;
+        let written = languages::fill_with_audio(
+            app,
+            &connection,
+            &check,
+            &settings,
+            &recording,
+            &named,
+            &wav,
+            &working_directory,
+            task,
+        )?;
+        let _ = std::fs::remove_dir_all(&working_directory);
+        return Ok(written.blocks);
+    }
+
     status(
         app,
         recording_id,
@@ -739,9 +777,13 @@ fn run(
     whisper is given one language for the whole file, so a recording where
     two people speak two languages comes back as one of them with the other
     silently absent — and the text still looks complete, which is worse than
-    a visible failure. Two answers: the reader named it on the recording, or
-    detection is switched on and a short sweep listens for it. `languages.rs`
-    carries the measurements.
+    a visible failure. A recording with the language already on its row never
+    reaches this point — see the multilingual branch above the
+    single-language pass. What arrives here is a recording nobody has named a
+    second language for, with detection switched on: a short sweep listens
+    for one, and a language it finds is written in and stays on the row, so
+    the next run is bilingual from the start. `languages.rs` carries the
+    measurements.
 
     After the commit rather than inside it, and its failure is not the run's:
     a finished, saved transcript must never be held up or rolled back over a
@@ -752,48 +794,7 @@ fn run(
     The offer is written afresh every run, so a refusal recorded against a
     transcript that has since been replaced is not carried over — a new text
     is a new question. */
-    let named = db::recording(&connection, recording_id)
-        .map(|fresh| fresh.second_language_choice.trim().to_string())
-        .unwrap_or_default();
-    if !named.is_empty() {
-        /* The reader said so, and that settles it: no sweep, no question. The
-        offer row is written first so the screen can show the fill as the
-        pending thing it is, and the fill runs here, on the audio already
-        prepared — the same reason the sweep lives here. Its failure is logged
-        and is not the run's: a finished transcript is never lost over the
-        part that was going to be added to it. */
-        let offer = db::SecondLanguage {
-            recording_id: recording_id.to_string(),
-            language: named.clone(),
-            share: 0.0,
-            state: db::second_language_state::OFFERED.to_string(),
-            filled_at: None,
-        };
-        if let Err(error) = db::save_second_language(&connection, &offer) {
-            crate::note!("second language: the named language could not be recorded: {error}");
-        } else {
-            let fresh = db::recording(&connection, recording_id)?;
-            // Through `without_panicking`, and not only for the log line: the
-            // transcript is already committed above, and a panic in the part
-            // being added to it turned a finished run into `error` on the
-            // archive card. Whatever the fill does, the run has succeeded.
-            if let Err(error) = without_panicking(|| {
-                languages::fill_with_audio(
-                    app,
-                    &connection,
-                    &check,
-                    &settings,
-                    &fresh,
-                    &named,
-                    &wav,
-                    &working_directory,
-                    task,
-                )
-            }) {
-                crate::note!("second language: filling {named} failed: {error}");
-            }
-        }
-    } else if settings.detect_second_language {
+    if settings.detect_second_language {
         /* Switched on means *do it*, not *ask me*. The first run with detection
         on found the language and then stood there offering to write it in,
         and the owner's answer was that he had switched it on precisely so
@@ -821,6 +822,7 @@ fn run(
                             &working_directory,
                             task,
                         )
+                        .map(|written| written.in_second)
                     }) {
                         crate::note!(
                             "second language: filling {} failed: {error}",

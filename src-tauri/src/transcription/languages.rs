@@ -792,6 +792,34 @@ fn shifted(mut segment: Segment, by: f64, language: Option<&str>) -> Segment {
     segment
 }
 
+/// What the multilingual pass wrote: every block, and how many of them are
+/// in the second language. A run reports the first; a fill asked for from
+/// the transcript reports the second.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct Written {
+    pub(crate) blocks: usize,
+    pub(crate) in_second: usize,
+}
+
+/// The recording's own language, when nothing has said it yet: the language
+/// most of the pieces were confidently heard in, other than the second.
+///
+/// A run left on automatic used to learn the language from the
+/// single-language pass; a recording transcribed in two languages from the
+/// start has no such pass, and the detection over its pieces already knows.
+pub(crate) fn own_language_heard(heard: &[Option<(String, f64)>], second: &str) -> Option<String> {
+    let mut tally: HashMap<String, usize> = HashMap::new();
+    for (code, probability) in heard.iter().flatten() {
+        if *probability >= CONFIDENT && !code.eq_ignore_ascii_case(second) {
+            *tally.entry(code.to_ascii_lowercase()).or_default() += 1;
+        }
+    }
+    tally
+        .into_iter()
+        .max_by(|left, right| left.1.cmp(&right.1).then(right.0.cmp(&left.0)))
+        .map(|(code, _)| code)
+}
+
 /// Transcribes a recording in both of its languages and replaces the
 /// transcript with the result.
 ///
@@ -811,8 +839,16 @@ fn shifted(mut segment: Segment, by: f64, language: Option<&str>) -> Segment {
 /// lines look like Czech that was never said. Corrections made to the earlier
 /// text do not survive this, the same as any transcription run again.
 ///
-/// Called from two places: the end of a transcription, where the WAV is still
-/// there, and [`fill`], which has to make one first.
+/// **The language stays on the recording.** Once written in, the second
+/// language is put on the recording's row as its choice — where the reader
+/// would have put it by hand — so the next transcription of this recording is
+/// bilingual from its first second, with no sweep and no single-language pass
+/// in front of it.
+///
+/// Called from three places: the start of a transcription of a recording
+/// already known to be bilingual, where it is the whole run; the end of one
+/// whose sweep found the other language, where the WAV is still there; and
+/// [`fill`], which has to make one first.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn fill_with_audio(
     app: &AppHandle,
@@ -824,18 +860,12 @@ pub(crate) fn fill_with_audio(
     wav: &Path,
     working: &Path,
     task: &TranscriptionTask,
-) -> Reported<usize> {
+) -> Reported<Written> {
     let recording_id = recording.id.as_str();
     let say = |percent: u32, code: &str| {
         status(app, recording_id, "second_language", percent, step(code));
     };
-    let own = crate::ai_edit::effective_language(recording);
     let second = language.trim().to_ascii_lowercase();
-    let spoken_languages: Vec<&str> = if own == second {
-        vec![own.as_str()]
-    } else {
-        vec![own.as_str(), second.as_str()]
-    };
     let run = Run {
         app,
         recording_id,
@@ -848,10 +878,9 @@ pub(crate) fn fill_with_audio(
     };
     let pieces = pieces_of_speech(&samples, rate);
     if pieces.is_empty() {
-        // Nothing spoken at all. That is an answer rather than a failure.
-        db::set_second_language_state(connection, recording_id, db::second_language_state::FILLED)?;
-        say(100, "second_language.done");
-        return Ok(0);
+        // Nothing spoken at all: nothing is written, and whatever transcript
+        // there was stays as it is.
+        return Err(UserMessage::new("transcription.empty_result"));
     }
     let pieces_folder = working.join("pieces");
     let piece_names = write_pieces(&pieces_folder, &samples, rate, &pieces)?;
@@ -872,6 +901,19 @@ pub(crate) fn fill_with_audio(
         },
     )?;
     let _ = std::fs::remove_dir_all(&pieces_folder);
+
+    // The recording's own language: what it says, or what was just heard.
+    let mut own = crate::ai_edit::effective_language(recording);
+    if own.is_empty() || own == "auto" {
+        own = own_language_heard(&heard, &second).unwrap_or_else(|| second.clone());
+        db::set_language(connection, recording_id, &own)?;
+        crate::note!("second language: the recording's own language read as {own}");
+    }
+    let spoken_languages: Vec<&str> = if own == second {
+        vec![own.as_str()]
+    } else {
+        vec![own.as_str(), second.as_str()]
+    };
     let languages = language_of_each(&heard, &own, &second);
     let turns = turns_of(&pieces, &languages);
     crate::note!(
@@ -1038,6 +1080,10 @@ pub(crate) fn fill_with_audio(
             )?;
         }
         db::set_second_language_state(connection, recording_id, db::second_language_state::FILLED)?;
+        // From now on the recording is bilingual, and says so itself.
+        if recording.second_language_choice.trim().is_empty() && own != second {
+            db::set_second_language_choice(connection, recording_id, &second)?;
+        }
         Ok(())
     })();
     if let Err(error) = written {
@@ -1046,7 +1092,10 @@ pub(crate) fn fill_with_audio(
     }
     connection.execute_batch("COMMIT")?;
     say(100, "second_language.done");
-    Ok(count)
+    Ok(Written {
+        blocks: segments.len(),
+        in_second: count,
+    })
 }
 
 /// Transcribes the other language into a transcript that is already stored,
@@ -1109,6 +1158,7 @@ pub fn fill(
             &working,
             task,
         )
+        .map(|written| written.in_second)
     });
     // Whatever happened, the copy of the audio goes. It is the size of the
     // recording and nothing else will come looking for it.
@@ -1536,6 +1586,29 @@ mod tests {
             "en",
         );
         assert_eq!(languages, vec!["cs", "en", "en", "en", "cs", "cs"]);
+    }
+
+    /// A recording left on automatic has no language of its own yet, so it is
+    /// the one most pieces were confidently heard in, other than the second.
+    #[test]
+    fn the_own_language_is_the_one_most_pieces_were_heard_in() {
+        let own = own_language_heard(
+            &heard(&[
+                Some(("en", 0.99)),
+                Some(("cs", 0.98)),
+                Some(("cs", 0.97)),
+                Some(("sk", 0.99)),
+                Some(("cs", 0.30)),
+                None,
+                Some(("en", 0.95)),
+            ]),
+            "en",
+        );
+        assert_eq!(own.as_deref(), Some("cs"));
+        assert_eq!(
+            own_language_heard(&heard(&[Some(("en", 0.99))]), "en"),
+            None
+        );
     }
 
     // ------------------------------------------------ pieces back into turns
