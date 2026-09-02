@@ -18,6 +18,7 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../api";
+import { useI18n } from "../i18n";
 import { useUserMessage } from "../messages";
 import type { SecondLanguage } from "../types";
 
@@ -31,8 +32,6 @@ export interface SecondLanguageOffer {
     offered: boolean;
     /** The fill has been asked for and has not come back. */
     filling: boolean;
-    /** How many blocks the last fill added, until the reader moves on. */
-    added: number | null;
   };
   actions: {
     /** Reads the answer again without doing any work.
@@ -48,26 +47,30 @@ export interface SecondLanguageOffer {
     look: () => Promise<void>;
     fill: () => Promise<void>;
     refuse: () => Promise<void>;
-    /** The reader has read the count; stop saying it. */
-    clearCount: () => void;
   };
 }
 
 export function useSecondLanguage({
   recordingId,
   onError,
+  onInfo,
   reload,
 }: {
   recordingId: string;
   onError: (message: string) => void;
+  /** How many blocks a fill added is said the way every other confirmation on
+   *  this screen is said — in the notice bar, which leaves on its own. A strip
+   *  of this feature's own with a Close button stood here first, and it was
+   *  the one thing on the screen the design system did not have. */
+  onInfo: (message: string) => void;
   /** Fetches the recording again. The fill rewrites every block, so nothing on
    *  screen is right until this has run. */
   reload: () => Promise<void> | void;
 }): SecondLanguageOffer {
   const userMessage = useUserMessage();
+  const { tPlural } = useI18n();
   const [found, setFound] = useState<SecondLanguage | null>(null);
   const [filling, setFilling] = useState(false);
-  const [added, setAdded] = useState<number | null>(null);
 
   /* Asked for on its own rather than arriving with the recording. The detail
      command is what every screen waits for before it draws anything, and a
@@ -110,10 +113,9 @@ export function useSecondLanguage({
 
   const fill = useCallback(async () => {
     setFilling(true);
-    setAdded(null);
     try {
       const count = await api.fillSecondLanguage(recordingId);
-      setAdded(count);
+      onInfo(tPlural("detail.secondLanguage.added", count));
       /* The transcript on screen is the one from before the fill — every block
          was rewritten, including the ones that did not change, because their
          order did. */
@@ -124,7 +126,7 @@ export function useSecondLanguage({
     } finally {
       setFilling(false);
     }
-  }, [onError, recordingId, reload, userMessage]);
+  }, [onError, onInfo, recordingId, reload, tPlural, userMessage]);
 
   const refuse = useCallback(async () => {
     /* Off the screen at once. The write is what makes it stay gone; waiting
@@ -138,15 +140,12 @@ export function useSecondLanguage({
     }
   }, [onError, recordingId, userMessage]);
 
-  const clearCount = useCallback(() => setAdded(null), []);
-
   return {
     state: {
       found,
       offered: found?.state === "offered",
       filling,
-      added,
     },
-    actions: { reread, look, fill, refuse, clearCount },
+    actions: { reread, look, fill, refuse },
   };
 }

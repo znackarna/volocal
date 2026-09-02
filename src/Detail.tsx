@@ -259,7 +259,7 @@ export default function Detail({
   /* A language the recording holds and the transcript does not. It draws
      nothing at all unless a sweep found one, which on an ordinary recording is
      never. `load` is handed in because filling rewrites every block. */
-  const secondLanguage = useSecondLanguage({ recordingId: id, onError, reload: load });
+  const secondLanguage = useSecondLanguage({ recordingId: id, onError, onInfo, reload: load });
 
   /* Asked again when a run ends, and it has to be: the sweep is the last thing
      a transcription does, so its answer lands *after* this screen asked once

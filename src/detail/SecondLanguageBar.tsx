@@ -28,20 +28,8 @@ const NAMES: Record<string, string> = {
 };
 
 export function SecondLanguageBar({ offer }: { offer: SecondLanguageOffer }) {
-  const { t, tDynamic, tPlural } = useI18n();
+  const { t, tDynamic } = useI18n();
   const { state, actions } = offer;
-
-  if (state.added !== null) {
-    return (
-      <div className="second-language done" role="status">
-        <LineIcon name="review" />
-        <span>{tPlural("detail.secondLanguage.added", state.added)}</span>
-        <button className="button quiet" onClick={actions.clearCount}>
-          {t("common.close")}
-        </button>
-      </div>
-    );
-  }
 
   if (!state.offered || !state.found) return null;
 
