@@ -421,7 +421,10 @@ pub(crate) fn back_whole(
         .iter()
         .find(|piece| start >= piece.at - 0.05 && start <= piece.until + 0.05)?;
     let shift = piece.from - piece.at;
-    let last = piece.from + (piece.until - piece.at);
+    // `from` may sit a few hundredths past the piece's end — the tolerance in
+    // `back_to_the_recording` allows it — and `clamp` panics when its floor is
+    // above its ceiling. This crashed a transcription at 352.35 against 352.34.
+    let last = (piece.from + (piece.until - piece.at)).max(from);
     let to = (end + shift).clamp(from, last);
     let moved = words
         .and_then(|json| serde_json::from_str::<Vec<serde_json::Value>>(json).ok())
@@ -1265,6 +1268,16 @@ mod tests {
         assert_eq!(list[1]["t"], 101.5);
         // A word timed past the line's end is pulled back to it.
         assert_eq!(list[2]["t"], 106.2);
+    }
+
+    /// **The crash.** A line starting inside the tolerance past its piece's end
+    /// gave a floor above the ceiling, and `clamp` panicked mid-transcription
+    /// with `min = 352.35, max = 352.34`.
+    #[test]
+    fn a_line_starting_just_past_its_piece_does_not_panic() {
+        let (pieces, _) = lay_out(&[(100.0, 103.0)], 16_000);
+        let (from, to, _) = back_whole(&pieces, 3.04, 3.5, None).unwrap();
+        assert!(to >= from, "got {from}..{to}");
     }
 
     /// An end that runs into the silence after its piece is cut at the piece.

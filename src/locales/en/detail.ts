@@ -183,7 +183,7 @@ export const enDetail: Partial<Record<keyof typeof csDetail, string>> = {
   "detail.dictionary.savedNoOther": "“{from}” → “{to}” is in the dictionary. It doesn’t appear anywhere else in this transcript.",
   "detail.dictionary.savedApplied.one": "“{from}” → “{to}” is in the dictionary. Fixed in one other spot too.",
   "detail.dictionary.savedApplied.other": "“{from}” → “{to}” is in the dictionary. Fixed in {count} other spots too.",
-  "detail.secondLanguage.missing": "This recording is also spoken in {language}, and the transcript is missing it.",
+  "detail.secondLanguage.missing": "This recording is also spoken in {language}. Fill in the transcript?",
   "detail.secondLanguage.fill": "Fill it in",
   "detail.secondLanguage.filling": "Filling in…",
   "detail.secondLanguage.no": "Leave it",

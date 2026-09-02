@@ -773,17 +773,23 @@ fn run(
             crate::note!("second language: the named language could not be recorded: {error}");
         } else {
             let fresh = db::recording(&connection, recording_id)?;
-            if let Err(error) = languages::fill_with_audio(
-                app,
-                &connection,
-                &check,
-                &settings,
-                &fresh,
-                &named,
-                &wav,
-                &working_directory,
-                task,
-            ) {
+            // Through `without_panicking`, and not only for the log line: the
+            // transcript is already committed above, and a panic in the part
+            // being added to it turned a finished run into `error` on the
+            // archive card. Whatever the fill does, the run has succeeded.
+            if let Err(error) = without_panicking(|| {
+                languages::fill_with_audio(
+                    app,
+                    &connection,
+                    &check,
+                    &settings,
+                    &fresh,
+                    &named,
+                    &wav,
+                    &working_directory,
+                    task,
+                )
+            }) {
                 crate::note!("second language: filling {named} failed: {error}");
             }
         }
@@ -803,17 +809,19 @@ fn run(
                     crate::note!("second language: the sweep could not be recorded: {error}");
                 } else {
                     let fresh = db::recording(&connection, recording_id)?;
-                    if let Err(error) = languages::fill_with_audio(
-                        app,
-                        &connection,
-                        &check,
-                        &settings,
-                        &fresh,
-                        &found.language,
-                        &wav,
-                        &working_directory,
-                        task,
-                    ) {
+                    if let Err(error) = without_panicking(|| {
+                        languages::fill_with_audio(
+                            app,
+                            &connection,
+                            &check,
+                            &settings,
+                            &fresh,
+                            &found.language,
+                            &wav,
+                            &working_directory,
+                            task,
+                        )
+                    }) {
                         crate::note!(
                             "second language: filling {} failed: {error}",
                             found.language
