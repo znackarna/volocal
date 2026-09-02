@@ -25,7 +25,7 @@ export const csDialogs = {
   "dialogs.speakers.introMany.other":
     "Pokud znáte počet mluvčích, nástroj pro rozpoznání bude mít lehčí úkol. Platí pro {count} nahrávek.",
   "dialogs.speakers.exactLabel": "Přesný počet mluvčích",
-  "dialogs.speakers.morePlaceholder": "víc",
+  "dialogs.speakers.morePlaceholder": "více",
   "dialogs.speakers.note": "Odpověď platí jen pro tento přepis, v nastavení se nic nemění.",
   "dialogs.speakers.unknown": "Nevím",
   "dialogs.speakers.confirm": "Přepsat",
