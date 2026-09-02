@@ -622,8 +622,18 @@ fn run(
     road or the other and never both.
 
     A failure to ask is not a failure to transcribe: the ordinary pass below
-    still runs, and the recording is then simply a recording in one language. */
-    if settings.detect_second_language {
+    still runs, and the recording is then simply a recording in one language.
+
+    **The question is always asked; the setting says what to do with the
+    answer.** Those are two different things and one switch used to decide
+    both, so with it off a recording where half the speech is in another
+    language came back looking complete and said nothing. Asking costs two
+    seconds on a short recording and six on a forty-seven-minute one — a
+    tenth of the transcription it precedes, against silently losing half of
+    it. What the setting decides is whether a second language is written in
+    on the spot or only pointed out. */
+    let mut noticed: Option<String> = None;
+    {
         status(
             app,
             recording_id,
@@ -646,6 +656,16 @@ fn run(
         );
         stop_if_cancelled(task, recording_id)?;
         match found {
+            Ok(Some((own, second))) if !settings.detect_second_language => {
+                /* Heard, but not written in: the reader has said they would
+                rather be asked. The transcript below runs as usual and the
+                offer is put down after it is saved — an offer against a
+                transcript that failed to arrive would be a bar on an empty
+                screen. */
+                db::set_language(&connection, recording_id, &own)?;
+                crate::note!("second language: {second} is here; the reader will be asked");
+                noticed = Some(second);
+            }
             Ok(Some((own, second))) => {
                 // Both go on the recording: the second language so that the
                 // next transcription of it is bilingual from its first second,
@@ -871,8 +891,19 @@ fn run(
     The offer is written afresh every run, so a refusal recorded against a
     transcript that has since been replaced is not carried over — a new text
     is a new question. */
-    if let Err(error) = db::clear_second_language(&connection, recording_id) {
-        crate::note!("second language: the old offer could not be cleared: {error}");
+    let offer = noticed.map(|language| db::SecondLanguage {
+        recording_id: recording_id.to_string(),
+        language,
+        share: 0.0,
+        state: db::second_language_state::OFFERED.to_string(),
+        filled_at: None,
+    });
+    let recorded = match &offer {
+        Some(offer) => db::save_second_language(&connection, offer),
+        None => db::clear_second_language(&connection, recording_id),
+    };
+    if let Err(error) = recorded {
+        crate::note!("second language: the offer could not be written: {error}");
     }
 
     Ok(segments.len())

@@ -157,9 +157,9 @@ export const enSettings: Partial<Record<keyof typeof csSettings, string>> = {
   "settings.dictionary.replacePlaceholder": "Right term",
   "settings.dictionary.add": "Add an entry",
   "settings.dictionary.saving": "Changes save themselves. An unfinished row is discarded.",
-  "settings.secondLanguage.title": "Multilingual recording",
+  "settings.secondLanguage.title": "Write the second language in by itself",
   "settings.secondLanguage.description":
-    "Volocal will listen for a second language in the recording and offer to fill it into the transcript.",
+    "When Volocal hears a second language in a recording, it writes it into the transcript straight away. Without this it asks first.",
   "settings.speakers.title": "Speaker recognition",
   "settings.speakers.description": "Runs speaker recognition during the first transcription.",
   "settings.backups.title": "Archive backup",

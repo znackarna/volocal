@@ -284,11 +284,12 @@ pub struct Settings {
     /// Listen, at the end of every transcription, for a language the transcript
     /// does not have, and offer to write it in.
     ///
-    /// Off by default. It costs a few seconds on every run and answers a
-    /// question most recordings never raise — and when the reader already knows
-    /// a recording holds two languages, naming them on the recording is both
-    /// cheaper and surer than listening for them. Serde default, so a settings
-    /// record written before this existed still loads.
+    /// Off by default, and it no longer decides whether to *listen* — every
+    /// run asks, because a recording half of which is in another language used
+    /// to come back looking complete and saying nothing. What this decides is
+    /// what happens next: on, the language is written in on the spot; off, the
+    /// transcript screen points it out and the reader presses the button.
+    /// Serde default, so a settings record written before this existed loads.
     #[serde(default)]
     pub detect_second_language: bool,
     /// The instruction last written for a custom-prompt document.

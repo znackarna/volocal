@@ -222,9 +222,9 @@ export const csSettings = {
   "settings.dictionary.saving":
     "Změny se ukládají samy. Nedopsaný řádek se zahodí.",
 
-  "settings.secondLanguage.title": "Vícejazyčná nahrávka",
+  "settings.secondLanguage.title": "Doplnit druhý jazyk sám",
   "settings.secondLanguage.description":
-    "Volocal bude v nahrávce hledat druhý jazyk a nabídne ho k doplnění přepisu.",
+    "Když Volocal v nahrávce najde druhý jazyk, rovnou ho do přepisu doplní. Bez toho se nejdřív zeptá.",
   "settings.speakers.title": "Rozlišení mluvčích",
   "settings.speakers.description":
     "Spouští rozlišení mluvčích během prvního přepisu.",
