@@ -38,13 +38,6 @@ export interface SpeakerManagement {
     speakers: Speaker[];
     /** By key, for anything that has a key and wants the person. */
     byKey: Map<string, Speaker>;
-    /** The language each voice speaks, as a code, and only on a transcript
-     *  that holds more than one. On an interpreted recording it is the
-     *  strongest hint about who is who — the English voice is the speaker and
-     *  the Czech one the interpreter — and it is there before anybody plays a
-     *  sample. Empty on an ordinary transcript, where naming the one language
-     *  every voice speaks would be noise. */
-    languages: Map<string, string>;
     /** Each voice's share of the spoken time, so a cluster holding two seconds
      *  is obvious. */
     share: Map<string, number>;
@@ -88,41 +81,8 @@ export interface SpeakerManagement {
   };
 }
 
-/** The language each voice speaks, by the time it spends in each — not by the
- *  number of blocks, which counts a two-second interjection against a minute of
- *  speech. Empty unless the transcript really holds two: on an ordinary one the
- *  code would repeat the footer under every voice.
- *
- *  **A block with no language written on it is the recording's own.** Only the
- *  second-language pass labels what it writes, so a bilingual transcript comes
- *  back as nulls and one code; reading the nulls literally makes it look
- *  monolingual, and the codes never appear.
- *
- *  Its own function so a test can reach it — the rule is worth holding. */
-export function languagesOfVoices(segments: Segment[], language: string): Map<string, string> {
-  const own = language.trim().toLowerCase();
-  const seconds = new Map<string, Map<string, number>>();
-  const heard = new Set<string>();
-  for (const segment of segments) {
-    const spoken = segment.language?.trim().toLowerCase() || own;
-    if (!segment.speakers || !spoken) continue;
-    heard.add(spoken);
-    const per = seconds.get(segment.speakers) ?? new Map<string, number>();
-    per.set(spoken, (per.get(spoken) ?? 0) + Math.max(0, segment.end - segment.start));
-    seconds.set(segment.speakers, per);
-  }
-  const out = new Map<string, string>();
-  if (heard.size < 2) return out;
-  for (const [key, per] of seconds) {
-    const most = [...per].sort((a, b) => b[1] - a[1])[0];
-    if (most) out.set(key, most[0]);
-  }
-  return out;
-}
-
 export function useSpeakerManagement({
   recordingId,
-  language,
   segments,
   updateSegments,
   playFrom,
@@ -133,10 +93,6 @@ export function useSpeakerManagement({
   progressPhase,
 }: {
   recordingId: string;
-  /** What the recording as a whole is in. A block carries a language only
-   *  where the second-language pass wrote it; the rest are the recording's
-   *  own and say nothing, so this is what "nothing" means. */
-  language: string;
   segments: Segment[];
   /** The one named way this hook changes the transcript. */
   updateSegments: (change: (segments: Segment[]) => Segment[]) => void;
@@ -196,11 +152,6 @@ export function useSpeakerManagement({
     for (const [key, value] of seconds) out.set(key, total > 0 ? value / total : 0);
     return out;
   }, [segments]);
-
-  const languages = useMemo(
-    () => languagesOfVoices(segments, language),
-    [segments, language]
-  );
 
   const unassigned = useMemo(
     () => (speakers.length > 0 ? segments.filter((s) => !s.speakers) : []),
@@ -415,7 +366,6 @@ export function useSpeakerManagement({
     state: {
       speakers,
       byKey,
-      languages,
       share,
       naming,
       namePool,

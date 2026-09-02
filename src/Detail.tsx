@@ -412,9 +412,17 @@ export default function Detail({
     setOpenSections((s) => ({ ...s, speakers: true }));
   }, []);
 
+  /* Whether this transcript holds a second language at all. A block carries
+     one only where the second-language pass wrote it, so an unlabelled block
+     is the recording's own — which is what makes a bilingual transcript look
+     monolingual if the languages are read literally. */
+  const twoLanguages = useMemo(
+    () => segments.some((s) => s.language && s.language.toLowerCase() !== language.toLowerCase()),
+    [segments, language]
+  );
+
   const speakers = useSpeakerManagement({
     recordingId: id,
-    language,
     segments,
     updateSegments: recording.actions.update,
     playFrom,
@@ -860,6 +868,16 @@ export default function Detail({
                 {newSpeakers && m && (
                   <div className="speaker-header" style={{ color: m.color }}>
                     {m.name}
+                    {/* Which language this run is in, where the transcript
+                        holds two. Beside the name and not in the sidebar: it
+                        belongs to what is being read, and here it changes as
+                        the transcript does — an interpreter answering in the
+                        other language says so on the spot. */}
+                    {twoLanguages && (
+                      <span className="speaker-header-language">
+                        {(s.language || language).toUpperCase()}
+                      </span>
+                    )}
                   </div>
                 )}
                 {/* The handlers must not be created here. Were they built

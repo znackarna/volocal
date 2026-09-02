@@ -694,10 +694,7 @@ button.current > .row-play { color: var(--accent); }
   outline: none;
   box-shadow: var(--ring);
 }
-/* The name field no longer stretches, so the percentage takes the right edge
-   from here instead of by being pushed there. */
 .speaker-share {
-  margin-left: auto;
   flex: 0 0 auto;
   min-width: 38px;
   text-align: right;
