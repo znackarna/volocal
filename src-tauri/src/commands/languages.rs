@@ -187,10 +187,31 @@ fn run_fill(
                 );
                 let _ = window.emit("transcription:error", (id.clone(), error.clone()));
             }
-            (Ok(_), false) => {}
+            (Ok(added), false) => announce_done(&window, &id, *added),
         }
         let _ = window.emit("transcription:complete", id.clone());
     });
+}
+
+/// The terminal report a finished fill owes the screens.
+///
+/// **Without it the run never ends on screen.** The last thing the fill says
+/// is `second_language` at 100 %, and the screens read any phase that is not
+/// `complete`, `error` or `cancelled` as *still going*: the bubble stays up at
+/// a hundred, the transcript screen hides the player because something is
+/// running, and nothing can be closed. `transcription:complete` on its own
+/// does not clear it — that event reloads, it does not end a phase. A run
+/// says `complete` before it; so does this.
+fn announce_done(window: &tauri::AppHandle, id: &str, added: usize) {
+    let _ = window.emit(
+        "transcription:status",
+        transcription::TranscriptionProgress {
+            recording_id: id.to_string(),
+            phase: "complete".into(),
+            percent: 100,
+            description: UserMessage::new("second_language.done").with("count", added),
+        },
+    );
 }
 
 /// Transcribes the language the transcript is missing and merges it in.
@@ -231,6 +252,31 @@ pub async fn fill_second_language(
         let cancelled = task.was_cancelled(&id);
         task.leave_queue(&id);
         task.cleanup(&id);
+        match (&done, cancelled) {
+            (Ok(added), false) => announce_done(&window, &id, *added),
+            (Err(error), false) => {
+                let _ = window.emit(
+                    "transcription:status",
+                    transcription::TranscriptionProgress {
+                        recording_id: id.clone(),
+                        phase: "error".into(),
+                        percent: 0,
+                        description: error.clone(),
+                    },
+                );
+            }
+            (_, true) => {
+                let _ = window.emit(
+                    "transcription:status",
+                    transcription::TranscriptionProgress {
+                        recording_id: id.clone(),
+                        phase: "cancelled".into(),
+                        percent: 0,
+                        description: UserMessage::new("transcription.cancelled"),
+                    },
+                );
+            }
+        }
         let _ = window.emit("transcription:complete", id.clone());
         if cancelled {
             return Err(UserMessage::new("transcription.cancelled"));

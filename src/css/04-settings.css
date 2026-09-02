@@ -120,9 +120,10 @@
    is. Everything below is about what is done with the words afterwards. */
 .settings-card-language { order: 2; }
 .settings-card-speakers { order: 3; }
-.settings-card-language-edit { order: 4; }
-.settings-card-dictionary { order: 5; }
-.settings-card-advanced { order: 6; }
+.settings-card-second-language { order: 4; }
+.settings-card-language-edit { order: 5; }
+.settings-card-dictionary { order: 6; }
+.settings-card-advanced { order: 7; }
 /* Výkon holds one card, and it still gets a number: without a rule it takes
    `order: 0` and the next card put beside it jumps above whatever asked for 1.
    That is the defect this whole block exists to prevent, and a tab with one
