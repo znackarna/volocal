@@ -109,6 +109,28 @@ describe("marking one", () => {
     expect(result.current.state.inside).toBe(first);
   });
 
+  /** The reader's own gesture: drag over a passage, right-click, export it.
+   *  The clip takes the touched blocks whole — a selection stopping mid-
+   *  sentence would otherwise cut the audio mid-syllable — and goes straight
+   *  to the save dialog, because "export this" is not a request to mark
+   *  something and think about it. */
+  it("takes a whole passage at once and opens the saving", () => {
+    const { result } = selection();
+    act(() => result.current.actions.markAndSave(TRANSCRIPT[1], TRANSCRIPT[3]));
+    expect(result.current.state.start).toBe(4);
+    expect(result.current.state.end).toBe(20);
+    expect([...result.current.state.inside]).toEqual(["b", "c", "d"]);
+    expect(result.current.state.saving).toBe(true);
+  });
+
+  /** A selection dragged upwards hands its two ends the other way round. */
+  it("takes a passage marked backwards the right way round", () => {
+    const { result } = selection();
+    act(() => result.current.actions.markAndSave(TRANSCRIPT[3], TRANSCRIPT[1]));
+    expect(result.current.state.start).toBe(4);
+    expect(result.current.state.end).toBe(20);
+  });
+
   it("plays the stretch and stops at its end", () => {
     const playRange = vi.fn();
     const { result } = renderHook(() =>

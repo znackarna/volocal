@@ -90,6 +90,7 @@ export const enDetail: Partial<Record<keyof typeof csDetail, string>> = {
   "detail.clip.saveButton": "Save",
   "detail.clip.saving": "Saving…",
   "detail.clip.saved": "Clip saved to {path}.",
+  "detail.menu.clipSelection": "Export the selection",
   "detail.menu.clipStart": "Start a clip here",
   "detail.menu.clipEnd": "End the clip here",
   "detail.speakers.addTitle": "Add a speaker",

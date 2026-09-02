@@ -107,6 +107,7 @@ export const csDetail = {
   "detail.clip.saveButton": "Uložit",
   "detail.clip.saving": "Ukládám…",
   "detail.clip.saved": "Výřez uložen do {path}.",
+  "detail.menu.clipSelection": "Exportovat výběr",
   "detail.menu.clipStart": "Začít výřez zde",
   "detail.menu.clipEnd": "Ukončit výřez zde",
   "detail.speakers.addTitle": "Přidat mluvčího",

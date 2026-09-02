@@ -46,7 +46,7 @@ import { TranscriptTips } from "./detail/TranscriptTips";
 import { SecondLanguageBar } from "./detail/SecondLanguageBar";
 import { ClipBar } from "./detail/ClipBar";
 import { ClipSaveDialog } from "./detail/ClipSaveDialog";
-import { useClipSelection } from "./detail/useClipSelection";
+import { selectedSegmentIds, useClipSelection } from "./detail/useClipSelection";
 import { useSecondLanguage } from "./detail/useSecondLanguage";
 import { DetailProgress } from "./detail/DetailProgress";
 import { DetailHeader } from "./detail/DetailHeader";
@@ -529,9 +529,14 @@ export default function Detail({
   }, [id, onError, userMessage]);
 
   /** What was pointed at, and where the menu should appear. */
-  const [transcriptMenu, setTranscriptMenu] = useState<
-    { x: number; y: number; segment: Segment; time: number } | null
-  >(null);
+  const [transcriptMenu, setTranscriptMenu] = useState<{
+    x: number;
+    y: number;
+    segment: Segment;
+    time: number;
+    /** Ids of the blocks a text selection was touching when the menu opened. */
+    selected: string[];
+  } | null>(null);
 
   const openTranscriptMenu = useCallback((segment: Segment, event: ReactMouseEvent) => {
     event.preventDefault();
@@ -544,6 +549,10 @@ export default function Detail({
       y: event.clientY,
       segment,
       time: Number.isFinite(spoken) ? spoken : segment.start,
+      /* Read here rather than when the item is clicked. Opening the menu can
+         take the selection away — clicking inside it collapses it in some
+         browsers — and by then the reader's passage would be gone. */
+      selected: selectedSegmentIds(),
     });
   }, []);
 
@@ -983,7 +992,18 @@ export default function Detail({
         )}
       </div>
 
-      {transcriptMenu && (
+      {transcriptMenu &&
+        (() => {
+          /* The passage the reader had marked, as its first and last block.
+             Nothing to export when the selection touched only what is not a
+             block, or when the transcript has moved under it since. */
+          const touched = transcriptMenu.selected
+            .map((id) => segments.find((s) => s.id === id))
+            .filter((s): s is Segment => s !== undefined)
+            .sort((a, b) => a.start - b.start);
+          const selectedClip: [Segment, Segment] | null =
+            touched.length > 0 ? [touched[0], touched[touched.length - 1]] : null;
+          return (
         <TranscriptContextMenu
           x={transcriptMenu.x}
           y={transcriptMenu.y}
@@ -1013,6 +1033,23 @@ export default function Detail({
                block starts the clip and any later one closes it. Two separate
                items would have made the reader decide which of them applies
                before they had a clip at all. */
+            /* Two ways in, and the reader's own is first: drag over a
+               passage, right-click, export it. It only shows when there is a
+               passage to export, so the ordinary menu is no longer for it.
+
+               The other is for the stretch too long to drag over — mark the
+               first block, scroll, mark the last. One item that reads as two,
+               because it is one gesture. */
+            ...(selectedClip
+              ? [
+                  {
+                    label: t("detail.menu.clipSelection"),
+                    icon: MENU_ICONS.clip,
+                    action: () =>
+                      clip.actions.markAndSave(selectedClip[0], selectedClip[1]),
+                  },
+                ]
+              : []),
             {
               label: clip.state.active
                 ? t("detail.menu.clipEnd")
@@ -1052,7 +1089,8 @@ export default function Detail({
             },
           ]}
         />
-      )}
+          );
+        })()}
 
       {/* The one question about language editing, asked where it is wanted.
           It used to be a notice saying the feature was not ready and a button

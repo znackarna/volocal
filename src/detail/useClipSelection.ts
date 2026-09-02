@@ -44,6 +44,9 @@ export interface ClipSelection {
     /** Start a clip at this block, or — when one is already started and this
      *  block is later — close the range on it. */
     beginOrExtend: (segment: Segment) => void;
+    /** Take the whole stretch at once and go straight to saving it. What a
+     *  reader who has just dragged over a passage means by *export this*. */
+    markAndSave: (first: Segment, last: Segment) => void;
     clear: () => void;
     play: () => void;
     openSave: () => void;
@@ -95,6 +98,14 @@ export function useClipSelection({
     []
   );
 
+  const markAndSave = useCallback((first: Segment, last: Segment) => {
+    const [earlier, later] =
+      first.start <= last.start ? [first, last] : [last, first];
+    setFrom(earlier);
+    setTo(later);
+    setSaving(true);
+  }, []);
+
   const clear = useCallback(() => {
     setFrom(null);
     setTo(null);
@@ -125,10 +136,45 @@ export function useClipSelection({
         inside,
         saving,
       },
-      actions: { beginOrExtend, clear, play, openSave, closeSave },
+      actions: { beginOrExtend, markAndSave, clear, play, openSave, closeSave },
     }),
-    [from, to, start, end, inside, saving, beginOrExtend, clear, play, openSave, closeSave]
+    [
+      from,
+      to,
+      start,
+      end,
+      inside,
+      saving,
+      beginOrExtend,
+      markAndSave,
+      clear,
+      play,
+      openSave,
+      closeSave,
+    ]
   );
+}
+
+/** The blocks a text selection touches, read off the screen.
+ *
+ * **Dragging over the words is the gesture people already have** for *this
+ * bit*, and it is what the reader asked for: mark a passage, right-click,
+ * export it. The clip still lands on whole blocks — a selection that stops
+ * mid-sentence would cut the audio mid-syllable — so this reports which blocks
+ * the selection reaches and the clip takes them entire.
+ *
+ * Empty when nothing is selected, which is the ordinary case and why the menu
+ * offers the two-click way as well.
+ */
+export function selectedSegmentIds(): string[] {
+  const selection = typeof window === "undefined" ? null : window.getSelection();
+  if (!selection || selection.isCollapsed || selection.rangeCount === 0) return [];
+  const range = selection.getRangeAt(0);
+  const touched: string[] = [];
+  for (const element of document.querySelectorAll<HTMLElement>("[id^='segment-']")) {
+    if (range.intersectsNode(element)) touched.push(element.id.slice("segment-".length));
+  }
+  return touched;
 }
 
 /** Saving one clip, whichever of the four shapes was asked for.
