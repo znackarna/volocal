@@ -46,7 +46,15 @@ export function DetailHeader({
 }: {
   /** What this screen is about. One object, because the header reads five of
    *  its fields and none of them mean anything apart. */
-  recording: { title: string; path: string; status: string; folder: string | null };
+  recording: {
+    title: string;
+    path: string;
+    status: string;
+    folder: string | null;
+    /** What the transcript is written in, so the menu does not offer it as the
+     *  second language too. */
+    language: string;
+  };
   /** What is already happening to it. */
   busy: { running: boolean; diarizing: boolean };
   /** Everything behind the three dots. The two destructive ones take no
@@ -184,6 +192,7 @@ export function DetailHeader({
               onRetranscribe={menu.onRetranscribe}
               onDeleteTranscript={menu.onDeleteTranscript}
               onTranscribeInLanguage={menu.onTranscribeInLanguage}
+              language={recording.language}
               onSecondLanguage={menu.onSecondLanguage}
               onRemove={menu.onRemove}
             />

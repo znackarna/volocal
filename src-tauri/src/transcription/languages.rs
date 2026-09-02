@@ -31,147 +31,7 @@
 
 use super::*;
 
-// ------------------------------------------------------------- the stretches
-
-/// The shortest silence between two words that is worth looking into.
-///
-/// One second, because a breath is shorter than that and a spoken turn is not.
-/// Measured on the reference talk: block spans cover 46.5 minutes of 47.7 and
-/// the words inside them 29.5, so eighteen minutes sit between words — and
-/// that is where the other language was.
-const LEAST_GAP: f64 = 1.0;
-
-/// A word timing is where the word starts; this is how long it may have taken.
-/// Without it every gap would open in the middle of the last word.
-const LAST_WORD: f64 = 0.6;
-
-/// Where the transcript actually has words, in time order and merged.
-///
-/// Word timings rather than block spans, which is the entire point — see
-/// [`LEAST_GAP`]. A block with no stored timings falls back to its span, which
-/// is the honest answer for it: nothing finer is known about that one.
-pub(crate) fn spoken_spans(segments: &[Segment]) -> Vec<(f64, f64)> {
-    let mut spans: Vec<(f64, f64)> = segments
-        .iter()
-        .map(|segment| {
-            let times: Vec<f64> = segment
-                .words
-                .as_deref()
-                .and_then(|words| serde_json::from_str::<Vec<serde_json::Value>>(words).ok())
-                .map(|words| words.iter().filter_map(|word| word["t"].as_f64()).collect())
-                .unwrap_or_default();
-            let first = times.iter().cloned().fold(f64::INFINITY, f64::min);
-            let last = times.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
-            if first.is_finite() && last.is_finite() {
-                (first, last + LAST_WORD)
-            } else {
-                (segment.start, segment.end)
-            }
-        })
-        .collect();
-    spans.sort_by(|left, right| left.0.total_cmp(&right.0));
-    let mut merged: Vec<(f64, f64)> = Vec::with_capacity(spans.len());
-    for (from, to) in spans {
-        match merged.last_mut() {
-            Some(last) if from <= last.1 => last.1 = last.1.max(to),
-            _ => merged.push((from, to)),
-        }
-    }
-    merged
-}
-
-/// The stretches where the transcript heard nothing — which is where the other
-/// language can be, and the only place it can be.
-pub(crate) fn unheard_stretches(segments: &[Segment], duration: f64) -> Vec<(f64, f64)> {
-    let mut gaps = Vec::new();
-    let mut previous = 0.0_f64;
-    for (from, to) in spoken_spans(segments) {
-        if from - previous >= LEAST_GAP {
-            gaps.push((previous, from));
-        }
-        previous = previous.max(to);
-    }
-    if duration - previous >= LEAST_GAP {
-        gaps.push((previous, duration));
-    }
-    gaps
-}
-
-// ------------------------------------------------------------------ the sweep
-
-/// How much of one stretch the detection is handed, at most.
-///
-/// Ten seconds is what every measurement used. Longer collects both languages
-/// into one window and the detection then reports whichever is louder.
-const WINDOW_SECONDS: f64 = 10.0;
-
-/// The shortest stretch worth asking about.
-///
-/// Under three seconds there is not enough voice to tell a language from, and
-/// a stretch that short is as likely a pause as a turn.
-const LEAST_LISTEN: f64 = 3.0;
-
-/// How many stretches one sweep listens to, at most.
-///
-/// Measured: one detection costs about 1.1 seconds including loading the model,
-/// so twelve is under fifteen seconds. Longest first, because a long stretch is
-/// the one most likely to hold a whole turn of the other language.
-const MOST_SAMPLES: usize = 12;
-
-/// Below this the detection is not confident enough to count as anything.
-///
-/// Measured from both sides. Across 287 windows of the interpreted recording the
-/// English confidences run from 0.38, tenth percentile 0.51, median 0.65 — and
-/// not one window came back a language that was neither of the two. On a
-/// single-language control the five real windows scored 0.996 and the one stray
-/// reading was English at 0.38. The gap to sit in is 0.38 to 0.51; 0.45 is above
-/// everything observed to be noise and below nine tenths of what was observed to
-/// be a real second language. Anything from 0.40 to 0.50 gives the same answer,
-/// so the rule does not balance on this number.
-///
-/// It was 0.60 first, and 0.60 found nothing: consecutive interpretation puts
-/// both languages inside almost every window, so the detector is never confident
-/// about the quieter one. A low score for a second language is expected, and is
-/// not the same as its absence.
-const CONFIDENT: f64 = 0.45;
-
-/// How many stretches must agree before the reader is told anything.
-///
-/// Two, not a fraction. One reading is noise — a name, a quoted sentence, a
-/// song. Two stretches apart in the recording are a pattern. A share was the
-/// first idea and it was worse: it turns on how many samples were taken.
-const LEAST_AGREEING: usize = 2;
-
-/// Where a sweep listens: the longest stretches between words, each cut to at
-/// most one window.
-///
-/// **Not evenly across the recording, and the difference is the whole
-/// feature.** Sixteen points spread by the clock were tried first, and on the
-/// reference talk they landed on English once — the other language comes in
-/// two-to-four-second turns, and a net with ten-second holes spaced three
-/// minutes apart catches it by luck. The stretches between words are where it
-/// has to be, so listening there turns a coin flip into a question with an
-/// answer.
-pub(crate) fn listening_places(segments: &[Segment], duration: f64) -> Vec<(f64, f64)> {
-    let mut places: Vec<(f64, f64)> = unheard_stretches(segments, duration)
-        .into_iter()
-        .filter(|(from, to)| to - from >= LEAST_LISTEN)
-        .collect();
-    places.sort_by(|left, right| (right.1 - right.0).total_cmp(&(left.1 - left.0)));
-    places.truncate(MOST_SAMPLES);
-    // In time order again, so a log of what was heard reads like the recording.
-    places.sort_by(|left, right| left.0.total_cmp(&right.0));
-    places
-        .into_iter()
-        .map(|(from, to)| {
-            // The middle of a long stretch rather than its start: the edges
-            // are where the other speaker's last syllable bleeds in.
-            let length = (to - from).min(WINDOW_SECONDS);
-            let start = from + ((to - from) - length) / 2.0;
-            (start, start + length)
-        })
-        .collect()
-}
+// ---------------------------------------------- the multilingual pass
 
 /// Writes 16 kHz mono samples as a WAV whisper will read.
 ///
@@ -227,132 +87,29 @@ pub(crate) fn detected_language(output: &str) -> Option<(String, f64)> {
     Some((code.to_ascii_lowercase(), probability))
 }
 
-/// Which language the sweep should report, given what the stretches said.
+/// Below this the detection is not confident enough to count as anything.
 ///
-/// Separated from the running of it so the rule can be tested without a model:
-/// the strongest language that is not the recording's own, and only when at
-/// least [`LEAST_AGREEING`] stretches say so.
-pub(crate) fn strongest_other(
-    heard: &[(String, f64)],
-    own: &str,
-    sampled: usize,
-) -> Option<(String, f64)> {
-    let mut tally: HashMap<&str, usize> = HashMap::new();
-    for (code, probability) in heard {
-        if *probability < CONFIDENT || code.eq_ignore_ascii_case(own) {
-            continue;
-        }
-        *tally.entry(code.as_str()).or_default() += 1;
-    }
-    // Ties broken by the name, so one recording always answers the same way.
-    let (code, count) = tally
-        .into_iter()
-        .max_by(|left, right| left.1.cmp(&right.1).then(right.0.cmp(left.0)))?;
-    if count < LEAST_AGREEING {
-        return None;
-    }
-    Some((code.to_string(), count as f64 / sampled.max(1) as f64))
-}
-
-/// Listens in the stretches between words and says whether a second language
-/// is in them.
+/// Measured from both sides. Across 287 windows of the interpreted recording the
+/// English confidences run from 0.38, tenth percentile 0.51, median 0.65 — and
+/// not one window came back a language that was neither of the two. On a
+/// single-language control the five real windows scored 0.996 and the one stray
+/// reading was English at 0.38. The gap to sit in is 0.38 to 0.51; 0.45 is above
+/// everything observed to be noise and below nine tenths of what was observed to
+/// be a real second language. Anything from 0.40 to 0.50 gives the same answer,
+/// so the rule does not balance on this number.
 ///
-/// `own` is the language the transcript was written in — whisper's own answer
-/// for the whole file rather than the setting, since a run left on automatic
-/// only learns it from the output.
+/// It was 0.60 first, and 0.60 found nothing: consecutive interpretation puts
+/// both languages inside almost every window, so the detector is never confident
+/// about the quieter one. A low score for a second language is expected, and is
+/// not the same as its absence.
+const CONFIDENT: f64 = 0.45;
+
+/// How many stretches must agree before the reader is told anything.
 ///
-/// Failure is not an error. A sweep that cannot run leaves the recording exactly
-/// as a recording in one language: nothing is offered, and a finished transcript
-/// is never held up over it. It does say why in the log, because a sweep that
-/// found nothing and one that could not look are different facts.
-pub(crate) fn sweep(
-    check: &tools::ToolCheck,
-    wav: &Path,
-    own: &str,
-    segments: &[Segment],
-    recording_id: &str,
-    task: &TranscriptionTask,
-) -> Option<db::SecondLanguage> {
-    let program = Path::new(check.whisper_cli.as_ref()?);
-    let model = check.model_whisper.as_ref()?;
-    let Some((samples, rate)) = read_pcm16(wav) else {
-        crate::note!("second language: the prepared audio could not be read");
-        return None;
-    };
-    if rate == 0 || samples.is_empty() {
-        return None;
-    }
-    let seconds = samples.len() as f64 / f64::from(rate);
-    let places = listening_places(segments, seconds);
-    if places.len() < LEAST_AGREEING {
-        crate::note!(
-            "second language: {} stretches worth listening to, nothing to find",
-            places.len()
-        );
-        return None;
-    }
-
-    let folder = std::env::temp_dir().join(format!("volocal-languages-{}", std::process::id()));
-    std::fs::create_dir_all(&folder).ok()?;
-    let window_file = folder.join(format!("{}.wav", uuid::Uuid::new_v4()));
-
-    let mut heard: Vec<(String, f64)> = Vec::with_capacity(places.len());
-    for (from, to) in &places {
-        // Cancelling a transcription must not be held up by the sweep. It is
-        // checked between stretches because one cannot be interrupted.
-        if task.was_cancelled(recording_id) {
-            break;
-        }
-        let first = (from * f64::from(rate)) as usize;
-        let last = ((to * f64::from(rate)) as usize).min(samples.len());
-        if last <= first {
-            continue;
-        }
-        if write_wav(&window_file, &samples[first..last], rate).is_err() {
-            continue;
-        }
-        let output = command(program)
-            .arg("-m")
-            .arg(model)
-            .arg("-f")
-            .arg(&window_file)
-            .arg("--detect-language")
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .output();
-        let Ok(output) = output else { continue };
-        let said = format!(
-            "{}{}",
-            String::from_utf8_lossy(&output.stdout),
-            String::from_utf8_lossy(&output.stderr)
-        );
-        if let Some(found) = detected_language(&said) {
-            heard.push(found);
-        }
-    }
-    let _ = std::fs::remove_file(&window_file);
-    let _ = std::fs::remove_dir(&folder);
-
-    let described: Vec<String> = heard
-        .iter()
-        .map(|(code, p)| format!("{code}:{p:.2}"))
-        .collect();
-    crate::note!(
-        "second language: heard [{}] against {own}",
-        described.join(" ")
-    );
-
-    let (language, share) = strongest_other(&heard, own, heard.len())?;
-    Some(db::SecondLanguage {
-        recording_id: recording_id.to_string(),
-        language,
-        share,
-        state: db::second_language_state::OFFERED.to_string(),
-        filled_at: None,
-    })
-}
-
-// ---------------------------------------------- the multilingual pass
+/// Two, not a fraction. One reading is noise — a name, a quoted sentence, a
+/// song. Two stretches apart in the recording are a pattern. A share was the
+/// first idea and it was worse: it turns on how many samples were taken.
+const LEAST_AGREEING: usize = 2;
 
 /// One frame of the loudness curve, in seconds.
 const FRAME: f64 = 0.02;
@@ -1353,11 +1110,15 @@ pub(crate) fn fill_with_audio(
     let pieces = &heard.pieces;
     stop_if_cancelled(task, recording_id)?;
 
-    // The recording's own language: what it says, or what the seeds said.
-    let mut own = crate::ai_edit::effective_language(recording);
-    if own.is_empty() || own == "auto" {
-        own = own_language_heard(&heard.readings, &second).unwrap_or_else(|| second.clone());
-        db::set_language(connection, recording_id, &own)?;
+    /* The recording's own language: what it says, or what the seeds said.
+    Only *decided* here — it is written with everything else at the end, so a
+    pass that fails leaves the row saying what the stored transcript is in
+    rather than what this attempt was going to make it. */
+    let said = crate::ai_edit::effective_language(recording);
+    let learnt = (said.is_empty() || said == "auto")
+        .then(|| own_language_heard(&heard.readings, &second).unwrap_or_else(|| second.clone()));
+    let own = learnt.clone().unwrap_or(said);
+    if learnt.is_some() {
         crate::note!("second language: the recording's own language read as {own}");
     }
     let spoken_languages: Vec<&str> = if own == second {
@@ -1615,6 +1376,27 @@ pub(crate) fn fill_with_audio(
                 },
             )?;
         }
+        /* **The row says what the archive holds, and it is written here or
+        not at all.** It used to be put down as `offered` before the work
+        started, so a pass that then failed left the archive claiming a
+        language its transcript did not have — and, on a recording that was
+        already bilingual, stopped showing the language still in it. */
+        if learnt.is_some() {
+            db::set_language(connection, recording_id, &own)?;
+        }
+        db::save_second_language(
+            connection,
+            &db::SecondLanguage {
+                recording_id: recording_id.to_string(),
+                language: second.clone(),
+                share: 0.0,
+                state: db::second_language_state::FILLED.to_string(),
+                filled_at: None,
+            },
+        )?;
+        // The row above puts the language there; this stamps the moment, which
+        // is what `set_second_language_state` is for and where that stamp is
+        // written everywhere else.
         db::set_second_language_state(connection, recording_id, db::second_language_state::FILLED)?;
         // From now on the recording is bilingual, and says so itself.
         if recording.second_language_choice.trim().is_empty() && own != second {
@@ -1667,6 +1449,7 @@ pub fn fill(
         .join("volocal-languages")
         .join(recording_id);
     std::fs::create_dir_all(&working)?;
+    let _sweepings = Sweepings(working.clone());
     status(
         app,
         recording_id,
@@ -1696,319 +1479,12 @@ pub fn fill(
         )
         .map(|written| written.in_second)
     });
-    // Whatever happened, the copy of the audio goes. It is the size of the
-    // recording and nothing else will come looking for it.
-    let _ = std::fs::remove_dir_all(&working);
-    outcome
-}
-
-/// Sweeps a transcript that is already in the archive.
-///
-/// The difference from the sweep inside a run is the audio: there is no
-/// prepared WAV any more, so one is made and thrown away again. That is the
-/// whole cost, and it is why this is asked for rather than done to every
-/// recording on sight — and why an archive that predates the sweep can still
-/// be asked.
-pub fn sweep_existing(
-    db_path: &Path,
-    recording_id: &str,
-    task: &TranscriptionTask,
-) -> Reported<Option<db::SecondLanguage>> {
-    let connection = db::open(db_path)?;
-    let settings = db::load_settings(&connection)?;
-    let recording = db::recording(&connection, recording_id)?;
-    let segments = db::segments(&connection, recording_id)?;
-    if segments.is_empty() {
-        return Err(UserMessage::new("second_language.no_transcript"));
-    }
-
-    let check = tools::check(&settings);
-    let ffmpeg = check
-        .ffmpeg
-        .clone()
-        .ok_or_else(|| UserMessage::new("tools.ffmpeg_missing"))?;
-    if !Path::new(&recording.path).is_file() {
-        return Err(UserMessage::new("playback.source_missing"));
-    }
-
-    let working_directory = std::env::temp_dir()
-        .join("volocal-languages")
-        .join(recording_id);
-    std::fs::create_dir_all(&working_directory)?;
-    let wav = working_directory.join("audio.wav");
-    let prepared = tools::convert_to_wav(
-        Path::new(&ffmpeg),
-        Path::new(&recording.path),
-        &wav,
-        &JobRunner { task, recording_id },
-    );
-    let outcome = prepared.and_then(|()| {
-        let own = crate::ai_edit::effective_language(&recording);
-        let found = sweep(&check, &wav, &own, &segments, recording_id, task);
-        match &found {
-            Some(row) => db::save_second_language(&connection, row)?,
-            None => db::clear_second_language(&connection, recording_id)?,
-        }
-        Ok(found)
-    });
-    let _ = std::fs::remove_dir_all(&working_directory);
     outcome
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn block(start: f64, end: f64, words: &[(f64, &str)]) -> Segment {
-        let list: Vec<serde_json::Value> = words
-            .iter()
-            .map(|(t, w)| serde_json::json!({ "t": t, "s": w }))
-            .collect();
-        Segment {
-            id: "s".into(),
-            recording_id: "r".into(),
-            order: 0,
-            start,
-            end,
-            text: words.iter().map(|(_, w)| *w).collect::<Vec<_>>().join(" "),
-            speakers: None,
-            confidence: None,
-            edited: false,
-            verified: false,
-            words: (!list.is_empty()).then(|| serde_json::to_string(&list).unwrap()),
-            original: None,
-            language: None,
-        }
-    }
-
-    // ------------------------------------------- finding what the transcript missed
-
-    /// **The measurement the whole feature rests on.** A block's span runs to
-    /// where whisper stopped listening, which on an interpreted recording
-    /// reaches over the other speaker entirely. Its words do not. Here the block
-    /// claims eight seconds and its words occupy two, so six seconds are
-    /// unheard — and that is where the other language is.
-    #[test]
-    fn a_blocks_span_is_not_where_its_words_are() {
-        let blocks = [block(0.0, 8.0, &[(0.0, "Dobrý"), (0.6, "den.")])];
-        assert_eq!(spoken_spans(&blocks), vec![(0.0, 1.2)]);
-        let gaps = unheard_stretches(&blocks, 8.0);
-        assert_eq!(gaps.len(), 1);
-        assert!((gaps[0].0 - 1.2).abs() < 1e-9 && (gaps[0].1 - 8.0).abs() < 1e-9);
-    }
-
-    /// A block nobody stored timings for says only what its span says. That is
-    /// the honest answer for it, and it must not open a gap out of nothing.
-    #[test]
-    fn a_block_without_word_timings_falls_back_to_its_span() {
-        let blocks = [block(2.0, 6.0, &[])];
-        assert_eq!(spoken_spans(&blocks), vec![(2.0, 6.0)]);
-    }
-
-    /// Breathing is not a turn. Anything under a second is left alone.
-    #[test]
-    fn a_pause_shorter_than_a_second_is_not_a_gap() {
-        let blocks = [
-            block(0.0, 1.0, &[(0.0, "Ano.")]),
-            block(1.2, 2.0, &[(1.2, "Ne.")]),
-        ];
-        assert!(unheard_stretches(&blocks, 2.0).is_empty());
-    }
-
-    #[test]
-    fn silence_before_the_first_word_and_after_the_last_both_count() {
-        let blocks = [block(5.0, 6.0, &[(5.0, "Ano.")])];
-        let gaps = unheard_stretches(&blocks, 20.0);
-        assert_eq!(gaps.len(), 2);
-        assert!(
-            (gaps[0].1 - 5.0).abs() < 1e-9,
-            "the silence before the first word"
-        );
-        assert!(
-            (gaps[1].1 - 20.0).abs() < 1e-9,
-            "and the one after the last"
-        );
-    }
-
-    /// Overlapping blocks are one stretch of speech, not two, or the gap
-    /// between them would be negative.
-    #[test]
-    fn blocks_that_overlap_are_merged() {
-        let blocks = [
-            block(0.0, 4.0, &[(0.0, "Jedna"), (2.0, "dvě")]),
-            block(1.0, 5.0, &[(1.0, "dvě"), (3.0, "tři")]),
-        ];
-        assert_eq!(spoken_spans(&blocks).len(), 1);
-    }
-
-    // ---------------------------------------------------- where a sweep listens
-
-    /// **The defect the first sweep had.** Sixteen points spread by the clock
-    /// landed on the other language once. The stretches between words are where
-    /// it has to be, so that is where the sweep listens — and a recording whose
-    /// words cover everything gives it nowhere to listen at all.
-    #[test]
-    fn a_sweep_listens_between_the_words_and_nowhere_else() {
-        // Words at 0..2, then nothing until 20, words 20..22, nothing to 60.
-        let blocks = [
-            block(0.0, 10.0, &[(0.0, "Dobrý"), (1.4, "den.")]),
-            block(20.0, 40.0, &[(20.0, "Tak"), (21.4, "dál.")]),
-        ];
-        let places = listening_places(&blocks, 60.0);
-        assert_eq!(places.len(), 2);
-        // Each place sits inside a gap, never over a word.
-        for (from, to) in &places {
-            assert!(*from >= 2.0 && *to <= 60.0);
-            assert!(
-                !(*from < 22.0 && *to > 20.0),
-                "listening over a word at {from}..{to}"
-            );
-            assert!(to - from <= WINDOW_SECONDS + 1e-9);
-        }
-
-        let covered = [block(0.0, 10.0, &[(0.0, "a"), (9.5, "b")])];
-        assert!(listening_places(&covered, 10.0).is_empty());
-    }
-
-    /// A pause is not a place to listen. Under three seconds there is not enough
-    /// voice to tell a language from.
-    #[test]
-    fn a_short_gap_is_not_listened_to() {
-        let blocks = [
-            block(0.0, 1.0, &[(0.0, "Ano.")]),
-            block(3.0, 4.0, &[(3.0, "Ne.")]),
-        ];
-        assert!(listening_places(&blocks, 4.0).is_empty());
-    }
-
-    /// Longest first, and never more than the cap: a long interpreted talk has
-    /// three hundred gaps, and a dozen of the longest is where the answer is.
-    #[test]
-    fn the_longest_gaps_are_chosen_and_capped() {
-        let mut blocks = Vec::new();
-        for turn in 0..40 {
-            let at = turn as f64 * 30.0;
-            blocks.push(block(at, at + 1.0, &[(at, "Ano.")]));
-        }
-        let places = listening_places(&blocks, 40.0 * 30.0);
-        assert_eq!(places.len(), MOST_SAMPLES);
-        for (from, to) in &places {
-            assert!((to - from - WINDOW_SECONDS).abs() < 1e-9);
-        }
-    }
-
-    // ------------------------------------------------ what the detection says
-
-    #[test]
-    fn whispers_own_report_is_read_back() {
-        let said = "whisper_full_with_state: auto-detected language: cs (p = 0.997182)";
-        assert_eq!(detected_language(said), Some(("cs".into(), 0.997182)));
-    }
-
-    #[test]
-    fn a_report_that_never_came_reads_as_nothing() {
-        assert_eq!(detected_language("error: model not found"), None);
-    }
-
-    /// The recording's own language is not a second language, however often it
-    /// turns up.
-    #[test]
-    fn the_recordings_own_language_is_never_offered() {
-        let heard = vec![
-            ("cs".into(), 0.99),
-            ("cs".into(), 0.98),
-            ("cs".into(), 0.97),
-        ];
-        assert_eq!(strongest_other(&heard, "cs", 3), None);
-    }
-
-    /// **One reading is noise.** A name, a quoted sentence, a song.
-    #[test]
-    fn one_reading_alone_offers_nothing() {
-        let heard = vec![
-            ("cs".into(), 0.99),
-            ("en".into(), 0.95),
-            ("cs".into(), 0.97),
-        ];
-        assert_eq!(strongest_other(&heard, "cs", 3), None);
-    }
-
-    #[test]
-    fn two_readings_that_agree_are_a_pattern() {
-        let heard = vec![
-            ("cs".into(), 0.99),
-            ("en".into(), 0.95),
-            ("cs".into(), 0.97),
-            ("en".into(), 0.91),
-        ];
-        let (language, share) = strongest_other(&heard, "cs", 4).unwrap();
-        assert_eq!(language, "en");
-        assert!((share - 0.5).abs() < 1e-9);
-    }
-
-    /// A reading this weak is what a single-language recording throws off now
-    /// and then, not a second language.
-    #[test]
-    fn a_reading_at_the_noise_level_does_not_count() {
-        let heard = vec![
-            ("en".into(), 0.31),
-            ("en".into(), 0.38),
-            ("cs".into(), 0.99),
-        ];
-        assert_eq!(strongest_other(&heard, "cs", 3), None);
-    }
-
-    /// **The numbers the first attempt got wrong.** The three English readings
-    /// the very first sweep sampled on the reference recording, at 0.50, 0.57
-    /// and 0.56 — all discarded by a floor of 0.60, so an interpreted talk
-    /// missing half its speech offered nothing.
-    #[test]
-    fn the_interpreted_recordings_own_readings_are_counted() {
-        let heard = vec![
-            ("en".into(), 0.50),
-            ("cs".into(), 1.00),
-            ("en".into(), 0.57),
-            ("cs".into(), 0.99),
-            ("en".into(), 0.56),
-        ];
-        assert_eq!(strongest_other(&heard, "cs", 16).unwrap().0, "en");
-    }
-
-    /// The measured control: five confident Czech readings and one stray
-    /// English one at 0.38. Silent by both rules at once.
-    #[test]
-    fn a_single_language_recording_says_nothing() {
-        let heard = vec![
-            ("cs".into(), 0.9957),
-            ("cs".into(), 0.9963),
-            ("cs".into(), 0.9964),
-            ("cs".into(), 0.9966),
-            ("cs".into(), 0.9966),
-            ("en".into(), 0.3786),
-        ];
-        assert_eq!(strongest_other(&heard, "cs", 6), None);
-    }
-
-    /// Two other languages, and the stronger one wins — the offer is one
-    /// question with one button.
-    #[test]
-    fn the_strongest_other_language_is_the_one_offered() {
-        let heard = vec![
-            ("en".into(), 0.95),
-            ("en".into(), 0.93),
-            ("en".into(), 0.92),
-            ("de".into(), 0.91),
-            ("de".into(), 0.90),
-        ];
-        assert_eq!(strongest_other(&heard, "cs", 5).unwrap().0, "en");
-    }
-
-    /// Nothing heard at all is not an offer, and must not be a panic either —
-    /// a sweep cancelled on its first stretch lands here.
-    #[test]
-    fn hearing_nothing_offers_nothing() {
-        assert_eq!(strongest_other(&[], "cs", 0), None);
-    }
 
     // ------------------------------------------- cutting speech into pieces
 

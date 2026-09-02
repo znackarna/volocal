@@ -42,60 +42,6 @@ pub fn refuse_second_language(app: State<'_, AppState>, id: String) -> Reported<
     ))
 }
 
-/// Asks the question again about a transcript that is already in the archive.
-///
-/// **Why this is a command and not something done on sight.** The sweep inside
-/// a transcription is free — the prepared audio is already there. This one has
-/// to make it again, which costs as long as decoding the recording, so it is
-/// asked for rather than run over everybody's archive uninvited.
-///
-/// It is also the only way an older archive is ever told. Every recording
-/// transcribed before the sweep existed would otherwise go on looking complete,
-/// and somebody with a back catalogue of interpreted recordings is exactly who
-/// this feature is for.
-///
-/// Answers with what it found, so the screen that asked does not have to go
-/// looking. `None` means one language, which is the ordinary answer.
-#[tauri::command]
-pub async fn sweep_second_language(
-    app: State<'_, AppState>,
-    id: String,
-) -> Reported<Option<db::SecondLanguage>> {
-    // Two workers on one recording is the defect this guard exists for; the
-    // database row is not a reliable answer on its own, because a run reaches
-    // it a moment later.
-    {
-        let running = app.bezici.is_running(&id);
-        let db = app.db.lock().unwrap();
-        let recording = reported(db::recording(&db, &id))?;
-        if crate::commands::folders::recording_is_busy(running, &recording.status) {
-            return Err(UserMessage::new("transcription.still_running"));
-        }
-    }
-
-    let db_path = app.db_path.clone();
-    let task = app.bezici.clone();
-    tauri::async_runtime::spawn_blocking(move || {
-        /* The same queue a transcription stands in. Not because twenty seconds
-        is heavy, but because it runs whisper, and two of those on one
-        graphics card take memory from each other and both finish later
-        than either would alone. */
-        task.enqueue(&id);
-        task.begin(&id);
-        let ours = task.wait_for_turn(&id);
-        let outcome = if ours {
-            transcription::sweep_existing_recording(&db_path, &id, &task)
-        } else {
-            Err(UserMessage::new("transcription.cancelled"))
-        };
-        task.leave_queue(&id);
-        task.cleanup(&id);
-        outcome
-    })
-    .await
-    .map_err(|error| UserMessage::new("second_language.sweep_interrupted").detail(error))?
-}
-
 /// The reader says which second language the recording holds — or, with an
 /// empty `language`, that they no longer say so.
 ///
@@ -119,8 +65,17 @@ pub async fn set_second_language_choice(
         if crate::commands::folders::recording_is_busy(running, &recording.status) {
             return Err(UserMessage::new("transcription.still_running"));
         }
-        reported(db::set_second_language_choice(&db, &id, &language))?;
         let chosen = language.trim();
+        /* **A second language the same as the first is not a second one.** The
+        fill would run, find one language, write nothing new, and the archive
+        would say `Čeština, Čeština`. Refused here rather than filtered out of
+        the menu alone, because the menu is not the only way in. */
+        if !chosen.is_empty()
+            && chosen.eq_ignore_ascii_case(&crate::ai_edit::effective_language(&recording))
+        {
+            return Err(UserMessage::new("second_language.same_as_first"));
+        }
+        reported(db::set_second_language_choice(&db, &id, chosen))?;
         let has_transcript = recording.status == db::status::DONE && recording.segment_count > 0;
         if !chosen.is_empty() && !has_transcript {
             /* Named before there is a transcript — the ordinary way to say it,
@@ -131,27 +86,26 @@ pub async fn set_second_language_choice(
             return Ok(());
         }
         if chosen.is_empty() {
-            // *None* answers a standing offer as well: a bar still asking to
-            // fill in a language the reader has just said is not there would
-            // be the archive disagreeing with itself.
-            reported(db::set_second_language_state(
-                &db,
-                &id,
-                db::second_language_state::REFUSED,
-            ))?;
+            /* *None* answers a standing offer as well: a bar still asking to
+            fill in a language the reader has just said is not there would be
+            the archive disagreeing with itself. Only a standing offer, mind:
+            a row saying `filled` describes a transcript that really does hold
+            that language, and saying no to a future one does not take it out. */
+            let standing = reported(db::second_language(&db, &id))?
+                .is_some_and(|offer| offer.state == db::second_language_state::OFFERED);
+            if standing {
+                reported(db::set_second_language_state(
+                    &db,
+                    &id,
+                    db::second_language_state::REFUSED,
+                ))?;
+            }
             return Ok(());
         }
-        // The row the fill reads, so the screen shows it as pending from now.
-        reported(db::save_second_language(
-            &db,
-            &db::SecondLanguage {
-                recording_id: id.clone(),
-                language: chosen.to_ascii_lowercase(),
-                share: 0.0,
-                state: db::second_language_state::OFFERED.to_string(),
-                filled_at: None,
-            },
-        ))?;
+        /* **Nothing is written about the transcript here.** Only the choice,
+        which is what the reader actually made; the row that says what the
+        archive holds is written by the fill, in the transaction that puts the
+        blocks there. */
         let starts = has_transcript;
         if starts {
             // The archive draws a progress bar only on a recording that is
@@ -182,8 +136,15 @@ fn run_fill(
     task.begin(&id);
     std::thread::spawn(move || {
         let ours = task.wait_for_turn(&id);
+        /* **Through the net, like every other worker.** A panic in here used
+        to skip everything below it: the row stayed on `transcribing`, the
+        recording kept its place at the head of the queue, and every job behind
+        it waited on a thread that had already died. There has been a real
+        panic in this very work. */
         let done = if ours {
-            transcription::fill_second_language_in(&window, &db_path, &id, &task)
+            transcription::without_panicking(|| {
+                transcription::fill_second_language_in(&window, &db_path, &id, &task)
+            })
         } else {
             Err(UserMessage::new("transcription.cancelled"))
         };
@@ -292,8 +253,15 @@ pub async fn fill_second_language(
         task.enqueue(&id);
         task.begin(&id);
         let ours = task.wait_for_turn(&id);
+        /* **Through the net, like every other worker.** A panic in here used
+        to skip everything below it: the row stayed on `transcribing`, the
+        recording kept its place at the head of the queue, and every job behind
+        it waited on a thread that had already died. There has been a real
+        panic in this very work. */
         let done = if ours {
-            transcription::fill_second_language_in(&window, &db_path, &id, &task)
+            transcription::without_panicking(|| {
+                transcription::fill_second_language_in(&window, &db_path, &id, &task)
+            })
         } else {
             Err(UserMessage::new("transcription.cancelled"))
         };
@@ -338,6 +306,6 @@ pub async fn fill_second_language(
         done
     })
     .await
-    .map_err(|error| UserMessage::new("second_language.sweep_interrupted").detail(error))?;
+    .map_err(|error| UserMessage::new("second_language.interrupted").detail(error))?;
     outcome
 }

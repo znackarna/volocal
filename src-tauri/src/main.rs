@@ -562,7 +562,6 @@ fn main() {
             commands::detail::detail,
             commands::languages::second_language,
             commands::languages::refuse_second_language,
-            commands::languages::sweep_second_language,
             commands::languages::fill_second_language,
             commands::languages::set_second_language_choice,
             commands::detail::add_recording_note,

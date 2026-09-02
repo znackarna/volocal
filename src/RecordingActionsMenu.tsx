@@ -19,6 +19,10 @@ interface Props {
   onRetranscribe: () => void;
   onDeleteTranscript: () => void;
   onTranscribeInLanguage: (language: string) => void;
+  /** What the transcript is written in, so it is not offered as the *second*
+   *  language as well — the backend refuses that, and an option that always
+   *  fails does not belong in a menu. */
+  language: string;
   /** Which second language the recording holds, or none. On a finished
    *  transcript this also starts writing it in. */
   onSecondLanguage: (language: string) => void;
@@ -38,6 +42,7 @@ export default function RecordingActionsMenu({
   onRetranscribe,
   onDeleteTranscript,
   onTranscribeInLanguage,
+  language,
   onSecondLanguage,
   onRemove,
   className = "",
@@ -94,7 +99,11 @@ export default function RecordingActionsMenu({
                 children: [
                   ...labels
                     .languageOptions()
-                    .filter((language) => language.value !== "auto")
+                    .filter(
+                      (option) =>
+                        option.value !== "auto" &&
+                        option.value.toLowerCase() !== language.toLowerCase()
+                    )
                     .map((language) => ({
                       label: language.label,
                       action: () => onSecondLanguage(language.value),

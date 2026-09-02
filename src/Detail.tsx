@@ -596,7 +596,7 @@ export default function Detail({
   return (
     <main className="detail">
       <DetailHeader
-        recording={{ title, path, status, folder }}
+        recording={{ title, path, status, folder, language }}
         busy={{ running, diarizing }}
         menu={{
           folders,

@@ -25,6 +25,7 @@ function menu(status: string) {
         onExportAudio={vi.fn()}
         folders={[]}
         folder={null}
+        language="cs"
         onMoveToFolder={vi.fn()}
         onCreateFolderFor={vi.fn()}
         onRetranscribe={vi.fn()}

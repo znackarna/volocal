@@ -99,7 +99,9 @@ export const csErrors = {
   // Vzorkování jazyků nemá co s čím porovnat, dokud přepis neexistuje.
   "errors.second_language.no_transcript":
     "Nahrávka zatím nemá přepis, se kterým by šlo jazyky porovnat.",
-  "errors.second_language.sweep_interrupted": "Hledání dalšího jazyka se přerušilo.",
+  "errors.second_language.interrupted": "Doplnění dalšího jazyka se přerušilo.",
+  "errors.second_language.same_as_first":
+    "Druhý jazyk musí být jiný než ten, kterým je nahrávka přepsaná.",
   "errors.second_language.nothing_offered":
     "U této nahrávky se žádný další jazyk nenašel.",
   "errors.playback.conversion_failed": "Nepodařilo se připravit přesné přehrávání: {reason}",

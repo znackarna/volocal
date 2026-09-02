@@ -74,11 +74,6 @@ mod jobs;
 mod languages;
 mod speakers;
 
-/// The sweep for a second language over a transcript that is already stored.
-/// Re-exported here because `commands` reaches the pipeline through this
-/// module and never through its parts.
-pub use languages::sweep_existing as sweep_existing_recording;
-
 /// Transcribing the second language and merging it into the transcript.
 pub use languages::fill as fill_second_language_in;
 mod text;
@@ -98,9 +93,24 @@ pub(crate) use whisper::*;
 /// the worst way for this application to fail, because the person watching
 /// has nothing to report but "it does not work". A panic is still a bug, but
 /// now it is a visible one.
-fn without_panicking<F>(work: F) -> Reported<usize>
+/// A working directory that is removed however its owner leaves.
+///
+/// The multilingual pass cuts up to two and a half thousand pieces of audio
+/// into `%TEMP%`, about eighty megabytes for a long recording. The cleanup used
+/// to sit after the work, which is exactly where an error or a cancellation
+/// never reaches — both return through `?` — and a panic reaches nothing at
+/// all. As a guard it runs on all three.
+pub(crate) struct Sweepings(pub(crate) PathBuf);
+
+impl Drop for Sweepings {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
+pub(crate) fn without_panicking<T, F>(work: F) -> Reported<T>
 where
-    F: FnOnce() -> Reported<usize>,
+    F: FnOnce() -> Reported<T>,
 {
     match std::panic::catch_unwind(std::panic::AssertUnwindSafe(work)) {
         Ok(result) => result,
@@ -153,11 +163,27 @@ pub fn start_in_thread(
         task.cleanup(&recording_id);
 
         if cancelled {
-            // Cancelling is not a failure; the recording reverts to its
-            // initial state.
+            /* **Cancelling is not a failure, and it is not a deletion
+            either.** This used to throw the segments away and set the row to
+            `new` whatever was there — so stopping a *second* transcription of
+            a recording destroyed the first one, which nobody asked to lose.
+            Worse, a click landing just after the run committed took the fresh
+            transcript with it.
+
+            What the archive holds at this moment decides. A transcript there
+            is a transcript worth keeping, whether it is the old one this run
+            never replaced or the new one it had just finished writing; only a
+            recording left with nothing goes back to `new`. */
             if let Some(s) = &connection {
-                let _ = db::delete_segments(s, &recording_id);
-                let _ = db::set_status(s, &recording_id, db::status::NEW, None);
+                let kept = db::recording(s, &recording_id)
+                    .map(|recording| recording.segment_count > 0)
+                    .unwrap_or(false);
+                if kept {
+                    let _ = db::set_status(s, &recording_id, db::status::DONE, None);
+                } else {
+                    let _ = db::delete_segments(s, &recording_id);
+                    let _ = db::set_status(s, &recording_id, db::status::NEW, None);
+                }
             }
             status(
                 &app,
@@ -507,6 +533,7 @@ fn run(
 
     let working_directory = std::env::temp_dir().join("whisp").join(recording_id);
     std::fs::create_dir_all(&working_directory)?;
+    let _sweepings = Sweepings(working_directory.clone());
     let wav = working_directory.join("zvuk.wav");
 
     let runner = JobRunner { task, recording_id };
@@ -573,16 +600,6 @@ fn run(
     and without the two minutes of a pass nobody will read. */
     let named = recording.second_language_choice.trim().to_ascii_lowercase();
     if !named.is_empty() {
-        db::save_second_language(
-            &connection,
-            &db::SecondLanguage {
-                recording_id: recording_id.to_string(),
-                language: named.clone(),
-                share: 0.0,
-                state: db::second_language_state::OFFERED.to_string(),
-                filled_at: None,
-            },
-        )?;
         let written = languages::fill_with_audio(
             app,
             &connection,
@@ -594,7 +611,6 @@ fn run(
             &working_directory,
             task,
         )?;
-        let _ = std::fs::remove_dir_all(&working_directory);
         return Ok(written.blocks);
     }
 
@@ -636,16 +652,6 @@ fn run(
                 // and its own so the archive card says what it is in.
                 db::set_language(&connection, recording_id, &own)?;
                 db::set_second_language_choice(&connection, recording_id, &second)?;
-                db::save_second_language(
-                    &connection,
-                    &db::SecondLanguage {
-                        recording_id: recording_id.to_string(),
-                        language: second.clone(),
-                        share: 0.0,
-                        state: db::second_language_state::OFFERED.to_string(),
-                        filled_at: None,
-                    },
-                )?;
                 let fresh = db::recording(&connection, recording_id)?;
                 let written = languages::fill_with_audio(
                     app,
@@ -658,7 +664,6 @@ fn run(
                     &working_directory,
                     task,
                 )?;
-                let _ = std::fs::remove_dir_all(&working_directory);
                 return Ok(written.blocks);
             }
             Ok(None) => {
@@ -870,7 +875,6 @@ fn run(
         crate::note!("second language: the old offer could not be cleared: {error}");
     }
 
-    let _ = std::fs::remove_dir_all(&working_directory);
     Ok(segments.len())
 }
 

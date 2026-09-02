@@ -87,13 +87,7 @@ export const api = {
    *  fresh transcription writes a fresh offer over it. */
   refuseSecondLanguage: (id: string) =>
     invoke<void>("refuse_second_language", { id }),
-  /** Asks the question again about a transcript that is already in the archive
-   *  — the only way a recording made before the sweep existed is ever told.
-   *  Takes about as long as decoding the recording plus twenty seconds, and
-   *  answers with what it found. */
-  sweepSecondLanguage: (id: string) =>
-    invoke<SecondLanguage | null>("sweep_second_language", { id }),
-  /** Transcribes the missing language and merges it into the transcript.
+  /** Writes the second language into a transcript that is already stored.
    *  Answers with how many blocks it added. Progress arrives on
    *  `transcription:status` under the `second_language` phase. */
   fillSecondLanguage: (id: string) =>

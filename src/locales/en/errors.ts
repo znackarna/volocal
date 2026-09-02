@@ -56,7 +56,9 @@ export const enErrors: Partial<Record<keyof typeof csErrors, string>> = {
   "errors.playback.source_missing": "The audio file is no longer where it was.",
   "errors.second_language.no_transcript":
     "This recording has no transcript yet, so there is nothing to compare languages against.",
-  "errors.second_language.sweep_interrupted": "The search for another language was interrupted.",
+  "errors.second_language.interrupted": "Writing the other language in was interrupted.",
+  "errors.second_language.same_as_first":
+    "The second language has to differ from the one the recording is transcribed in.",
   "errors.second_language.nothing_offered":
     "No second language was found in this recording.",
   "errors.playback.conversion_failed": "Could not prepare precise playback: {reason}",

@@ -274,14 +274,12 @@ export function eventMock() {
  *  up. Held out here like `aiEditStatus` so a test can answer it, since the
  *  ordinary answer — nothing found — is what almost every test wants. */
 export const secondLanguage = vi.fn();
-export const sweepSecondLanguage = vi.fn();
 export const fillSecondLanguage = vi.fn();
 export const refuseSecondLanguage = vi.fn();
 
 export const api = {
   detail: () => Promise.resolve(currentDetail()),
   secondLanguage: (id: string) => secondLanguage(id),
-  sweepSecondLanguage: (id: string) => sweepSecondLanguage(id),
   fillSecondLanguage: (id: string) => fillSecondLanguage(id),
   refuseSecondLanguage: (id: string) => refuseSecondLanguage(id),
   setSecondLanguageChoice: vi.fn(),
@@ -349,7 +347,7 @@ export function resetApi() {
       (value as { mockReset: () => void }).mockReset();
     }
   }
-  for (const spy of [secondLanguage, sweepSecondLanguage, fillSecondLanguage, refuseSecondLanguage]) {
+  for (const spy of [secondLanguage, fillSecondLanguage, refuseSecondLanguage]) {
     spy.mockReset();
   }
   // Nothing found is the ordinary answer and what almost every test wants: on

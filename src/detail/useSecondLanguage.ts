@@ -42,9 +42,6 @@ export interface SecondLanguageOffer {
      *  nothing. Without this the reader would have to leave the transcript and
      *  come back to be told half of it was missing. */
     reread: () => Promise<void>;
-    /** Asks again from the audio, for a transcript made before any of this
-     *  existed. Costs as long as decoding the recording. */
-    look: () => Promise<void>;
     fill: () => Promise<void>;
     refuse: () => Promise<void>;
   };
@@ -109,17 +106,6 @@ export function useSecondLanguage({
      cancelled fill put a red notice over the header. */
   const cancelled = (error: unknown) => messageCode(error) === "transcription.cancelled";
 
-  const look = useCallback(async () => {
-    setFilling(true);
-    try {
-      setFound(await api.sweepSecondLanguage(recordingId));
-    } catch (error) {
-      if (!cancelled(error)) onError(userMessage(error));
-    } finally {
-      setFilling(false);
-    }
-  }, [onError, recordingId, userMessage]);
-
   const fill = useCallback(async () => {
     setFilling(true);
     try {
@@ -155,6 +141,6 @@ export function useSecondLanguage({
       offered: found?.state === "offered",
       filling,
     },
-    actions: { reread, look, fill, refuse },
+    actions: { reread, fill, refuse },
   };
 }

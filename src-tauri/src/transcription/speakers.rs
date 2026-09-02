@@ -167,15 +167,7 @@ pub(crate) fn diarize(
     // in `volocal-log.txt`, because a notice that has already gone cannot be
     // asked about; and `{model}` is in there because the path is the first
     // thing that is ever wrong.
-    let mut voices = crate::voiceprint::Voices::open(Path::new(model)).map_err(|error| {
-        crate::note!("speaker model {model} did not open: {error:#}");
-        UserMessage::new("diarization.launch_failed").detail(format!("{error:#}"))
-    })?;
-    let prints = voices.embed(&heard).map_err(|error| {
-        let count = heard.len();
-        crate::note!("speaker model {model} failed on {count} windows: {error:#}");
-        UserMessage::new("diarization.launch_failed").detail(format!("{error:#}"))
-    })?;
+    let prints = describe_in_batches(model, &heard, task, recording_id)?;
 
     say(GROUPING_STARTS_AT);
     stop_if_cancelled(task, recording_id)?;
@@ -197,6 +189,39 @@ pub(crate) fn diarize(
             key: format!("speaker_{}", turn.voice),
         })
         .collect())
+}
+
+/// How many windows go to the model between two chances to give up.
+///
+/// `Voices::embed` walks its own batches inside, and on a long recording that
+/// is the better part of a minute with nothing watching — `Zrušit` was
+/// answered only once it had finished. Two hundred and fifty-six windows is
+/// about a second of work on the card.
+const BETWEEN_GLANCES: usize = 256;
+
+/// Describes voices in batches, looking up between them to see whether the
+/// reader has given up on the whole thing.
+fn describe_in_batches(
+    model: &str,
+    heard: &[crate::voiceprint::Features],
+    task: &TranscriptionTask,
+    recording_id: &str,
+) -> Reported<Vec<Vec<f32>>> {
+    let mut voices = crate::voiceprint::Voices::open(Path::new(model)).map_err(|error| {
+        crate::note!("speaker model {model} did not open: {error:#}");
+        UserMessage::new("diarization.launch_failed").detail(format!("{error:#}"))
+    })?;
+    let mut prints = Vec::with_capacity(heard.len());
+    for batch in heard.chunks(BETWEEN_GLANCES) {
+        stop_if_cancelled(task, recording_id)?;
+        let described = voices.embed(batch).map_err(|error| {
+            let count = batch.len();
+            crate::note!("speaker model {model} failed on {count} windows: {error:#}");
+            UserMessage::new("diarization.launch_failed").detail(format!("{error:#}"))
+        })?;
+        prints.extend(described);
+    }
+    Ok(prints)
 }
 
 /// One voiceprint for each span of speech, from the two seconds at its middle.
@@ -262,17 +287,15 @@ pub(crate) fn voiceprints_of(
     if heard.is_empty() {
         return Ok(prints);
     }
-    stop_if_cancelled(task, recording_id)?;
-    let embedded = crate::voiceprint::Voices::open(Path::new(model))
-        .and_then(|mut voices| voices.embed(&heard));
-    match embedded {
-        Ok(embedded) => {
-            for (owner, print) in owners.into_iter().zip(embedded) {
+    match describe_in_batches(model, &heard, task, recording_id) {
+        Ok(described) => {
+            for (owner, print) in owners.into_iter().zip(described) {
                 prints[owner] = Some(print);
             }
         }
+        Err(error) if error.code == "transcription.cancelled" => return Err(error),
         Err(error) => {
-            crate::note!("speaker model {model} did not describe the pieces: {error:#}");
+            crate::note!("speaker model {model} did not describe the pieces: {error}");
         }
     }
     Ok(prints)
