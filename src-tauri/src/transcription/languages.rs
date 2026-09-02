@@ -774,6 +774,9 @@ pub(crate) struct Heard {
     /// without cutting the audio again.
     pub(crate) names: Vec<String>,
     pub(crate) folder: PathBuf,
+    /// One voiceprint per piece — empty until [`Heard::describe_the_voices`]
+    /// is called, because the question asked before a transcription does not
+    /// need them and most recordings answer it with one language.
     pub(crate) prints: Vec<Option<Vec<f32>>>,
     /// The pieces whisper was asked about, and what it said about each.
     pub(crate) seeds: Vec<usize>,
@@ -797,6 +800,41 @@ impl Heard {
     /// The audio can go once nothing more will be asked about it.
     pub(crate) fn done_with_the_audio(&self) {
         let _ = std::fs::remove_dir_all(&self.folder);
+    }
+
+    /// Describes the voice of every piece, which is what lets the language of
+    /// most of them be answered without asking whisper.
+    ///
+    /// Separate from the listening, and after it, because of what it costs on
+    /// a recording in one language: describing the voices of a 47-minute talk
+    /// takes about three quarters of a minute, and a recording that turns out
+    /// to hold only one language never needs them at all. Asking the seeds
+    /// first answers that question for a fifth of the price.
+    pub(crate) fn describe_the_voices(
+        &mut self,
+        check: &tools::ToolCheck,
+        samples: &[i16],
+        rate: u32,
+        task: &TranscriptionTask,
+        recording_id: &str,
+        say: &dyn Fn(u32, &str),
+    ) -> Reported<()> {
+        if !self.prints.is_empty() {
+            return Ok(());
+        }
+        let total = self.pieces.len().max(1);
+        self.prints = voiceprints_of(
+            check,
+            samples,
+            rate,
+            &self.pieces,
+            task,
+            recording_id,
+            |done| {
+                say(14 + (10 * done / total) as u32, "second_language.listening");
+            },
+        )?;
+        Ok(())
     }
 }
 
@@ -822,25 +860,11 @@ pub(crate) fn listen_to_pieces(
     let names = write_pieces(&folder, samples, rate, &pieces)?;
     stop_if_cancelled(run.task, run.recording_id)?;
 
-    let prints = voiceprints_of(
-        check,
-        samples,
-        rate,
-        &pieces,
-        run.task,
-        run.recording_id,
-        |done| {
-            say(
-                6 + (10 * done / pieces.len()) as u32,
-                "second_language.listening",
-            );
-        },
-    )?;
     let seeds = seeds_of(&pieces);
     let seed_names: Vec<String> = seeds.iter().map(|at| names[*at].clone()).collect();
     let readings = languages_of_files(run, settings, check, &folder, &seed_names, |done| {
         say(
-            16 + (8 * done / seeds.len().max(1)) as u32,
+            6 + (8 * done / seeds.len().max(1)) as u32,
             "second_language.listening",
         );
     })?;
@@ -848,7 +872,7 @@ pub(crate) fn listen_to_pieces(
         pieces,
         names,
         folder,
-        prints,
+        prints: Vec::new(),
         seeds,
         readings,
     })
@@ -1281,7 +1305,7 @@ pub(crate) fn fill_with_audio(
     // Whatever the question before the transcription already heard is handed
     // over rather than listened to again: the pieces, the voices and the first
     // answers are the same ones.
-    let heard = match already {
+    let mut heard = match already {
         Some(heard) => heard,
         None => listen_to_pieces(
             &run,
@@ -1293,6 +1317,14 @@ pub(crate) fn fill_with_audio(
             &|percent, code| say(percent, code),
         )?,
     };
+    heard.describe_the_voices(
+        check,
+        &samples,
+        rate,
+        task,
+        recording_id,
+        &|percent, code| say(percent, code),
+    )?;
     let pieces = &heard.pieces;
     stop_if_cancelled(task, recording_id)?;
 
