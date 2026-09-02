@@ -78,11 +78,19 @@ fn phase_clock(now: Option<String>) -> Option<(String, f64)> {
     Some((was, took))
 }
 
+/// How a run says it is over. These are not phases and nothing is waited
+/// through in them; reported as one, the clock would run from the end of a run
+/// to the start of the next and write down the idle time in between. It did:
+/// `phase complete/diarization.complete took 221.3 s`, in the first log that
+/// had the timings in it at all.
+const ENDINGS: [&str; 3] = ["complete", "error", "cancelled"];
+
 /// Every phase caption goes through here, which is why the clock lives here
 /// rather than in each pass: a phase nobody reports is a phase nobody waits
 /// through.
 fn status(app: &AppHandle, id: &str, phase: &str, percent: u32, description: UserMessage) {
-    let _ = phase_clock(Some(format!("{phase}/{}", description.code)));
+    let _ =
+        phase_clock((!ENDINGS.contains(&phase)).then(|| format!("{phase}/{}", description.code)));
     let _ = app.emit(
         "transcription:status",
         TranscriptionProgress {
@@ -1378,5 +1386,18 @@ mod tests {
         let (was, _) = phase_clock(None).expect("the run ended");
         assert_eq!(was, "run/transcribing");
         assert_eq!(phase_clock(None), None, "and it is closed only once");
+    }
+
+    /// `complete` arrives after the run has already let go of its clock, so
+    /// timing it measured the wait until the next recording started.
+    #[test]
+    fn an_ending_is_not_a_phase() {
+        for ending in super::ENDINGS {
+            assert!(
+                !ending.contains('.'),
+                "{ending} is a phase name, not a message code"
+            );
+        }
+        assert!(super::ENDINGS.contains(&"complete"));
     }
 }
