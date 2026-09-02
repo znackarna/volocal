@@ -49,6 +49,7 @@ function recording(id: string): Recording {
     source_url: null,
   second_language_choice: "",
   second_language: null,
+  second_language_missing: null,
   };
 }
 

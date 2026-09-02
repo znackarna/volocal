@@ -429,7 +429,13 @@ export function RecordingMetadataItem({
   const { t } = useI18n();
   return (
     <span
-      className={`recording-metadata-item ${kind === "error" ? "error" : ""}`}
+      className={[
+        "recording-metadata-item",
+        kind === "error" ? "error" : "",
+        kind === "languageMissing" ? "missing" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
       aria-label={t("library.card.metadata", { label, value })}
       /* The value belongs in the tooltip too: in the compact list it is cut to
          one line, and the label alone would then be the only place to look and
@@ -1310,6 +1316,19 @@ function Row({
                       })
                     : labels.languageCapitalized(recording.language)
                 }
+              />
+            )}
+            {recording.second_language_missing && (
+              /* Heard in the recording, not in the transcript. It stays until
+                 the offer is answered — Doplnit writes it in, Nechat být says
+                 no — so the archive and the transcript screen never disagree
+                 about what is outstanding. */
+              <RecordingMetadataItem
+                kind="languageMissing"
+                label={t("library.card.languageMissing")}
+                value={t("library.card.missing", {
+                  language: labels.language(recording.second_language_missing),
+                })}
               />
             )}
             {recording.model && (

@@ -546,6 +546,12 @@
 }
 .recording-metadata-item > svg { flex: 0 0 auto; opacity: 0.72; }
 .recording-metadata-item.error { color: var(--danger); }
+/* A language heard but not written in. Amber, not red: nothing is broken —
+   there is simply more of the recording to be had. The icon keeps its full
+   strength here, where every other one is dimmed, because the mark is the
+   point of the item. */
+.recording-metadata-item.missing { color: hsl(var(--ds-amber)); }
+.recording-metadata-item.missing > svg { opacity: 1; }
 /* Buttons centred in the block, not pinned to the top. */
 .row-actions { display: flex; gap: 4px; align-items: center; }
 

@@ -81,6 +81,12 @@ pub struct Recording {
     /// its own, when a fill has run — read from the fill's own record, so it
     /// says what is in the text rather than what somebody asked for.
     pub second_language: Option<String>,
+    /// A language heard in the recording and **not** in the transcript: the
+    /// question every run now asks, left standing because the reader would
+    /// rather be asked than have it written in. The archive marks it, so a
+    /// recording missing half its speech is not just quietly filed away.
+    /// `None` the moment the offer is answered, either way.
+    pub second_language_missing: Option<String>,
 }
 
 /// A folder in the archive, with what it holds. The two totals come from the
@@ -1634,6 +1640,7 @@ fn recording_from_row(r: &rusqlite::Row) -> rusqlite::Result<Recording> {
         source_url: r.get(12).unwrap_or_default(),
         second_language_choice: r.get(13).unwrap_or_default(),
         second_language: r.get(14).unwrap_or_default(),
+        second_language_missing: r.get(15).unwrap_or_default(),
     })
 }
 
@@ -1642,7 +1649,9 @@ const RECORDING_SELECT_SQL: &str =
         (SELECT COUNT(*) FROM segments s WHERE s.recording_id = n.id), n.jazyk, n.jazyk_volba,
         n.folder_id, n.source_url, n.second_language_choice,
         (SELECT sl.language FROM second_language sl
-          WHERE sl.recording_id = n.id AND sl.state = 'filled')
+          WHERE sl.recording_id = n.id AND sl.state = 'filled'),
+        (SELECT sl.language FROM second_language sl
+          WHERE sl.recording_id = n.id AND sl.state = 'offered')
      FROM recordings n";
 
 /// Every recording in the archive, and **a row that cannot be read is shown as
@@ -1693,6 +1702,7 @@ pub fn list_recordings(db: &Connection) -> Result<Vec<Recording>> {
                 language_choice: String::new(),
                 second_language_choice: String::new(),
                 second_language: None,
+                second_language_missing: None,
                 error: Some(
                     crate::user_message::UserMessage::new("archive.row_unreadable")
                         .with("id", &id)
@@ -2945,6 +2955,7 @@ mod tests {
                 folder: None,
                 source_url: None,
                 second_language: None,
+                second_language_missing: None,
             },
         )
         .unwrap();
@@ -3510,6 +3521,7 @@ mod tests {
                     language_choice: String::new(),
                     second_language_choice: String::new(),
                     second_language: None,
+                    second_language_missing: None,
                     error: None,
                     segment_count: 0,
                     folder: None,
@@ -3577,6 +3589,7 @@ mod tests {
                 language_choice: String::new(),
                 second_language_choice: String::new(),
                 second_language: None,
+                second_language_missing: None,
                 error: None,
                 segment_count: 0,
                 folder: None,
@@ -3646,6 +3659,7 @@ mod tests {
                 language_choice: String::new(),
                 second_language_choice: String::new(),
                 second_language: None,
+                second_language_missing: None,
                 error: None,
                 segment_count: 0,
                 folder: None,

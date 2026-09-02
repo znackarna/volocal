@@ -53,6 +53,7 @@ export function recording(over: Partial<Recording> = {}): Recording {
     source_url: null,
     second_language_choice: "",
     second_language: null,
+  second_language_missing: null,
     ...over,
   };
 }

@@ -59,6 +59,11 @@ export interface Recording {
   /** The language actually written into the transcript beside its own, once a
    *  fill has run. Null until then — what is in the text, not what was asked. */
   second_language: string | null;
+  /** A language heard in the recording that the transcript does not have —
+   *  the standing offer. The archive marks it, so a recording missing half its
+   *  speech is not filed away looking complete. Null once the offer is
+   *  answered, whichever way. */
+  second_language_missing: string | null;
 }
 
 /** A folder in the archive, with what it holds. */
