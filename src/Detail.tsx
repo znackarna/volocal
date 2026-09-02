@@ -611,6 +611,7 @@ export default function Detail({
           onSecondLanguage: (language) =>
             void api
               .setSecondLanguageChoice(id, language)
+              .then(() => secondLanguage.actions.reread())
               .catch((error) => onError(userMessage(error))),
           onDeleteTranscript: () =>
             setConfirmation({
@@ -753,7 +754,12 @@ export default function Detail({
       {/* Above the shortcuts, because it is news about this transcript rather
           than help with reading it — and it is the one thing on this screen
           that says the text in front of the reader is incomplete. */}
-      <SecondLanguageBar offer={secondLanguage} />
+      {/* Not while anything runs on this recording. A fill started from the
+          menu is a run like any other, and a bar still offering to start it —
+          with the button live — beside the bubble that shows it running was
+          two doors to one room. When the run ends the answer is read again,
+          and a filled one draws nothing. */}
+      {!running && <SecondLanguageBar offer={secondLanguage} />}
 
       {/* Only over a transcript: the shortcuts are about reading one. */}
       {segments.length > 0 && <TranscriptTips />}

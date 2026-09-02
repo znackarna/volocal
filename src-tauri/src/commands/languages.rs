@@ -119,6 +119,14 @@ pub async fn set_second_language_choice(
         reported(db::set_second_language_choice(&db, &id, &language))?;
         let chosen = language.trim();
         if chosen.is_empty() {
+            // *None* answers a standing offer as well: a bar still asking to
+            // fill in a language the reader has just said is not there would
+            // be the archive disagreeing with itself.
+            reported(db::set_second_language_state(
+                &db,
+                &id,
+                db::second_language_state::REFUSED,
+            ))?;
             return Ok(());
         }
         // The row the fill reads, so the screen shows it as pending from now.

@@ -786,14 +786,44 @@ fn run(
             }
         }
     } else if settings.detect_second_language {
+        /* Switched on means *do it*, not *ask me*. The first run with detection
+        on found the language and then stood there offering to write it in,
+        and the owner's answer was that he had switched it on precisely so
+        that he would not have to press anything. So a language the sweep
+        finds is written in here, the same way a named one is; the offer with
+        a button remains only for a sweep run by hand over an older
+        transcript, where nobody is watching a run finish. */
         let heard = db::segments(&connection, recording_id).unwrap_or_default();
         let sweep = languages::sweep(&check, &wav, &language_written, &heard, recording_id, task);
-        let stored = match &sweep {
-            Some(found) => db::save_second_language(&connection, found),
-            None => db::clear_second_language(&connection, recording_id),
-        };
-        if let Err(error) = stored {
-            crate::note!("second language: the sweep could not be recorded: {error}");
+        match &sweep {
+            Some(found) => {
+                if let Err(error) = db::save_second_language(&connection, found) {
+                    crate::note!("second language: the sweep could not be recorded: {error}");
+                } else {
+                    let fresh = db::recording(&connection, recording_id)?;
+                    if let Err(error) = languages::fill_with_audio(
+                        app,
+                        &connection,
+                        &check,
+                        &settings,
+                        &fresh,
+                        &found.language,
+                        &wav,
+                        &working_directory,
+                        task,
+                    ) {
+                        crate::note!(
+                            "second language: filling {} failed: {error}",
+                            found.language
+                        );
+                    }
+                }
+            }
+            None => {
+                if let Err(error) = db::clear_second_language(&connection, recording_id) {
+                    crate::note!("second language: the old offer could not be cleared: {error}");
+                }
+            }
         }
     } else if let Err(error) = db::clear_second_language(&connection, recording_id) {
         crate::note!("second language: the old offer could not be cleared: {error}");

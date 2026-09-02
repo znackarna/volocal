@@ -211,18 +211,29 @@
    act on, so it carries the accent line the strip deliberately does not. */
 .second-language {
   display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-  padding: 9px 18px; border-bottom: 1px solid var(--line);
-  background: hsl(var(--ds-accent) / 0.07);
-  border-left: 3px solid var(--accent);
-  font-size: 13px; color: var(--text);
+  padding: 10px 18px;
+  /* The notice bar's own ground (Jakub's ask): this is a notice about the
+     transcript, and the reader already knows what that blue means. Same
+     white on `--accent-solid` as `.notice` in 01-base.css. */
+  background: var(--accent-solid);
+  font-size: 13px; font-weight: 500; color: #fff;
 }
 .second-language-text { flex: 1; min-width: 220px; }
-/* The finished state is not an offer and must not look like one: the work is
-   done, so the accent comes off and only the count remains. */
-.second-language.done {
-  background: var(--subtle); border-left-color: var(--line);
-  color: var(--text-quiet);
+/* The two buttons follow the notice bar's pair as well: the way on is the
+   bar's colour on white, the way out a darkened veil. */
+.second-language .button {
+  background: #fff; color: var(--accent-solid); border: 0;
 }
+.second-language .button.quiet {
+  background: rgb(0 0 0 / 0.18); color: #fff;
+}
+/* The finished state is not an offer and must not look like one: the work is
+   done, so the blue comes off and only the count remains. */
+.second-language.done {
+  background: var(--subtle); color: var(--text-quiet);
+  border-bottom: 1px solid var(--line);
+}
+.second-language.done .button.quiet { background: transparent; color: var(--text); }
 .second-language.done > span { flex: 1; min-width: 220px; }
 
 /* The strip used to borrow the sidebar's small-caps rule and then undo every

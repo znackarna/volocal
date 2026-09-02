@@ -118,6 +118,22 @@ describe("a language the transcript is missing", () => {
     );
   });
 
+  /** Two doors to one room. A fill started from the menu is a run, and the
+   *  bar must not go on offering to start it while the bubble shows it going. */
+  test("steps aside while a run is going on this recording", async () => {
+    secondLanguage.mockResolvedValue(offered());
+    const { container } = show({
+      progress: {
+        recording_id: RECORDING_ID,
+        phase: "second_language",
+        percent: 30,
+        description: { code: "second_language.transcribing", params: {}, detail: "" },
+      },
+    });
+    await transcriptShown(container);
+    expect(container.textContent).not.toContain(say("detail.secondLanguage.fill"));
+  });
+
   /** Filling rewrites every block, including the ones whose text did not
    *  change, because their order did. A screen still drawing the transcript it
    *  had before would be showing the old one. */

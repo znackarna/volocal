@@ -416,6 +416,54 @@ fn letters_of(language: &str) -> &'static str {
     }
 }
 
+/// Words that only the first language uses, for lines its letters do not
+/// give away.
+///
+/// The letters catch most of it, but not a Czech line that happens to carry no
+/// diacritics: the fill on the reference recording let through `Jsem
+/// odcestoval.`, `Jsi jedl.` and `A jejich hlubb.` — the interpreter's own
+/// sentence, mis-heard by the pass at the edge of a gap and standing in the
+/// transcript beside the correct one. Function words are the tell: a line
+/// where a third of the words are `jsem`, `že`, `už`, `jejich` is Czech.
+///
+/// **Only words that are not also English words.** The first draft of this
+/// list had `my`, `to`, `a` and `on` in it and would have thrown away `My
+/// grandkids come to my house.` Measured over the fill's 282 lines: this list
+/// drops the three Czech ones and no English one.
+fn function_words_of(language: &str) -> &'static [&'static str] {
+    match language {
+        "cs" => &[
+            "jsem", "jsi", "jsme", "jste", "jsou", "byl", "byla", "bylo", "byli", "je", "že", "se",
+            "si", "už", "tak", "jak", "co", "kdo", "ne", "ano", "tady", "teď", "ještě", "taky",
+            "také", "jen", "jenom", "když", "aby", "jestli", "nebo", "ani", "který", "která",
+            "které", "tento", "tato", "toto", "můj", "moje", "tvůj", "jeho", "její", "náš", "váš",
+            "jejich", "prostě", "vlastně", "tam", "nic", "něco", "někdo", "nikdo", "všechno",
+            "pro", "při", "bez", "od", "po", "za", "před", "nad", "pod", "mezi", "ale", "kde",
+            "kam", "proč", "dobře", "moc", "protože", "jako", "tohle", "tohleto", "ta",
+        ],
+        _ => &[],
+    }
+}
+
+/// Is at least a third of this line made of the first language's function
+/// words? Inclusive, so a three-word line with one of them counts.
+fn reads_as(language: &str, text: &str) -> bool {
+    let function_words = function_words_of(language);
+    if function_words.is_empty() {
+        return false;
+    }
+    let words: Vec<String> = text
+        .split(|c: char| !c.is_alphanumeric() && c != '\'')
+        .filter(|w| !w.is_empty())
+        .map(|w| w.to_lowercase())
+        .collect();
+    let hits = words
+        .iter()
+        .filter(|w| function_words.contains(&w.as_str()))
+        .count();
+    hits > 0 && hits * 3 >= words.len()
+}
+
 /// Below this a line carries nothing worth inserting, and it is where a
 /// hallucination hides.
 const SHORTEST_LINE: usize = 4;
@@ -434,9 +482,10 @@ const MOST_REPEATS: usize = 2;
 /// Which of the second pass's lines are worth putting in the transcript.
 ///
 /// Three rules, and each answers something that was observed rather than
-/// imagined: a line still written in the first language, because the pass reads
-/// back whatever it is given; a line too short to carry anything; and a line
-/// repeated far more often than speech repeats.
+/// imagined: a line still written in the first language — by its letters, or
+/// by its function words where the letters give nothing away — because the
+/// pass reads back whatever it is given; a line too short to carry anything;
+/// and a line repeated far more often than speech repeats.
 pub(crate) fn worth_keeping(lines: &[(f64, String)], own: &str) -> Vec<(f64, String)> {
     let letters = letters_of(own);
     let mut seen: HashMap<String, usize> = HashMap::new();
@@ -449,6 +498,7 @@ pub(crate) fn worth_keeping(lines: &[(f64, String)], own: &str) -> Vec<(f64, Str
             let trimmed = text.trim();
             trimmed.chars().count() >= SHORTEST_LINE
                 && !trimmed.chars().any(|letter| letters.contains(letter))
+                && !reads_as(own, trimmed)
                 && seen
                     .get(&trimmed.to_lowercase())
                     .is_none_or(|n| *n <= MOST_REPEATS)
@@ -1043,6 +1093,41 @@ mod tests {
         );
         assert_eq!(kept.len(), 1);
         assert_eq!(kept[0].1, "I am a fisherman.");
+    }
+
+    /// **The leak the letters cannot see.** `Jsem odcestoval.` carries no
+    /// diacritics and stood in the reference transcript beside the correct
+    /// Czech line. Its function words give it away.
+    #[test]
+    fn a_czech_line_without_diacritics_is_still_dropped() {
+        let kept = worth_keeping(
+            &lines(&[
+                (1.0, "Jsem odcestoval."),
+                (2.0, "Jsi jedl."),
+                (3.0, "A jejich hlubb."),
+                (4.0, "She didn't even notice I was gone."),
+            ]),
+            "cs",
+        );
+        assert_eq!(kept.len(), 1);
+        assert!(kept[0].1.starts_with("She didn't"));
+    }
+
+    /// **What the first draft of that list got wrong.** `my`, `to`, `a` and
+    /// `on` are Czech function words and English words both, and a list that
+    /// held them threw away real English. Only the unambiguous ones are used.
+    #[test]
+    fn english_full_of_short_words_is_kept() {
+        let kept = worth_keeping(
+            &lines(&[
+                (1.0, "My grandkids come to my house."),
+                (2.0, "I have a rule, a guideline."),
+                (3.0, "And I have a rule."),
+                (4.0, "don't tell me what to do."),
+            ]),
+            "cs",
+        );
+        assert_eq!(kept.len(), 4);
     }
 
     /// Where the pair has never been measured, the letters say nothing and only
