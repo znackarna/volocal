@@ -11,6 +11,16 @@ altered, not how, not which file. Entries before 1.2.6 are written the old way
 and are left as they are; they are not a model for the next one. The mechanism
 belongs in `docs/history/`, which is what that folder is for.
 
+## 1.2.25 — 2 September 2026
+
+- **A recording in two languages is transcribed in both**, instead of losing the half nobody asked about.
+- **A language the transcript is missing is marked in the archive**, so nothing is filed away looking complete.
+- **Any passage of a transcript can be saved on its own** — its audio, its text or its subtitles.
+- **Saving asks once and hands over several files at a time.**
+- **A recording is transcribed in the language it is really in**, not the one guessed from its first half minute.
+- **One speaker is answered at once** instead of a run that already knew the answer.
+- **Checking a place plays that place**, and stops there.
+
 ## 1.2.24 — 1 September 2026
 
 - **A file name in the settings no longer breaks in the middle of the word.**
