@@ -480,8 +480,10 @@
   /* Closes the row's own 8 px gap to 2: against the name, not out at the
      percentage, where two things on the right edge read as a pair of values. */
   margin-left: -6px;
-  font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em;
-  color: var(--text-quiet); opacity: 0.75;
+  font-size: 10px; font-weight: 500; letter-spacing: 0.03em;
+  /* Half opaque over the quiet ink: at a glance the row is a name and a
+     percentage, and the code is there when the eye goes looking for it. */
+  color: var(--text-quiet); opacity: 0.5;
 }
 /* A column of the shared 38 px fields — the group has one question above it,
    so the fields carry only a placeholder each and no label of their own. */
