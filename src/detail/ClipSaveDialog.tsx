@@ -16,6 +16,7 @@ import { useEffect, useState } from "react";
 import { useI18n } from "../i18n";
 import type { TranslationKey } from "../i18n";
 import { useDialog } from "../useDialog";
+import { CheckBox } from "../CheckBox";
 import { api } from "../api";
 import { formatTime } from "../types";
 import type { UserMessage } from "../types";
@@ -139,9 +140,11 @@ export function ClipSaveDialog({
               <label className="clip-shape">
                 <input
                   type="checkbox"
+                  className="check-box-input"
                   checked={ticked.includes(shape)}
                   onChange={() => toggle(shape)}
                 />
+                <CheckBox />
                 <span className="clip-shape-name">{t(word)}</span>
                 <span className="clip-shape-note">{t(note)}</span>
               </label>
@@ -153,9 +156,11 @@ export function ClipSaveDialog({
           <label className="clip-zero">
             <input
               type="checkbox"
+              className="check-box-input"
               checked={fromZero}
               onChange={(event) => setFromZero(event.target.checked)}
             />
+            <CheckBox />
             <span>{t("detail.clip.fromZero")}</span>
           </label>
         )}

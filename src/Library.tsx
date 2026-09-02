@@ -6,6 +6,7 @@ import RecordingMetadataIcon from "./RecordingMetadataIcon";
 import type { RecordingMetadataKind } from "./RecordingMetadataIcon";
 import RecordingActionsMenu, { ActionMenu, MENU_ICONS } from "./RecordingActionsMenu";
 import NameDialog from "./NameDialog";
+import { CheckBox } from "./CheckBox";
 import { LineIcon } from "./icons";
 import Select from "./Select";
 import { formatTime, fileName, statusClass } from "./types";
@@ -1015,15 +1016,12 @@ function WatchFolderNotice({
               <label className="watch-folder-file" title={file.path}>
                 <input
                   type="checkbox"
+                  className="check-box-input"
                   checked={selectedKeys.has(fileKey(file))}
                   onChange={() => toggleFile(file)}
                   disabled={running}
                 />
-                <span className="watch-folder-checkbox" aria-hidden>
-                  <svg width="12" height="10" viewBox="0 0 12 10" fill="none">
-                    <path d="m1.5 5 3 3 6-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </span>
+                <CheckBox />
                 <span className="watch-folder-file-name">{file.name}</span>
               </label>
               <button

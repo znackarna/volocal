@@ -235,6 +235,9 @@
 .clip-shapes { list-style: none; margin: 0; padding: 0; }
 .clip-shapes li + li { border-top: 1px solid var(--line); }
 .clip-shape {
+  /* `position: relative` because the real input is taken out of the flow and
+     has to anchor here rather than on some ancestor. */
+  position: relative;
   display: grid;
   grid-template-columns: auto 1fr;
   align-items: baseline;
@@ -242,14 +245,16 @@
   padding: 9px 2px;
   cursor: pointer;
 }
-.clip-shape input { grid-row: span 2; align-self: center; }
+.clip-shape .check-box { grid-row: span 2; align-self: center; }
 .clip-shape-name { font-size: 14px; font-weight: 600; color: var(--text); }
 /* The line under each name says what it is for, so nobody has to know what VTT
    stands for to choose it. */
 .clip-shape-note { font-size: 12.5px; color: var(--text-soft); }
 .clip-zero {
+  position: relative;
   display: flex; align-items: center; gap: 8px;
   margin-top: 14px; font-size: 13.5px; color: var(--text);
+  cursor: pointer;
 }
 /* The text as it will be written. Small, scrolling, never taller than a third
    of the screen: it settles one question — where the times start — rather than

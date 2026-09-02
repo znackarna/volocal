@@ -206,23 +206,6 @@
   transition: background var(--hover-duration) var(--hover-ease);
 }
 .watch-folder-files li:hover { background: var(--muted); }
-.watch-folder-file input {
-  position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none;
-}
-.watch-folder-checkbox {
-  /* 5 px, not --r-small: on an 18 px box 8 would be nearly a circle, and a
-     circle is what this application uses for a radio, not a checkbox. */
-  display: grid; place-items: center; width: 18px; height: 18px; flex: 0 0 auto;
-  border: 1px solid var(--line-field); border-radius: 5px;
-  background: var(--panel); color: transparent;
-  transition: background var(--hover-duration) var(--hover-ease),
-    border-color var(--hover-duration) var(--hover-ease),
-    color var(--hover-duration) var(--hover-ease);
-}
-.watch-folder-file input:checked + .watch-folder-checkbox {
-  border-color: var(--accent); background: var(--accent); color: #fff;
-}
-.watch-folder-file input:focus-visible + .watch-folder-checkbox { box-shadow: var(--ring-field); }
 .watch-folder-file input:disabled ~ * { opacity: 0.55; }
 .watch-folder-file-name {
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
