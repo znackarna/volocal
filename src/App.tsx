@@ -1036,7 +1036,12 @@ export default function App() {
       </header>
       )}
 
-      <NoticeBar notices={notices} />
+      {/* Under whichever header is showing. The archive's header is the one
+          above, and the transcript screen draws its own — so on that screen the
+          bar is handed down and rendered there instead of here, where it would
+          sit above the header and read as pinned to the window rather than
+          belonging to the screen. Asked about on 2026-09-02. */}
+      {screen !== "detail" && <NoticeBar notices={notices} />}
 
       {screen === "library" && (
         <Library
@@ -1134,6 +1139,7 @@ export default function App() {
                showing the previous recording's text, status and waveform. */
             key={selectedId}
             id={selectedId}
+            notices={notices}
             seekTime={seekTime}
             progress={progress[selectedId]}
             liveSegments={liveSegments[selectedId] ?? []}

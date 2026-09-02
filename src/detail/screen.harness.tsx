@@ -42,6 +42,10 @@ export function show(over: Partial<DetailProps> = {}) {
         <RecorderProvider>
           <Detail
             id={RECORDING_ID}
+            notices={{
+              state: { notice: null, closing: false },
+              actions: { error: vi.fn(), info: vi.fn(), dismiss: vi.fn() },
+            }}
             seekTime={null}
             liveSegments={[]}
             onBack={vi.fn()}

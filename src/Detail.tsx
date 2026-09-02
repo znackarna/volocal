@@ -44,6 +44,8 @@ import { transcriptKey } from "./detail/keys";
 import { TranscriptSearch } from "./detail/TranscriptSearch";
 import { TranscriptTips } from "./detail/TranscriptTips";
 import { SecondLanguageBar } from "./detail/SecondLanguageBar";
+import { NoticeBar } from "./app/NoticeBar";
+import type { Notices } from "./app/useNotices";
 import { ClipSaveDialog } from "./detail/ClipSaveDialog";
 import { selectedSegmentIds, useClipSelection } from "./detail/useClipSelection";
 import { useSecondLanguage } from "./detail/useSecondLanguage";
@@ -78,6 +80,10 @@ import type {
 
 interface Props {
   id: string;
+  /** The window's one notice bar, drawn under this screen's own header. The
+   *  archive draws it under the header above; this screen has a header of its
+   *  own, so the bar comes down here rather than being left to sit above it. */
+  notices: Notices;
   seekTime: number | null;
   progress?: TranscriptionProgress;
   liveSegments: LiveSegment[];
@@ -115,6 +121,7 @@ interface Props {
 
 export default function Detail({
   id,
+  notices,
   seekTime,
   progress,
   liveSegments,
@@ -771,6 +778,8 @@ export default function Detail({
           )}
         />
       )}
+
+      <NoticeBar notices={notices} />
 
       {/* Above the shortcuts, because it is news about this transcript rather
           than help with reading it — and it is the one thing on this screen
