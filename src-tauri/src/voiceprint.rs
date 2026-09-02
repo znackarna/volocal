@@ -519,8 +519,14 @@ fn build(model: &std::path::Path, on_card: bool) -> Result<ort::session::Session
 /// the card will run, so every window was refused and every recording's
 /// speakers were found on the processor. See
 /// [`LEAST_FRAMES_THE_CARD_WILL_RUN`].
+/// How many samples one window is, at this rate: two seconds, or the fewest
+/// the graphics card will run, whichever is more.
+pub fn window_samples(rate: f64) -> usize {
+    ((WINDOW * rate) as usize).max(LEAST_SAMPLES_THE_CARD_WILL_RUN)
+}
+
 pub fn enough_audio(start: f64, end: f64, rate: f64, total: usize) -> (usize, usize) {
-    let need = ((WINDOW * rate) as usize).max(LEAST_SAMPLES_THE_CARD_WILL_RUN);
+    let need = window_samples(rate);
     let mut from = (start * rate).max(0.0) as usize;
     let mut to = ((end * rate) as usize).min(total);
     if total <= need {
