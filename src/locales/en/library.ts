@@ -57,7 +57,7 @@ export const enLibrary: Partial<Record<keyof typeof csLibrary, string>> = {
   "library.card.metadata": "{label}: {value}",
   "library.card.duration": "Recording length",
   "library.card.language": "Language",
-  "library.card.languageMissing": "Missing language",
+  "library.card.languageMissing": "Untranscribed language",
   "library.card.missing": "{language}",
   "library.card.model": "Model",
   "library.card.segments": "Segments",
