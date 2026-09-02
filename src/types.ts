@@ -707,6 +707,11 @@ export interface TranscriptionProgress {
     | "queued"
     | "preparation"
     | "playback"
+    // Asking, before the transcript, whether a second language is here at all.
+    // A phase of its own because the fill below reports after `saving`, and one
+    // name in two places in a run reads to `keepsMovingForward` as a run going
+    // backwards.
+    | "second_language_question"
     | "transcription"
     | "diarization"
     // Transcribing a language the first pass did not write down, and merging

@@ -656,6 +656,16 @@ const LEAST_ASKED: usize = 16;
 /// answer is a name, a quotation, a song. A language spoken in less than about
 /// one part in twenty of a recording may go unnoticed, which is the same as it
 /// ever was.
+#[derive(Debug, Default, PartialEq)]
+pub(crate) struct Overheard {
+    /// The language most of the recording is in — heard across the whole of
+    /// it, in samples a minute apart, rather than guessed from its first half
+    /// minute. `None` when nothing was confident enough to count.
+    pub(crate) own: Option<String>,
+    /// A second language, when enough of the samples agree on one.
+    pub(crate) second: Option<String>,
+}
+
 pub(crate) fn two_languages_heard(
     run: &Run,
     settings: &Settings,
@@ -663,13 +673,13 @@ pub(crate) fn two_languages_heard(
     wav: &Path,
     working: &Path,
     say: &dyn Fn(u32, &str),
-) -> Reported<Option<(String, String)>> {
+) -> Reported<Overheard> {
     let Some((samples, rate)) = read_pcm16(wav) else {
-        return Ok(None);
+        return Ok(Overheard::default());
     };
     let pieces = pieces_of_speech(&samples, rate);
     if pieces.is_empty() {
-        return Ok(None);
+        return Ok(Overheard::default());
     }
     let seconds = samples.len() as f64 / f64::from(rate.max(1));
     let mut asked = seeds_of(&pieces, ASK_EVERY);
@@ -701,12 +711,13 @@ pub(crate) fn two_languages_heard(
         asked.len(),
         heard
     );
-    match heard.as_slice() {
-        [(own, _), (second, times), ..] if *times >= LEAST_AGREEING => {
-            Ok(Some((own.clone(), second.clone())))
-        }
-        _ => Ok(None),
-    }
+    Ok(Overheard {
+        own: heard.first().map(|(code, _)| code.clone()),
+        second: match heard.as_slice() {
+            [_, (second, times), ..] if *times >= LEAST_AGREEING => Some(second.clone()),
+            _ => None,
+        },
+    })
 }
 
 /// The second language a fresh transcription should be written in from its

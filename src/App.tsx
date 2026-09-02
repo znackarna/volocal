@@ -129,52 +129,6 @@ function sameCandidates(a: WatchFolderCandidate[], b: WatchFolderCandidate[]): b
 /** How long the notice bar stays before it leaves on its own. The countdown
  *  ring in the bar is handed the same number, so the picture and the timer
  *  cannot disagree. */
-/** The order the pipeline goes through. Used only to spot a report that
- *  arrives out of turn. */
-const PHASE_ORDER = [
-  // A run that found another one ahead of it starts here, before it has done
-  // anything. Listing it keeps a late report from throwing the caption back to
-  // the queue after the work has begun.
-  "queued",
-  "preparation",
-  "playback",
-  "transcription",
-  "diarization",
-  "saving",
-  // Written in after the transcript is saved, so it comes after `saving`: a
-  // report from it must not be dropped as a step backwards.
-  "second_language",
-];
-
-/** Phases that end a run. After one of them anything may follow — a new run
- *  legitimately starts from the beginning. */
-const FINAL_PHASES = ["complete", "error", "cancelled"];
-
-/**
- * Should this report replace the one currently shown?
- *
- * Progress arrives from several places at once: the conversion, the thread
- * reading whisper's output, diarization. They are not synchronised with each
- * other, so a late report can turn up after a newer one and throw the caption
- * back a step — which looked like the label flicking between "Převádím zvuk"
- * and "Přepisuji" at random. Anything that would move the run backwards is
- * dropped; going back is only allowed once the previous run has ended.
- */
-function keepsMovingForward(
-  previous: TranscriptionProgress | undefined,
-  next: TranscriptionProgress
-): boolean {
-  if (!previous) return true;
-  if (FINAL_PHASES.includes(previous.phase)) return true;
-  if (FINAL_PHASES.includes(next.phase)) return true;
-
-  const before = PHASE_ORDER.indexOf(previous.phase);
-  const after = PHASE_ORDER.indexOf(next.phase);
-  if (before === -1 || after === -1) return true;
-  if (after !== before) return after > before;
-  return next.percent >= previous.percent;
-}
-
 export default function App() {
   const { t, tPlural, tDynamic } = useI18n();
   const labels = useLabels();

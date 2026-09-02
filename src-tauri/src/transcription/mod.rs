@@ -709,11 +709,20 @@ fn run(
     it. What the setting decides is whether a second language is written in
     on the spot or only pointed out. */
     let mut noticed: Option<String> = None;
+    let mut overheard: Option<String> = None;
     {
+        /* **Its own phase name, not the fill's.** The window drops a report
+        that would move a run backwards, and the order it goes by had
+        `second_language` last, because until today the only second-language
+        work happened after the transcript was saved. The question put in
+        front of the transcript therefore parked the caption on *Hledám druhý
+        jazyk* and every later report — the transcription, the saving — was
+        thrown away as a step back. Reported on 2026-09-02: the caption said
+        it was still looking while the words were already arriving. */
         status(
             app,
             recording_id,
-            "second_language",
+            "second_language_question",
             2,
             step("second_language.listening"),
         );
@@ -728,10 +737,19 @@ fn run(
             &check,
             &wav,
             &working_directory,
-            &|percent, code| status(app, recording_id, "second_language", percent, step(code)),
+            &|percent, code| {
+                status(
+                    app,
+                    recording_id,
+                    "second_language_question",
+                    percent,
+                    step(code),
+                )
+            },
         );
         stop_if_cancelled(task, recording_id)?;
-        match found {
+        let found = found.inspect(|heard| overheard = heard.own.clone());
+        match found.map(|heard| heard.own.zip(heard.second)) {
             Ok(Some((own, second))) if !settings.detect_second_language => {
                 /* Heard, but not written in: the reader has said they would
                 rather be asked. The transcript below runs as usual and the
@@ -783,11 +801,31 @@ fn run(
 
     let prefix = working_directory.join("vystup");
 
-    // A per-recording choice beats the global setting.
-    let language = if recording.language_choice.is_empty() {
-        settings.language.clone()
-    } else {
+    /* A per-recording choice beats the global setting — and where neither
+    names a language, what the question just heard beats leaving it to
+    whisper.
+
+    **Whisper decides the language of a whole recording from its first half
+    minute.** The question has just listened to forty-odd samples spread over
+    the whole of it, so it holds the better evidence by construction: on a
+    European Parliament debate whose speakers are English throughout, the
+    samples said English twenty-seven times and whisper, left on `auto`, wrote
+    the transcript in French. Reported on 2026-09-02.
+
+    Only where nobody asked for a language. `auto` stays the answer when the
+    question heard nothing it was sure of. */
+    let language = if !recording.language_choice.is_empty() {
         recording.language_choice.clone()
+    } else if settings.language == "auto" {
+        match &overheard {
+            Some(heard) => {
+                crate::note!("language: transcribing as {heard}, heard across the recording");
+                heard.clone()
+            }
+            None => settings.language.clone(),
+        }
+    } else {
+        settings.language.clone()
     };
 
     let run = Run {
