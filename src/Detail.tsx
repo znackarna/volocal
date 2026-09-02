@@ -414,6 +414,7 @@ export default function Detail({
 
   const speakers = useSpeakerManagement({
     recordingId: id,
+    language,
     segments,
     updateSegments: recording.actions.update,
     playFrom,
