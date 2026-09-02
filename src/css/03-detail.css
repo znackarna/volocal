@@ -227,43 +227,33 @@
 .second-language .button.quiet {
   background: rgb(0 0 0 / 0.18); color: #fff;
 }
-/* A stretch marked to be cut out.
-   The same band and the same 10/18 padding as the missing-language bar above
-   it, and deliberately not its colour: that bar is news the reader is meant to
-   act on, this one is a state they put the screen into and can see the whole
-   time. So it takes the surface the transcript itself sits on, with the accent
-   only on the rule beneath. */
-.clip-bar {
-  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-  padding: 10px 18px;
-  background: var(--ground);
-  border-bottom: 2px solid var(--accent-solid);
-  font-size: 13px; color: var(--text);
-}
-/* The span is the fact; everything after it is commentary, and reads quieter. */
-.clip-span { font-weight: 700; font-variant-numeric: tabular-nums; }
-.clip-length { font-variant-numeric: tabular-nums; color: var(--text-soft); }
-.clip-hint { flex: 1; min-width: 180px; color: var(--text-soft); }
-
-/* The blocks inside it. A wash rather than a border, because a border on the
-   left is where the speaker's colour already lives. */
-.segment.in-clip {
-  /* `--accent-light` is the application's own eight-percent petrol, defined in
-     01-base.css beside the solid one. `--ds-accent` next door is the grey the
-     name suggests it is not. */
-  background: var(--accent-light);
-  border-radius: 8px;
-}
-
+/* Choosing what to make of a marked passage.
+   A list of lines rather than a row of buttons: the answer is often more than
+   one — the audio for the podcast, the subtitles for the video and the text for
+   the quote out of the same two minutes — and a row of five said "pick one". */
 .clip-dialog { width: 520px; }
-.clip-shapes { display: flex; gap: 8px; flex-wrap: wrap; }
+.clip-shapes { list-style: none; margin: 0; padding: 0; }
+.clip-shapes li + li { border-top: 1px solid var(--line); }
+.clip-shape {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: baseline;
+  column-gap: 10px;
+  padding: 9px 2px;
+  cursor: pointer;
+}
+.clip-shape input { grid-row: span 2; align-self: center; }
+.clip-shape-name { font-size: 14px; font-weight: 600; color: var(--text); }
+/* The line under each name says what it is for, so nobody has to know what VTT
+   stands for to choose it. */
+.clip-shape-note { font-size: 12.5px; color: var(--text-soft); }
 .clip-zero {
   display: flex; align-items: center; gap: 8px;
   margin-top: 14px; font-size: 13.5px; color: var(--text);
 }
-/* The text as it will be written. Small, scrolling, and never taller than a
-   third of the screen: it is there to settle one question — where the times
-   start — not to be read through. */
+/* The text as it will be written. Small, scrolling, never taller than a third
+   of the screen: it settles one question — where the times start — rather than
+   being read through. */
 .clip-preview {
   margin-top: 14px;
   max-height: 34vh; overflow: auto;

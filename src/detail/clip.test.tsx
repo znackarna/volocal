@@ -1,18 +1,42 @@
 // @vitest-environment jsdom
 /**
- * Marking a stretch of transcript to cut out of it.
+ * Exporting the passage the reader marked.
  *
- * Two things are worth holding here. Which blocks a clip covers — because the
- * screen and the backend select by the same rule and a difference between them
- * would mean the file is not what was highlighted. And the identity of the set
- * of chosen ids, because the transcript rows are memoised: a fresh Set on
- * every render fails their comparison and repaints a thousand rows on every
- * tick of the clock. That trap has already been paid for once in this screen.
+ * Two things are worth holding. That a passage dragged upwards comes out the
+ * right way round — the browser hands its two ends in the order they were
+ * touched, not in the order they are spoken. And that ticking several shapes
+ * writes several files under one question about where to put them, because
+ * the audio, the subtitles and the text usually come out of the same passage
+ * at the same moment.
  */
 import { act, renderHook } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
-import { insideClip, useClipSelection } from "./useClipSelection";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { saveClip, useClipSelection } from "./useClipSelection";
 import type { Segment } from "../types";
+
+const saveClipAudio = vi.fn(async (_id: string, _from: number, _to: number, path: string) => path);
+const saveClipText = vi.fn(
+  async (
+    _id: string,
+    _from: number,
+    _to: number,
+    _format: string,
+    path: string,
+    _fromZero: boolean
+  ) => path
+);
+const suggestedClipName = vi.fn(
+  async (_id: string, _from: number, _to: number, format: string) =>
+    `Porada 0-04 - 0-20.${format === "audio" ? "mp3" : format}`
+);
+
+vi.mock("../api", () => ({
+  api: {
+    saveClipAudio: (...a: Parameters<typeof saveClipAudio>) => saveClipAudio(...a),
+    saveClipText: (...a: Parameters<typeof saveClipText>) => saveClipText(...a),
+    suggestedClipName: (...a: Parameters<typeof suggestedClipName>) => suggestedClipName(...a),
+  },
+}));
 
 function block(id: string, start: number, end: number): Segment {
   return {
@@ -39,106 +63,123 @@ const TRANSCRIPT = [
   block("d", 14, 20),
 ];
 
-describe("which blocks a clip covers", () => {
-  /** A block counts as inside when it *starts* inside. One straddling the end
-   *  therefore comes whole — somebody quoting a passage wants the sentence
-   *  they pointed at, not its first half. */
-  it("takes every block that begins inside it", () => {
-    expect(insideClip(TRANSCRIPT, 4, 14).map((s) => s.id)).toEqual(["b", "c"]);
-  });
-
-  it("takes a single block when that is the whole clip", () => {
-    expect(insideClip(TRANSCRIPT, 4, 9).map((s) => s.id)).toEqual(["b"]);
-  });
-
-  /** Floating point: a bound taken from a block's own start must include that
-   *  block, and the rule allows half a millisecond either way for it. */
-  it("includes the block its own start came from", () => {
-    expect(insideClip(TRANSCRIPT, 9.0000001, 20).map((s) => s.id)).toEqual(["c", "d"]);
-  });
-});
-
-function selection() {
-  return renderHook(() =>
-    useClipSelection({ segments: TRANSCRIPT, playRange: vi.fn() })
-  );
-}
-
-describe("marking one", () => {
-  it("starts on the first block and closes on a later one", () => {
-    const { result } = selection();
-    act(() => result.current.actions.beginOrExtend(TRANSCRIPT[1]));
-    expect(result.current.state.active).toBe(true);
-    expect(result.current.state.to).toBe(null);
-    expect([...result.current.state.inside]).toEqual(["b"]);
-
-    act(() => result.current.actions.beginOrExtend(TRANSCRIPT[2]));
-    expect(result.current.state.start).toBe(4);
-    expect(result.current.state.end).toBe(14);
-    expect([...result.current.state.inside]).toEqual(["b", "c"]);
-    expect(result.current.state.seconds).toBe(10);
-  });
-
-  /** Pointing at something earlier is the reader saying "no, from here" —
-   *  not an empty clip running backwards. */
-  it("moves the start when the reader points at an earlier block", () => {
-    const { result } = selection();
-    act(() => result.current.actions.beginOrExtend(TRANSCRIPT[2]));
-    act(() => result.current.actions.beginOrExtend(TRANSCRIPT[0]));
-    expect(result.current.state.start).toBe(0);
-    expect(result.current.state.to).toBe(null);
-  });
-
-  it("clears away entirely", () => {
-    const { result } = selection();
-    act(() => result.current.actions.beginOrExtend(TRANSCRIPT[1]));
-    act(() => result.current.actions.clear());
-    expect(result.current.state.active).toBe(false);
-    expect(result.current.state.inside.size).toBe(0);
-  });
-
-  /** The one that would not be noticed until an hour-long transcript went
-   *  slow: the set handed to a thousand memoised rows has to be the same
-   *  object while the selection has not changed. */
-  it("keeps the same set of ids while nothing changes", () => {
-    const { result, rerender } = selection();
-    act(() => result.current.actions.beginOrExtend(TRANSCRIPT[1]));
-    const first = result.current.state.inside;
-    rerender();
-    rerender();
-    expect(result.current.state.inside).toBe(first);
-  });
-
-  /** The reader's own gesture: drag over a passage, right-click, export it.
-   *  The clip takes the touched blocks whole — a selection stopping mid-
-   *  sentence would otherwise cut the audio mid-syllable — and goes straight
-   *  to the save dialog, because "export this" is not a request to mark
-   *  something and think about it. */
-  it("takes a whole passage at once and opens the saving", () => {
-    const { result } = selection();
+describe("marking a passage", () => {
+  it("takes it whole and goes straight to saving", () => {
+    const { result } = renderHook(() => useClipSelection());
     act(() => result.current.actions.markAndSave(TRANSCRIPT[1], TRANSCRIPT[3]));
     expect(result.current.state.start).toBe(4);
     expect(result.current.state.end).toBe(20);
-    expect([...result.current.state.inside]).toEqual(["b", "c", "d"]);
+    expect(result.current.state.seconds).toBe(16);
     expect(result.current.state.saving).toBe(true);
   });
 
-  /** A selection dragged upwards hands its two ends the other way round. */
-  it("takes a passage marked backwards the right way round", () => {
-    const { result } = selection();
+  /** A passage dragged from the bottom up hands its ends in that order. */
+  it("takes one marked backwards the right way round", () => {
+    const { result } = renderHook(() => useClipSelection());
     act(() => result.current.actions.markAndSave(TRANSCRIPT[3], TRANSCRIPT[1]));
     expect(result.current.state.start).toBe(4);
     expect(result.current.state.end).toBe(20);
   });
 
-  it("plays the stretch and stops at its end", () => {
-    const playRange = vi.fn();
-    const { result } = renderHook(() =>
-      useClipSelection({ segments: TRANSCRIPT, playRange })
+  it("forgets the passage when the dialog is closed", () => {
+    const { result } = renderHook(() => useClipSelection());
+    act(() => result.current.actions.markAndSave(TRANSCRIPT[1], TRANSCRIPT[3]));
+    act(() => result.current.actions.close());
+    expect(result.current.state.saving).toBe(false);
+    expect(result.current.state.from).toBe(null);
+  });
+});
+
+describe("saving it", () => {
+  beforeEach(() => {
+    saveClipAudio.mockClear();
+    saveClipText.mockClear();
+  });
+
+  const common = {
+    recordingId: "r",
+    start: 4,
+    end: 20,
+    fromZero: true,
+    onError: vi.fn(),
+  };
+
+  /** One shape is one file, and the reader names it — what anybody exporting
+   *  a single thing expects. */
+  it("asks for a file name when one shape is ticked", async () => {
+    const chooseFile = vi.fn(async () => "D:/ven/citace.srt");
+    const chooseFolder = vi.fn(async () => null);
+    const onSaved = vi.fn();
+
+    await saveClip({ ...common, shapes: ["srt"], chooseFile, chooseFolder, onSaved });
+
+    expect(chooseFolder).not.toHaveBeenCalled();
+    expect(saveClipText).toHaveBeenCalledWith("r", 4, 20, "srt", "D:/ven/citace.srt", true);
+    expect(onSaved).toHaveBeenCalledWith(["D:/ven/citace.srt"]);
+  });
+
+  /** Several shapes are one question — which folder — rather than one dialog
+   *  per file. */
+  it("asks for a folder once when several are ticked", async () => {
+    const chooseFile = vi.fn(async () => null);
+    const chooseFolder = vi.fn(async () => "D:/ven");
+    const onSaved = vi.fn();
+
+    await saveClip({
+      ...common,
+      shapes: ["audio", "srt"],
+      chooseFile,
+      chooseFolder,
+      onSaved,
+    });
+
+    expect(chooseFile).not.toHaveBeenCalled();
+    expect(chooseFolder).toHaveBeenCalledTimes(1);
+    expect(saveClipAudio).toHaveBeenCalledWith("r", 4, 20, "D:/ven\\Porada 0-04 - 0-20.mp3");
+    expect(saveClipText).toHaveBeenCalledWith(
+      "r",
+      4,
+      20,
+      "srt",
+      "D:/ven\\Porada 0-04 - 0-20.srt",
+      true
     );
-    act(() => result.current.actions.beginOrExtend(TRANSCRIPT[1]));
-    act(() => result.current.actions.beginOrExtend(TRANSCRIPT[3]));
-    act(() => result.current.actions.play());
-    expect(playRange).toHaveBeenCalledWith(4, 20);
+    expect(onSaved).toHaveBeenCalledWith([
+      "D:/ven\\Porada 0-04 - 0-20.mp3",
+      "D:/ven\\Porada 0-04 - 0-20.srt",
+    ]);
+  });
+
+  it("writes nothing when the reader closes the file dialog", async () => {
+    const onSaved = vi.fn();
+    await saveClip({
+      ...common,
+      shapes: ["txt"],
+      chooseFile: async () => null,
+      chooseFolder: async () => null,
+      onSaved,
+    });
+    expect(saveClipText).not.toHaveBeenCalled();
+    expect(onSaved).not.toHaveBeenCalled();
+  });
+
+  /** A failure halfway through still says which files arrived: the reader has
+   *  them on disk and needs to know. */
+  it("reports the files that were written before a failure", async () => {
+    saveClipText.mockRejectedValueOnce({ code: "clip.audio_failed" } as never);
+    const onError = vi.fn();
+    const onSaved = vi.fn();
+
+    await saveClip({
+      ...common,
+      shapes: ["audio", "srt"],
+      chooseFile: async () => null,
+      chooseFolder: async () => "D:/ven",
+      onError,
+      onSaved,
+    });
+
+    expect(onSaved).toHaveBeenCalledWith(["D:/ven\\Porada 0-04 - 0-20.mp3"]);
+    expect(onError).toHaveBeenCalled();
   });
 });

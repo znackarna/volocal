@@ -1,75 +1,47 @@
 /**
- * One stretch of a transcript, chosen to be cut out of it.
+ * The passage the reader marked, on its way out as files.
  *
- * **A clip is a selection, not a thing.** Nothing is stored: the reader marks
- * a run of blocks, the files come out, and the selection is gone. Keeping
+ * **A clip is a selection that makes files, not a stored object.** Keeping
  * clips would mean a table, a list, and a rule about what becomes of one when
  * its transcript is rewritten — all in service of something whose whole value
- * is the file that was saved.
+ * is the file that was saved. Nothing here is written to the archive.
  *
- * **Blocks, not a drag along the waveform.** The blocks are already the units
- * a person reads and quotes in, their edges are where sentences actually
- * begin, and a click is exact where a drag over an hour of audio is not.
+ * **And the selection is the reader's own.** Dragging over the words is the
+ * gesture people already have for *this bit*; the two-click way that came
+ * first — mark a block, mark a later one, watch a bar — was a procedure to
+ * learn, and it went on 2 September, the evening it was tried.
  *
- * The hook is handed `playRange`, the blocks, and the two ways of telling the
- * reader something. It owns neither the player nor the dialog: the screen
- * composes those, as every controller here does.
+ * The clip lands on whole blocks even so: a selection that stops mid-sentence
+ * would otherwise cut the audio mid-syllable.
  */
 import { useCallback, useMemo, useState } from "react";
 import { api } from "../api";
 import type { Segment, UserMessage } from "../types";
 
+/** What may come out of one passage. Audio is first because it is the one
+ *  thing no other program can make from a transcript. */
+export type Shape = "audio" | "txt" | "md" | "srt" | "vtt";
+
 export interface ClipSelection {
   state: {
-    /** The first block of the clip, once one is chosen. */
+    /** The passage, once the reader has asked to export one. */
     from: Segment | null;
-    /** The last, once the reader has closed the range. Equal to `from` while
-     *  a single block is selected — one block is a legitimate clip. */
     to: Segment | null;
-    /** Whether anything is selected at all, which is what draws the bar. */
-    active: boolean;
-    /** The clip's bounds in the recording's own clock. */
     start: number;
     end: number;
     seconds: number;
-    /** Which blocks are inside, by id, for the highlight on the transcript.
-     *  A Set with a stable identity while the selection does not change: the
-     *  rows are memoised and a fresh Set every render would repaint the lot on
-     *  every tick of the clock. */
-    inside: ReadonlySet<string>;
-    /** The save dialog is open. */
+    /** The dialog is up. */
     saving: boolean;
   };
   actions: {
-    /** Start a clip at this block, or — when one is already started and this
-     *  block is later — close the range on it. */
-    beginOrExtend: (segment: Segment) => void;
-    /** Take the whole stretch at once and go straight to saving it. What a
-     *  reader who has just dragged over a passage means by *export this*. */
+    /** Take the marked passage and go straight to saving it: *export this* is
+     *  not a request to mark something and then think about it. */
     markAndSave: (first: Segment, last: Segment) => void;
-    clear: () => void;
-    play: () => void;
-    openSave: () => void;
-    closeSave: () => void;
+    close: () => void;
   };
 }
 
-/** The blocks a clip covers: the ones that begin inside it.
- *
- *  A block straddling the end comes whole. Somebody quoting a passage wants
- *  the sentence they pointed at, not its first half. The backend selects by
- *  the same rule, so what is marked on screen is what comes out of the file. */
-export function insideClip(segments: Segment[], start: number, end: number): Segment[] {
-  return segments.filter((s) => s.start >= start - 0.0005 && s.start < end);
-}
-
-export function useClipSelection({
-  segments,
-  playRange,
-}: {
-  segments: Segment[];
-  playRange: (from: number, to: number) => void;
-}): ClipSelection {
+export function useClipSelection(): ClipSelection {
   const [from, setFrom] = useState<Segment | null>(null);
   const [to, setTo] = useState<Segment | null>(null);
   const [saving, setSaving] = useState(false);
@@ -77,94 +49,33 @@ export function useClipSelection({
   const start = from ? Math.min(from.start, to?.start ?? from.start) : 0;
   const end = from ? Math.max(from.end, to?.end ?? from.end) : 0;
 
-  const inside = useMemo(() => {
-    if (!from) return new Set<string>();
-    return new Set(insideClip(segments, start, end).map((s) => s.id));
-  }, [segments, from, start, end]);
-
-  const beginOrExtend = useCallback(
-    (segment: Segment) => {
-      setFrom((current) => {
-        // No clip yet, or the reader pointed at something before the start:
-        // this becomes the beginning and the range opens again.
-        if (!current || segment.start < current.start) {
-          setTo(null);
-          return segment;
-        }
-        setTo(segment);
-        return current;
-      });
-    },
-    []
-  );
-
   const markAndSave = useCallback((first: Segment, last: Segment) => {
-    const [earlier, later] =
-      first.start <= last.start ? [first, last] : [last, first];
+    // A passage dragged upwards arrives with its ends the other way round.
+    const [earlier, later] = first.start <= last.start ? [first, last] : [last, first];
     setFrom(earlier);
     setTo(later);
     setSaving(true);
   }, []);
 
-  const clear = useCallback(() => {
+  const close = useCallback(() => {
+    setSaving(false);
     setFrom(null);
     setTo(null);
-    setSaving(false);
   }, []);
-
-  const play = useCallback(() => {
-    if (!from) return;
-    playRange(start, end);
-  }, [from, start, end, playRange]);
-
-  const openSave = useCallback(() => {
-    if (!from) return;
-    setSaving(true);
-  }, [from]);
-
-  const closeSave = useCallback(() => setSaving(false), []);
 
   return useMemo(
     () => ({
-      state: {
-        from,
-        to,
-        active: from !== null,
-        start,
-        end,
-        seconds: Math.max(0, end - start),
-        inside,
-        saving,
-      },
-      actions: { beginOrExtend, markAndSave, clear, play, openSave, closeSave },
+      state: { from, to, start, end, seconds: Math.max(0, end - start), saving },
+      actions: { markAndSave, close },
     }),
-    [
-      from,
-      to,
-      start,
-      end,
-      inside,
-      saving,
-      beginOrExtend,
-      markAndSave,
-      clear,
-      play,
-      openSave,
-      closeSave,
-    ]
+    [from, to, start, end, saving, markAndSave, close]
   );
 }
 
 /** The blocks a text selection touches, read off the screen.
  *
- * **Dragging over the words is the gesture people already have** for *this
- * bit*, and it is what the reader asked for: mark a passage, right-click,
- * export it. The clip still lands on whole blocks — a selection that stops
- * mid-sentence would cut the audio mid-syllable — so this reports which blocks
- * the selection reaches and the clip takes them entire.
- *
- * Empty when nothing is selected, which is the ordinary case and why the menu
- * offers the two-click way as well.
+ * Empty when nothing is selected, which is the ordinary case — and why the
+ * menu item only appears when there is a passage to export.
  */
 export function selectedSegmentIds(): string[] {
   const selection = typeof window === "undefined" ? null : window.getSelection();
@@ -177,42 +88,63 @@ export function selectedSegmentIds(): string[] {
   return touched;
 }
 
-/** Saving one clip, whichever of the four shapes was asked for.
+/** Saving one passage in every shape that was ticked.
  *
- *  Kept beside the selection rather than inside it: the selection is what the
- *  screen draws from on every render, and writing a file is something that
- *  happens once. `api` is reached directly here — the dialog has no state
- *  worth a controller of its own. */
+ * Several shapes go to a folder and take their suggested names; a single one
+ * goes to a file the reader names, which is what anybody exporting one thing
+ * expects. The first failure stops the rest, and the reader is told which
+ * files did arrive.
+ */
 export async function saveClip({
   recordingId,
-  format,
+  shapes,
   start,
   end,
   fromZero,
-  suggested,
-  choose,
+  chooseFile,
+  chooseFolder,
   onError,
   onSaved,
 }: {
   recordingId: string;
-  format: "audio" | "txt" | "md" | "srt" | "vtt";
+  shapes: Shape[];
   start: number;
   end: number;
   fromZero: boolean;
-  suggested: string;
-  choose: (name: string) => Promise<string | null>;
+  chooseFile: (name: string) => Promise<string | null>;
+  chooseFolder: () => Promise<string | null>;
   onError: (message: UserMessage) => void;
-  onSaved: (path: string) => void;
+  onSaved: (paths: string[]) => void;
 }): Promise<void> {
+  if (shapes.length === 0) return;
+  const written: string[] = [];
   try {
-    const path = await choose(suggested);
-    if (!path) return;
-    const written =
-      format === "audio"
-        ? await api.saveClipAudio(recordingId, start, end, path)
-        : await api.saveClipText(recordingId, start, end, format, path, fromZero);
+    const names = await Promise.all(
+      shapes.map((shape) => api.suggestedClipName(recordingId, start, end, shape))
+    );
+
+    let destinations: string[];
+    if (shapes.length === 1) {
+      const chosen = await chooseFile(names[0]);
+      if (!chosen) return;
+      destinations = [chosen];
+    } else {
+      const folder = await chooseFolder();
+      if (!folder) return;
+      destinations = names.map((name) => `${folder}\\${name}`);
+    }
+
+    for (const [index, shape] of shapes.entries()) {
+      const path = destinations[index];
+      written.push(
+        shape === "audio"
+          ? await api.saveClipAudio(recordingId, start, end, path)
+          : await api.saveClipText(recordingId, start, end, shape, path, fromZero)
+      );
+    }
     onSaved(written);
   } catch (error) {
+    if (written.length > 0) onSaved(written);
     onError(error as UserMessage);
   }
 }

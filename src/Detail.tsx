@@ -44,7 +44,6 @@ import { transcriptKey } from "./detail/keys";
 import { TranscriptSearch } from "./detail/TranscriptSearch";
 import { TranscriptTips } from "./detail/TranscriptTips";
 import { SecondLanguageBar } from "./detail/SecondLanguageBar";
-import { ClipBar } from "./detail/ClipBar";
 import { ClipSaveDialog } from "./detail/ClipSaveDialog";
 import { selectedSegmentIds, useClipSelection } from "./detail/useClipSelection";
 import { useSecondLanguage } from "./detail/useSecondLanguage";
@@ -272,7 +271,7 @@ export default function Detail({
   /* One stretch of the transcript, marked to be cut out of it. It draws
      nothing until the reader starts one, and stores nothing when they are
      done: the clip is the file that comes out. */
-  const clip = useClipSelection({ segments, playRange });
+  const clip = useClipSelection();
 
   /* Asked again when a run ends, and it has to be: the sweep is the last thing
      a transcription does, so its answer lands *after* this screen asked once
@@ -782,13 +781,22 @@ export default function Detail({
           two doors to one room. When the run ends the answer is read again,
           and a filled one draws nothing. */}
       {!running && segments.length > 0 && <SecondLanguageBar offer={secondLanguage} />}
-      <ClipBar clip={clip} />
       <ClipSaveDialog
         clip={clip}
         recordingId={id}
-        choose={(name) => save({ defaultPath: name })}
+        chooseFile={(name) => save({ defaultPath: name })}
+        chooseFolder={async () => {
+          const chosen = await open({ directory: true });
+          return typeof chosen === "string" ? chosen : null;
+        }}
         onError={(message) => onError(userMessage(message))}
-        onSaved={(path) => onInfo(t("detail.clip.saved", { path }))}
+        onSaved={(paths) =>
+          onInfo(
+            paths.length === 1
+              ? t("detail.clip.saved", { path: paths[0] })
+              : tPlural("detail.clip.savedMany", paths.length)
+          )
+        }
       />
 
       {/* Only over a transcript: the shortcuts are about reading one. */}
@@ -848,7 +856,6 @@ export default function Detail({
                   onContextMenu={openTranscriptMenu}
                   find={search.state.needle}
                   foundHere={search.state.hitId === s.id}
-                  inClip={clip.state.inside.has(s.id)}
                 />
               </div>
             );
@@ -1033,13 +1040,14 @@ export default function Detail({
                block starts the clip and any later one closes it. Two separate
                items would have made the reader decide which of them applies
                before they had a clip at all. */
-            /* Two ways in, and the reader's own is first: drag over a
-               passage, right-click, export it. It only shows when there is a
-               passage to export, so the ordinary menu is no longer for it.
+            /* One way in, and it is the reader's own: drag over a passage,
+               right-click, export it. It shows only when there is a passage,
+               so the ordinary menu is no longer for it.
 
-               The other is for the stretch too long to drag over — mark the
-               first block, scroll, mark the last. One item that reads as two,
-               because it is one gesture. */
+               There was a second way — mark a block, scroll, mark a later one,
+               watch a bar over the transcript. It went the evening it was
+               tried: a procedure to learn beside a gesture people already
+               have. */
             ...(selectedClip
               ? [
                   {
@@ -1050,13 +1058,6 @@ export default function Detail({
                   },
                 ]
               : []),
-            {
-              label: clip.state.active
-                ? t("detail.menu.clipEnd")
-                : t("detail.menu.clipStart"),
-              icon: MENU_ICONS.clip,
-              action: () => clip.actions.beginOrExtend(transcriptMenu.segment),
-            },
             /* One question — who said this — and every answer to it in one
                place. The speakers by name, rather than the block above and the
                block below: those two were the machine's way of pointing at a
