@@ -134,12 +134,22 @@ pub async fn save_clip_audio(
 
 /// Where the half-written clip lives: beside its destination, so the rename
 /// that finishes it stays on one volume and is therefore atomic.
+///
+/// **And it keeps the destination's extension.** ffmpeg chooses the muxer from
+/// the file name it is given, so `…m4a.part` is not a slightly odd name, it is
+/// a file ffmpeg refuses to open: *unable to choose an output format*. Which
+/// is what it did the first time anybody saved a clip, on 2 September. The
+/// marker goes in front of the extension instead, and the leading dot keeps
+/// the working file out of the way in a listing.
 fn beside(destination: &Path) -> PathBuf {
-    let name = destination
-        .file_name()
+    let stem = destination
+        .file_stem()
         .map(|n| n.to_string_lossy().into_owned())
         .unwrap_or_else(|| "clip".into());
-    destination.with_file_name(format!(".{name}.part"))
+    destination.with_file_name(match destination.extension() {
+        Some(extension) => format!(".{stem}.part.{}", extension.to_string_lossy()),
+        None => format!(".{stem}.part"),
+    })
 }
 
 /// A name that says which recording and which minutes, so a folder of clips
@@ -193,7 +203,29 @@ fn clip_name(title: &str, from: f64, to: f64, format: &str, source: &str) -> Str
 
 #[cfg(test)]
 mod tests {
-    use super::{clip_name, starts_at_zero};
+    use super::{beside, clip_name, starts_at_zero};
+    use std::path::Path;
+
+    /// **The one that stopped the first clip anybody saved.** ffmpeg reads the
+    /// muxer off the file name, so a working file called `…m4a.part` is not an
+    /// odd name — it is a file it will not open.
+    #[test]
+    fn the_half_written_clip_keeps_the_extension_ffmpeg_reads() {
+        assert_eq!(
+            beside(Path::new("C:/ven/Porada 3-13 - 3-28.m4a")),
+            Path::new("C:/ven/.Porada 3-13 - 3-28.part.m4a")
+        );
+    }
+
+    /// A destination with no extension at all still gets a working file of its
+    /// own rather than being written in place.
+    #[test]
+    fn a_name_without_an_extension_still_gets_one_out_of_the_way() {
+        assert_eq!(
+            beside(Path::new("C:/ven/vyrez")),
+            Path::new("C:/ven/.vyrez.part")
+        );
+    }
 
     /// Subtitles go under the cut-out audio, which begins at zero. Text and
     /// Markdown keep the recording's own clock, because a quotation is worth
