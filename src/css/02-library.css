@@ -573,7 +573,11 @@
 .action-menu-list button:hover { background: var(--muted); }
 /* The label takes the remaining space so the arrow always meets the right edge
    and it is obvious at a glance that the item leads somewhere. */
-.menu-label { flex: 1 1 auto; }
+.menu-label { flex: 1 1 auto; display: flex; flex-direction: column; gap: 1px; }
+/* The second line under a menu entry: what choosing it leads to. Quiet and one
+   size down, so the entry still reads as one line with a note under it rather
+   than as two entries. */
+.menu-hint { font-size: 11.5px; color: var(--text-quiet); font-weight: 500; }
 .menu-arrow { color: var(--text-quiet); flex: 0 0 auto; margin-left: 18px; }
 .action-menu-list button:hover .menu-arrow { color: var(--text); }
 .menu-back {

@@ -40,17 +40,33 @@ function menu(status: string) {
 afterEach(cleanup);
 
 describe("the recording menu", () => {
-  test("offers a second language before there is a transcript, and not the transcript-only items", () => {
+  test("before a transcript, Languages holds only the second language", () => {
     menu("new");
     fireEvent.click(screen.getByLabelText(say("dialogs.recordingMenu.more")));
-    expect(screen.queryByText(say("dialogs.recordingMenu.secondLanguage"))).not.toBeNull();
-    expect(screen.queryByText(say("dialogs.recordingMenu.transcribeInLanguage"))).toBeNull();
     expect(screen.queryByText(say("dialogs.recordingMenu.deleteTranscript"))).toBeNull();
+    fireEvent.click(screen.getByText(say("dialogs.recordingMenu.languages")));
+    expect(screen.queryByText(say("dialogs.recordingMenu.secondLanguage"))).not.toBeNull();
+    expect(screen.queryByText(say("dialogs.recordingMenu.mainLanguage"))).toBeNull();
+  });
+
+  /** Two levels deep, and Back is one step. It used to jump to the top, which
+   *  is what a single `submenu` slot could do; the trail is what lets a reader
+   *  who opened the second language's list return to the two halves. */
+  test("after a transcript both halves are there, and Back climbs one level", () => {
+    menu("done");
+    fireEvent.click(screen.getByLabelText(say("dialogs.recordingMenu.more")));
+    fireEvent.click(screen.getByText(say("dialogs.recordingMenu.languages")));
+    expect(screen.queryByText(say("dialogs.recordingMenu.mainLanguage"))).not.toBeNull();
+    fireEvent.click(screen.getByText(say("dialogs.recordingMenu.secondLanguage")));
+    expect(screen.queryByText(say("dialogs.recordingMenu.noSecondLanguage"))).not.toBeNull();
+    // The back button carries the name of where it leads.
+    fireEvent.click(screen.getByText(say("dialogs.recordingMenu.secondLanguage")));
+    expect(screen.queryByText(say("dialogs.recordingMenu.mainLanguage"))).not.toBeNull();
   });
 
   test("offers nothing about languages while the recording is mid-run", () => {
     menu("transcribing");
     fireEvent.click(screen.getByLabelText(say("dialogs.recordingMenu.more")));
-    expect(screen.queryByText(say("dialogs.recordingMenu.secondLanguage"))).toBeNull();
+    expect(screen.queryByText(say("dialogs.recordingMenu.languages"))).toBeNull();
   });
 });

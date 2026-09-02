@@ -53,18 +53,6 @@ export default function RecordingActionsMenu({
             icon: Icons.retranscribe,
             action: onRetranscribe,
           },
-          /* Transcribing again and transcribing again in another language are
-             the same act with one extra decision, so they stand together
-             (Jakub's call) rather than with a submenu's worth of list between
-             them. */
-          {
-            label: t("dialogs.recordingMenu.transcribeInLanguage"),
-            icon: Icons.language,
-            children: labels.languageOptions().map((language) => ({
-              label: language.label,
-              action: () => onTranscribeInLanguage(language.value),
-            })),
-          },
           {
             label: t("dialogs.recordingMenu.deleteTranscript"),
             icon: Icons.deleteTranscript,
@@ -72,28 +60,50 @@ export default function RecordingActionsMenu({
           },
         ]
       : []),
-    /* A recording where two languages are spoken, said by the reader rather
-       than guessed. Offered on any recording that is not mid-run — before a
-       transcript exists it is a standing instruction the run will follow, and
-       after one it starts the fill at once. `auto` is left out: a second
-       language is by definition the one whisper did not pick. The last entry
-       takes the statement back. */
+    /* Everything about language under one word, with the two halves as the
+       next step (Jakub's shape). They were two items side by side and read as
+       two versions of one thing; they are one thing with two halves. The
+       *main* language is what the whole transcript is written in — choosing it
+       transcribes again, which is why it needs a transcript to redo and is
+       absent before one exists. The *second* language is the one the first
+       pass could not write, filled in from the stretches between its words;
+       it is a standing instruction, so it is offered before a transcript as
+       well. `auto` belongs only to the main one: a second language is by
+       definition the one whisper did not pick. */
     ...(status !== "transcribing"
       ? [
           {
-            label: t("dialogs.recordingMenu.secondLanguage"),
-            icon: Icons.secondLanguage,
+            label: t("dialogs.recordingMenu.languages"),
+            icon: Icons.language,
             children: [
-              ...labels
-                .languageOptions()
-                .filter((language) => language.value !== "auto")
-                .map((language) => ({
-                  label: language.label,
-                  action: () => onSecondLanguage(language.value),
-                })),
+              ...(status === "done"
+                ? [
+                    {
+                      label: t("dialogs.recordingMenu.mainLanguage"),
+                      hint: t("dialogs.recordingMenu.mainLanguageHint"),
+                      children: labels.languageOptions().map((language) => ({
+                        label: language.label,
+                        action: () => onTranscribeInLanguage(language.value),
+                      })),
+                    },
+                  ]
+                : []),
               {
-                label: t("dialogs.recordingMenu.noSecondLanguage"),
-                action: () => onSecondLanguage(""),
+                label: t("dialogs.recordingMenu.secondLanguage"),
+                hint: t("dialogs.recordingMenu.secondLanguageHint"),
+                children: [
+                  ...labels
+                    .languageOptions()
+                    .filter((language) => language.value !== "auto")
+                    .map((language) => ({
+                      label: language.label,
+                      action: () => onSecondLanguage(language.value),
+                    })),
+                  {
+                    label: t("dialogs.recordingMenu.noSecondLanguage"),
+                    action: () => onSecondLanguage(""),
+                  },
+                ],
               },
             ],
           },
@@ -196,6 +206,9 @@ function MenuIcon({ path }: { path: string }) {
 
 export interface ActionItem {
   label: string;
+  /** A quiet second line saying what choosing this leads to — *Přepsat znovu*
+   *  under *Hlavní jazyk* — for an entry whose name alone does not say. */
+  hint?: string;
   action?: () => void;
   warning?: boolean;
   icon?: string;
@@ -211,11 +224,15 @@ export function ActionMenu({
 }) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
-  const [submenu, setSubmenu] = useState<ActionItem | null>(null);
+  /* Where the reader has walked in, outermost first. A single `submenu` was
+     enough while nothing went two levels deep; the language item does, and
+     Back from its second level has to return to its first, not to the top. */
+  const [trail, setTrail] = useState<ActionItem[]>([]);
+  const submenu = trail[trail.length - 1] ?? null;
   const container = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!open) setSubmenu(null);
+    if (!open) setTrail([]);
   }, [open]);
 
   useEffect(() => {
@@ -248,7 +265,7 @@ export function ActionMenu({
       {open && (
         <div className="action-menu-list" role="menu">
           {submenu && (
-            <button className="menu-back" onClick={() => setSubmenu(null)}>
+            <button className="menu-back" onClick={() => setTrail((t) => t.slice(0, -1))}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
                 <path d="M15 5l-7 7 7 7" stroke="currentColor" strokeWidth="2"
                       strokeLinecap="round" strokeLinejoin="round" />
@@ -260,14 +277,17 @@ export function ActionMenu({
             <button key={item.label} role="menuitem" className={item.warning ? "destructive-item" : ""}
                     onClick={() => {
                       if (item.children) {
-                        setSubmenu(item);
+                        setTrail((t) => [...t, item]);
                         return;
                       }
                       setOpen(false);
                       item.action?.();
                     }}>
               {item.icon && <MenuIcon path={item.icon} />}
-              <span className="menu-label">{item.label}</span>
+              <span className="menu-label">
+                {item.label}
+                {item.hint && <span className="menu-hint">{item.hint}</span>}
+              </span>
               {item.children && (
                 <svg className="menu-arrow" width="14" height="14" viewBox="0 0 24 24"
                      fill="none" aria-hidden>

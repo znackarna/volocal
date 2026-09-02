@@ -114,8 +114,11 @@ export const csDialogs = {
     "Složka obsahuje {count} přepisů. Můžete je přesunout do archivu, nebo smazat spolu se složkou.",
   "dialogs.folder.deleteKeep": "Jen složku",
   "dialogs.folder.deleteAll": "Včetně přepisů",
-  "dialogs.recordingMenu.transcribeInLanguage": "Přepsat v jazyce",
-  "dialogs.recordingMenu.secondLanguage": "Druhý jazyk v nahrávce",
+  "dialogs.recordingMenu.languages": "Jazyky",
+  "dialogs.recordingMenu.mainLanguage": "Hlavní jazyk",
+  "dialogs.recordingMenu.mainLanguageHint": "Přepsat znovu",
+  "dialogs.recordingMenu.secondLanguage": "Druhý jazyk",
+  "dialogs.recordingMenu.secondLanguageHint": "Vybrat druhý jazyk",
   "dialogs.recordingMenu.noSecondLanguage": "Žádný",
   "dialogs.recordingMenu.remove": "Odebrat z archivu",
 } as const;
@@ -213,10 +216,16 @@ export const csDialogsContext: Partial<Record<keyof typeof csDialogs, string>> =
     "Tlačítko: smaže složku, ale přepisy z ní vrátí do archivu.",
   "dialogs.recordingMenu.exportAudio":
     "Uloží zvukový soubor nahrávky jinam. Vlastní záznamy a stažená videa leží ve složce aplikace, kde je nikdo nehledá.",
-  "dialogs.recordingMenu.transcribeInLanguage":
-    "Položka, která otevírá podnabídku se seznamem jazyků. Jazyk se vybírá až v ní.",
+  "dialogs.recordingMenu.languages":
+    "Položka, pod kterou jsou obě volby jazyka: hlavní (přepíše znovu) a druhý (doplní chybějící řeč).",
+  "dialogs.recordingMenu.mainLanguage":
+    "První řádek podnabídky Jazyky. Vede na seznam jazyků; výběr spustí přepis znovu v tom jazyce.",
+  "dialogs.recordingMenu.mainLanguageHint":
+    "Tichý druhý řádek pod „Hlavní jazyk“ — říká, co volba udělá.",
   "dialogs.recordingMenu.secondLanguage":
-    "Podnabídka: kterým dalším jazykem se v nahrávce mluví. U hotového přepisu se ten jazyk hned doplní.",
+    "Druhý řádek podnabídky Jazyky: kterým dalším jazykem se v nahrávce mluví. U hotového přepisu se hned doplní.",
+  "dialogs.recordingMenu.secondLanguageHint":
+    "Tichý druhý řádek pod „Druhý jazyk“ — říká, co volba udělá.",
   "dialogs.recordingMenu.noSecondLanguage":
     "Poslední položka té podnabídky — nahrávka žádný druhý jazyk nemá.",
   "dialogs.recordingMenu.remove":

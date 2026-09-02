@@ -82,8 +82,11 @@ export const enDialogs: Partial<Record<keyof typeof csDialogs, string>> = {
   "dialogs.folder.deleteText.other": "The folder holds {count} transcripts. You can move them to the archive, or delete them along with the folder.",
   "dialogs.folder.deleteKeep": "The folder only",
   "dialogs.folder.deleteAll": "Including transcripts",
-  "dialogs.recordingMenu.transcribeInLanguage": "Transcribe in language",
-  "dialogs.recordingMenu.secondLanguage": "Second language in the recording",
+  "dialogs.recordingMenu.languages": "Languages",
+  "dialogs.recordingMenu.mainLanguage": "Main language",
+  "dialogs.recordingMenu.mainLanguageHint": "Transcribe again",
+  "dialogs.recordingMenu.secondLanguage": "Second language",
+  "dialogs.recordingMenu.secondLanguageHint": "Choose the second language",
   "dialogs.recordingMenu.noSecondLanguage": "None",
   "dialogs.recordingMenu.remove": "Remove from archive",
 };
