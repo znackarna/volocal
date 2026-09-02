@@ -477,8 +477,11 @@
    rather than a shouted word. */
 .speaker-language {
   flex: 0 0 auto;
-  font-size: 11px; font-weight: 700; letter-spacing: 0.09em;
-  color: var(--text-quiet);
+  /* Closes the row's own 8 px gap to 2: against the name, not out at the
+     percentage, where two things on the right edge read as a pair of values. */
+  margin-left: -6px;
+  font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em;
+  color: var(--text-quiet); opacity: 0.75;
 }
 /* A column of the shared 38 px fields — the group has one question above it,
    so the fields carry only a placeholder each and no label of their own. */
@@ -492,7 +495,12 @@
 }
 .dot { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; }
 .speaker-list input {
-  flex: 1; min-width: 0; border: 1px solid transparent; background: transparent;
+  /* Sized to the name rather than stretched across the row, so the code beside
+     it stands against the name and not across a field of empty space.
+     `field-sizing` is Chromium's; where it is not understood the field keeps
+     its old width and the code sits where it did. */
+  flex: 0 1 auto; field-sizing: content; min-width: 5ch; max-width: 100%;
+  border: 1px solid transparent; background: transparent;
   border-radius: var(--r-pill); padding: 5px 10px; font-weight: 600; font-size: 13.5px;
 }
 .speaker-list input:hover { border-color: var(--line); }
