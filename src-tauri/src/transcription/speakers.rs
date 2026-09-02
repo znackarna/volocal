@@ -335,6 +335,81 @@ pub(crate) fn bridge_unknown(segments: &mut [Segment]) -> usize {
     filled
 }
 
+/// After the voices are assigned: a block does not belong to a voice that
+/// speaks another language.
+///
+/// **On an interpreted recording the language *is* the speaker.** The voice
+/// model listens to sound alone, and where the interpreter starts over the
+/// guest's last words its windows hold both of them — so an English line was
+/// credited to *Překladatelka* and a Czech one to *Paul*, sitting one under
+/// the other. The transcript knows something the model does not: which
+/// language each block is in. Every voice is given the language most of its
+/// blocks are in, and a block in another language moves to the nearest voice
+/// in time that speaks it. A voice with no counterpart — one language, or a
+/// transcript nobody filled — is left exactly as it was.
+///
+/// The recording's own language is `None` on a block, and it is a language
+/// like any other here: the interpreter's Czech and the guest's English are
+/// two values, and that is all the rule needs.
+pub(crate) fn keep_voices_to_one_language(segments: &mut [Segment]) -> usize {
+    let mut by_voice: HashMap<String, HashMap<Option<String>, usize>> = HashMap::new();
+    for s in segments.iter() {
+        if let Some(voice) = &s.speakers {
+            *by_voice
+                .entry(voice.clone())
+                .or_default()
+                .entry(s.language.clone())
+                .or_default() += 1;
+        }
+    }
+    let speaks: HashMap<String, Option<String>> = by_voice
+        .into_iter()
+        .map(|(voice, counts)| {
+            let language = counts
+                .into_iter()
+                .max_by(|a, b| a.1.cmp(&b.1).then_with(|| b.0.cmp(&a.0)))
+                .map(|(language, _)| language)
+                .unwrap_or(None);
+            (voice, language)
+        })
+        .collect();
+    if speaks.values().collect::<HashSet<_>>().len() < 2 {
+        return 0;
+    }
+
+    let placed: Vec<(f64, String, Option<String>)> = segments
+        .iter()
+        .filter_map(|s| {
+            s.speakers.clone().map(|voice| {
+                (
+                    s.start,
+                    voice.clone(),
+                    speaks.get(&voice).cloned().flatten(),
+                )
+            })
+        })
+        .collect();
+    let mut moved = 0;
+    for s in segments.iter_mut() {
+        let Some(voice) = s.speakers.clone() else {
+            continue;
+        };
+        if speaks.get(&voice) == Some(&s.language) {
+            continue;
+        }
+        let nearest = placed
+            .iter()
+            .filter(|(_, other, language)| *other != voice && *language == s.language)
+            .min_by(|a, b| (a.0 - s.start).abs().total_cmp(&(b.0 - s.start).abs()))
+            .map(|(_, other, _)| other.clone());
+        if let Some(other) = nearest {
+            s.speakers = Some(other);
+            moved += 1;
+        }
+    }
+    moved
+}
+
 pub(crate) fn assign_speakers(segments: Vec<Segment>, turns: &[SpeakerTurn]) -> Vec<Segment> {
     let mut output: Vec<Segment> = Vec::with_capacity(segments.len());
 
@@ -579,6 +654,110 @@ pub(crate) fn assign_speakers(segments: Vec<Segment>, turns: &[SpeakerTurn]) -> 
         s.order = i as i64;
     }
     output
+}
+
+#[cfg(test)]
+mod language_voice_tests {
+    use super::*;
+
+    fn block(start: f64, voice: &str, language: Option<&str>) -> Segment {
+        Segment {
+            id: format!("{start}"),
+            recording_id: "r".into(),
+            order: 0,
+            start,
+            end: start + 2.0,
+            text: "…".into(),
+            speakers: Some(voice.into()),
+            confidence: None,
+            edited: false,
+            verified: false,
+            words: None,
+            original: None,
+            language: language.map(str::to_string),
+        }
+    }
+
+    fn voices(segments: &[Segment]) -> Vec<&str> {
+        segments
+            .iter()
+            .map(|s| s.speakers.as_deref().unwrap_or("-"))
+            .collect()
+    }
+
+    /// **The screenshot.** English credited to the interpreter and Czech to the
+    /// guest, one under the other. Each block goes to the voice that speaks
+    /// its language.
+    #[test]
+    fn a_block_moves_to_the_voice_that_speaks_its_language() {
+        let mut blocks = vec![
+            block(310.0, "paul", Some("en")),
+            block(313.0, "prekladatelka", Some("en")), // wrong: English under her
+            block(314.0, "prekladatelka", None),
+            block(321.0, "paul", Some("en")),
+            block(323.0, "prekladatelka", None),
+            block(330.0, "paul", Some("en")),
+            block(331.0, "paul", None), // wrong: Czech under him
+        ];
+        let moved = keep_voices_to_one_language(&mut blocks);
+        assert_eq!(moved, 2);
+        assert_eq!(
+            voices(&blocks),
+            vec![
+                "paul",
+                "paul",
+                "prekladatelka",
+                "paul",
+                "prekladatelka",
+                "paul",
+                "prekladatelka"
+            ]
+        );
+    }
+
+    /// One language — every voice speaks the same one — is left alone. This is
+    /// every recording that was never filled, and it must not be touched.
+    #[test]
+    fn a_transcript_in_one_language_is_left_as_it_was() {
+        let mut blocks = vec![
+            block(0.0, "a", None),
+            block(2.0, "b", None),
+            block(4.0, "a", None),
+        ];
+        assert_eq!(keep_voices_to_one_language(&mut blocks), 0);
+        assert_eq!(voices(&blocks), vec!["a", "b", "a"]);
+    }
+
+    /// A voice that is the only one speaking its language keeps everything,
+    /// including a stray block in the other language: there is nowhere better
+    /// to put it than where the voice model put it.
+    #[test]
+    fn a_block_with_no_voice_to_go_to_stays() {
+        let mut blocks = vec![
+            block(0.0, "a", None),
+            block(2.0, "a", Some("en")),
+            block(4.0, "a", None),
+        ];
+        assert_eq!(keep_voices_to_one_language(&mut blocks), 0);
+    }
+
+    /// Three voices: the Czech MC at the start, the interpreter and the guest.
+    /// A Czech block credited to the guest goes to the nearest Czech voice in
+    /// time, which deep into the talk is the interpreter, not the MC.
+    #[test]
+    fn a_moved_block_goes_to_the_nearest_voice_in_time() {
+        let mut blocks = vec![
+            block(0.0, "mc", None),
+            block(10.0, "mc", None),
+            block(600.0, "paul", Some("en")),
+            block(603.0, "prekladatelka", None),
+            block(610.0, "paul", Some("en")),
+            block(613.0, "paul", None), // wrong
+            block(620.0, "prekladatelka", None),
+        ];
+        keep_voices_to_one_language(&mut blocks);
+        assert_eq!(blocks[5].speakers.as_deref(), Some("prekladatelka"));
+    }
 }
 
 #[cfg(test)]

@@ -401,6 +401,44 @@ pub(crate) fn back_to_the_recording(pieces: &[Piece], at: f64) -> Option<f64> {
         .map(|piece| piece.from + (at - piece.at).max(0.0))
 }
 
+/// A whole line of the second pass, put back where it came from: its start,
+/// its end and its word timings, all shifted by the same amount and none of
+/// them allowed past the piece they came out of.
+///
+/// **The end used to be two seconds after the start, whatever the line.** A
+/// five-second sentence ended mid-word, the highlight stopped early, and — the
+/// costly part — speaker recognition, which takes its windows from block
+/// spans, listened to the first two seconds of every English line and called
+/// the rest somebody else's.
+pub(crate) fn back_whole(
+    pieces: &[Piece],
+    start: f64,
+    end: f64,
+    words: Option<&str>,
+) -> Option<(f64, f64, Option<String>)> {
+    let from = back_to_the_recording(pieces, start)?;
+    let piece = pieces
+        .iter()
+        .find(|piece| start >= piece.at - 0.05 && start <= piece.until + 0.05)?;
+    let shift = piece.from - piece.at;
+    let last = piece.from + (piece.until - piece.at);
+    let to = (end + shift).clamp(from, last);
+    let moved = words
+        .and_then(|json| serde_json::from_str::<Vec<serde_json::Value>>(json).ok())
+        .map(|mut list| {
+            for word in &mut list {
+                if let Some(t) = word["t"].as_f64() {
+                    let at = ((t + shift).clamp(from, to) * 1000.0).round() / 1000.0;
+                    word["t"] = serde_json::json!(at);
+                }
+            }
+            list
+        })
+        .filter(|list| list.len() >= 2)
+        .and_then(|list| serde_json::to_string(&list).ok());
+    Some((from, to, moved))
+}
+
 /// Letters only the first language uses, for the pairs this has been measured
 /// on.
 ///
@@ -468,6 +506,15 @@ fn reads_as(language: &str, text: &str) -> bool {
 /// hallucination hides.
 const SHORTEST_LINE: usize = 4;
 
+/// Two identical lines closer than this are one line heard twice.
+///
+/// whisper over a quiet piece repeats the sentence it has just written —
+/// `and why we love our city` came back five seconds after itself, on a
+/// stretch where the speaker had moved on. Real speech does repeat a line for
+/// effect, but not inside twenty seconds and not word for word; measured over
+/// the reference fill, nothing legitimate falls inside this window.
+const ECHO_SECONDS: f64 = 20.0;
+
 /// How many times one line may appear before it reads as a loop rather than as
 /// speech.
 ///
@@ -492,19 +539,32 @@ pub(crate) fn worth_keeping(lines: &[(f64, String)], own: &str) -> Vec<(f64, Str
     for (_, text) in lines {
         *seen.entry(text.trim().to_lowercase()).or_default() += 1;
     }
-    lines
-        .iter()
-        .filter(|(_, text)| {
-            let trimmed = text.trim();
-            trimmed.chars().count() >= SHORTEST_LINE
-                && !trimmed.chars().any(|letter| letters.contains(letter))
-                && !reads_as(own, trimmed)
-                && seen
-                    .get(&trimmed.to_lowercase())
-                    .is_none_or(|n| *n <= MOST_REPEATS)
-        })
-        .cloned()
-        .collect()
+    // An echo is judged against the last time the same line was *kept*, so a
+    // line heard three times in a row is one line, not two.
+    let mut last_kept: HashMap<String, f64> = HashMap::new();
+    let mut kept = Vec::with_capacity(lines.len());
+    for (at, text) in lines {
+        let trimmed = text.trim();
+        let key = trimmed
+            .to_lowercase()
+            .trim_matches(|c: char| !c.is_alphanumeric())
+            .to_string();
+        let echo = last_kept
+            .get(&key)
+            .is_some_and(|previous| (at - previous).abs() < ECHO_SECONDS);
+        if trimmed.chars().count() >= SHORTEST_LINE
+            && !trimmed.chars().any(|letter| letters.contains(letter))
+            && !reads_as(own, trimmed)
+            && seen
+                .get(&trimmed.to_lowercase())
+                .is_none_or(|n| *n <= MOST_REPEATS)
+            && !echo
+        {
+            last_kept.insert(key, *at);
+            kept.push((*at, text.clone()));
+        }
+    }
+    kept
 }
 
 /// Transcribes the other language from audio that is already prepared, and
@@ -592,33 +652,52 @@ pub(crate) fn fill_with_audio(
     say(85, "second_language.merging");
     let found = load_segments_from_json(&prefix.with_extension("json"), recording_id)
         .map_err(|error| UserMessage::new("transcription.no_output_file").detail(error))?;
-    let lines: Vec<(f64, String)> = found
+    // Every line put back whole — start, end and word timings — and the text
+    // rule run over the starts and texts alone, which is all it reads.
+    let whole: Vec<(f64, f64, Option<String>, String)> = found
         .iter()
         .filter_map(|segment| {
-            back_to_the_recording(&pieces, segment.start).map(|at| (at, segment.text.clone()))
+            back_whole(
+                &pieces,
+                segment.start,
+                segment.end,
+                segment.words.as_deref(),
+            )
+            .map(|(from, to, words)| (from, to, words, segment.text.clone()))
         })
+        .collect();
+    let lines: Vec<(f64, String)> = whole
+        .iter()
+        .map(|(from, _, _, text)| (*from, text.clone()))
         .collect();
     let own = crate::ai_edit::effective_language(recording);
     let kept = worth_keeping(&lines, &own);
 
     let added = kept.len();
     let mut all: Vec<Segment> = segments.clone();
+    // `kept` is a subsequence of `lines` in the same order, so one pointer
+    // walking `whole` finds each kept line's end and words.
+    let mut cursor = 0;
     for (at, text) in kept {
+        while cursor < whole.len() && !(whole[cursor].0 == at && whole[cursor].3 == text) {
+            cursor += 1;
+        }
+        let (from, to, words) = match whole.get(cursor) {
+            Some((from, to, words, _)) => (*from, *to, words.clone()),
+            None => (at, at + 2.0, None),
+        };
         all.push(Segment {
             id: uuid::Uuid::new_v4().to_string(),
             recording_id: recording_id.to_string(),
             order: 0,
-            start: at,
-            // The end is not known any better than this: the piece it came from
-            // was cut by silence, not by a clock. Long enough to read, short
-            // enough not to swallow the answer that follows it.
-            end: at + 2.0,
+            start: from,
+            end: to,
             text,
             speakers: None,
             confidence: None,
             edited: false,
             verified: false,
-            words: None,
+            words,
             original: None,
             language: Some(language.to_string()),
         });
@@ -1146,6 +1225,54 @@ mod tests {
         let kept = worth_keeping(&lines(&[(1.0, "Ok"), (2.0, "Hm"), (3.0, "Amen.")]), "cs");
         assert_eq!(kept.len(), 1);
         assert_eq!(kept[0].1, "Amen.");
+    }
+
+    /// **The echo.** `and why we love our city` came back five seconds after
+    /// itself over a stretch where the speaker had moved on. Word for word
+    /// inside twenty seconds is one line heard twice.
+    #[test]
+    fn the_same_line_inside_twenty_seconds_is_an_echo() {
+        let kept = worth_keeping(
+            &lines(&[
+                (341.0, "and why we love our city"),
+                (346.0, "and why we love our city"),
+                (370.0, "some of them don't even like us"),
+            ]),
+            "cs",
+        );
+        assert_eq!(kept.len(), 2, "the echo goes, the next line stays");
+        assert!(
+            (kept[0].0 - 341.0).abs() < 1e-9,
+            "the first hearing is the one kept"
+        );
+        assert!((kept[1].0 - 370.0).abs() < 1e-9);
+    }
+
+    /// A line comes back whole: shifted by the piece it sat in, its end kept,
+    /// its words moved with it and nothing allowed past the piece.
+    #[test]
+    fn a_line_comes_back_with_its_end_and_its_words() {
+        let (pieces, _) = lay_out(&[(100.0, 108.0)], 16_000);
+        let words = r#"[{"t":1.0,"s":"You"},{"t":1.5,"s":"know"},{"t":9.0,"s":"late"}]"#;
+        let (from, to, moved) = back_whole(&pieces, 1.0, 6.2, Some(words)).unwrap();
+        assert!((from - 101.0).abs() < 1e-9);
+        assert!(
+            (to - 106.2).abs() < 1e-9,
+            "the end travels with the start, got {to}"
+        );
+        let list: Vec<serde_json::Value> = serde_json::from_str(&moved.unwrap()).unwrap();
+        assert_eq!(list[0]["t"], 101.0);
+        assert_eq!(list[1]["t"], 101.5);
+        // A word timed past the line's end is pulled back to it.
+        assert_eq!(list[2]["t"], 106.2);
+    }
+
+    /// An end that runs into the silence after its piece is cut at the piece.
+    #[test]
+    fn a_line_never_runs_past_its_piece() {
+        let (pieces, _) = lay_out(&[(100.0, 103.0)], 16_000);
+        let (_, to, _) = back_whole(&pieces, 0.5, 9.0, None).unwrap();
+        assert!((to - 103.0).abs() < 1e-9, "got {to}");
     }
 
     /// The header a WAV needs, checked by reading it back with the same reader

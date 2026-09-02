@@ -380,6 +380,7 @@ fn run_diarization(
 
     let mut segments = assign_speakers(segments, &turns);
     bridge_unknown(&mut segments);
+    keep_voices_to_one_language(&mut segments);
 
     status(app, recording_id, "saving", 90, step("saving"));
 
@@ -664,6 +665,7 @@ fn run(
                 Ok(turns) => {
                     segments = assign_speakers(segments, &turns);
                     bridge_unknown(&mut segments);
+                    keep_voices_to_one_language(&mut segments);
                 }
                 Err(error) => {
                     // Diarization is a bonus. If it fails, the transcript is
