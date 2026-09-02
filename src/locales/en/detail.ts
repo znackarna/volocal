@@ -85,7 +85,6 @@ export const enDetail: Partial<Record<keyof typeof csDetail, string>> = {
   "detail.clip.shapeNote.srt": "For editing software and players",
   "detail.clip.shape.vtt": "VTT subtitles",
   "detail.clip.shapeNote.vtt": "For the web and browser video",
-  "detail.clip.fromZero": "Start subtitle times at zero",
   "detail.clip.saveButton": "Save",
   "detail.clip.saving": "Saving…",
   "detail.clip.saved": "Saved to {path}.",

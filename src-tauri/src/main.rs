@@ -564,7 +564,6 @@ fn main() {
             commands::languages::refuse_second_language,
             commands::languages::fill_second_language,
             commands::languages::set_second_language_choice,
-            commands::clips::clip_preview,
             commands::clips::save_clip_text,
             commands::clips::save_clip_audio,
             commands::clips::suggested_clip_name,

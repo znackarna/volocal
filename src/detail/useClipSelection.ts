@@ -100,7 +100,6 @@ export async function saveClip({
   shapes,
   start,
   end,
-  fromZero,
   chooseFile,
   chooseFolder,
   onError,
@@ -110,7 +109,6 @@ export async function saveClip({
   shapes: Shape[];
   start: number;
   end: number;
-  fromZero: boolean;
   chooseFile: (name: string) => Promise<string | null>;
   chooseFolder: () => Promise<string | null>;
   onError: (message: UserMessage) => void;
@@ -139,7 +137,7 @@ export async function saveClip({
       written.push(
         shape === "audio"
           ? await api.saveClipAudio(recordingId, start, end, path)
-          : await api.saveClipText(recordingId, start, end, shape, path, fromZero)
+          : await api.saveClipText(recordingId, start, end, shape, path)
       );
     }
     onSaved(written);

@@ -16,14 +16,7 @@ import type { Segment } from "../types";
 
 const saveClipAudio = vi.fn(async (_id: string, _from: number, _to: number, path: string) => path);
 const saveClipText = vi.fn(
-  async (
-    _id: string,
-    _from: number,
-    _to: number,
-    _format: string,
-    path: string,
-    _fromZero: boolean
-  ) => path
+  async (_id: string, _from: number, _to: number, _format: string, path: string) => path
 );
 const suggestedClipName = vi.fn(
   async (_id: string, _from: number, _to: number, format: string) =>
@@ -100,7 +93,6 @@ describe("saving it", () => {
     recordingId: "r",
     start: 4,
     end: 20,
-    fromZero: true,
     onError: vi.fn(),
   };
 
@@ -114,7 +106,7 @@ describe("saving it", () => {
     await saveClip({ ...common, shapes: ["srt"], chooseFile, chooseFolder, onSaved });
 
     expect(chooseFolder).not.toHaveBeenCalled();
-    expect(saveClipText).toHaveBeenCalledWith("r", 4, 20, "srt", "D:/ven/citace.srt", true);
+    expect(saveClipText).toHaveBeenCalledWith("r", 4, 20, "srt", "D:/ven/citace.srt");
     expect(onSaved).toHaveBeenCalledWith(["D:/ven/citace.srt"]);
   });
 
@@ -141,8 +133,7 @@ describe("saving it", () => {
       4,
       20,
       "srt",
-      "D:/ven\\Porada 0-04 - 0-20.srt",
-      true
+      "D:/ven\\Porada 0-04 - 0-20.srt"
     );
     expect(onSaved).toHaveBeenCalledWith([
       "D:/ven\\Porada 0-04 - 0-20.mp3",

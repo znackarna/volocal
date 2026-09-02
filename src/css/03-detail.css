@@ -250,25 +250,6 @@
 /* The line under each name says what it is for, so nobody has to know what VTT
    stands for to choose it. */
 .clip-shape-note { font-size: 12.5px; color: var(--text-soft); }
-.clip-zero {
-  position: relative;
-  display: flex; align-items: center; gap: 8px;
-  margin-top: 14px; font-size: 13.5px; color: var(--text);
-  cursor: pointer;
-}
-/* The text as it will be written. Small, scrolling, never taller than a third
-   of the screen: it settles one question — where the times start — rather than
-   being read through. */
-.clip-preview {
-  margin-top: 14px;
-  max-height: 34vh; overflow: auto;
-  padding: 12px 14px;
-  background: var(--ground); border-radius: 10px;
-  font-family: ui-monospace, Consolas, monospace;
-  font-size: 12px; line-height: 1.55; white-space: pre-wrap;
-  color: var(--text-soft);
-}
-
 /* There is no finished state to draw: a fill that is done is said in the
    notice bar like every other confirmation, and this bar simply goes. */
 

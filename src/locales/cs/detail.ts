@@ -100,7 +100,6 @@ export const csDetail = {
   "detail.clip.shapeNote.srt": "Pro střihové programy a přehrávače",
   "detail.clip.shape.vtt": "Titulky VTT",
   "detail.clip.shapeNote.vtt": "Pro web a videa v prohlížeči",
-  "detail.clip.fromZero": "Časy titulků začít od nuly",
   "detail.clip.saveButton": "Uložit",
   "detail.clip.saving": "Ukládám…",
   "detail.clip.saved": "Uloženo do {path}.",

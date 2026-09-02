@@ -7,17 +7,17 @@
  * reader to pick exactly one and then come back for the next — which is what
  * they were objecting to when they called it ugly, on 2 September.
  *
- * One question hangs off the two subtitle lines. Laid under a cut-out piece of
- * audio, subtitles have to start at zero; annotating the whole recording, they
- * need the recording's own clock. The preview settles it at a glance, which is
- * cheaper than explaining it.
+ * There was a question under the list — whether subtitle times should start at
+ * zero — and a preview to show what it did. Both went on 2 September. Under a
+ * cut-out piece of audio, subtitles have to start at zero; there is no second
+ * answer, so `starts_at_zero` in `clips.rs` decides it by format and the reader
+ * is not asked. The preview existed to explain the question and went with it.
  */
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useI18n } from "../i18n";
 import type { TranslationKey } from "../i18n";
 import { useDialog } from "../useDialog";
 import { CheckBox } from "../CheckBox";
-import { api } from "../api";
 import { formatTime } from "../types";
 import type { UserMessage } from "../types";
 import { saveClip } from "./useClipSelection";
@@ -34,8 +34,6 @@ const SHAPES = [
   ["srt", "detail.clip.shape.srt", "detail.clip.shapeNote.srt"],
   ["vtt", "detail.clip.shape.vtt", "detail.clip.shapeNote.vtt"],
 ] as const satisfies ReadonlyArray<readonly [Shape, TranslationKey, TranslationKey]>;
-
-const SUBTITLES: Shape[] = ["srt", "vtt"];
 
 export function ClipSaveDialog({
   clip,
@@ -57,35 +55,10 @@ export function ClipSaveDialog({
   const { t } = useI18n();
   const { state, actions } = clip;
   const [ticked, setTicked] = useState<Shape[]>(["audio"]);
-  const [fromZero, setFromZero] = useState(true);
-  const [preview, setPreview] = useState("");
   const [busy, setBusy] = useState(false);
   const dialog = useDialog<HTMLDivElement>(actions.close, state.saving);
 
   const open = state.saving && state.from !== null;
-  const subtitles = ticked.some((shape) => SUBTITLES.includes(shape));
-  /* The preview shows the first text shape ticked. Audio has none worth
-     drawing: two minutes of waveform says nothing the span above does not. */
-  const shown = ticked.find((shape) => shape !== "audio");
-
-  useEffect(() => {
-    if (!open || !shown) {
-      setPreview("");
-      return;
-    }
-    let current = true;
-    api
-      .clipPreview(recordingId, state.start, state.end, shown, fromZero)
-      .then((text) => {
-        if (current) setPreview(text);
-      })
-      .catch(() => {
-        if (current) setPreview("");
-      });
-    return () => {
-      current = false;
-    };
-  }, [open, shown, fromZero, recordingId, state.start, state.end]);
 
   if (!open) return null;
 
@@ -103,7 +76,6 @@ export function ClipSaveDialog({
       shapes: SHAPES.map(([shape]) => shape).filter((shape) => ticked.includes(shape)),
       start: state.start,
       end: state.end,
-      fromZero,
       chooseFile,
       chooseFolder,
       onError,
@@ -151,21 +123,6 @@ export function ClipSaveDialog({
             </li>
           ))}
         </ul>
-
-        {subtitles && (
-          <label className="clip-zero">
-            <input
-              type="checkbox"
-              className="check-box-input"
-              checked={fromZero}
-              onChange={(event) => setFromZero(event.target.checked)}
-            />
-            <CheckBox />
-            <span>{t("detail.clip.fromZero")}</span>
-          </label>
-        )}
-
-        {preview && <pre className="clip-preview">{preview.slice(0, 4000)}</pre>}
 
         <div className="dialog-footer">
           <button className="button" onClick={actions.close} disabled={busy}>

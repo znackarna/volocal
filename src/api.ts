@@ -98,24 +98,12 @@ export const api = {
    *  starts at once and reports like a run. */
   setSecondLanguageChoice: (id: string, language: string) =>
     invoke<void>("set_second_language_choice", { id, language }),
-  /** One stretch of a transcript, as it would be written. `fromZero` moves a
-   *  copy of the blocks so the subtitles start at zero; nothing in the archive
-   *  moves. */
-  clipPreview: (
-    id: string,
-    from: number,
-    to: number,
-    format: string,
-    fromZero: boolean
-  ) => invoke<string>("clip_preview", { id, from, to, format, fromZero }),
-  saveClipText: (
-    id: string,
-    from: number,
-    to: number,
-    format: string,
-    path: string,
-    fromZero: boolean
-  ) => invoke<string>("save_clip_text", { id, from, to, format, path, fromZero }),
+  /** One stretch of a transcript. Subtitles are written from zero, because
+   *  they go under the piece of audio cut out beside them; text and Markdown
+   *  keep the recording's own clock, because a quotation is worth more when it
+   *  still points at where it came from. Nothing in the archive moves. */
+  saveClipText: (id: string, from: number, to: number, format: string, path: string) =>
+    invoke<string>("save_clip_text", { id, from, to, format, path }),
   /** The audio between two instants, re-encoded rather than stream-copied —
    *  see `tools::cut_arguments` for why that is not a preference. */
   saveClipAudio: (id: string, from: number, to: number, path: string) =>

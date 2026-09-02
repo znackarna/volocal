@@ -17,23 +17,20 @@ use crate::{reported, AppState, Reported};
 use std::path::{Path, PathBuf};
 use tauri::State;
 
-/// What the reader will get, so the dialog can show it before it is written.
-#[tauri::command]
-pub fn clip_preview(
-    app: State<'_, AppState>,
-    id: String,
-    from: f64,
-    to: f64,
-    format: String,
-    from_zero: bool,
-) -> Reported<String> {
-    let db = app.db.lock().unwrap();
-    let recording = reported(db::recording(&db, &id))?;
-    let speakers = reported(db::speakers(&db, &id))?;
-    let all = reported(db::segments(&db, &id))?;
-    Ok(text_of(
-        &recording, &speakers, &all, from, to, &format, from_zero,
-    ))
+/// **Whether the clip's own clock starts at zero is decided by the format, not
+/// by the reader.**
+///
+/// Subtitles are laid under the piece of audio that was cut out, and that
+/// piece begins at zero — subtitles starting at 12:04 would sit twelve minutes
+/// past the end of a two-minute file, which is not a preference anybody holds.
+/// Text and Markdown are the opposite: a quotation is worth more when its
+/// timestamps still point into the recording it came from.
+///
+/// It was a checkbox until 2 September, with a preview under it to show what
+/// the checkbox did. Both went the same evening: a question nobody can answer
+/// wrongly is not a question, and the preview was there to explain it.
+fn starts_at_zero(format: &str) -> bool {
+    matches!(format, "srt" | "vtt")
 }
 
 fn text_of(
@@ -43,13 +40,12 @@ fn text_of(
     from: f64,
     to: f64,
     format: &str,
-    from_zero: bool,
 ) -> String {
     let chosen = export::between(all, from, to);
     // The speakers come from the whole recording, not from the clip, so a clip
     // that starts mid-conversation still names whoever is talking — and one
     // crossing from one voice to another is right without being asked.
-    let shown = if from_zero {
+    let shown = if starts_at_zero(format) {
         export::from_zero(&chosen, from)
     } else {
         chosen
@@ -65,9 +61,14 @@ pub fn save_clip_text(
     to: f64,
     format: String,
     path: String,
-    from_zero: bool,
 ) -> Reported<String> {
-    let contents = clip_preview(app, id, from, to, format, from_zero)?;
+    let contents = {
+        let db = app.db.lock().unwrap();
+        let recording = reported(db::recording(&db, &id))?;
+        let speakers = reported(db::speakers(&db, &id))?;
+        let all = reported(db::segments(&db, &id))?;
+        text_of(&recording, &speakers, &all, from, to, &format)
+    };
     std::fs::write(&path, contents)
         .map_err(|error| UserMessage::new("file.write_failed").detail(error))?;
     Ok(path)
@@ -192,7 +193,18 @@ fn clip_name(title: &str, from: f64, to: f64, format: &str, source: &str) -> Str
 
 #[cfg(test)]
 mod tests {
-    use super::clip_name;
+    use super::{clip_name, starts_at_zero};
+
+    /// Subtitles go under the cut-out audio, which begins at zero. Text and
+    /// Markdown keep the recording's own clock, because a quotation is worth
+    /// more when it still points at where it came from.
+    #[test]
+    fn only_subtitles_start_at_zero() {
+        assert!(starts_at_zero("srt"));
+        assert!(starts_at_zero("vtt"));
+        assert!(!starts_at_zero("txt"));
+        assert!(!starts_at_zero("md"));
+    }
 
     #[test]
     fn a_clip_is_named_by_its_recording_and_its_minutes() {
