@@ -48,6 +48,7 @@ function recording(id: string): Recording {
     folder: null,
     source_url: null,
   second_language_choice: "",
+  second_language: null,
   };
 }
 

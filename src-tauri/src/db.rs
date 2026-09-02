@@ -77,6 +77,10 @@ pub struct Recording {
     /// discarded the moment the download finished. Neither can be told from
     /// the other afterwards, and nothing here invents a link for either.
     pub source_url: Option<String>,
+    /// The language that has actually been written into this transcript beside
+    /// its own, when a fill has run — read from the fill's own record, so it
+    /// says what is in the text rather than what somebody asked for.
+    pub second_language: Option<String>,
 }
 
 /// A folder in the archive, with what it holds. The two totals come from the
@@ -1628,13 +1632,16 @@ fn recording_from_row(r: &rusqlite::Row) -> rusqlite::Result<Recording> {
         folder: r.get(11).unwrap_or_default(),
         source_url: r.get(12).unwrap_or_default(),
         second_language_choice: r.get(13).unwrap_or_default(),
+        second_language: r.get(14).unwrap_or_default(),
     })
 }
 
 const RECORDING_SELECT_SQL: &str =
     "SELECT n.id, n.path, n.name, n.duration, n.created_at, n.status, n.model, n.error,
         (SELECT COUNT(*) FROM segments s WHERE s.recording_id = n.id), n.jazyk, n.jazyk_volba,
-        n.folder_id, n.source_url, n.second_language_choice
+        n.folder_id, n.source_url, n.second_language_choice,
+        (SELECT sl.language FROM second_language sl
+          WHERE sl.recording_id = n.id AND sl.state = 'filled')
      FROM recordings n";
 
 /// Every recording in the archive, and **a row that cannot be read is shown as
@@ -1684,6 +1691,7 @@ pub fn list_recordings(db: &Connection) -> Result<Vec<Recording>> {
                 language: String::new(),
                 language_choice: String::new(),
                 second_language_choice: String::new(),
+                second_language: None,
                 error: Some(
                     crate::user_message::UserMessage::new("archive.row_unreadable")
                         .with("id", &id)
@@ -2910,6 +2918,49 @@ mod tests {
         );
     }
 
+    /// What the footer and the archive read: the language that is really in the
+    /// text. An offer the reader has not answered is not in the text yet.
+    #[test]
+    fn a_filled_language_is_read_with_the_recording_and_an_offered_one_is_not() {
+        let dir = std::env::temp_dir().join(format!("volocal-second-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let db = open(&dir.join("volocal.db")).unwrap();
+        insert_recording(
+            &db,
+            &Recording {
+                id: "recording".into(),
+                path: "x.wav".into(),
+                title: "x".into(),
+                duration: 1.0,
+                created_at: "2026-09-02".into(),
+                status: status::DONE.into(),
+                model: String::new(),
+                language: "cs".into(),
+                language_choice: String::new(),
+                second_language_choice: String::new(),
+                error: None,
+                segment_count: 0,
+                folder: None,
+                source_url: None,
+                second_language: None,
+            },
+        )
+        .unwrap();
+        save_second_language(&db, &offered("en", 0.2)).unwrap();
+        assert_eq!(recording(&db, "recording").unwrap().second_language, None);
+        set_second_language_state(&db, "recording", second_language_state::FILLED).unwrap();
+        assert_eq!(
+            recording(&db, "recording")
+                .unwrap()
+                .second_language
+                .as_deref(),
+            Some("en")
+        );
+        drop(db);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
     #[test]
     fn discarding_the_transcript_forgets_the_offer() {
         let db = Connection::open_in_memory().unwrap();
@@ -3457,6 +3508,7 @@ mod tests {
                     language: String::new(),
                     language_choice: String::new(),
                     second_language_choice: String::new(),
+                    second_language: None,
                     error: None,
                     segment_count: 0,
                     folder: None,
@@ -3523,6 +3575,7 @@ mod tests {
                 language: String::new(),
                 language_choice: String::new(),
                 second_language_choice: String::new(),
+                second_language: None,
                 error: None,
                 segment_count: 0,
                 folder: None,
@@ -3591,6 +3644,7 @@ mod tests {
                 language: String::new(),
                 language_choice: String::new(),
                 second_language_choice: String::new(),
+                second_language: None,
                 error: None,
                 segment_count: 0,
                 folder: None,

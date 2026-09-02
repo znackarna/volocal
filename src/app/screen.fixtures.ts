@@ -46,6 +46,7 @@ export function recording(over: Partial<Recording> = {}): Recording {
     folder: null,
     source_url: null,
     second_language_choice: "",
+    second_language: null,
     ...over,
   };
 }

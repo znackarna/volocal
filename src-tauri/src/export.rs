@@ -746,6 +746,7 @@ mod tests {
             language: "cs".to_string(),
             language_choice: "cs".to_string(),
             second_language_choice: String::new(),
+            second_language: None,
             error: None,
             segment_count: 0,
             folder: None,

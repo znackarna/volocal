@@ -78,7 +78,17 @@ export function AppFooter({
     if (!recording) return null;
     return {
       duration: recording.duration > 0 ? formatTime(recording.duration) : null,
-      language: recording.language ? labels.languageCapitalized(recording.language) : null,
+      /* Both languages once a second one has been written in. One sentence
+         from the dictionary rather than two names glued with a conjunction,
+         because the conjunction is a word and words are translated. */
+      language: !recording.language
+        ? null
+        : recording.second_language
+          ? t("app.shell.twoLanguages", {
+              first: labels.languageCapitalized(recording.language),
+              second: labels.language(recording.second_language),
+            })
+          : labels.languageCapitalized(recording.language),
       segments: recording.status === "done" ? formats.segmentCount(recording.segment_count) : null,
       /* `Uloženo` used to be a constant, lit for every detail — including a
          recording with no transcript at all, where there is nothing saved to
@@ -86,7 +96,7 @@ export function AppFooter({
          where one exists. */
       saved: recording.status === "done",
     };
-  }, [formats, labels, recordings, selectedId]);
+  }, [formats, labels, recordings, selectedId, t]);
 
   return (
     <footer className="app-status-footer" aria-label={t("app.shell.statusBar")}>

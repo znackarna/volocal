@@ -132,7 +132,14 @@ pub async fn set_second_language_choice(
                 filled_at: None,
             },
         ))?;
-        recording.status == db::status::DONE && recording.segment_count > 0
+        let starts = recording.status == db::status::DONE && recording.segment_count > 0;
+        if starts {
+            // The archive draws a progress bar only on a recording that is
+            // transcribing, and this is a run in every sense the reader can
+            // see. Speaker recognition does the same for its length.
+            reported(db::set_status(&db, &id, db::status::TRANSCRIBING, None))?;
+        }
+        starts
     };
     if has_transcript {
         run_fill(window, app.db_path.clone(), app.bezici.clone(), id);
@@ -163,6 +170,7 @@ fn run_fill(
         let cancelled = task.was_cancelled(&id);
         task.leave_queue(&id);
         task.cleanup(&id);
+        back_to_done(&db_path, &id);
         match (&done, cancelled) {
             (_, true) => {
                 let _ = window.emit(
@@ -191,6 +199,19 @@ fn run_fill(
         }
         let _ = window.emit("transcription:complete", id.clone());
     });
+}
+
+/// The transcript is there whatever the fill did, so the recording is `done`
+/// again whichever way it ended. The fill never touched the text on failure
+/// or cancellation — it writes in one transaction at the end — so `done` is
+/// simply the truth about the row.
+fn back_to_done(db_path: &std::path::Path, id: &str) {
+    match db::open(db_path).and_then(|db| db::set_status(&db, id, db::status::DONE, None)) {
+        Ok(()) => {}
+        Err(error) => {
+            crate::note!("second language: the recording could not be marked done: {error}")
+        }
+    }
 }
 
 /// The terminal report a finished fill owes the screens.
@@ -236,6 +257,8 @@ pub async fn fill_second_language(
         if crate::commands::folders::recording_is_busy(running, &recording.status) {
             return Err(UserMessage::new("transcription.still_running"));
         }
+        // Drawn in the archive as the run it is; see `set_second_language_choice`.
+        reported(db::set_status(&db, &id, db::status::TRANSCRIBING, None))?;
     }
 
     let db_path = app.db_path.clone();
@@ -252,6 +275,7 @@ pub async fn fill_second_language(
         let cancelled = task.was_cancelled(&id);
         task.leave_queue(&id);
         task.cleanup(&id);
+        back_to_done(&db_path, &id);
         match (&done, cancelled) {
             (Ok(added), false) => announce_done(&window, &id, *added),
             (Err(error), false) => {

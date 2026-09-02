@@ -56,6 +56,9 @@ export interface Recording {
    *  means nobody said so. When set, every transcription writes that language
    *  in at the end without asking. */
   second_language_choice: string;
+  /** The language actually written into the transcript beside its own, once a
+   *  fill has run. Null until then — what is in the text, not what was asked. */
+  second_language: string | null;
 }
 
 /** A folder in the archive, with what it holds. */

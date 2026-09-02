@@ -425,6 +425,7 @@ pub fn import(
         language: String::new(),
         language_choice: String::new(),
         second_language_choice: String::new(),
+        second_language: None,
         error: None,
         segment_count: 0,
         // Everything arriving from outside lands in the archive's root; a
