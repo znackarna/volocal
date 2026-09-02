@@ -19,7 +19,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../api";
 import { useI18n } from "../i18n";
-import { useUserMessage } from "../messages";
+import { messageCode, useUserMessage } from "../messages";
 import type { SecondLanguage } from "../types";
 
 export interface SecondLanguageOffer {
@@ -100,12 +100,21 @@ export function useSecondLanguage({
     }
   }, [recordingId]);
 
+  /* **Stopping it is not a failure.** A fill or a sweep is a run, and the
+     bubble's Zrušit reaches it like any other; the backend then answers the
+     call that started it with `transcription.cancelled`, because the work it
+     was asked for was not done. Every other cancelled run in the application
+     is silent, and this one is too: the bar with the question stays, since
+     the question was not answered. Asked for on 2026-09-02, the morning a
+     cancelled fill put a red notice over the header. */
+  const cancelled = (error: unknown) => messageCode(error) === "transcription.cancelled";
+
   const look = useCallback(async () => {
     setFilling(true);
     try {
       setFound(await api.sweepSecondLanguage(recordingId));
     } catch (error) {
-      onError(userMessage(error));
+      if (!cancelled(error)) onError(userMessage(error));
     } finally {
       setFilling(false);
     }
@@ -122,7 +131,7 @@ export function useSecondLanguage({
       await reload();
       setFound(await api.secondLanguage(recordingId));
     } catch (error) {
-      onError(userMessage(error));
+      if (!cancelled(error)) onError(userMessage(error));
     } finally {
       setFilling(false);
     }

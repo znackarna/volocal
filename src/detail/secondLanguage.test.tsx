@@ -172,4 +172,29 @@ describe("a language the transcript is missing", () => {
     expect(fillSecondLanguage).toHaveBeenCalledWith(RECORDING_ID);
     await waitFor(() => expect(container.textContent).toContain("One rod"));
   });
+
+  /** **Stopping it is not a failure.** The bubble's Zrušit reaches a fill like
+   *  any run, and the call that started it then comes back refused with
+   *  `transcription.cancelled`. Every other cancelled run in the application is
+   *  silent; this one put a red notice over the header. The offer stays,
+   *  because the question was not answered. */
+  test("a cancelled fill raises no error and keeps the offer", async () => {
+    secondLanguage.mockResolvedValue(offered());
+    fillSecondLanguage.mockRejectedValue({ code: "transcription.cancelled", params: {} });
+    const onError = vi.fn();
+    const { container } = show({ onError });
+    await waitFor(() =>
+      expect(container.textContent).toContain(say("detail.secondLanguage.fill"))
+    );
+
+    await act(async () => {
+      screen.getByText(say("detail.secondLanguage.fill")).click();
+    });
+
+    expect(fillSecondLanguage).toHaveBeenCalledWith(RECORDING_ID);
+    expect(onError).not.toHaveBeenCalled();
+    await waitFor(() =>
+      expect(container.textContent).toContain(say("detail.secondLanguage.fill"))
+    );
+  });
 });
