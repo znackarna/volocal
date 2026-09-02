@@ -954,8 +954,10 @@ pub fn open(path: &std::path::Path) -> Result<Connection> {
             second_language_choice TEXT NOT NULL DEFAULT '',
             -- Who put that language there: the reader, or a fill. A reader's
             -- naming holds whatever the settings say; a fill's memory only
-            -- while automatic filling is on.
-            second_language_by_reader INTEGER NOT NULL DEFAULT 1
+            -- while automatic filling is on. Nought by default: the column is
+            -- written by `set_second_language_choice`, which knows, and a row
+            -- that never went through it was not named by anybody.
+            second_language_by_reader INTEGER NOT NULL DEFAULT 0
         );
 
         CREATE TABLE IF NOT EXISTS folders (
@@ -1384,16 +1386,35 @@ fn migrate_legacy_schema(db: &Connection) {
         "ALTER TABLE recordings ADD COLUMN second_language_choice TEXT NOT NULL DEFAULT ''",
         [],
     );
-    /* Who named it. Every archive from before this column says *the reader*,
-    which is the kinder of the two readings: a language sitting on a recording
-    goes on being honoured rather than quietly stopping. The only rows that
-    were in fact written by a fill are the ones from the two days this feature
-    has existed, and the reader can clear any of them from the menu. */
+    /* Who named it — and *nobody* is the truthful answer for every archive
+    written before this build, because the menu that lets a reader name a
+    second language has never been published either. Reading them as the
+    reader's, which is what this said for half a day, means the switch that
+    turns automatic filling off cannot stop a recording that was filled once:
+    tested on Paul Bartlett, whose row said `en` from a fill and `1` from this
+    default, and who came back bilingual with the switch off.
+
+    The sweep below is what the default cannot do on its own, since the column
+    already exists on any archive that has run one of those half-day builds. It
+    runs once, marked in the settings, and after it every value in the column
+    was written by `set_second_language_choice`, which knows who is asking. */
     let _ = db.execute(
-        "ALTER TABLE recordings ADD COLUMN second_language_by_reader INTEGER NOT NULL DEFAULT 1",
+        "ALTER TABLE recordings ADD COLUMN second_language_by_reader INTEGER NOT NULL DEFAULT 0",
         [],
     );
+    if metadata_value(db, WHO_NAMED_THE_SECOND_LANGUAGE)
+        .ok()
+        .flatten()
+        .is_none()
+    {
+        let _ = db.execute("UPDATE recordings SET second_language_by_reader = 0", []);
+        let _ = save_metadata_value(db, WHO_NAMED_THE_SECOND_LANGUAGE, "hotovo");
+    }
 }
+
+/// Marks the one-time correction above as done, so a reader who names a second
+/// language after it is not quietly demoted at the next start.
+const WHO_NAMED_THE_SECOND_LANGUAGE: &str = "druhy-jazyk-kdo-pojmenoval";
 
 /// Earlier versions hard-coded Czech as the default language, so Whisper
 /// translated a foreign-language recording instead of transcribing it. This
@@ -1732,7 +1753,7 @@ pub fn list_recordings(db: &Connection) -> Result<Vec<Recording>> {
                 language: String::new(),
                 language_choice: String::new(),
                 second_language_choice: String::new(),
-                second_language_by_reader: true,
+                second_language_by_reader: false,
                 second_language: None,
                 second_language_missing: None,
                 error: Some(
@@ -2982,7 +3003,7 @@ mod tests {
                 language: "cs".into(),
                 language_choice: String::new(),
                 second_language_choice: String::new(),
-                second_language_by_reader: true,
+                second_language_by_reader: false,
                 error: None,
                 segment_count: 0,
                 folder: None,
@@ -3002,6 +3023,57 @@ mod tests {
                 .as_deref(),
             Some("en")
         );
+        drop(db);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// The half-day builds wrote `1` into a column that meant *the reader named
+    /// this*, on rows a fill had named. The switch that turns automatic filling
+    /// off could then not stop them — reported on Paul Bartlett, who came back
+    /// bilingual with it off.
+    ///
+    /// The correction runs once. A reader who names a language afterwards must
+    /// not be demoted at the next start, which is what the marker is for.
+    #[test]
+    fn a_language_no_reader_could_have_named_is_not_read_as_theirs() {
+        let dir = std::env::temp_dir().join(format!("volocal-who-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("volocal.db");
+
+        {
+            let db = open(&path).unwrap();
+            db.execute(
+                "INSERT INTO recordings (id, path, name, duration, created_at, status, model,
+                     second_language_choice, second_language_by_reader)
+                 VALUES ('r', 'x.wav', 'Paul', 1.0, '2026-09-02', 'done', '', 'en', 1)",
+                [],
+            )
+            .unwrap();
+            // As an archive that has run one of those builds looks: the column
+            // is there, the correction has not been made.
+            db.execute(
+                "DELETE FROM settings WHERE key = ?1",
+                params![super::WHO_NAMED_THE_SECOND_LANGUAGE],
+            )
+            .unwrap();
+        }
+
+        let db = open(&path).unwrap();
+        assert!(
+            !recording(&db, "r").unwrap().second_language_by_reader,
+            "a fill named it, and the switch has to be able to stop it"
+        );
+
+        // Now the reader really does name one, and a restart leaves it alone.
+        super::set_second_language_choice(&db, "r", "de", true).unwrap();
+        drop(db);
+        let db = open(&path).unwrap();
+        assert!(
+            recording(&db, "r").unwrap().second_language_by_reader,
+            "the correction runs once, not at every start"
+        );
+
         drop(db);
         let _ = std::fs::remove_dir_all(&dir);
     }
@@ -3553,7 +3625,7 @@ mod tests {
                     language: String::new(),
                     language_choice: String::new(),
                     second_language_choice: String::new(),
-                    second_language_by_reader: true,
+                    second_language_by_reader: false,
                     second_language: None,
                     second_language_missing: None,
                     error: None,
@@ -3622,7 +3694,7 @@ mod tests {
                 language: String::new(),
                 language_choice: String::new(),
                 second_language_choice: String::new(),
-                second_language_by_reader: true,
+                second_language_by_reader: false,
                 second_language: None,
                 second_language_missing: None,
                 error: None,
@@ -3693,7 +3765,7 @@ mod tests {
                 language: String::new(),
                 language_choice: String::new(),
                 second_language_choice: String::new(),
-                second_language_by_reader: true,
+                second_language_by_reader: false,
                 second_language: None,
                 second_language_missing: None,
                 error: None,

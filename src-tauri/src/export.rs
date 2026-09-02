@@ -746,7 +746,7 @@ mod tests {
             language: "cs".to_string(),
             language_choice: "cs".to_string(),
             second_language_choice: String::new(),
-            second_language_by_reader: true,
+            second_language_by_reader: false,
             second_language: None,
             second_language_missing: None,
             error: None,
