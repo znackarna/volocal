@@ -839,6 +839,33 @@ fn reads_as(language: &str, text: &str) -> bool {
 /// or it writes the sounds in the language it was asked for — `Mám vnútsata`
 /// under an English one. Letters catch the second, function words the first,
 /// and a turn caught either way is heard again in its real language.
+/// Lines whisper writes over near-silence, by language.
+///
+/// **Seen, not imagined.** *Titulky vytvořil Jirka Kovář* stood at 02:20 of
+/// the reference recording, over a breath between two turns — the credit line
+/// of the subtitle files whisper learnt Czech from, which it reproduces
+/// whenever it is given nothing to hear. The English model has the same habit
+/// with *Thank you for watching*. A block that is one of these is not speech
+/// and is not kept, whatever its confidence.
+fn sounds_like_nothing(text: &str) -> bool {
+    const KNOWN: &[&str] = &[
+        "titulky vytvořil",
+        "titulky vytvořila",
+        "titulky vytvorili",
+        "překlad a titulky",
+        "děkuji za zhlédnutí",
+        "děkuju za zhlédnutí",
+        "díky za zhlédnutí",
+        "thank you for watching",
+        "thanks for watching",
+        "subtitles by",
+        "subscribe to",
+        "please subscribe",
+    ];
+    let lower = text.to_lowercase();
+    KNOWN.iter().any(|phrase| lower.contains(phrase))
+}
+
 fn spoken_in(text: &str, own: &str, second: &str) -> Option<String> {
     for language in [own, second] {
         let letters = letters_of(language);
@@ -1173,6 +1200,9 @@ pub(crate) fn fill_with_audio(
     for (turn, blocks) in heard_turns {
         let stamp = (turn.language != own).then_some(turn.language.as_str());
         for block in blocks {
+            if sounds_like_nothing(&block.text) {
+                continue;
+            }
             let moved = shifted(block, turn.from, stamp);
             if stamp.is_some() {
                 in_second.push(moved);
@@ -1875,6 +1905,22 @@ mod tests {
         for turn in &long {
             assert!(turn.to - turn.from <= LONGEST_TURN + 1e-9, "{turn:?}");
         }
+    }
+
+    // ------------------------------------------------- what whisper makes up
+
+    /// **The credit line.** whisper learnt Czech from subtitle files and gives
+    /// their signature back over a breath; the English habit is the sign-off.
+    #[test]
+    fn a_subtitle_credit_or_a_sign_off_is_not_speech() {
+        assert!(sounds_like_nothing("Titulky vytvořil Jirka Kovář"));
+        assert!(sounds_like_nothing("Thank you for watching!"));
+        assert!(!sounds_like_nothing(
+            "Děkuji. Je pro mě velká čest tady být."
+        ));
+        assert!(!sounds_like_nothing(
+            "Thank you, Pastor Tom, for having me."
+        ));
     }
 
     // ------------------------------------------- a turn heard in the wrong one
