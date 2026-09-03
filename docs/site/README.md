@@ -12,7 +12,8 @@ needs before touching anything.
 
 | | |
 |---|---|
-| `index.html` | the whole page: markup, stylesheet, and the boot script at the foot |
+| `index.html` | the page: markup, and the boot script at the foot |
+| `page.css` | the page's own stylesheet. It sat inside `index.html` until 3 September |
 | `brand.css`, `brand.js` | all three states of the mark, copied out of `src/brandArt.ts` and `Brand.tsx` |
 | `chibi.js` | the cartoon in the hero — four beats, using the real face and mill |
 | `preview.js` | the carousel, the playing transcript, the waveform, the archive's progress |
