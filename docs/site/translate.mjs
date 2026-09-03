@@ -81,6 +81,14 @@ const HEAD_SWAPS = [
      every occurrence. Its `alt` is a sentence and goes through the dictionary
      like the rest. */
   ['https://volocal.app/og.png', 'https://volocal.app/og-en.png'],
+  /* The block that tells a search engine what this is carries two values that
+     belong to the page rather than to the program. `translate.mjs` passes the
+     contents of a `<script>` through untouched -- rightly, since the rest of
+     them are code -- so these are named here. Everything else in that block is
+     the same in both languages, which is why there are two pairs and not a
+     second copy of the block. */
+  ['"url": "https://volocal.app/",', '"url": "https://volocal.app/en/",'],
+  ['"inLanguage": "cs",', '"inLanguage": "en",'],
 ];
 
 const hasLetters = (text) => /[A-Za-zÀ-ž]/.test(text);
