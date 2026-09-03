@@ -21,6 +21,8 @@ needs before touching anything.
 | `bundle.py` | builds one self-contained file (fonts inlined) for handing the page to somebody |
 | `translate.mjs` | writes the English page from this one; `--check` is in `npm run docs:check` |
 | `en.json` | every Czech sentence on the page and its English |
+| `og.png`, `og-en.png` | the card a pasted link shows, one per language |
+| `robots.txt`, `sitemap.xml` | served as they are; the sitemap names both languages |
 | `fonts/` | Geist and Literata, four woff2 out of `node_modules/@fontsource-variable/` |
 
 ## Looking at it
