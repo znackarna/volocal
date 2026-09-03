@@ -82,6 +82,15 @@ page, found = re.subn(r'<script defer src="/_vercel/[^"]*"></script>\s*', "", pa
 if found != 1:
     raise SystemExit("expected 1 counting script to remove, found %d" % found)
 
+# What the page says about itself to a search engine. It belongs to the head
+# and to the published address, so a bundle -- one file handed to somebody, or
+# the hosted review copy -- has no business carrying it. Counted, so that
+# moving or renaming the block fails here rather than shipping a description
+# of the site inside a file that is not the site.
+page, found = re.subn(r'<script type="application/ld\+json">.*?</script>\s*', "", page, flags=re.S)
+if found != 1:
+    raise SystemExit("expected 1 JSON-LD block to remove, found %d" % found)
+
 page = page.replace("</head>\n<body>\n", "")
 page = page.replace("</body>\n</html>\n", "")
 
