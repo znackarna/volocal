@@ -141,8 +141,10 @@ function translateTag(tag, lookup) {
   return tag.replace(/([a-zA-Z-]+)="([^"]*)"/g, (whole, name, value) => {
     /* `content` is a machine's word for everything, so it is translated only
        where the machine is quoting the page to a person: the description a
-       search engine prints, and the two lines a pasted link shows. */
-    const said = /(?:name|property)="(description|og:title|og:description)"/.test(tag);
+       search engine prints, and the lines a pasted link shows -- in both
+       vocabularies, since the same card is described twice and the `twitter:`
+       pair went untranslated for as long as it was left out of this list. */
+    const said = /(?:name|property)="(description|og:title|og:description|og:image:alt|twitter:title|twitter:description)"/.test(tag);
     const translatable =
       ATTRIBUTES.includes(name) ||
       (name === "content" && said) ||

@@ -3,48 +3,36 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Volocal</title>
-<meta name="description" content="Volocal přepisuje mluvené slovo přímo ve vašem počítači. Rozpozná řečníky. Opraví chyby. Zpracuje libovolný zvukový formát, video nebo online stream. Zdarma. Bez ztráty kontroly a soukromí.">
+<title>Volocal — přepis řeči bez cloudu a předplatného</title>
+<meta name="description" content="Rozpozná jazyky, řečníky a opraví chyby. Zvuk, video i online stream. Zdarma pro Windows 10 a 11.">
 
-<!-- The same page in two languages, at two addresses. `x-default` is Czech
-     because that is what `/` is; a reader with an English browser is not sent
-     anywhere, they are shown a link. -->
 <link rel="canonical" href="https://volocal.app/">
 <link rel="alternate" hreflang="cs" href="https://volocal.app/">
 <link rel="alternate" hreflang="en" href="https://volocal.app/en/">
 <link rel="alternate" hreflang="x-default" href="https://volocal.app/">
 
-<!-- What a pasted link shows, and both lines are the owner's: the title is
-     the page's headline, the description is his, written for this. The first
-     version took clauses from the headline and the lede and joined them with
-     a dash, and he read it back as exactly what it was.
-
-     It is close to the hero lede but not the same sentence -- *přímo ve vašem
-     počítači* where the page says *pomocí lokálních jazykových modelů* -- so
-     it is written out here rather than read off the page. If the lede is
-     rewritten, this does not follow it by itself.
-
-     `og:image` is deliberately absent: there is no picture of this product
-     that is not a screenshot of a window, and a preview card carrying a bad
-     image is worse than one carrying none, because the image takes the room
-     the writing was using. -->
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://volocal.app/">
 <meta property="og:site_name" content="Volocal">
 <meta property="og:locale" content="cs_CZ">
 <meta property="og:title" content="Zapněte počítač. Vypněte předplatné.">
-<meta property="og:description" content="Volocal přepisuje mluvené slovo přímo ve vašem počítači. Rozpozná řečníky. Opraví chyby. Zpracuje libovolný zvukový formát, video nebo online stream. Zdarma. Bez ztráty kontroly a soukromí.">
-<meta name="twitter:card" content="summary">
+<meta property="og:description" content="Rozpozná jazyky, řečníky a opraví chyby. Zvuk, video i online stream. Zdarma pro Windows 10 a 11.">
+<meta property="og:image" content="https://volocal.app/og.png">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Nápis Zapněte počítač. Vypněte předplatné. bílý na tmavém poli, pod ním značka Volocal.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://volocal.app/og.png">
 <meta name="twitter:title" content="Zapněte počítač. Vypněte předplatné.">
-<meta name="twitter:description" content="Volocal přepisuje mluvené slovo přímo ve vašem počítači. Rozpozná řečníky. Opraví chyby. Zpracuje libovolný zvukový formát, video nebo online stream. Zdarma. Bez ztráty kontroly a soukromí.">
+<meta name="twitter:description" content="Rozpozná jazyky, řečníky a opraví chyby. Zvuk, video i online stream. Zdarma pro Windows 10 a 11.">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 320'><path d='M-0.00012207 160C-0.00012207 84.5753 -0.00012207 46.8629 23.4313 23.4315C46.8628 0 84.5752 0 160 0C235.425 0 273.137 0 296.568 23.4315C320 46.8629 320 84.5753 320 160C320 235.425 320 273.137 296.568 296.569C273.137 320 235.425 320 160 320C84.5752 320 46.8628 320 23.4313 296.569C-0.00012207 273.137 -0.00012207 235.425 -0.00012207 160Z' fill='white'/><path d='M234.435 195.645C225.207 195.645 216.89 193.641 209.484 189.635C202.077 185.628 196.249 179.921 191.999 172.514C187.749 165.108 185.624 156.426 185.624 146.47C185.624 136.513 187.749 127.831 191.999 120.425C196.249 112.897 202.077 107.129 209.484 103.122C216.89 99.1155 225.207 97.1121 234.435 97.1121C243.663 97.1121 251.981 99.1155 259.387 103.122C266.794 107.129 272.622 112.897 276.872 120.425C281.122 127.831 283.246 136.513 283.246 146.47C283.246 156.426 281.122 165.108 276.872 172.514C272.622 179.921 266.794 185.628 259.387 189.635C251.981 193.641 243.663 195.645 234.435 195.645ZM234.435 174.153C240.749 174.153 245.91 171.664 249.917 166.686C253.923 161.708 255.927 154.969 255.927 146.47C255.927 137.849 253.923 131.049 249.917 126.071C245.91 121.093 240.689 118.604 234.253 118.604C227.818 118.604 222.597 121.093 218.59 126.071C214.583 131.049 212.58 137.849 212.58 146.47C212.58 154.969 214.583 161.708 218.59 166.686C222.718 171.664 228 174.153 234.435 174.153Z' fill='black'/><path d='M173.565 193.459H146.428V62.3251H173.565V193.459Z' fill='black'/><path d='M85.5647 195.645C76.3367 195.645 68.0194 193.641 60.6128 189.635C53.2061 185.628 47.3779 179.921 43.1282 172.514C38.8785 165.108 36.7536 156.426 36.7536 146.47C36.7536 136.513 38.8785 127.831 43.1282 120.425C47.3779 112.897 53.2061 107.129 60.6128 103.122C68.0194 99.1155 76.3367 97.1121 85.5647 97.1121C94.7926 97.1121 103.11 99.1155 110.517 103.122C117.923 107.129 123.751 112.897 128.001 120.425C132.251 127.831 134.376 136.513 134.376 146.47C134.376 156.426 132.251 165.108 128.001 172.514C123.751 179.921 117.923 185.628 110.517 189.635C103.11 193.641 94.7926 195.645 85.5647 195.645ZM85.5647 174.153C91.8785 174.153 97.0389 171.664 101.046 166.686C105.053 161.708 107.056 154.969 107.056 146.47C107.056 137.849 105.053 131.049 101.046 126.071C97.0389 121.093 91.8178 118.604 85.3825 118.604C78.9472 118.604 73.7262 121.093 69.7193 126.071C65.7124 131.049 63.709 137.849 63.709 146.47C63.709 154.969 65.7124 161.708 69.7193 166.686C73.8476 171.664 79.1294 174.153 85.5647 174.153Z' fill='black'/><path d='M219.312 233.118C211.526 240.904 202.284 247.079 192.111 251.293C181.939 255.506 171.037 257.675 160.027 257.675C149.016 257.675 138.114 255.506 127.942 251.293C117.77 247.079 108.527 240.904 100.742 233.118L118.527 215.333C123.977 220.782 130.447 225.106 137.567 228.055C144.688 231.004 152.319 232.522 160.027 232.522C167.734 232.522 175.365 231.004 182.486 228.055C189.606 225.106 196.076 220.783 201.526 215.333L219.312 233.118Z' fill='black'/></svg>">
 
 <link rel="stylesheet" href="brand.css">
 <link rel="stylesheet" href="app-shot.css">
 
 <style>
-/* The application's typefaces: Geist on the interface, Literata on running
-   text. Latin and latin-ext — without latin-ext Czech has no diacritics. */
+
 @font-face {
   font-family: "Geist Variable"; font-style: normal; font-display: swap; font-weight: 100 900;
   src: url(fonts/geist-latin-wght-normal.woff2) format("woff2-variations");
@@ -66,9 +54,6 @@
   unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
 }
 
-/* The application's colours, copied from `src/css/01-base.css` unchanged. The
-   page has no palette of its own; when the program's palette moves, this block
-   moves with it. */
 :root {
   --ds-background: 220 13% 96%;
   --ds-foreground: 240 7% 11%;
@@ -113,37 +98,16 @@ body {
 a { color: inherit; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
 
-/* An ordinary site width. Every block of text keeps its own measure — the
-   column is wide, the line is not.
-
-   **Every rule below is bound to a class or to `main >`.** The previews carry
-   the application's own markup, in which `<section>`, `<h2>`, `<ul>` and `<p>`
-   are ordinary tags: a bare `section { padding }` reached inside the window and
-   broke the sidebar's cards. The page does not style what it did not write. */
 .wrap { max-width: 1180px; margin: 0 auto; padding: 0 32px; }
 .measure { max-width: 62ch; }
 
 header.top { padding: 28px 0 0; }
 .top-in { display: flex; align-items: center; justify-content: space-between; }
-/* Three places to go, and only one of them is what the page is for: the two
-   named places are quiet, the download keeps the ink. */
+
 .top-nav { display: flex; align-items: center; gap: 18px; }
 .top-nav a { font-size: 14px; font-weight: 600; color: var(--text-quiet); text-decoration: none; }
 .top a.get { font-size: 14px; font-weight: 600; color: var(--text); text-decoration: none; }
-/* One hover for all three, and it is the one the footer has always used: the
-   ink darkens where it can and a line appears under every one of them. Until
-   25 August the two quiet links only darkened and the download only underlined
-   -- two behaviours in a row of three, which reads as a mistake because it is
-   one. The difference between them is their resting colour, which is the
-   hierarchy; what happens under the pointer is the same everywhere.
 
-   After `.top a.get`, not before: the two selectors weigh the same, so this
-   one has to come second to reach the download at all. */
-/* Every hover in this header is behind `(hover: hover)`. A finger has no
-   hover, so a browser gives the thing it last touched one anyway and leaves it
-   there until something else is touched -- which on a phone meant the menu
-   button stayed drawn in after the menu had shut. Behind this query the state
-   belongs to pointers, which are the only things that can leave it. */
 @media (hover: hover) {
   .top-nav a:hover {
     color: var(--text);
@@ -151,13 +115,7 @@ header.top { padding: 28px 0 0; }
   }
 }
 .top-right { display: flex; align-items: center; gap: 18px; }
-/* One control, two drawings: whichever palette is on, the button shows the
-   other one — a switch names where it goes, not where it is. */
-/* `font: inherit`, because a `<button>` does not take the page's type the way
-   everything else does -- it takes the operating system's, and the label in the
-   menu came out in Arial beside links in Geist. It is the only button on this
-   page with words in it: the download is an `<a>` dressed as a button and
-   inherits, and every other one is an icon. */
+
 .theme-switch {
   display: grid; place-items: center; width: 34px; height: 34px; padding: 0;
   border: 1px solid var(--line); border-radius: 999px;
@@ -172,58 +130,11 @@ header.top { padding: 28px 0 0; }
 .theme-switch .theme-sun { display: none; }
 :root[data-theme="dark"] .theme-switch .theme-sun { display: block; }
 :root[data-theme="dark"] .theme-switch .theme-moon { display: none; }
-/* The switch says where it goes, not where it is -- so does its label. In the
-   header the circle is the whole control and no words are drawn; `aria-label`,
-   which the script rewrites on every change, is what names the button to
-   anything listening, so hiding them costs nothing. They come back as a row in
-   the menu, and which of the two shows is decided there -- one place, keyed on
-   the same stamp as the icons. */
+
 .theme-switch .theme-label { display: none; }
 
-/* The menu, from the phone breakpoint down. Above it the three places to go
-   stand in the header, which is where a page this short wants them; below it
-   the mark and the controls do not fit a 320 px line and all three go behind
-   the button.
-
-   All three, on the owner's ask, and he was right to ask. This was built on
-   25 August with *Stáhnout* left outside, on the argument that the download
-   keeps the ink -- which is true of the header on a desktop and beside the
-   point on a phone, because the hero's own *Stáhnout pro Windows* is a
-   full-width button two hundred pixels below it. Keeping a second copy of it
-   in the header bought nothing and cost the line it stood on.
-
-   **The panel is `.top-nav` itself, not a second copy of the links.** One list
-   of places to go, and no way for a phone and a desktop to disagree about what
-   is on it.
-
-   It collapses only under `.has-menu`, which the script adds. Without
-   JavaScript the links stay in the header exactly as they are today: a phone
-   with no script is left with a crowded header rather than with no navigation,
-   which is the right way round.
-
-   Room was left here on purpose. The theme switch and, when there is one, the
-   language switch belong in this panel; each is one row and one line of CSS. */
 .menu-toggle { display: none; }
-/* The three lines are three elements, not one path with three moves in it,
-   because each of them has somewhere different to go.
 
-   Open, it is the classic: the outer two slide to the middle and cross, the
-   one in between goes. Every rotation is about the line's own centre, which is
-   why `transform-box` is the view box and each line names its own origin --
-   `fill-box` would give a horizontal line a bounding box no pixels tall, and
-   the middle of nothing is not somewhere to turn about.
-
-   `translateY(...) rotate(...)` is read right to left: the line turns about its
-   own point first and is then carried to the middle, which is why both ends of
-   the cross land on 12 and neither overshoots.
-
-   Hovering, shut, the outer two draw in a little. It is a small motion on
-   purpose -- the button answers the pointer without pretending to be a switch
-   it is not yet. The rules for the open state weigh more than the hover ones
-   and stand after them, so a pointer resting on an open button cannot pull the
-   cross apart.
-
-   0.26 s and the page's easing, the same clock as the menu it opens. */
 .menu-toggle .bun {
   transform-box: view-box;
   transition: transform .26s cubic-bezier(.4, 0, .2, 1), opacity .16s linear;
@@ -245,41 +156,17 @@ header.top { padding: 28px 0 0; }
   .menu-toggle .bun { transition: none; }
 }
 
-/* Three lines and nothing round them. The theme switch beside it is a circle
-   and this is not, which is deliberate: a hamburger is three lines everywhere
-   a reader has ever met one, and a ring around it says *button* to somebody
-   who did not need telling. 2.4 on a 24 viewBox at 20 px comes out at 2 px,
-   which is the weight the mark's own strokes have.
-
-   Square ends, not round: `stroke-linecap` is left at its default. Three lines
-   with rounded caps read as three lozenges, and what is wanted is three
-   lines. */
 .menu-toggle svg { width: 20px; height: 20px; }
 
 @media (max-width: 620px) {
   .top-in.has-menu { flex-wrap: nowrap; }
-  /* The panel hangs off `.top-right`, not off `.top-in`. `.top-in` is the page
-     wrapper and carries its 20 px gutter, so `right: 0` against it put the
-     panel's edge 20 px past the button and past everything else on the page --
-     out in the margin. `.top-right` ends exactly where its last child does,
-     which is the button, so the same `right: 0` now means the corner it is
-     supposed to hang from. */
+
   .top-in.has-menu .top-right { position: relative; }
   .top-in.has-menu .menu-toggle {
     display: grid; place-items: center; width: 34px; height: 34px; padding: 0;
     border: 0; background: none; color: var(--text); cursor: pointer;
   }
-  /* The lines drawing in are the answer to the pointer now, so the button no
-     longer fades as a whole -- two answers to one gesture is one too many. */
-  /* Out of the flow, so opening it moves nothing on the page behind it -- the
-     same reason the cards under *Co získáte?* are overlays on a desktop.
 
-     `right: 0` is the page's own gutter, and for that to read as *hanging from
-     the button* the button has to be the thing standing at that gutter. It was
-     not until 25 August: it sat second from the right with the theme switch
-     beyond it, so the panel lined up with the page while the trigger sat 48 px
-     inside it, and what the eye made of that was a panel centred under the
-     hamburger by accident. The button is last in the row now. */
   .top-in.has-menu .top-nav {
     position: absolute; top: calc(100% + 14px); right: 0; z-index: 20;
     display: grid; gap: 2px; min-width: 176px; padding: 8px;
@@ -287,37 +174,25 @@ header.top { padding: 28px 0 0; }
     box-shadow: inset 0 0 0 1px var(--line), var(--shadow);
   }
   .top-in.has-menu .top-nav[hidden] { display: none; }
-  /* 44 px, which is the smallest target a finger hits reliably. In the header
-     these are 14 px of text and nothing more, because a pointer is exact. */
+
   .top-in.has-menu .top-nav a {
     display: flex; align-items: center; min-height: 44px; padding: 0 12px;
     border-radius: 8px; color: var(--text); font-size: 15px;
   }
-  /* A row in a menu lights up; it does not underline. The download brings its
-     line from the header and gives it up here, so all three rows behave as
-     rows. */
+
   @media (hover: hover) {
     .top-in.has-menu .top-nav a:hover {
       background: var(--muted); color: var(--text); text-decoration: none;
     }
   }
 
-  /* The theme switch is a row here, not a circle: the corner holds one control
-     on a phone and it is the button that opens this. A hairline over it says
-     the rows above go somewhere and this one changes something -- the same
-     separation the application makes between a list and its settings. */
   .top-in.has-menu .theme-switch {
     display: flex; align-items: center; justify-content: space-between;
     width: 100%; min-height: 44px; padding: 0 12px;
     margin-top: 7px; border: 0; border-top: 1px solid var(--line);
     border-radius: 0; background: none; color: var(--text);
   }
-  /* The highlight is the same 8 px shape the links have -- it was square across
-     the top for a day, on the argument that the hairline above it squares those
-     two corners off, which is not a thing a hairline does. What it needed was
-     not a different shape but somewhere for the tint to stop: `padding-box`
-     keeps it under the border, so the divider stays a divider and the row stays
-     a row. */
+
   @media (hover: hover) {
     .top-in.has-menu .theme-switch:hover {
       background: var(--muted); background-clip: padding-box;
@@ -325,9 +200,7 @@ header.top { padding: 28px 0 0; }
     }
   }
   .top-in.has-menu .theme-switch svg { width: 18px; height: 18px; order: 2; }
-  /* One of the two, never both -- which was the whole point of writing them
-     out separately, and what the first version of this rule undid by showing
-     every `.theme-label` it could reach. */
+
   .top-in.has-menu .theme-switch .theme-label { font-size: 15px; font-weight: 600; }
   .top-in.has-menu .theme-switch .theme-to-dark { display: block; }
   :root[data-theme="dark"] .top-in.has-menu .theme-switch .theme-to-dark { display: none; }
@@ -341,16 +214,6 @@ header.top { padding: 28px 0 0; }
 }
 .hero-text { min-width: 0; }
 
-/* ------------------------------------------------------------- the cartoon
-   A toy window that tells the whole story on a loop: the mark waits, a
-   recording is dropped on it, it turns into the mill and works, and out comes
-   text with something to play. Deliberately a cartoon — everything in it is
-   drawn small and simple — because the honest windows are further down the
-   page and this one is here to be understood in four seconds.
-
-   The mark itself is not drawn here: `.olo-face` and `.working` come from
-   `brand.css`, so the face that blinks and the mill it becomes are the ones the
-   application uses. */
 .chibi-figure { margin: 0; }
 .chibi-window {
   position: relative; overflow: hidden;
@@ -361,9 +224,7 @@ header.top { padding: 28px 0 0; }
   display: flex; align-items: center; gap: 5px; height: 28px; padding: 0 11px;
   background: hsl(var(--ds-background)); border-bottom: 1px solid var(--line);
 }
-/* Windows, not macOS: three hairline squares at the right end, which is where
-   this program's window keeps them. `.preview-titlebar` draws the same three at
-   22 px; the toy is a smaller window, so they are 18. */
+
 .chibi-name { flex: 1; font-size: 11px; font-weight: 650; color: var(--text-quiet); }
 .chibi-buttons { display: flex; align-items: center; gap: 4px; color: var(--text-quiet); }
 .chibi-buttons > span { display: grid; place-items: center; width: 18px; height: 18px; border-radius: 3px; }
@@ -373,8 +234,6 @@ header.top { padding: 28px 0 0; }
 }
 .chibi-body { position: relative; height: 286px; padding: 18px; }
 
-/* The empty state: a dashed panel with the mark in it, exactly the idea the
-   application's archive opens with. */
 .chibi-drop {
   position: absolute; inset: 18px;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
@@ -396,7 +255,6 @@ header.top { padding: 28px 0 0; }
   display: block; height: 100%; width: 0; border-radius: var(--r-pill); background: var(--accent);
 }
 
-/* The file, thrown in from outside the window. */
 .chibi-file {
   position: absolute; right: 18px; bottom: 14px; z-index: 3;
   display: inline-flex; align-items: center; gap: 7px;
@@ -415,7 +273,6 @@ header.top { padding: 28px 0 0; }
     linear-gradient(var(--accent), var(--accent)) 10px 50% / 2px 8px no-repeat;
 }
 
-/* What comes out. */
 .chibi-result {
   position: absolute; inset: 18px;
   display: flex; flex-direction: column; gap: 10px;
@@ -429,10 +286,7 @@ header.top { padding: 28px 0 0; }
 .chibi-who { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; }
 .chibi-word { border-radius: 3px; transition: background .12s linear, color .12s linear; }
 .chibi-word.on { color: var(--accent); }
-/* The transport sits at the top, under the title bar, as it does in the
-   application — and the timeline is the recording's own peaks rather than a
-   plain bar: the same drawing, the same idea that what has played is in the
-   accent colour and what has not is quiet. */
+
 .chibi-player {
   display: flex; align-items: center; gap: 10px;
   padding-bottom: 12px; margin-bottom: 12px; border-bottom: 1px solid var(--line);
@@ -442,14 +296,9 @@ header.top { padding: 28px 0 0; }
   width: 20px; height: 20px; border-radius: 50%; background: var(--accent);
   flex: 0 0 auto; color: #fff;
 }
-/* The glyph `.speaker-sample` uses, with its 1 px nudge: a triangle's bounding
-   box is not its optical centre, and the border-drawn one this replaces sat
-   visibly left. */
+
 .chibi-play svg { width: 10px; height: 10px; margin-left: 1px; }
-/* 2 px bars on a 7 px pitch, centred on the strip — `PlaybackControls.tsx`'s
-   geometry, so the cartoon's timeline is the program's timeline in miniature.
-   The colour is the application's too: what has played is the accent, the rest
-   is the foreground at 0.12. */
+
 .chibi-wave {
   flex: 1; display: flex; align-items: center; gap: 5px;
   height: 24px; min-width: 0; overflow: hidden;
@@ -467,7 +316,6 @@ header.top { padding: 28px 0 0; }
   margin: 18px 2px 0; font-size: 13px; color: var(--text-quiet);
 }
 
-/* The four beats. Each state says only what changes. */
 .chibi-window.is-dropping .chibi-drop { border-color: var(--accent); background: hsl(var(--ds-petrol) / 0.07); }
 .chibi-window.is-dropping .chibi-file { transform: translate(-96px, -74px) rotate(-2deg); opacity: 1; }
 
@@ -493,21 +341,14 @@ header.top { padding: 28px 0 0; }
 .hero h1 {
   margin: 0; max-width: 24ch;
   font-size: clamp(32px, 4vw, 46px); font-weight: 700;
-  /* 1.18, not 1.06. Two lines of Czech at this size carry háčky above and a
-     comma-tail below on nearly every line, and at the tighter setting the
-     question sat on the punch. */
+
   letter-spacing: -.03em; line-height: 1.18;
 }
-/* Each sentence breaks as a whole. Left to itself the line split the punch
-   into "Zapni" and "noťas.", which is the one place it must not break. */
+
 .hero h1 .beat { display: inline-block; }
-/* The second line of the punch. A block, so it can only ever stand alone; the
-   `.beat` inside it is what stops "Zruš" and "předplatné." from parting. */
+
 .hero h1 .kicker { display: block; }
-/* The question is the breath before the punch, and it is no longer part of it:
-   it stands above the headline, quiet and at reading size, so the three
-   imperatives are the first thing set large. 14 px under it is the page's own
-   heading-to-its-own-lede gap. */
+
 .tagline {
   margin: 0 0 14px; font-size: 17px; font-weight: 600; color: var(--text-quiet);
   letter-spacing: -.01em;
@@ -517,7 +358,7 @@ header.top { padding: 28px 0 0; }
   font-family: var(--font-body); font-size: 19px; line-height: 1.6; color: var(--text-quiet);
 }
 .cta { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 36px 0 0; }
-/* The application's pill, one size up. */
+
 .btn {
   display: inline-flex; align-items: center; justify-content: center;
   height: 46px; padding: 0 26px; border-radius: var(--r-pill);
@@ -526,9 +367,7 @@ header.top { padding: 28px 0 0; }
   transition: filter .22s ease;
 }
 .btn:hover { filter: brightness(1.25); }
-/* The second ask on the page, and it must not compete with the first: the
-   outlined variant of the same pill, the way the application draws a button
-   that is not the primary one. */
+
 .btn.quiet {
   border-color: var(--line-field); background: var(--panel); color: var(--text);
   transition: background var(--hover-duration) var(--hover-ease),
@@ -537,12 +376,8 @@ header.top { padding: 28px 0 0; }
 .btn.quiet:hover { filter: none; background: var(--muted); }
 .facts { margin: 28px 0 0; font-size: 13px; color: var(--text-quiet); font-variant-numeric: tabular-nums; }
 
-/* One gap between blocks, and it is the biggest number on the page: a section
-   starts far enough below the last one that the eye knows something new began. */
 main > section { padding: 112px 0 0; }
-/* A masonry ends on a ragged edge — the shortest column stops well above the
-   tallest — so the standard 112 reads as less than it is under a block of
-   cards. Asked for on 2026-08-19. */
+
 main > section.after-cards { padding-top: 156px; }
 main > section > h2 {
   margin: 0 0 14px; font-size: clamp(24px, 2.8vw, 32px); font-weight: 700;
@@ -553,25 +388,13 @@ main > section > h2 {
   font-family: var(--font-body); font-size: 17px; line-height: 1.62; color: var(--text-quiet);
 }
 
-/* One shape for every list: a hairline, the gain in bold, one quiet sentence.
-   Two columns at a normal site width, one below 900 px. */
-/* The rules separate rows from each other and nothing else. The block used to
-   be closed above and below as well — added 18 August so a list could not
-   dissolve into the gap under it — and taken off again on 19 August at the
-   owner's word: with the section spacing at 112 px and more, a block already
-   ends where it ends, and two lines were drawing a frame nobody asked for.
-
-   Which children lose their rule follows from the column count, so the two
-   variants and the narrow screen each name their own. */
 .rows {
   margin: 40px 0 0; padding: 0; list-style: none;
   display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 64px;
 }
 .rows li { padding: 24px 0; border-top: 1px solid var(--line); }
 .rows > li:nth-child(-n+2) { border-top: 0; }
-/* A row with a drawing beside it. The icon column is the same 22 px the
-   application gives these drawings in its own lists, and the icon takes the
-   quiet colour so the gain, not the picture, is what the eye lands on. */
+
 .rows li:has(.row-icon) { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 14px; }
 .row-icon { display: block; width: 22px; height: 22px; margin-top: 1px; color: var(--text-quiet); }
 .row-icon svg { width: 22px; height: 22px; }
@@ -579,35 +402,13 @@ main > section > h2 {
 .rows p { margin: 6px 0 0; font-size: 14.5px; color: var(--text-quiet); }
 .rows.narrow { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 48px; }
 .rows.narrow > li:nth-child(-n+3) { border-top: 0; }
-/* The numeral, and it took three goes to get here. It was an 11 px label above
-   each block, then for an hour on 20 August a 92 px figure in the page's own
-   background colour raised out of it by nothing but its shadow -- which looked
-   good and said nothing, being the largest thing on a block whose smallest
-   fact it carried. Both were taken off, and the brace left behind by that
-   removal stood orphaned in this stylesheet until 21 August.
 
-   What it is now: a 5 x 7 dot-matrix cell, the shape a character has had on
-   that kind of display since it existed. The whole cell is drawn, lit and
-   unlit alike -- that is what makes it a panel rather than a figure made of
-   dots, and the unlit ones take the page's hairline colour, the quietest thing
-   on it. 43 px is not an arbitrary smaller number than 92: it is the height of
-   the title and its sentence together, so the panel ends where the writing
-   ends.
-
-   Counting them again is not the section repeating itself after all. The lede
-   promises *jen třikrát* and then asks the reader to take three blocks on
-   trust as being three; the panels are the promise kept in the same breath. */
 .numeral { display: block; margin: 0 0 14px; }
 .numeral svg { display: block; }
 .numeral .dot { fill: var(--line); transition: fill 90ms linear; }
 .numeral .dot.on { fill: var(--text); }
 @media (prefers-reduced-motion: reduce) { .numeral .dot { transition: none; } }
 
-
-/* The live previews. Inside the frame is the application's own markup under
-   its own stylesheet (`app-shot.css`, generated from `src/css/*` by
-   `scope-app-css.py`). The window is drawn at 1180 × 744 and the whole drawing
-   is scaled to the column, so the proportions stay the program's. */
 .preview { margin: 56px 0 0; width: 100%; }
 .preview-window {
   border: 1px solid var(--line); border-radius: 14px;
@@ -615,9 +416,7 @@ main > section > h2 {
   box-shadow: 0 12px 32px hsl(var(--ds-foreground) / 0.14), 0 2px 8px hsl(var(--ds-foreground) / 0.06);
   overflow: hidden;
 }
-/* The title bar as the source has it: the icon is
-   `src-tauri/icons/app-icon.svg` and the title `volocal™` comes from
-   `tauri.conf.json`. The window carries nothing else. */
+
 .preview-titlebar {
   display: flex; align-items: center; gap: 9px; height: 34px; padding: 0 12px;
   background: hsl(var(--ds-background)); border-bottom: 1px solid var(--line);
@@ -625,9 +424,7 @@ main > section > h2 {
 }
 .preview-titlebar > svg { width: 16px; height: 16px; border-radius: 4px; flex: 0 0 auto; }
 .preview-titlebar .name { flex: 1; }
-/* Three equal boxes rather than three characters: the glyphs ─ □ ✕ each have
-   a different width and a different baseline, so the row fell apart. What is
-   drawn is a hairline inside a fixed square. */
+
 .preview-titlebar .window-buttons { display: flex; align-items: center; gap: 6px; }
 .preview-titlebar .window-buttons span {
   display: grid; place-items: center; width: 22px; height: 22px; border-radius: 4px;
@@ -637,76 +434,26 @@ main > section > h2 {
   fill: none; stroke: currentColor; stroke-width: 1.1; stroke-linecap: round;
 }
 .preview-viewport { position: relative; width: 100%; overflow: hidden; }
-/* The window is drawn at 1180 px and shown smaller, and **how** it is made
-   smaller is the whole of this note.
 
-   It was `transform: scale()` with `will-change: transform` until 27 August
-   2026. A transform scales a picture: the subtree is rasterised once and the
-   result is resampled down, which a straight 1 px edge survives and a curve does
-   not -- the resampling piles coverage into the arc, so every pill and every
-   rounded corner came out heavier than the flat edges beside it. `will-change`
-   fixed that in Chrome, which re-rasterises a promoted layer at the scale it is
-   composited at. It was measured there, at device scale 1, and it was true
-   there.
-
-   **Firefox does the opposite with the same rule**: a promoted layer is
-   rasterised once and its texture is scaled, so the fix was the cause. The page
-   was clean in Chrome and heavy-armed in Firefox for as long as both existed,
-   which is the worst shape a defect can have -- invisible to whoever built it.
-
-   `zoom` is not a picture. It scales used values, so the window is laid out at
-   the size it is shown at and every edge is drawn rather than resampled. There
-   is no texture and nothing to promote, which is why `will-change` went with the
-   transform: a layer would only give the compositor something to scale again.
-
-   Shown to the owner as three windows side by side in Firefox at the page's own
-   0.92 -- `transform` with the hint, `transform` without it, and `zoom`. Only
-   the third was clean.
-
-   `fit()` in `preview.js` writes this on every resize and once more when the
-   fonts land; under `zoom`, `offsetWidth` still reports the unzoomed 1180, so
-   the measurement it makes is unchanged. */
 .preview-stage {
   width: 1180px; height: 744px;
-  /* Only for the fallback in `fit()`: a browser without `zoom` is given the
-     transform, and a transform needs to grow from the corner the window sits
-     in. Nothing else reads this. */
+
   transform-origin: 0 0;
 }
 .preview-stage .shot { width: 1180px; height: 744px; display: flex; }
 .preview-stage .shot .app { flex: 1; min-width: 0; }
 .preview figcaption { margin: 18px 2px 0; font-size: 13.5px; color: var(--text-quiet); }
 
-/* The carousel of views. Hand-driven on purpose: a window that changes on its
-   own steals the reading of whatever the eye was on. Arrows and dots, nothing
-   moves until somebody asks.
-
-   Every slide holds a whole window at 1180 × 744, scaled to the column by
-   `preview.js`, so all three are the same size and the track can simply slide. */
-/* 120, and what it looks like is 94: the viewport below pulls itself up by the
-   26 px of shadow room it takes. The gap is measured from the window's edge,
-   which is what the eye sees, not from the box around it. */
 .carousel { margin: 120px 0 0; width: 100%; }
-/* Room for the window's shadow, taken straight back out of the layout: the
-   viewport has to clip the slides beside this one, and with no padding it
-   clipped the glow off the one being looked at. The slides keep their width,
-   because the negative margin gives back exactly what the padding took.
-   The amount is the page's own gutter and not a number of its own, because
-   the negative margin puts the box that much past the column on each side.
-   It was 48 against a 32 px gutter until 2026-08-21, and every window under
-   1276 px scrolled sideways by exactly the 16 px difference. The phone rule
-   further down carries the same arithmetic to the 20 px gutter. */
+
 .carousel-viewport {
   overflow: hidden;
   padding: 26px 32px 4px; margin: -26px -32px -4px;
 }
-/* And the neighbours stand 120 px away rather than edge to edge, so what shows
-   in those 32 px is ground and not the next window. The track shifts by the
-   slide plus the gap, which `preview.js` has to know: SLIDE_GAP. */
+
 .carousel-track { display: flex; gap: 120px; transition: transform .42s cubic-bezier(.4, 0, .2, 1); }
 .slide { flex: 0 0 100%; min-width: 0; }
-/* A slide that is not the current one is out of the tab order and out of the
-   accessibility tree; it is a picture nobody can reach with a keyboard. */
+
 .slide[aria-hidden="true"] { visibility: hidden; }
 .slide-caption {
   display: flex; align-items: flex-start; gap: 8px;
@@ -722,8 +469,7 @@ main > section > h2 {
 .carousel-arrow:hover { background: var(--muted); }
 .carousel-arrow svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .carousel-dots { display: flex; align-items: center; gap: 8px; }
-/* A dot is a control, so it is a button with a name; what is drawn is smaller
-   than what can be hit. */
+
 .carousel-dots button {
   width: 22px; height: 22px; padding: 0; border: 0; background: none; cursor: pointer;
   display: grid; place-items: center;
@@ -735,64 +481,22 @@ main > section > h2 {
 .carousel-dots button[aria-selected="true"]::before { background: var(--text); transform: scale(1.25); }
 @media (prefers-reduced-motion: reduce) { .carousel-track { transition: none; } }
 
-/* The dialog on the third view, without `.dialog-overlay`: that one is
-   `position: fixed` and would veil the page rather than the window. */
 .shot-dialog {
   position: absolute; inset: 0; z-index: 40;
   display: flex; align-items: center; justify-content: center;
   background: var(--scrim);
 }
-/* The 3 px the application puts under its own veil -- but put on the window
-   rather than read back out from behind the veil, and that is the whole of the
-   fix.
-   
-   `backdrop-filter` stood on `.shot-dialog` until 26 August 2026. It has to
-   read the pixels behind it, blur them and paint them back, and the only place
-   on this page where that happens is inside `.preview-stage`: a subtree scaled
-   to the column and deliberately promoted to a layer of its own. There the read
-   comes off a texture rasterised in tiles, each tile blurred from what is
-   inside it and nothing beyond -- so every repaint of part of that region left
-   the seams between tiles standing as straight lines across the window. The
-   pointer resting on a carousel arrow was enough: its background transitions,
-   the region repaints, the lines appear. Firefox and Chromium both, because
-   both rasterise in tiles.
-   
-   A `filter` on the window reads nothing back. It is rasterised once, with the
-   whole window to blur from, and a repaint anywhere else cannot touch it. The
-   edges soften into `.shot`, which is painted in the same ground colour, so the
-   window keeps its frame.
-   
-   Whatever the veil's own parent is, its other children are the window: in one
-   slide the veil is a sibling of `.app`, in another it sits inside it beside
-   `<main>`. Naming `.app` here matched two of the four and left the rest sharp,
-   which is why this asks the veil where it lives instead of assuming. */
+
 .preview-stage :has(> .shot-dialog) > :not(.shot-dialog) { filter: blur(3px); }
 
-/* The archive's own dissolve strips sample the backdrop as well, and they are
-   in the same scaled layer, so they can seam for the same reason -- and they do
-   it under a list that scrolls, which is where a repaint is guaranteed. They
-   are the application's rules, generated into `app-shot.css`, so they are
-   turned off here rather than edited there: what `::before` carries is a colour
-   fade to the page's ground, which its own comment says holds the effect on its
-   own, and `::after` is nothing but blur, so it simply stops being drawn. A
-   dissolve one shade weaker than the application's is a smaller wrong than a
-   seam. */
 .preview-stage .archive-sticky::before,
 .preview-stage .archive-sticky::after {
   backdrop-filter: none; -webkit-backdrop-filter: none;
 }
 .preview-stage .shot { position: relative; }
-/* A dialog sizes itself against the viewport, and here the viewport is the page
-   rather than the window it is drawn in — so it grew past the frame and its
-   footer was clipped. The window is 744 tall; this keeps the dialog inside it
-   and leaves the scrolling to the text, which is what the application does. */
+
 .shot-dialog .dialog { max-height: 86%; }
 
-/* The functions as cards in a masonry: each one is as tall as its own
-   sentence, so the columns pack them instead of ruling them into a grid of
-   equal boxes with air at the bottom of the short ones. CSS columns rather
-   than a script — the trade is reading order, which runs down a column before
-   it moves across, and for a list of independent functions that is no loss. */
 .cards {
   margin: 40px 0 0; padding: 0; list-style: none;
   column-count: 3; column-gap: 22px;
@@ -802,17 +506,12 @@ main > section > h2 {
   margin: 0 0 22px; padding: 20px 22px 22px;
   border: 1px solid var(--line); border-radius: var(--r-card);
   background: var(--panel);
-  /* The design system's own card hover, not a new one: `.row` in
-     src/css/02-library.css lifts nothing and moves nothing — the line goes to
-     `--line-field` and the card takes `--shadow`, over the application's
-     0.22 s. Anything with a translate in it would be this page inventing a
-     gesture the program does not have. */
+
   transition: border-color var(--hover-duration) var(--hover-ease),
     box-shadow var(--hover-duration) var(--hover-ease);
 }
 .cards li:hover { border-color: var(--line-field); box-shadow: var(--shadow); }
-/* The icon takes the quiet colour: the gain is what the eye should land on,
-   not the picture beside it. */
+
 .cards .card-icon { display: block; margin-bottom: 13px; color: var(--text-quiet); }
 .cards .card-icon svg { display: block; width: 22px; height: 22px; }
 .cards b { display: block; font-size: 15px; font-weight: 680; letter-spacing: -.01em; }
@@ -820,46 +519,21 @@ main > section > h2 {
 @media (max-width: 980px) { .cards { column-count: 2; } }
 @media (max-width: 620px) { .cards { column-count: 1; } }
 
-/* Each of the ten function rows carries one fragment of the application's
-   own UI -- the owner's ask of 19 August: not a separate band above the
-   list, a token on every card. The first cut stacked the faces under the
-   sentences and the owner turned it down for swelling the section; what
-   stands is his own counter-proposal: at rest the row is exactly the text
-   list it always was, and the fragment slides in over the sentence while the
-   pointer -- or keyboard focus -- is on the row. The sentence still says
-   everything on its own; a phone never sees the fragment, so the fragment
-   is proof, not information, and no wording lives only inside it.
-
-   Sideways, and over the words, on the owner's word of 20 August. The first
-   build unfolded the fragment under the sentence, which meant the row grew
-   by 106 px under the pointer and everything below it hopped -- reading two
-   rows down became a moving target. Out of flow there is nothing to push:
-   the card is absolute, one fixed height, and the row measures the same
-   whether it is open or shut. */
-/* Every row that can open is at least as tall as the tallest one, so the card
-   that slides into it clears the hairline by the same 18 px everywhere. The
-   last two rows have one line of writing where the rest have two, which made
-   them 105 px -- and a 92 px card in a 105 px row leaves 6 px above it. The
-   card looked stuck to the line above, because it was. */
 .rows li:has(.row-reveal) { position: relative; min-height: 128px; }
 .row-reveal {
   position: absolute; z-index: 2;
-  /* From the text column, not the row: the drawing stays out in its own
-     22 px column and holds the reader's place while the words go. */
+
   left: 36px; right: 0; top: 50%; height: 92px;
   transform: translateY(-50%) translateX(20px); opacity: 0;
   pointer-events: none;
   transition: transform 0.26s cubic-bezier(.4, 0, .2, 1), opacity 0.2s ease;
 }
-/* The card is one height on every row, taller than the two lines it covers
-   and shorter than the row itself, so it is the same object everywhere and
-   still never reaches the hairline above or below. */
+
 .rows li:hover .row-reveal,
 .rows li:focus-within .row-reveal {
   transform: translateY(-50%) translateX(0); opacity: 1; pointer-events: auto;
 }
-/* The words leave the way the card arrives, a shorter distance so the card
-   is the thing that moves. */
+
 .row-words { transition: transform 0.26s cubic-bezier(.4, 0, .2, 1), opacity 0.18s ease; }
 .rows li:hover .row-words,
 .rows li:focus-within .row-words { transform: translateX(-10px); opacity: 0; }
@@ -870,45 +544,18 @@ main > section > h2 {
   .rows li:hover .row-words,
   .rows li:focus-within .row-words { transform: none; }
 }
-/* One surface per fragment: 92 px tall, the row's column width, a `--line`
-   hairline, `--r-card` corners. Where the fragment brings a fill of its own
-   (a highlighted segment, the note paper, the header bar, the save menu's
-   panel) it fills the surface edge to edge and gives up its own radius, so
-   nothing sits in a frame inside a frame; where it has none, the surface
-   stays the app's `--ground` and the fragment is centred on it. `shot` on
-   every face: app-shot.css prefixes every rule with it, so a fragment
-   outside such a wrapper draws as bare HTML -- raw input boxes and no
-   colour. */
+
 .row-face {
   height: 100%; min-height: 0; overflow: hidden;
-  /* Opaque, because it lies on top of the sentence rather than under it, and
-     lifted by the same shadow the cards above use -- an object that arrived,
-     not a panel that was always there.
 
-     `--panel`, not `--surface`: there is no `--surface` in this page or in the
-     application's stylesheet, and an undefined `var()` drops the declaration
-     without a word. The card stood transparent for a day and nobody saw it,
-     because the sentence under it fades out at the same moment. */
   background: var(--panel);
   box-shadow: inset 0 0 0 1px var(--line), var(--shadow);
   border-radius: var(--r-card);
   display: grid; grid-template: minmax(0, 1fr) / minmax(0, 1fr);
 }
-/* Fragment and strut share the one cell -- auto-placement would otherwise
-   shove the fragment into an implicit second row under the strut. */
-.row-face > * { min-width: 0; grid-area: 1 / 1; }
-/* A folder filling up, which is what the sentence beside this row is about.
-   Three names arrive one after another and each is taken in turn: the dot is
-   the archive's own -- the accent one pulsing while the file is being
-   transcribed, the green one after. All three lines exist from the first
-   frame, so the block never resizes; only what is written in it changes.
 
-   5.4 s the whole way round: a name every 1.2 s, each taken 1.2 s later, and
-   a breath at the end before the folder fills again. It was 8 s until the
-   owner said it dawdled. The three keyframe sets
-   differ in one number, the point where the line goes -- each animation
-   counts from its own delay, so the same moment in the loop is a different
-   percentage for each line. */
+.row-face > * { min-width: 0; grid-area: 1 / 1; }
+
 .row-face.watch { padding: 0 20px; }
 .watch-list {
   list-style: none; margin: 0; padding: 0;
@@ -917,13 +564,10 @@ main > section > h2 {
 }
 .watch-file { opacity: 0; }
 .watch-file .row-title { display: flex; align-items: center; gap: 9px; }
-/* The two dots share one cell: the line must not shift when one replaces the
-   other, and the working dot's 4 px halo needs the room either way. */
+
 .watch-file .row-status-icon { display: grid; width: 9px; height: 9px; }
 .watch-file .mark-slot { grid-area: 1 / 1; width: 9px; height: 9px; }
-/* Sized and blockified here: in the application the dot is a flex item and
-   takes its 9 px from `flex: 0 0 auto`. Stacked in this slot it is an inline
-   span again, and an inline span ignores both -- it drew nothing at all. */
+
 .watch-file .status-mark { display: block; width: 9px; height: 9px; margin-top: 0; }
 .watch-file .row-name { font-size: 13.5px; }
 .row-face.watch.run .watch-file {
@@ -933,10 +577,7 @@ main > section > h2 {
 .row-face.watch.run .f1 { animation-name: watch-1; }
 .row-face.watch.run .f2 { animation-name: watch-2; animation-delay: 1.2s; }
 .row-face.watch.run .f3 { animation-name: watch-3; animation-delay: 2.4s; }
-/* The first name is already standing when the card arrives -- it fades over
-   0.1 s, not the 0.24 s the first build gave it, because anything longer put
-   an empty card under the pointer and read as the animation thinking about
-   it. The two that follow do slide in: they are the ones arriving. */
+
 @keyframes watch-1 {
   0% { opacity: 0; } 2% { opacity: 1; }
   85% { opacity: 1; } 91%, 100% { opacity: 0; }
@@ -951,43 +592,23 @@ main > section > h2 {
   4% { opacity: 1; transform: none; }
   41% { opacity: 1; } 47%, 100% { opacity: 0; }
 }
-/* The dots are wrapped rather than animated themselves: the working one
-   already carries the application's `puls` on its own `animation`, and a
-   second declaration would take it off. */
+
 .row-face.watch.run .mark-slot.working { animation: mark-working 5.4s ease infinite; }
 .row-face.watch.run .mark-slot.ready { animation: mark-ready 5.4s ease infinite; }
 .row-face.watch.run .f2 .mark-slot { animation-delay: 1.2s; }
 .row-face.watch.run .f3 .mark-slot { animation-delay: 2.4s; }
-/* 1.2 s of work each, which is 22 % of the way round -- the same number for
-   all three, because each counts from its own arrival. */
+
 @keyframes mark-working { 0%, 20% { opacity: 1; } 24%, 100% { opacity: 0; } }
 @keyframes mark-ready { 0%, 20% { opacity: 0; } 24%, 100% { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) {
-  /* The folder stands full and taken care of. */
   .row-face.watch.run .watch-file,
   .row-face.watch.run .mark-slot { animation: none; }
   .row-face.watch .watch-file { opacity: 1; }
   .row-face.watch .mark-slot.working { opacity: 0; }
 }
-/* `.rows li` is a descendant selector, so every list inside a fragment was
-   being given the feature row's own 24 px and its hairline -- three file names
-   came to 217 px in a 92 px card and the card showed two slivers and a name.
-   Undone once, here, rather than in each fragment. */
+
 .row-face li { padding: 0; border-top: 0; }
-/* Every format the application writes, in one row: five for the transcript,
-   three for the sound. Each is a sheet 52 x 56 -- wider than tall through the
-   middle, which is what a sheet with writing on it looks like; the first cut
-   was 44 x 52 and read as a column. Eight sheets and seven gaps come to 465 px
-   of the 520 the card has, so the row still stops short of the edges. The name sits on the sheet
-   rather than under it: a label under each one would be a second row of
-   writing, and the sheet is already the thing that says *file*. It sits at the
-   foot of the sheet, where a name is written on a folder tab -- halfway up it
-   read as one more line of the text above it. */
-/* A share of the card rather than a fixed size, capped at the 52 px the sheets
-   are drawn at. Eight of them and seven gaps are 465 px, which the 526 px
-   column of the two-column grid has and the 398 px it becomes at 940 does not
-   -- the row was being cut at both ends between 900 and 1150 px. At the widths
-   where there is room the arithmetic lands on the same 52 and 7 as before. */
+
 .save-formats { display: flex; gap: 1.4%; justify-content: center; }
 .fmt {
   position: relative; flex: 0 1 auto;
@@ -995,25 +616,9 @@ main > section > h2 {
   color: var(--line-field);
 }
 .fmt svg { display: block; width: 100%; height: 100%; }
-/* The sound sheets take the accent, which is the colour the application gives
-   anything to do with playing. */
+
 .fmt.sound { color: var(--accent-line); }
-/* The name is written on the sheet, so it shrinks with the sheet. The sheet
-   became a share of the card on 21 August and the writing on it did not follow:
-   at 52 px a 10 px name is right, and on a 390 px phone the sheet is 28 px and
-   the name was still 10.
 
-   Sized against the window rather than against the sheet. `cqw` would be the
-   exact way to say *a share of this sheet*, and it was tried here on 25 August:
-   `container-type: inline-size` on either `.fmt` or `.save-formats` collapses
-   the row to zero width, because the sheets are sized in `%` of a container
-   that is then told not to size itself from them. Below the phone breakpoint
-   the card is one column of a known width, so the window is a good enough
-   proxy and it costs nothing.
-
-   1.6vw is 10 px at 620 and 6.2 at 390, which is the 19% of the sheet the name
-   has always been. Above 620 the clamp holds it at 10 and nothing on a desktop
-   moves. */
 .fmt b {
   position: absolute; left: 0; right: 0;
   bottom: clamp(2.5px, 0.9vw, 6px);
@@ -1021,11 +626,7 @@ main > section > h2 {
   font-size: clamp(5px, 1.6vw, 10px);
   letter-spacing: 0.06em; color: var(--text-quiet);
 }
-/* Sound and subtitle, lit by one sweep. Both copies are the same markup; the
-   upper one is clipped from the left, so a peak and the word over it brighten
-   in the same frame and no amount of drift can creep in between them. The dark
-   bar under the words is in both copies and identical, so the clip leaves no
-   seam across it -- only the writing changes. */
+
 .row-face.cue { padding: 0 22px; }
 .cue-body { grid-area: 1 / 1; display: grid; align-content: center; gap: 9px; }
 .cue-body.lit { clip-path: inset(0 100% 0 0); }
@@ -1039,13 +640,10 @@ main > section > h2 {
   background: var(--text); font-size: 12.5px; font-weight: 600;
   white-space: nowrap;
 }
-/* The bar itself is the same darkness in both copies -- dimming the whole
-   span turned the unplayed half into a grey block, and a subtitle does not
-   arrive in halves. Only the writing changes. */
+
 .cue-body.base .cue-cap > span { color: var(--text-quiet); }
 .cue-body.lit .cue-cap > span { color: var(--panel); }
-/* The return is not a cut: the lit copy fades out where it stands and is put
-   back at the left while nothing of it is on screen. */
+
 @keyframes cue-sweep {
   0% { opacity: 1; clip-path: inset(0 100% 0 0); }
   76% { opacity: 1; clip-path: inset(0 0 0 0); }
@@ -1054,14 +652,9 @@ main > section > h2 {
   97.01%, 100% { opacity: 0; clip-path: inset(0 100% 0 0); }
 }
 @media (prefers-reduced-motion: reduce) {
-  /* The line stands lit, which is the state the claim is about. */
   .row-face.cue.run .cue-body.lit { animation: none; clip-path: inset(0 0 0 0); }
 }
 
-/* The three ways the sound gets in, as marks in the header bar. Drawn by the
-   page: the application's bar has no such row, it has the mark and whatever is
-   playing. Here the bar is standing for the whole application, and the row
-   beside it is about where a recording comes from. */
 .bar-left .sources { display: flex; align-items: center; gap: 6px; margin-left: 14px; }
 .source {
   width: 24px; height: 24px; border-radius: 50%; flex: 0 0 auto;
@@ -1069,10 +662,7 @@ main > section > h2 {
   display: grid; place-items: center; color: var(--text-quiet);
 }
 .source svg { width: 13px; height: 13px; display: block; }
-/* The wrong word and the right one stand in one grid cell, so the line does
-   not shift by a hair when they change over -- `blob.` and `blog.` are not the
-   same width in this face, and a line that jumps says *something was replaced*
-   where the point is *one letter was put right*. 5 s the whole way round. */
+
 .fix-word { position: relative; display: inline-grid; vertical-align: baseline; }
 .fix-word > .word { grid-area: 1 / 1; justify-self: start; }
 .fix-word > .after { opacity: 0; }
@@ -1080,9 +670,7 @@ main > section > h2 {
 .row-face.fix.run .fix-word > .after { animation: fix-in 5s ease infinite; }
 @keyframes fix-out { 0%, 45% { opacity: 1; } 49%, 100% { opacity: 0; } }
 @keyframes fix-in { 0%, 45% { opacity: 0; } 49%, 100% { opacity: 1; } }
-/* The caret comes to the word before anything happens to it, waits a beat --
-   long enough to read what is wrong -- and leaves once it is right. It blinks
-   on its own clock, the way a caret does, rather than on the loop's. */
+
 .fix-caret {
   position: absolute; right: -2px; top: 50%; transform: translateY(-50%);
   width: 1.5px; height: 1.05em; background: var(--text); opacity: 0;
@@ -1093,23 +681,11 @@ main > section > h2 {
 @keyframes fix-caret-shows { 0%, 24% { opacity: 0; } 28%, 74% { opacity: 1; } 78%, 100% { opacity: 0; } }
 @keyframes fix-caret-blinks { 0%, 49% { visibility: visible; } 50%, 100% { visibility: hidden; } }
 @media (prefers-reduced-motion: reduce) {
-  /* The word stands put right, which is what the row claims. */
   .row-face.fix.run .fix-word > .before,
   .row-face.fix.run .fix-caret { animation: none; opacity: 0; }
   .row-face.fix.run .fix-word > .after { animation: none; opacity: 1; }
 }
-/* The recorder's spectrum. In the application these bars are a canvas the
-   recorder repaints from what the microphone hears; here they are the same
-   bars as an SVG, each rising and falling on its own clock. Every bar carries
-   its own floor, duration and a negative delay, so they start out of step --
-   one shared animation would make the strip breathe as a single block, which
-   no microphone ever does.
 
-   `scaleY` from the bottom, because the application anchors its bars there
-   too; `transform-box: fill-box` is what gives an SVG rect an origin of its
-   own instead of the whole canvas's. */
-/* An SVG with a viewBox and a height takes its width from that ratio, which
-   left the strip 302 px wide in a 530 px dialog -- half a spectrum. */
 .mic-bars { width: 100%; }
 .mic-bars rect {
   transform-box: fill-box; transform-origin: bottom;
@@ -1120,13 +696,11 @@ main > section > h2 {
 @media (prefers-reduced-motion: reduce) {
   .mic-bars rect { animation: none; }
 }
-/* Loose fragments -- a switch, the speed pills -- stand centred on the ground. */
+
 .row-face.center { place-items: center; }
-/* The fragments that are the surface. */
+
 .row-face .segment { display: grid; align-content: center; margin: 0; border-radius: 0; height: 100%; }
-/* The app shows a segment's actions on its top edge, beside a first line the
-   segment aligns to its top; this face centres the one line, so the actions
-   centre with it. */
+
 .row-face .segment-actions { top: 50%; transform: translateY(-50%); }
 .row-face .stickies { display: grid; height: 100%; }
 .row-face .sticky { height: 100%; display: grid; align-content: center; border-radius: 0; border: 0; }
@@ -1137,56 +711,32 @@ main > section > h2 {
 }
 .row-face .list { display: grid; height: 100%; margin: 0; padding: 0; }
 .row-face .folder-row { height: 100%; border-radius: 0; border: 0; align-content: center; }
-/* The pill's waveform is a live canvas in the application; here it is the
-   same bars drawn once, as an SVG filling the same box. */
+
 .row-face .mini-waves > svg { display: block; width: 100%; height: 100%; }
-/* Below the section's one-column breakpoint there is no hover to open the
-   card with -- and nothing for it to push, either, since the row now has the
-   width to itself. So the fragment stops being an overlay and becomes what it
-   always was: the proof, standing under the sentence that makes the claim.
-   Nothing hidden, nothing to discover, no animation.
-   The room is there. The fragments were drawn for the 526 px column of the
-   two-column grid, and one column is 820 px at 899 and 565 px at 620 -- wider
-   than what they were built in, all the way down to the phone breakpoint. */
+
 @media (max-width: 900px) {
   .rows li:has(.row-reveal) { min-height: 0; }
-  /* The row is a 22 px icon column and the text; a static card would be
-     auto-placed into the icon column. */
+
   .row-reveal {
     position: static; grid-column: 2; margin: 14px 0 2px;
     transform: none; opacity: 1; pointer-events: auto; transition: none;
   }
-  /* 92 px is a floor here rather than the height. The card was drawn for the
-     526 px column and is 299 px on a phone, so a note wraps onto a second line
-     and a folder name onto a third -- at 320 px the note needs 142. As an
-     overlay the frame had to hold, because anything taller would have covered
-     the row above; in the flow there is nothing under it to push, so a
-     fragment that needs the room takes it instead of being cut off. */
+
   .row-reveal,
   .row-face { height: auto; min-height: 92px; }
-  /* The one fragment that cannot wrap: a file name is one line by nature. At
-     320 px the longest of the three is 2 px wider than the card, so the rows
-     take the card's width instead of hugging their text, and the name is cut
-     with an ellipsis -- which is what the archive itself does with a name too
-     long for its row. */
+
   .row-reveal .watch-list { justify-items: stretch; }
-  /* `min-width: auto` on a grid item is the name's own min-content, which is
-     the whole unbreakable name -- the row would still be 211 px in a 189 px
-     list without this. */
+
   .row-reveal .watch-file { min-width: 0; }
   .row-reveal .watch-file .row-name {
     min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
-  /* And the words stay where they are. With the card in flow there is
-     nothing for them to make way for. */
+
   .rows li:hover .row-reveal,
   .rows li:focus-within .row-reveal { transform: none; }
   .rows li:hover .row-words,
   .rows li:focus-within .row-words { transform: none; opacity: 1; }
-  /* The application folds its player pill at exactly this width -- no waves,
-     no name, the time in their place. That is right in a 380 px window and
-     wrong in a picture of a 1280 px one, so the fragment keeps the pill it
-     was drawn with. */
+
   .row-reveal .mini-player { width: 290px; }
   .row-reveal .mini-recorder { padding-left: 3px; }
   .row-reveal .mini-player > .mini-waves,
@@ -1194,10 +744,6 @@ main > section > h2 {
   .row-reveal .mini-player > .mini-time { display: block; }
 }
 
-/* Hierarchy. Three cards carry the reasons somebody installs this at all, so
-   they stand above the masonry as a grid of three and one step larger — 19 px
-   title, the icon in the accent colour. Twelve cards of equal weight asked the
-   reader to do the ranking; these three are the ranking. */
 .cards.lead {
   column-count: auto; display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px;
@@ -1209,19 +755,12 @@ main > section > h2 {
 .cards.lead b { font-size: 19px; font-weight: 700; letter-spacing: -.02em; }
 .cards.lead p { margin-top: 9px; font-size: 14.5px; }
 
-/* The three first-run steps. A grid, not a masonry — they are read across, in
-   order. The numeral stays beside the drawing: they are the one real sequence
-   on the page and an icon alone does not say which one comes first. */
 .cards.steps {
   column-count: auto; display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px;
 }
 .cards.steps li { margin: 0; }
-/* A drawn window over each step, in the language of the cartoon in the hero:
-   toy-sized, flat, and obviously a drawing rather than a screenshot. Three
-   situations nobody has a picture of — a download, the Windows warning, the
-   wizard fetching models — and a photograph of a dialog would date faster than
-   a drawing of one anyway. `aria-hidden`: the text under it says all of this. */
+
 .step-art {
   height: 116px; margin-bottom: 16px; overflow: hidden;
   border: 1px solid var(--line); border-radius: 10px; background: var(--ground);
@@ -1233,9 +772,7 @@ main > section > h2 {
   background: var(--panel); border-bottom: 1px solid var(--line);
 }
 .step-name { font-size: 8.5px; font-weight: 650; color: var(--text-quiet); }
-/* The same three squares the big windows carry — `.preview-titlebar` at 22 px
-   and the cartoon at 18 — down to 13 for a window this size. Three bare glyphs
-   stood here and read as a different set. */
+
 .step-buttons-win { display: flex; align-items: center; gap: 2px; flex: 0 0 auto; color: var(--text-quiet); }
 .step-buttons-win i { display: grid; place-items: center; width: 13px; height: 13px; border-radius: 2px; }
 .step-bar svg {
@@ -1245,7 +782,6 @@ main > section > h2 {
 .step-body { flex: 1 1 auto; display: flex; flex-direction: column; align-items: center;
   justify-content: center; gap: 7px; padding: 10px 12px; }
 
-/* 1 — the installer arriving on the disk. */
 .step-file {
   padding: 3px 9px; border-radius: 999px; background: var(--panel);
   border: 1px solid var(--line); font-size: 9.5px; font-weight: 600; color: var(--text);
@@ -1253,7 +789,6 @@ main > section > h2 {
 .step-arrow { width: 16px; height: 16px; fill: none; stroke: var(--accent); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .step-disk { width: 62px; height: 4px; border-radius: 2px; background: var(--line-field); }
 
-/* 2 — the one screen that stops somebody, with the way past it lit. */
 .step-shield { width: 22px; height: 22px; fill: none; stroke: var(--text-quiet); stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
 .step-lines { display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .step-lines i { display: block; width: 84px; height: 3px; border-radius: 2px; background: var(--line-field); }
@@ -1262,31 +797,18 @@ main > section > h2 {
 .step-buttons i { display: block; width: 40px; height: 11px; border-radius: 999px; border: 1px solid var(--line-field); }
 .step-buttons i.on { background: var(--text); border-color: var(--text); }
 
-/* 3 — two cards to choose from, and the download under them. */
 .step-choices { display: flex; gap: 7px; }
 .step-choices i { display: block; width: 46px; height: 30px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); }
 .step-choices i.on { border-color: var(--accent); background: var(--accent-light); }
 .step-progress { width: 100px; height: 4px; border-radius: 2px; background: var(--muted); overflow: hidden; }
 .step-progress i { display: block; width: 62%; height: 100%; background: var(--accent); }
 
-/* The same toy window over the three lead cards. They are not moments the way
-   the first-run steps are — nobody can photograph *your recordings stay here* —
-   so each one draws the one thing the sentence claims and nothing else: a house
-   with the files inside it, two voices told apart, a long text becoming a short
-   one. Flat shapes, no rebus. */
 .lead-art { height: 104px; margin-bottom: 18px; }
 .lead-art .step-body { gap: 9px; }
 .art-house { width: 64px; height: 44px; fill: none; stroke: var(--text-quiet); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
-/* The mark itself, standing in the house. Two anonymous rectangles stood here
-   and said *files are kept somewhere*; this says whose machine does the work
-   and where it lives, without inventing a symbol for it. A safe was the other
-   candidate and is wrong twice over: it promises protection from theft rather
-   than from travel, and the archive is deliberately not encrypted — the page
-   must not draw a lock it does not have. */
+
 .art-house-wrap { position: relative; display: block; line-height: 0; }
-/* Centred on the body of the house, not on the drawing: the roof takes the top
-   third, so the middle of the 44 px box is up in the gable. The body runs from
-   18.5 to 41, its middle is 29.75, and that is 7.75 below the box's own centre. */
+
 .art-mark {
   position: absolute; left: 50%; top: 50%;
   transform: translate(-50%, calc(-50% + 6px));
@@ -1315,8 +837,6 @@ main > section > h2 {
   .cards.lead, .cards.steps { grid-template-columns: minmax(0, 1fr); }
 }
 
-/* What it runs on: a grid of three, not a masonry — six short cards of one
-   kind, and a ragged column would make them look like six unrelated ones. */
 .cards.tech {
   column-count: auto; display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px;
@@ -1325,43 +845,22 @@ main > section > h2 {
 @media (max-width: 980px) { .cards.tech { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 620px) { .cards.tech { grid-template-columns: minmax(0, 1fr); } }
 
-/* Asleep: the section these dress is commented out in the markup below.
-
-   The limits, one step down. They keep their place and stay readable — a page
-   that whispers what it does badly is doing the opposite of what that list is
-   for — but they no longer stand at the size of the gains. The gains now have
-   two levels of their own, and this was the last block outside that order. */
 main > section.minor > h2 { font-size: 21px; letter-spacing: -.02em; }
 section.minor .sec-lede { font-size: 14.5px; }
 section.minor .rows li { padding: 18px 0; }
 section.minor .rows b { font-size: 14px; font-weight: 650; }
 section.minor .rows p { margin-top: 4px; font-size: 13px; }
-/* The FAQ, which is where the limits landed. They were taken out from between
-   the gains and the first run on 18 August with a note saying they belonged in
-   a FAQ; these are the questions that note was waiting for, and every answer
-   is the owner's own sentence out of it, word for word.
 
-   `<details>` and not a script: it opens with no JavaScript, it is in the tab
-   order by itself, and find-in-page opens the one it hits. Shut to begin with
-   -- a page that opens on what the program cannot do has its proportions
-   wrong, and a reader who wants this is looking for it. */
 .faq-list { margin: 26px 0 0; border-top: 1px solid var(--line); }
 .faq-item { border-bottom: 1px solid var(--line); }
-/* `center`, not `baseline`: the chevron has no text in it, so a baseline is
-   somewhere it can only be pushed to, and in a 54 px row it sat low.
 
-   The right padding is 8 px and the left is nothing, which is asymmetric on
-   purpose -- the question keeps the edge the heading and the lede stand on, and
-   the chevron comes in off the end of the rule so it is inside the row rather
-   than balanced on its corner. */
 .faq-item summary {
   display: flex; align-items: center; gap: 12px;
   padding: 16px 8px 16px 0; cursor: pointer; list-style: none;
   font-size: 14px; font-weight: 650; color: var(--text);
 }
 .faq-item summary::-webkit-details-marker { display: none; }
-/* Two borders of a square turned on its corner: the same chevron the archive
-   toolbar draws, at the size the page gives a hairline mark. */
+
 .faq-item summary::after {
   content: ""; flex: 0 0 auto; margin-left: auto;
   width: 8px; height: 8px;
@@ -1371,25 +870,7 @@ section.minor .rows p { margin-top: 4px; font-size: 13px; }
   transition: transform .26s cubic-bezier(.4, 0, .2, 1);
 }
 .faq-item[open] summary::after { transform: rotate(-135deg); }
-/* The answer slides rather than appearing, and the sliding is done in the
-   script at the foot of this file rather than here.
 
-   It was CSS until 26 August 2026: `interpolate-size: allow-keywords` with
-   `::details-content`, behind an `@supports` that let a browser without them
-   keep the instant open. That was the whole fault. Those two are Chromium's
-   and nobody else's yet, so the page animated in Chrome and Edge and jumped in
-   Firefox and Safari -- and the `@supports` meant it did so quietly, on the
-   readers least likely to say anything.
-
-   The script measures the two heights and animates between them, which every
-   browser has been able to do for a decade. Without JavaScript the disclosure
-   is still a `<details>`: it opens, it is in the tab order, it just opens at
-   once. That is the same behaviour the `@supports` was falling back to, and now
-   it is the fallback for having no script rather than for using Firefox.
-
-   `.is-closing` carries the chevron: on the way shut the answer is still
-   `[open]` while it collapses, and without this the arrow would turn a quarter
-   of a second after the panel it belongs to. */
 .faq-item.is-animating { overflow: hidden; }
 .faq-item[open].is-closing summary::after { transform: rotate(45deg); }
 .faq-item summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
@@ -1398,82 +879,27 @@ section.minor .rows p { margin-top: 4px; font-size: 13px; }
   .faq-item summary::after { transition: none; }
 }
 
-/* A note about the picture, not a caption for it — so it takes the shape the
-   application gives its own notes: the info glyph in the accent colour, the
-   sentence beside it. */
 figcaption.with-icon { display: flex; align-items: flex-start; gap: 8px; }
 .caption-icon { flex: 0 0 auto; margin-top: 1px; color: var(--accent); }
 .caption-icon svg { width: 16px; height: 16px; }
 
-/* 96 below, not 32. The closing is the last thing on the page and its button
-   was standing on the footer's rule. */
-/* Not a section like the others: one panel, one question, one way to answer it.
-   The reader it is for has already decided the program works and is asking a
-   different question, so it stands apart from the argument rather than in it —
-   and quietly, because it is the smaller audience. */
-/* A landing place for the header link: the section starts 112 px down, and
-   the browser is told to stop a little above it rather than on its edge. */
 .business { padding: 112px 0 0; scroll-margin-top: 40px; }
-/* One row for as long as there is a row to be had: the sentence gives way and
-   takes a second line rather than pushing the button off the end. Wrapping put
-   the button on a line of its own while the sentence still had room to spare,
-   which reads as two blocks stacked instead of one offer with a way to answer
-   it. Below 620 px the row goes back to wrapping -- at a phone's width a button
-   beside the text leaves the text about a third of the panel. */
+
 .business-panel {
   display: flex; flex-wrap: nowrap; align-items: center; justify-content: space-between;
   gap: 20px 32px; padding: 26px 30px;
   border: 1px solid var(--line); border-radius: var(--r-large); background: var(--panel);
-  /* The same answer under the pointer as the cards under *Co získáte?*, which is
-     the application's own: the line goes to `--line-field` and the card takes
-     `--shadow`, over the application's 0.22 s. Nothing lifts and nothing moves.
-     It is a white card among white cards and was the only one that did not
-     answer at all. */
+
   transition: border-color var(--hover-duration) var(--hover-ease),
     box-shadow var(--hover-duration) var(--hover-ease);
 }
 .business-panel:hover { border-color: var(--line-field); box-shadow: var(--shadow); }
 @media (max-width: 620px) { .business-panel { flex-wrap: wrap; } }
-/* The mark stands before the sentence, not above it: the panel is one row and a
-   drawing on its own line would make it two. The pair travels together when the
-   row wraps, so the button never ends up between the mark and its sentence.
 
-   It was here on 26 August, came out the same evening at his word, and is back
-   at his word this morning. What changed in between is the sentence beside it,
-   which is now two lines on every screen -- 44 px of drawing against two lines
-   of 18 px type is a smaller mark relative to its neighbour than it was against
-   one, and that reads as calmer rather than as smaller. */
 .business-offer { display: flex; align-items: center; gap: 18px; flex: 1 1 420px; min-width: 0; }
-/* Height, not width: the cube is 0.866 as wide as it is tall, and it is the
-   type beside it that decides how big it should read. 52 px at his ask on
-   27 August, once the shapes started moving: the sentence next to it is two
-   lines of 18 px, about 58 px of text, and at 44 the drawing sat well under
-   that -- fine for a still mark, quiet enough that a moving one had to be
-   looked for. 52 stops just short of the text block, so the mark reads as its
-   equal and still does not out-shout the sentence. */
+
 .business-mark { flex: 0 0 auto; display: block; height: 52px; width: auto; }
-/* The mark runs the sequence he settled on in the prototype: a shape in the
-   colour of its own face -- so invisible against it -- sinks along that face's
-   normal, swaps to white at the bottom of the hole and rises back out. Then the
-   second, then the third, and then the same thing backwards, which leaves the
-   cube bare for the next round. Dovnitr jde stena, ven vyleze znacka.
 
-   It is axonometric, so nothing scales: depth is a translation along a face
-   normal -- blue straight down, red up and right, green up and left, which are
-   the normals of those three faces and not a choice. The inside of each hole is
-   clipped by its own mouth, so what passes the rim is hidden by the face, and
-   the band that stays behind between rim and shape is the wall of the hole. It
-   costs nothing to draw because it is what is left over.
-
-   Times are his, found on the slider in the prototype: 8.84 s a round, half a
-   second down or up, 0.215 s at the bottom where the colour changes, and a
-   0.915 s stand with all three shapes white before the whole thing turns round
-   -- half a second longer than it first was, at his ask, because the turn was
-   arriving while the third shape was still settling. The percentages below are
-   those milliseconds over the round.
-
-   His export shows wherever this cannot run -- an old browser, or a reader who
-   asked for less motion -- so the mark is never worse than it was. */
 .business-mark .mark-motion { display: none; }
 .business-mark .walls { filter: brightness(0.45); opacity: 0; }
 .business-mark .piece { transform-box: fill-box; transform-origin: center; }
@@ -1562,83 +988,38 @@ figcaption.with-icon { display: flex; align-items: flex-start; gap: 8px; }
   53.846%, 65.554% { opacity: 1; }
   67.817%, 100% { opacity: 0; }
 }
-/* The button keeps the right edge on whichever line it lands on. `space-between`
-   only spreads a line that has two things on it; once the row wraps, the button
-   is alone on its line and a lone item sits at the start of it -- which is how
-   the button ended up under the sentence and hard left, at every width between
-   a phone and about 800 px. `margin-left: auto` eats the space in front of it
-   either way, so nothing about the unwrapped row changes. */
+
 .business-panel .btn { margin-left: auto; }
 .business-panel p {
-  /* A flex item will not shrink below the longest thing in it unless it is told
-     it may; without this the sentence keeps its one-line width and pushes the
-     button out of the panel instead of wrapping. */
   min-width: 0;
   margin: 0; max-width: 66ch;
   font-family: var(--font-body); font-size: 18px; line-height: 1.5;
-  /* One line on a normal screen — 52ch cut it in two and left a stub on the
-     second. Where it does have to wrap, the browser evens the lines rather
-     than leaving one word hanging. */
+
   text-wrap: balance;
 }
 .closing { padding: 128px 0 96px; text-align: center; }
-/* A height before there is anything in it. The mark is drawn by script, and
-   the observer that starts it watches this box — with no height the box never
-   reaches the threshold, so the mark waited for a moment that could not come. */
+
 .closing .sign { display: flex; justify-content: center; align-items: flex-end; min-height: 76px; margin-bottom: 34px; color: var(--text); }
 .closing h2 { margin: 0; font-size: clamp(26px, 3.4vw, 38px); font-weight: 700; letter-spacing: -.025em; }
 .closing p { margin: 16px auto 0; max-width: 46ch; color: var(--text-quiet); font-size: 15px; }
 .closing .cta { justify-content: center; }
 
-/* The same air under the footer as over it: 96, which is what the closing
-   section already puts there. Before this the page ended on the window's edge --
-   a page that stops rather than ends.
-
-   **`footer.wrap`, not `footer`.** The rule that stood here said `footer` alone
-   and never applied: `.wrap` carries the page's gutters and a class outranks a
-   type, so `padding: 96px 0 72px` was overridden in full, horizontal padding and
-   all, from the day the page was written. The header escaped the same fate by
-   being written `header.top`.
-
-   Which is why the top is zero rather than 96. Naming the class made *both*
-   halves of that dead rule live at once, and the space above the hairline went
-   from 96 to 192 in the same edit that fixed the bottom -- a change nobody asked
-   for, arriving inside one that somebody did. The closing section's own 96 is
-   the air above the footer, as it has always been. */
 footer.wrap { padding-top: 0; padding-bottom: 96px; }
 .foot-line {
   border-top: 1px solid var(--line); padding-top: 32px;
   display: flex; flex-wrap: wrap; gap: 18px 48px; align-items: flex-start;
   font-size: 13.5px; color: var(--text-quiet);
 }
-/* The mark and the sentence stand on one line: the sentence names whose mark
-   that is, so a line break between them made the reader carry the name down to
-   it.
 
-   `center`, and `baseline` was the mistake it replaces. A baseline puts the
-   drawing's floor on the text's baseline, which leaves the letters riding above
-   the shapes -- the owner read it as the text flying upward, which is exactly
-   what it was. The drawing is 12 px in a 20 px line box, so centring the two
-   boxes is also what centres them to the eye. */
 .foot-line .foot-text { max-width: 62ch; display: flex; align-items: center; gap: 10px; }
 .foot-line p { margin: 0; }
 .foot-links { display: flex; flex-wrap: wrap; gap: 6px 24px; margin-left: auto; }
 .foot-links a { text-decoration: none; }
 .foot-links a:hover { color: var(--text); text-decoration: underline; text-underline-offset: 2px; }
-/* The one link inside a sentence answers the pointer the same way its
-   neighbours do: the colour goes to `--text`. Asked for on 27 August -- it had
-   been the only link in the footer that did nothing at all when you reached it.
 
-   Its resting state stays different, and that difference is the point. A link
-   in a row of links is found by being in that row, so it can drop its
-   underline; a link inside a sentence has only the underline to say it is one,
-   and taking it away would hide it in the text. Same answer, different
-   resting state, for the reason each of them is read. */
 .foot-line p a { text-underline-offset: 2px; }
 .foot-line p a:hover { color: var(--text); }
-/* No margin under it any more, and no lift either: it is centred against the
-   line beside it, so anything nudging it is a second opinion about the same
-   thing. */
+
 .znackarna { display: block; flex: 0 0 auto; }
 .znackarna svg { display: block; height: 12px; width: auto; }
 
@@ -1648,22 +1029,17 @@ footer.wrap { padding-top: 0; padding-bottom: 96px; }
 }
 @media (max-width: 900px) {
   .rows, .rows.narrow { grid-template-columns: minmax(0, 1fr); gap: 0; }
-  /* One column, so only the first row is the top of the block. */
+
   .rows > li { border-top: 1px solid var(--line); }
   .rows > li:first-child { border-top: 0; }
   main > section { padding-top: 80px; }
   .closing { padding-top: 96px; }
   .preview { margin-top: 44px; }
 }
-/* The gutter is 20 px from here down, so the carousel's shadow room follows
-   it -- see the arithmetic at `.carousel-viewport`. */
+
 @media (max-width: 620px) {
   .carousel-viewport { padding: 26px 20px 4px; margin: -26px -20px -4px; }
-  /* The header bar carries three things across 526 px -- the mark, the three
-     marks for where sound comes from, and the recorder pill -- and on a phone
-     the card is 299 px. The mark is what goes: the page wears it in its own
-     header two screens up, and what this card is about is the other two. The
-     pill then takes what is left rather than its full 290 px. */
+
   .row-reveal .bar-left .mark { display: none; }
   .row-reveal .bar-left,
   .row-reveal .sources { flex: 0 0 auto; }
@@ -1674,10 +1050,7 @@ footer.wrap { padding-top: 0; padding-bottom: 96px; }
   .btn { width: 100%; }
   .foot-links { margin-left: 0; }
 }
-/* At 320 px the mark on one side and the three places to go on the other want
-   346 px of a 305 px line, and the page scrolled sideways by the difference.
-   They stop sharing a line rather than one of them being taken off: the page
-   has three places to go and a narrow phone is not a reason to have two. */
+
 @media (max-width: 420px) {
   .top-in { flex-wrap: wrap; row-gap: 12px; }
   .top-right { gap: 14px; }
@@ -1794,7 +1167,7 @@ footer.wrap { padding-top: 0; padding-bottom: 96px; }
         <span class="chibi-file"><span class="chibi-file-wave"></span>porada.m4a</span>
       </div>
       <figcaption class="with-icon"><span class="caption-icon" aria-hidden="true">
-          <!-- The application's own info glyph, from `settings-info-note-icon`. -->
+
           <svg viewBox="0 0 16 16" fill="none">
             <circle cx="8" cy="8" r="6.2" stroke="currentColor" stroke-width="1.35"/>
             <path d="M8 7.1v3.7M8 4.8h.01" stroke="currentColor" stroke-width="1.55" stroke-linecap="round"/>
@@ -1877,9 +1250,6 @@ footer.wrap { padding-top: 0; padding-bottom: 96px; }
         AI nástroje
       </button>
 
-      <!-- One button, one dialog. `Uložit` in the header was a dropdown of
-           five formats until the audio moved into it on 2 September; there is
-           no menu to point at any more, so there is no arrow. -->
       <button class="button save-button">
         <svg width="15" height="15" viewBox="0 0 15 15" aria-hidden="true">
           <path d="M8 2v8M4.6 6.8 8 10.2l3.4-3.4M2.5 12.5h11"
@@ -2452,7 +1822,6 @@ footer.wrap { padding-top: 0; padding-bottom: 96px; }
         </div>
       </li>
 
-
       <li class="row">
         <button class="row-main">
           <span class="recording-calendar" aria-label="Datum přidání: 30. 11. 2025" title="Datum přidání: 30. 11. 2025">
@@ -2626,9 +1995,6 @@ footer.wrap { padding-top: 0; padding-bottom: 96px; }
         AI nástroje
       </button>
 
-      <!-- One button, one dialog. `Uložit` in the header was a dropdown of
-           five formats until the audio moved into it on 2 September; there is
-           no menu to point at any more, so there is no arrow. -->
       <button class="button save-button">
         <svg width="15" height="15" viewBox="0 0 15 15" aria-hidden="true">
           <path d="M8 2v8M4.6 6.8 8 10.2l3.4-3.4M2.5 12.5h11"
@@ -3153,9 +2519,6 @@ footer.wrap { padding-top: 0; padding-bottom: 96px; }
         AI nástroje
       </button>
 
-      <!-- One button, one dialog. `Uložit` in the header was a dropdown of
-           five formats until the audio moved into it on 2 September; there is
-           no menu to point at any more, so there is no arrow. -->
       <button class="button save-button">
         <svg width="15" height="15" viewBox="0 0 15 15" aria-hidden="true">
           <path d="M8 2v8M4.6 6.8 8 10.2l3.4-3.4M2.5 12.5h11"
@@ -3652,10 +3015,7 @@ footer.wrap { padding-top: 0; padding-bottom: 96px; }
                   <div class="bar-left">
                     <span class="mark header-brand-mark" id="mic-wordmark"></span>
                   </div>
-                  <!-- What the archive's own header carries while a take is
-                       running and its dialog is open: the two quiet buttons.
-                       The mini recorder is not among them -- it appears only
-                       once the dialog is minimised, and here it is not. -->
+
                   <div class="bar-right">
                     <button class="button quiet">
                       <svg width="15" height="15" viewBox="0 0 15 15" aria-hidden="true">
@@ -3678,10 +3038,7 @@ footer.wrap { padding-top: 0; padding-bottom: 96px; }
                 <main class="library"></main>
               </div>
               <div class="shot-dialog">
-                <!-- Přidat nahrávku > Nový záznam, uprostřed záznamu. The stage
-                     carries `running`, which is what makes the application pulse
-                     the microphone capsule and turn the spectrum accent -- both
-                     of those come from its own stylesheet, not from here. -->
+
                 <div class="dialog add-recording-dialog" role="img" aria-label="Nový záznam">
                   <h2>Nový záznam</h2>
                   <p>Záznam se uloží jako nahrávka. Ani slovo neopustí počítač.</p>
@@ -3695,10 +3052,7 @@ footer.wrap { padding-top: 0; padding-bottom: 96px; }
                   </div>
                   <div class="dialog-footer">
                     <button class="button quiet">Minimalizovat</button>
-                    <!-- The square answers the record dot, as in the program:
-                         the button that starts a take wears the record mark, so
-                         the one that ends it wears the mark every transport
-                         uses for stop. -->
+
                     <button class="button primary mic-start">
                       <span class="mic-stop-square" aria-hidden="true"></span>
                       Zastavit
@@ -3838,9 +3192,7 @@ footer.wrap { padding-top: 0; padding-bottom: 96px; }
 
   <section>
     <h2>Co získáte?</h2>
-    <!-- Three that decide whether somebody installs this at all, at their own
-         size, and the rest under them. A list of twelve equal cards makes the
-         reader rank them; these three are the ranking. -->
+
     <ul class="cards lead">
       <li>
         <div class="step-art lead-art" aria-hidden="true"><span class="step-bar" aria-hidden="true"><span class="step-name">volocal™</span><span class="step-buttons-win"><i><svg viewBox="0 0 10 10"><path d="M1 5h8"/></svg></i><i><svg viewBox="0 0 10 10"><rect x="1.4" y="1.4" width="7.2" height="7.2" rx="1"/></svg></i><i><svg viewBox="0 0 10 10"><path d="M1.6 1.6l6.8 6.8M8.4 1.6l-6.8 6.8"/></svg></i></span></span><span class="step-body art-home"><span class="art-house-wrap"><svg class="art-house" viewBox="0 0 64 44"><path d="M11 20 32 2.5l21 17.5 M11 19.5V41h42V19.5"/></svg><span class="art-mark" id="home-mark"></span></span></span></div>
@@ -3858,7 +3210,6 @@ footer.wrap { padding-top: 0; padding-bottom: 96px; }
         <p>Opravy, překlad i shrnutí zvládnete lokálně. AI modely běží vždy ve vašem počítači.</p>
       </li>
     </ul>
-
 
     <ul class="rows">
       <li>
@@ -3895,14 +3246,7 @@ footer.wrap { padding-top: 0; padding-bottom: 96px; }
         </div>
         <div class="row-reveal" inert>
           <div class="row-face shot loop fix">
-            <!-- One word being put right. The application does this in a text
-                 field -- a double click turns the segment into a `textarea` --
-                 and a field would have to be focused to show a caret, which in
-                 a picture of a window would take the focus off the page. So
-                 the two states of the word are both here, the real `.word` and
-                 the real `.word.corrected` in one cell, and the caret is drawn.
-                 What is shown is true: a wrong word, a cursor at it, the right
-                 word with the application's own dashed underline afterwards. -->
+
             <div class="segment">
               <button class="time-mark">12:41</button>
               <p class="segment-text">
@@ -3971,11 +3315,7 @@ footer.wrap { padding-top: 0; padding-bottom: 96px; }
             <header class="bar">
               <div class="bar-left">
                 <span class="mark header-brand-mark" id="row-wordmark"></span>
-              <!-- Where the sound comes from, in the order the sentence
-                   says it: a file off the disk, a video service, an audio
-                   service. The application names YouTube and SoundCloud
-                   itself in the Online služba step; the marks are drawn in
-                   the page's line, not lifted from either brand. -->
+
               <span class="sources" aria-hidden="true">
                 <span class="source"><svg viewBox="0 0 16 16" fill="none"
                   stroke="currentColor" stroke-width="1.3" stroke-linecap="round"
@@ -4017,14 +3357,7 @@ footer.wrap { padding-top: 0; padding-bottom: 96px; }
         </div>
         <div class="row-reveal" inert>
           <div class="row-face shot center">
-            <!-- All eight at once, rather than the top two rows of the Uložit
-                 menu. The application has no icon for a format -- it has the
-                 abbreviation and a sentence -- so these are drawn here, in the
-                 page's own hand, like the windows on the three cards above.
-                 What is the application's is which eight and how they group:
-                 five the transcript goes out in, three the sound does, and the
-                 sound ones carry a waveform where the others carry lines of
-                 text. -->
+
             <div class="save-formats">
               <span class="fmt text">
                 <svg viewBox="0 0 46 52" fill="none" stroke="currentColor"
@@ -4088,12 +3421,7 @@ footer.wrap { padding-top: 0; padding-bottom: 96px; }
         </div>
         <div class="row-reveal" inert>
           <div class="row-face shot">
-            <!-- The note open, not shut: shut it is a line of writing and a
-                 time, and the row is about what you can do with it. Open, the
-                 application puts the whole row of controls under the text --
-                 the time it hangs on, the time as a field, Odepnout, Smazat.
-                 The play button loses its figures while the note is open,
-                 because the field beside it is carrying them. -->
+
             <ul class="stickies">
               <li class="sticky open">
                 <div class="sticky-body">
@@ -4124,14 +3452,7 @@ footer.wrap { padding-top: 0; padding-bottom: 96px; }
         </div>
         <div class="row-reveal" inert>
           <div class="row-face shot loop watch">
-            <!-- The switch that stood here said only *transcribe on arrival*,
-                 which is the smaller half of the sentence beside it, and the
-                 folder field that replaced it said only where. What the row is
-                 about is what the folder does while nobody watches: files turn
-                 up in it and are taken one after another. Each line is the
-                 application's own row title -- the status dot and the name --
-                 and the dot goes from working to done as it does in the
-                 archive. -->
+
             <ul class="watch-list">
               <li class="watch-file f1">
                 <span class="row-title">
@@ -4226,13 +3547,7 @@ footer.wrap { padding-top: 0; padding-bottom: 96px; }
         </div>
         <div class="row-reveal" inert>
           <div class="row-face shot loop cue">
-            <!-- The application does not draw a subtitle -- a subtitle is
-                 something another program shows. So this is the page's own
-                 picture of the claim: the sound underneath, the line of
-                 speech over it, and one sweep lighting both at the same
-                 moment. Two identical copies stacked, the upper one clipped
-                 by an animated inset -- one animation for the peaks and the
-                 words together, which is the only way they cannot drift. -->
+
             <div class="cue-body base">
               <span class="cue-waves"><svg viewBox="0 0 200 24" preserveAspectRatio="none" fill="currentColor" aria-hidden="true"><rect x="0.5" y="4.1" width="1.5" height="15.7" rx="0.75"/><rect x="5.0" y="3.9" width="1.5" height="16.2" rx="0.75"/><rect x="9.5" y="3.8" width="1.5" height="16.5" rx="0.75"/><rect x="14.0" y="2.9" width="1.5" height="18.3" rx="0.75"/><rect x="18.5" y="6.2" width="1.5" height="11.7" rx="0.75"/><rect x="23.0" y="6.4" width="1.5" height="11.2" rx="0.75"/><rect x="27.5" y="5.8" width="1.5" height="12.4" rx="0.75"/><rect x="32.0" y="7.0" width="1.5" height="10.0" rx="0.75"/><rect x="36.5" y="4.6" width="1.5" height="14.7" rx="0.75"/><rect x="41.0" y="5.2" width="1.5" height="13.5" rx="0.75"/><rect x="45.5" y="7.4" width="1.5" height="9.1" rx="0.75"/><rect x="50.0" y="6.9" width="1.5" height="10.3" rx="0.75"/><rect x="54.5" y="9.0" width="1.5" height="6.0" rx="0.75"/><rect x="59.0" y="8.4" width="1.5" height="7.1" rx="0.75"/><rect x="63.5" y="5.4" width="1.5" height="13.1" rx="0.75"/><rect x="68.0" y="5.8" width="1.5" height="12.3" rx="0.75"/><rect x="72.5" y="3.9" width="1.5" height="16.1" rx="0.75"/><rect x="77.0" y="3.9" width="1.5" height="16.2" rx="0.75"/><rect x="81.5" y="6.5" width="1.5" height="11.0" rx="0.75"/><rect x="86.0" y="5.2" width="1.5" height="13.6" rx="0.75"/><rect x="90.5" y="5.6" width="1.5" height="12.8" rx="0.75"/><rect x="95.0" y="5.4" width="1.5" height="13.1" rx="0.75"/><rect x="99.5" y="2.8" width="1.5" height="18.4" rx="0.75"/><rect x="104.0" y="4.7" width="1.5" height="14.7" rx="0.75"/><rect x="108.5" y="5.7" width="1.5" height="12.7" rx="0.75"/><rect x="113.0" y="6.2" width="1.5" height="11.6" rx="0.75"/><rect x="117.5" y="9.3" width="1.5" height="5.5" rx="0.75"/><rect x="122.0" y="7.8" width="1.5" height="8.4" rx="0.75"/><rect x="126.5" y="6.6" width="1.5" height="10.7" rx="0.75"/><rect x="131.0" y="7.0" width="1.5" height="10.0" rx="0.75"/><rect x="135.5" y="4.6" width="1.5" height="14.8" rx="0.75"/><rect x="140.0" y="6.1" width="1.5" height="11.7" rx="0.75"/><rect x="144.5" y="7.5" width="1.5" height="9.1" rx="0.75"/><rect x="149.0" y="5.9" width="1.5" height="12.2" rx="0.75"/><rect x="153.5" y="6.9" width="1.5" height="10.2" rx="0.75"/><rect x="158.0" y="4.7" width="1.5" height="14.6" rx="0.75"/><rect x="162.5" y="2.5" width="1.5" height="19.0" rx="0.75"/><rect x="167.0" y="4.2" width="1.5" height="15.5" rx="0.75"/><rect x="171.5" y="3.6" width="1.5" height="16.7" rx="0.75"/><rect x="176.0" y="5.4" width="1.5" height="13.1" rx="0.75"/><rect x="180.5" y="7.9" width="1.5" height="8.2" rx="0.75"/><rect x="185.0" y="6.0" width="1.5" height="12.0" rx="0.75"/><rect x="189.5" y="6.6" width="1.5" height="10.7" rx="0.75"/><rect x="194.0" y="6.2" width="1.5" height="11.6" rx="0.75"/></svg></span>
               <span class="cue-cap"><span>Letos nula. Děláme si je sami.</span></span>
@@ -4360,12 +3675,6 @@ footer.wrap { padding-top: 0; padding-bottom: 96px; }
     </ul>
   </section>
 
-  <!-- The limits, hidden on 18 August from between the gains and the first
-       run, with a note saying they belonged in a FAQ. This is that FAQ, put
-       here on 25 August because the page was about to be published and a page
-       that goes out without them is worse than one that never went out. The
-       answers are the owner's sentences from that note, word for word; the
-       questions are the page's. -->
   <section class="minor" id="faq">
     <h2>Jaké má limity?</h2>
     <p class="sec-lede">Volocal je mocný pomocník, ale má svá omezení.</p>
@@ -4430,23 +3739,11 @@ footer.wrap { padding-top: 0; padding-bottom: 96px; }
   <section class="business" id="firmy">
     <div class="business-panel">
       <div class="business-offer">
-        <!-- Two drawings of the same mark. The first is his export, pasted
-             exactly as it comes out: the group is in it twice and that is his
-             file, not a fault to tidy. An earlier version of this block dropped
-             the duplicate and so uncovered a triangle the upper copy was
-             deliberately hiding -- paste the export whole and change nothing.
-             It is what shows wherever the animation cannot run.
 
-             The second is the same drawing taken apart, because a shape can
-             only move if it is its own element. It takes the first one's place
-             wherever motion is welcome. Each shape carries no fill: the colour
-             comes from the group the keyframes animate, and an attribute here
-             would outrank it. -->
         <svg class="business-mark" viewBox="0 0 660 762" fill="none"
              xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
           <defs>
-            <!-- The mouth of each hole. Everything inside the hole is clipped by
-                 it, so what passes the rim is hidden by the face. -->
+
             <clipPath id="mark-mouth-circle"><rect width="186.375" height="186.375" rx="93.1877" transform="matrix(0.866025 -0.5 0 1 413.776 429.219)"/></clipPath>
             <clipPath id="mark-mouth-square"><rect width="167.26" height="167.26" transform="matrix(0.866025 0.5 -0.866025 0.5 329.653 106.695)"/></clipPath>
             <clipPath id="mark-mouth-triangle"><path d="M254.779 617.635L74.8743 513.767L165.282 386.188L254.779 617.635Z"/></clipPath>
@@ -4513,17 +3810,7 @@ footer.wrap { padding-top: 0; padding-bottom: 96px; }
       <a href="https://github.com/znackarna/volocal">GitHub</a>
       <a href="https://github.com/znackarna/volocal/releases">Vydané verze</a>
       <a href="https://github.com/znackarna/volocal/blob/main/SECURITY.md">Bezpečnost</a>
-      <!-- The way to the other language, and the only thing on the page that
-           `translate.mjs` rewrites by name rather than by sentence: on the
-           English page it points back and says Česky. Relative, so it works from
-           `/` to `/en/` and back without knowing where the site lives.
 
-           It stood in the header until 26 August 2026 and was the one item in
-           that row that is not a place on this page: three links about Volocal
-           and then, in the same voice, an instruction about the page itself.
-           Down here it sits with GitHub, the releases and the security policy —
-           the things a reader goes looking for rather than the things being
-           offered. -->
       <a class="lang-switch" href="en/" hreflang="en" lang="en">English</a>
     </div>
   </div>
@@ -4533,28 +3820,7 @@ footer.wrap { padding-top: 0; padding-bottom: 96px; }
 <script src="preview.js"></script>
 <script src="chibi.js"></script>
 <script>
-/* Jazyk: kdo nemá v prohlížeči češtinu, dostane anglickou verzi rovnou.
- *
- * Pravidlo je slovo od slova to, které používá aplikace v `src/i18n.tsx`:
- * čeština kdekoli v `navigator.languages` znamená češtinu, cokoli jiného
- * angličtinu. Dvě pravidla pro tutéž otázku by se dřív nebo později rozešla.
- *
- * Tři věci, které to nesmí rozbít, a jak:
- *
- * `location.replace` místo `href` — česká stránka nezůstane v historii, takže
- * tlačítko zpět vrátí čtenáře tam, odkud přišel, a ne do dalšího přesměrování.
- *
- * Volba se pamatuje. Kdo si v patičce přepne jazyk, řekl tím, co chce; od té
- * chvíle ho sem nikdo neposílá. Bez toho by se čtenář, který si klikl na
- * `Česky`, při každém příchodu na `/` odrazil zpátky do angličtiny.
- *
- * Běží to jen tam, kde je kam jít. Odkaz v patičce je na webu relativní
- * (`en/`), ale v jednom staženém souboru ho `bundle.py` přepisuje na plnou
- * adresu — a podle toho se to pozná: absolutní odkaz znamená kopii, kde
- * přesměrovávat není kam.
- *
- * Kotva se nese s sebou: kdo přišel na `/#firmy`, přistane na `/en/#firmy`.
- */
+
 (function () {
   "use strict";
   var CHOICE = "volocal-page-language";
@@ -4564,15 +3830,13 @@ footer.wrap { padding-top: 0; padding-bottom: 96px; }
   var here = document.documentElement.lang;
 
   var remember = function (language) {
-    try { localStorage.setItem(CHOICE, language); } catch (e) { /* soukromé okno */ }
+    try { localStorage.setItem(CHOICE, language); } catch (e) {  }
   };
-  /* Kliknutí na přepínač je odpověď na otázku, kterou tenhle kód klade. */
+
   link.addEventListener("click", function () { remember(here === "cs" ? "en" : "cs"); });
 
   if (here !== "cs" || target !== "en/") return;
-  /* A z disku vůbec: `en/` je na webu adresář s vlastním `index.html`, ale
-     `file://` na tomtéž místě nabídne výpis složky, nebo nenajde nic. Stránka
-     otevřená ze souboru má zůstat tou stránkou, kterou kdo otevřel. */
+
   if (location.protocol !== "http:" && location.protocol !== "https:") return;
 
   var chosen = null;
@@ -4593,7 +3857,7 @@ footer.wrap { padding-top: 0; padding-bottom: 96px; }
 <script>
 (function () {
   "use strict";
-  /* Motiv rozhoduje JavaScript a zapisuje `data-theme`, stejně jako aplikace. */
+
   var root = document.documentElement;
   var dark = matchMedia("(prefers-color-scheme: dark)");
   var stored = null;
@@ -4604,17 +3868,13 @@ footer.wrap { padding-top: 0; padding-bottom: 96px; }
     var button = document.getElementById("theme");
     if (!button) return;
     button.setAttribute("aria-pressed", String(theme === "dark"));
-    /* Both labels in both languages, read off the document: the translator
-       leaves the inside of a `<script>` alone, so this is where the English
-       page would otherwise still speak Czech to a screen reader. */
+
     var toLight = document.documentElement.lang === "en" ? "Switch to the light theme" : "Přepnout na světlý motiv";
     var toDark = document.documentElement.lang === "en" ? "Switch to the dark theme" : "Přepnout na tmavý motiv";
     button.setAttribute("aria-label", theme === "dark" ? toLight : toDark);
     button.setAttribute("title", button.getAttribute("aria-label"));
   };
 
-  /* The system decides until the reader does, and then their choice stands —
-     which is the order the application's own three-way setting uses. */
   var follow = function () { if (!stored) apply(dark.matches ? "dark" : "light"); };
   apply(stored === "dark" || stored === "light" ? stored : (dark.matches ? "dark" : "light"));
   if (dark.addEventListener) dark.addEventListener("change", follow);
@@ -4623,25 +3883,13 @@ footer.wrap { padding-top: 0; padding-bottom: 96px; }
   if (themeButton) {
     themeButton.addEventListener("click", function () {
       stored = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
-      try { localStorage.setItem("volocal-page-theme", stored); } catch (e) { /* private window */ }
+      try { localStorage.setItem("volocal-page-theme", stored); } catch (e) {  }
       apply(stored);
     });
   }
 
-  /* Značka v hlavičce: přesně to, co dělá aplikace — pět vteřin stojí celé
-     jméno, pak se sesune na `olo` a pod ukazovátkem se zase rozvine. */
   if (window.volocalWordmark) volocalWordmark(document.getElementById("brand"));
 
-  /* The recorder-pill fragment wears the application's own header bar, so the
-     mark in it does what the mark in a header does: the whole name for five
-     seconds, then down to `olo`, and open again under a pointer. Same call as
-     `#brand` -- no options, so a reader who asked for less motion gets the
-     still mark here too.
-
-     The one difference is when the clock starts. The row is closed at rest, so
-     an intro staged at load would run behind a shut door and the reader would
-     only ever meet the aftermath. It is built on the first open instead, once
-     per page: hover or keyboard focus, whichever arrives first. */
   var rowWordmark = document.getElementById("row-wordmark");
   var rowMarkDrawn = false;
   var drawRowMark = function () {
@@ -4650,10 +3898,6 @@ footer.wrap { padding-top: 0; padding-bottom: 96px; }
     volocalWordmark(rowWordmark);
   };
 
-  /* A card that loops runs only while its row is open, and always from the
-     top: somebody coming back to the row should not join halfway through. The
-     reflow between the two class changes is what makes it a restart -- without
-     it the browser sees no change at all and the loop runs on. */
   var startRow = function (host) {
     var face = host.querySelector(".row-face.loop");
     if (face) {
@@ -4678,11 +3922,6 @@ footer.wrap { padding-top: 0; padding-bottom: 96px; }
     host.addEventListener("focusin", again);
   });
 
-  /* Below the section's breakpoint the card stands open in the flow, and no
-     pointer will ever enter it: a phone has none, and the row is not something
-     to point at any more. What starts the card there is the card arriving on
-     screen -- once, and then never again, because a picture that replays every
-     time it scrolls past is a flicker rather than a proof. */
   var inFlow = window.matchMedia("(max-width: 900px)");
   if (inFlow.matches && "IntersectionObserver" in window) {
     var watcher = new IntersectionObserver(function (entries) {
@@ -4695,17 +3934,6 @@ footer.wrap { padding-top: 0; padding-bottom: 96px; }
     rowHosts.forEach(function (host) { watcher.observe(host); });
   }
 
-  /* The three panels under *Třikrát a dost* are drawn in the markup as the
-     finished number. What this adds is the half second before it, in which the
-     panel runs through other digits and stops on its own -- the section is
-     about counting to three, so what the panel does on the way to its number
-     counts as well.
-
-     Driven by the clock rather than by a chain of ticks. A background tab
-     freezes `requestAnimationFrame` and throttles `setInterval` to once a
-     second, so with ticks a reader who scrolled past in a background tab and
-     came back would find a panel still shuffling; here the frame that arrives
-     on return is simply past the end, and the panel is its number. */
   var MATRIX = {
     1: "00100011000010000100001000010001110",
     2: "01110100010000100010001000100011111",
@@ -4731,9 +3959,6 @@ footer.wrap { padding-top: 0; padding-bottom: 96px; }
       }
     };
 
-    /* Nine digits that are not this one, ending on it. The step of three keeps
-       consecutive frames from sharing most of their lit dots, which is what
-       makes it read as a roll rather than a flicker. */
     var frames = [];
     for (var i = 0; i < 9; i++) frames.push(MATRIX[(value + i * 3 + 7) % 10]);
     frames.push(settled);
@@ -4770,12 +3995,6 @@ footer.wrap { padding-top: 0; padding-bottom: 96px; }
     }
   });
 
-  /* The header's two quiet links go behind a button from the phone breakpoint
-     down. The panel is the same `<nav>` the header shows on a desktop, so there
-     is one list and it cannot drift; all this does is shut it and give it a
-     button. `has-menu` is added here rather than written into the markup,
-     which is what makes the collapse an enhancement: with no script the links
-     stay in the header. */
   var menuButton = document.getElementById("menu-toggle");
   var menuPanel = document.getElementById("top-nav");
   if (menuButton && menuPanel) {
@@ -4789,9 +4008,6 @@ footer.wrap { padding-top: 0; padding-bottom: 96px; }
       else menuPanel.setAttribute("hidden", "");
     };
 
-    /* Above the breakpoint the panel is the header's own row again, so it must
-       be shown and the button must not claim to have anything open. Crossing
-       the breakpoint with the menu open is the case this exists for. */
     var syncMenu = function () {
       if (phone.matches) return openMenu(false);
       menuPanel.removeAttribute("hidden");
@@ -4808,9 +4024,6 @@ footer.wrap { padding-top: 0; padding-bottom: 96px; }
       return menuButton.getAttribute("aria-expanded") === "true";
     };
 
-    /* Following a link shuts it. `#firmy` scrolls the page underneath, and a
-       panel still standing over the place it just took you to is a panel
-       nobody asked to keep. */
     menuPanel.addEventListener("click", function (event) {
       if (event.target.closest("a")) openMenu(false);
     });
@@ -4828,31 +4041,16 @@ footer.wrap { padding-top: 0; padding-bottom: 96px; }
     });
   }
 
-  /* The recorder slide wears the application's header bar, so its mark does
-     what a mark in a header does. Still, like the wizard's: a carousel slide
-     is not the stage for the name to introduce itself on. */
   var micMark = document.getElementById("mic-wordmark");
   if (micMark && window.volocalWordmark) {
     volocalWordmark(micMark, { reducedMotion: true, label: "volocal" });
   }
 
-  /* V první kartě bydlí značka v domečku. `reducedMotion: true` ji nakreslí
-     rovnou a nechá stát — v kartě, která není hlavní scénou, by mrkání jen
-     odvádělo oko od nadpisu vedle. */
   var homeMark = document.getElementById("home-mark");
   if (homeMark && window.volocalFace) {
     volocalFace(homeMark, { height: "17px", reducedMotion: true });
   }
 
-  /* The FAQ opens by measuring, because the CSS that could do it is Chromium's
-     alone. A `<details>` is shut or open with nothing in between, so what is
-     animated is the element's own height: what it is now, and what it is with
-     the answer in it. The answer is left in the flow the whole time -- `open`
-     goes on before the measurement and comes off after the collapse -- and the
-     overflow is hidden only while something is moving.
-
-     Reduced motion never gets here: the browser's own toggle is what it asks
-     for. Neither does a modified click, which is the browser's business. */
   var faqEase = "cubic-bezier(.4, 0, .2, 1)";
   var faqMs = 260;
   [].slice.call(document.querySelectorAll(".faq-item")).forEach(function (item) {
@@ -4866,8 +4064,6 @@ footer.wrap { padding-top: 0; padding-bottom: 96px; }
       if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
       event.preventDefault();
 
-      /* A second click mid-flight turns the panel around from where it got to,
-         rather than queueing a second journey behind the first. */
       if (running) { running.cancel(); running = null; }
 
       var from = item.offsetHeight;
@@ -4876,30 +4072,13 @@ footer.wrap { padding-top: 0; padding-bottom: 96px; }
       item.classList.toggle("is-closing", closing);
       if (!item.open) item.open = true;
 
-      /* Shut, the element is its summary; open, it is whatever the answer makes
-         it. Both are read off the page rather than written down here, so a
-         reworded answer needs nothing changed. */
       var to = closing ? summary.offsetHeight : item.scrollHeight;
 
-      /* `fill: both`, and it is not decoration. Without it the animated height
-         stops applying the instant the run ends, and on the way shut that is
-         one painted frame of the panel back at its full height before `open`
-         comes off -- a flash of the answer as it disappears. The fill holds the
-         last frame until the element is genuinely that tall, and the cancel
-         hands the height back to the stylesheet in the same breath. */
       running = item.animate(
         [{ height: from + "px" }, { height: to + "px" }],
         { duration: faqMs, easing: faqEase, fill: "both" }
       );
 
-      /* Two ways to the same end, because the whole state of the panel hangs
-         off this running: `open` comes off here, and so does the hidden
-         overflow. A finish event that never arrives -- a tab put to sleep
-         mid-collapse is the ordinary way -- would leave the answer open,
-         clipped, and impossible to shut. The timer is the same journey's
-         length and a little; whichever gets there first does the work, and the
-         token is what keeps a click that has already been overtaken from
-         settling a panel that now belongs to a later one. */
       var token = ++turn;
       var settle = function () {
         if (token !== turn || !running) return;
@@ -4914,8 +4093,6 @@ footer.wrap { padding-top: 0; padding-bottom: 96px; }
     });
   });
 
-  /* Dole se značka jednou napíše perem a pak žije. Čeká, až na ni čtenář
-     doscrolluje — napíše se jen jednou a nemá to propásnout. */
   var face = document.getElementById("face");
   if (face && window.volocalFace) {
     if ("IntersectionObserver" in window) {
@@ -4933,18 +4110,6 @@ footer.wrap { padding-top: 0; padding-bottom: 96px; }
 }());
 </script>
 
-<!-- How many people read this, and what they came from. Vercel's own counting:
-     no cookie, no identifier kept on the reader's machine, and the script is
-     served from this domain rather than somebody else's, so the page makes no
-     request to a third party at all. That last part is why it is this and not
-     one of the others.
-
-     At the foot rather than in the head, and not by preference: `bundle.py`
-     strips the head and then asserts that nothing was left between the title
-     and the first stylesheet. A script up there fails that check.
-
-     The address is absolute so the English page, which is a directory deeper,
-     asks for the same one. -->
 <script defer src="/_vercel/insights/script.js"></script>
 
 </body>
