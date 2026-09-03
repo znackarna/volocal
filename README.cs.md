@@ -62,7 +62,7 @@ jejich autor. Když soubor nesedí, aplikace ho odmítne. Ta výjimka je model
 hlasů, jehož autor žádný otisk nezveřejňuje — u něj je jen HTTPS a nic víc.
 Podrobně to rozepisuje [SECURITY.cs.md](SECURITY.cs.md).
 
-## Co nedělá dobře
+## Jaké má limity?
 
 - **Časy slov jsou přibližné, ne přesné.** Na klikání a sledování textu dobré;
   u dlouhé věty s pauzou uprostřed se to může rozejít asi o vteřinu.

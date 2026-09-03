@@ -60,7 +60,7 @@ published. If the file does not match, it is refused. The exception is the voice
 model, whose host publishes no fingerprint — that one has HTTPS and nothing
 more. [SECURITY.md](SECURITY.md) spells this out.
 
-## What it does not do well
+## What are its limits?
 
 - **Word timings are close, not exact.** Good for clicking and following along;
   a long sentence with a pause in it can drift by about a second.
