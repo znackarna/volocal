@@ -75,6 +75,12 @@ const HEAD_SWAPS = [
    '<meta property="og:locale" content="en_US">'],
   ['<a class="lang-switch" href="en/" hreflang="en" lang="en">English</a>',
    '<a class="lang-switch" href="../" hreflang="cs" lang="cs">Česky</a>'],
+  /* The card carries the claim as artwork, so it is drawn twice -- the Czech
+     sentence on `og.png`, the English on `og-en.png`. One pair covers both the
+     `og:image` and the `twitter:image` that name it, because a swap replaces
+     every occurrence. Its `alt` is a sentence and goes through the dictionary
+     like the rest. */
+  ['https://volocal.app/og.png', 'https://volocal.app/og-en.png'],
 ];
 
 const hasLetters = (text) => /[A-Za-zÀ-ž]/.test(text);
