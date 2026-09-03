@@ -12,7 +12,7 @@
   "Světlý motiv": "Light theme",
   "Nabídka": "Menu",
   "Co spolu dnes přepíšeme?": "What are we transcribing today?",
-  "Zapněte počítač.": "Computer on.",
+  "Zapněte počítač.": "Transcription on.",
   "Vypněte předplatné.": "Subscription off.",
   "Volocal přepisuje mluvené slovo pomocí lokálních AI modelů. Rozpozná\n      jazyky. Označí řečníky. Opraví chyby. Zpracuje libovolný zvukový formát,\n      video nebo online stream. Zdarma. Bez ztráty kontroly a soukromí.": "Volocal transcribes speech with AI models on your own computer. Spots the languages. Marks the speakers. Fixes mistakes. Handles any audio format, video or an online stream. Free. Without losing control or privacy.",
   "Stáhnout pro Windows": "Download for Windows",
@@ -260,7 +260,7 @@
   "GitHub": "GitHub",
   "Vydané verze": "Releases",
   "Bezpečnost": "Security",
-  "Zapněte počítač. Vypněte předplatné.": "Computer on. Subscription off.",
+  "Zapněte počítač. Vypněte předplatné.": "Transcription on. Subscription off.",
   "značkárna": "značkárna",
   "Chcete víc? Propojte své lidi, data a znalosti napříč firmou díky AI ekosystému na míru.": "Ready for more? Connect your people, data and knowledge with an AI-ready ecosystem of tools."
 }
