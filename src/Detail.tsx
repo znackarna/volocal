@@ -44,10 +44,11 @@ import { transcriptKey } from "./detail/keys";
 import { TranscriptSearch } from "./detail/TranscriptSearch";
 import { TranscriptTips } from "./detail/TranscriptTips";
 import { SecondLanguageBar } from "./detail/SecondLanguageBar";
+import { SpeakerHeader, holdsTwoLanguages } from "./detail/SpeakerHeader";
 import { NoticeBar } from "./app/NoticeBar";
 import type { Notices } from "./app/useNotices";
 import { ClipSaveDialog } from "./detail/ClipSaveDialog";
-import { selectedSegmentIds, useClipSelection } from "./detail/useClipSelection";
+import { endsOfSelection, selectedSegmentIds, useClipSelection } from "./detail/useClipSelection";
 import { useSecondLanguage } from "./detail/useSecondLanguage";
 import { DetailProgress } from "./detail/DetailProgress";
 import { DetailHeader } from "./detail/DetailHeader";
@@ -412,12 +413,10 @@ export default function Detail({
     setOpenSections((s) => ({ ...s, speakers: true }));
   }, []);
 
-  /* Whether this transcript holds a second language at all. A block carries
-     one only where the second-language pass wrote it, so an unlabelled block
-     is the recording's own — which is what makes a bilingual transcript look
-     monolingual if the languages are read literally. */
+  /* Whether the headings should name a language at all — the rule itself lives
+     with the heading that draws it. */
   const twoLanguages = useMemo(
-    () => segments.some((s) => s.language && s.language.toLowerCase() !== language.toLowerCase()),
+    () => holdsTwoLanguages(segments, language),
     [segments, language]
   );
 
@@ -553,9 +552,19 @@ export default function Detail({
     y: number;
     segment: Segment;
     time: number;
-    /** Ids of the blocks a text selection was touching when the menu opened. */
-    selected: string[];
+    /** The passage a text selection was covering when the menu opened, as its
+     *  first and last block. Worked out by the clip's own module and kept here
+     *  because it is a fact about *this* opening of the menu. */
+    marked: [Segment, Segment] | null;
   } | null>(null);
+
+  /* The blocks as they stand right now, for a handler that has to stay the
+     same function. `openTranscriptMenu` is handed to every memoised row, so
+     listing `segments` among its dependencies would rebuild it on each change
+     and repaint the whole transcript — the trap this screen already documents
+     for the playback handlers. */
+  const nowSegments = useRef(segments);
+  nowSegments.current = segments;
 
   const openTranscriptMenu = useCallback((segment: Segment, event: ReactMouseEvent) => {
     event.preventDefault();
@@ -571,7 +580,7 @@ export default function Detail({
       /* Read here rather than when the item is clicked. Opening the menu can
          take the selection away — clicking inside it collapses it in some
          browsers — and by then the reader's passage would be gone. */
-      selected: selectedSegmentIds(),
+      marked: endsOfSelection(nowSegments.current, selectedSegmentIds()),
     });
   }, []);
 
@@ -634,6 +643,8 @@ export default function Detail({
    *  one question, several hundred lines apart. It sits under `running` because
    *  that is the one of the four that is derived rather than held. */
   const speakersBusy = segments.length === 0 || running || diarizing || ai.state.running;
+  /** The passage the open menu was called over, if the reader had one marked. */
+  const marked = transcriptMenu?.marked ?? null;
   return (
     <main className="detail">
       <DetailHeader
@@ -866,19 +877,13 @@ export default function Detail({
             return (
               <div key={s.id}>
                 {newSpeakers && m && (
-                  <div className="speaker-header" style={{ color: m.color }}>
-                    {m.name}
-                    {/* Which language this run is in, where the transcript
-                        holds two. Beside the name and not in the sidebar: it
-                        belongs to what is being read, and here it changes as
-                        the transcript does — an interpreter answering in the
-                        other language says so on the spot. */}
-                    {twoLanguages && (
-                      <sup className="speaker-header-language">
-                        {(s.language || language).toUpperCase()}
-                      </sup>
-                    )}
-                  </div>
+                  <SpeakerHeader
+                    name={m.name}
+                    color={m.color}
+                    segment={s}
+                    language={language}
+                    showLanguage={twoLanguages}
+                  />
                 )}
                 {/* The handlers must not be created here. Were they built
                     fresh for every segment on every render, the `memo`
@@ -1041,18 +1046,7 @@ export default function Detail({
         )}
       </div>
 
-      {transcriptMenu &&
-        (() => {
-          /* The passage the reader had marked, as its first and last block.
-             Nothing to export when the selection touched only what is not a
-             block, or when the transcript has moved under it since. */
-          const touched = transcriptMenu.selected
-            .map((id) => segments.find((s) => s.id === id))
-            .filter((s): s is Segment => s !== undefined)
-            .sort((a, b) => a.start - b.start);
-          const selectedClip: [Segment, Segment] | null =
-            touched.length > 0 ? [touched[0], touched[touched.length - 1]] : null;
-          return (
+      {transcriptMenu && (
         <TranscriptContextMenu
           x={transcriptMenu.x}
           y={transcriptMenu.y}
@@ -1090,13 +1084,12 @@ export default function Detail({
                watch a bar over the transcript. It went the evening it was
                tried: a procedure to learn beside a gesture people already
                have. */
-            ...(selectedClip
+            ...(marked
               ? [
                   {
                     label: t("detail.menu.clipSelection"),
                     icon: MENU_ICONS.clip,
-                    action: () =>
-                      clip.actions.markAndSave(selectedClip[0], selectedClip[1]),
+                    action: () => clip.actions.markAndSave(marked[0], marked[1]),
                   },
                 ]
               : []),
@@ -1132,8 +1125,7 @@ export default function Detail({
             },
           ]}
         />
-          );
-        })()}
+      )}
 
       {/* The one question about language editing, asked where it is wanted.
           It used to be a notice saying the feature was not ready and a button
