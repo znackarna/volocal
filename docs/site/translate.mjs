@@ -144,7 +144,7 @@ function translateTag(tag, lookup) {
        search engine prints, and the lines a pasted link shows -- in both
        vocabularies, since the same card is described twice and the `twitter:`
        pair went untranslated for as long as it was left out of this list. */
-    const said = /(?:name|property)="(description|og:title|og:description|twitter:title|twitter:description)"/.test(tag);
+    const said = /(?:name|property)="(description|og:title|og:description|og:image:alt|twitter:title|twitter:description)"/.test(tag);
     const translatable =
       ATTRIBUTES.includes(name) ||
       (name === "content" && said) ||
