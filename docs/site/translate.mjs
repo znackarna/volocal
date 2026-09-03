@@ -53,10 +53,16 @@ const VERSION = /\d+\.\d+\.\d+/g;
 const ASSETS = [
   ['href="brand.css"', 'href="../brand.css"'],
   ['href="app-shot.css"', 'href="../app-shot.css"'],
+  ['href="page.css"', 'href="../page.css"'],
   ['src="brand.js"', 'src="../brand.js"'],
   ['src="chibi.js"', 'src="../chibi.js"'],
   ['src="preview.js"', 'src="../preview.js"'],
-  ["url(fonts/", "url(../fonts/"],
+  /* The fonts need no pair. They are named from `page.css`, and a relative URL
+     in a stylesheet resolves against the stylesheet -- which sits at the root
+     in both languages, `/en/` reaching it through the pair above. While those
+     `@font-face` blocks were inside the page, the URL resolved against the page
+     instead and the rewrite was what kept `/en/` in Geist rather than in
+     Times. */
 ];
 
 /* What the page says about itself, and the two links that point at the other

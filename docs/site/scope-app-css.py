@@ -81,13 +81,42 @@ def prefix_selector(sel):
     return SCOPE + " " + sel
 
 
+# A heading in the page's imitation of the application is not a heading of the
+# page. It is drawn as one and it must go on looking exactly like one, but a
+# crawler counted four `<h1>` that say the name of a recording, and a screen
+# reader read them as the page's own structure.
+#
+# The markup there carries `<div data-h="2">` instead of `<h2>`, and this is
+# what keeps the two in step: every rule that styles a bare `h1`...`h6` is
+# emitted a second time with `[data-h="N"]` in its place. The application's
+# stylesheet stays the single source -- restating those rules in the page's own
+# CSS is the thing that would drift on the next regeneration.
+HEADING = re.compile(r"(?<![\w#.\-\[])h([1-6])(?![\w\-])")
+
+
+def heading_alias(sel):
+    """The same selector addressed to `[data-h="N"]`, or None where the
+       selector has no bare heading element in it."""
+    alias, hits = HEADING.subn(lambda m: '[data-h="%s"]' % m.group(1), sel)
+    return alias if hits else None
+
+
 def prefix_prelude(prelude):
     lead = ""
     m = re.match(r"^(\s*(?:/\*.*?\*/\s*)*)", prelude, re.S)
     if m:
         lead, prelude = m.group(1), prelude[m.end():]
     parts = [p for p in split_selector_list(prelude)]
-    return lead + ",\n".join(prefix_selector(p) for p in parts if p.strip())
+    out = []
+    for part in parts:
+        if not part.strip():
+            continue
+        prefixed = prefix_selector(part)
+        out.append(prefixed)
+        alias = heading_alias(prefixed)
+        if alias:
+            out.append(alias)
+    return lead + ",\n".join(out)
 
 
 def split_selector_list(prelude):

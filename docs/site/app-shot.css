@@ -195,7 +195,8 @@
    them down one column read as fine print rather than as structure.
    This is the only rule that types this heading — the margin it once also
    carried further down the file is gone, because the card owns its spacing. */
-.shot .sidebar h2 {
+.shot .sidebar h2,
+.shot .sidebar [data-h="2"] {
   /* 680, the weight the archive's folder heading uses for the same job — a
      14 px label at the top of a list — and one the documented set allows. */
   font-size: 14px; font-weight: 680; text-transform: none;
@@ -208,7 +209,8 @@
    list. `.manual h2` further down used to redeclare the type at the same
    specificity and win purely on file order, so this rule never drew anything;
    it now carries only that list's own margin. */
-.shot .wizard h2 {
+.shot .wizard h2,
+.shot .wizard [data-h="2"] {
   font-size: 17px; font-weight: 700; color: var(--text);
   letter-spacing: -0.01em; text-transform: none;
 }
@@ -1237,7 +1239,8 @@
 .shot .olo-face.still .olo-smile { transition: none; transform: none; }
 .shot .olo-face.still .olo-sheet { animation: none; }
 .shot .archive-drop-zone-copy { grid-area: copy; min-width: 0; }
-.shot .archive-drop-zone-copy h1 {
+.shot .archive-drop-zone-copy h1,
+.shot .archive-drop-zone-copy [data-h="1"] {
   font-size: 26px; font-weight: 700; margin: 0;
   letter-spacing: -0.02em; transition: font-size 0.18s ease;
 }
@@ -1268,7 +1271,8 @@
 .shot .archive-drop-zone.compact .archive-drop-zone-copy {
   align-self: center; text-align: left;
 }
-.shot .archive-drop-zone.compact .archive-drop-zone-copy h1 { font-size: 15px; }
+.shot .archive-drop-zone.compact .archive-drop-zone-copy h1,
+.shot .archive-drop-zone.compact .archive-drop-zone-copy [data-h="1"] { font-size: 15px; }
   .shot .archive-drop-zone.compact .archive-drop-zone-copy p {
     max-height: 44px; margin: 2px 0 0; opacity: 1;
   }
@@ -1283,6 +1287,7 @@
 .shot .archive-drop-zone-surface,
 .shot .archive-drop-zone-mark svg,
 .shot .archive-drop-zone-copy h1,
+.shot .archive-drop-zone-copy [data-h="1"],
 .shot .archive-drop-zone-copy p { transition: none; }}
 .shot .small-text { font-size: 13px; color: var(--text-quiet); }
 .shot .note { font-size: 13px; color: var(--text-quiet); margin-top: 20px; }
@@ -1317,7 +1322,8 @@
   height: 57px; padding: 0 18px; flex: 0 0 auto;
   border-bottom: 1px solid var(--line); background: var(--panel);
 }
-.shot .detail-header h1 {
+.shot .detail-header h1,
+.shot .detail-header [data-h="1"] {
   font-size: 15px; font-weight: 700; margin: 0; min-width: 0;
 }
 .shot .detail-header-left {
@@ -1885,7 +1891,8 @@
   display: flex; align-items: center; justify-content: space-between;
   gap: 18px; margin-bottom: 18px;
 }
-.shot .settings h1 {
+.shot .settings h1,
+.shot .settings [data-h="1"] {
   font-size: 28px; line-height: 1.15; font-weight: 700;
   margin: 0; letter-spacing: -0.025em;
 }
@@ -2033,7 +2040,8 @@
   background: var(--panel); border: 1px solid var(--line);
   border-radius: var(--r-large); padding: 26px 28px;
 }
-.shot .settings h2 {
+.shot .settings h2,
+.shot .settings [data-h="2"] {
   margin: 0; font-size: 19px; line-height: 1.25; font-weight: 700;
   letter-spacing: -0.018em;
 }
@@ -2058,12 +2066,14 @@
    `Rozlišení mluvčích` under a `Mluvčí` heading; that arrangement is gone —
    the phrase is the heading now and the switch is on it — and the selector is
    narrow again rather than left waiting for a caller that no longer exists. */
-.shot .settings section > h2 + .field { margin-top: 24px; }
+.shot .settings section > h2 + .field,
+.shot .settings section > [data-h="2"] + .field { margin-top: 24px; }
 /* A card whose content follows its heading with no introductory sentence
    between them takes the same 24 px that a field does. Without this the list
    sat on the heading, because `h2` carries no bottom margin of its own — the
    description normally provides the gap. */
-.shot .settings section > h2 + .about-abilities { margin-top: 24px; }
+.shot .settings section > h2 + .about-abilities,
+.shot .settings section > [data-h="2"] + .about-abilities { margin-top: 24px; }
 .shot .settings-info-note {
   display: flex; align-items: flex-start; gap: 8px;
   margin: 8px 0 0; color: var(--text-quiet);
@@ -2416,7 +2426,8 @@
    thing being counted was ceremony, and centred prose in a dialog reads as a
    certificate. `.step` and `.step h1` stay: the by-hand listing is still a page
    and still wants a 28 px heading. */
-.shot .step h1 { font-size: 28px; line-height: 1.15; margin: 0 0 8px; letter-spacing: -0.025em; font-weight: 700; }
+.shot .step h1,
+.shot .step [data-h="1"] { font-size: 28px; line-height: 1.15; margin: 0 0 8px; letter-spacing: -0.025em; font-weight: 700; }
 
 .shot .step-footer {
   display: flex; justify-content: space-between; align-items: center; gap: 10px;
@@ -2634,7 +2645,8 @@
 .shot .manual-group + .manual-group { margin-top: 24px; }
 /* Only the gap under the label. The type comes from `.wizard h2` — see the
    note there; this rule used to restate it and beat it on file order. */
-.shot .manual h2 { margin: 0 0 8px; }
+.shot .manual h2,
+.shot .manual [data-h="2"] { margin: 0 0 8px; }
 
 /* The by-hand list. The same row as `.download-list` above, plus the two things
    this one has: a mark that is also the action, and a bin.
@@ -2865,13 +2877,15 @@
 
    Descendant, not child: in the online view of Přidat nahrávku the heading and
    the sentence sit inside a <form>, so `.dialog > h2 + p` would miss them. */
-.shot .dialog h2 {
+.shot .dialog h2,
+.shot .dialog [data-h="2"] {
   font-size: 19px; font-weight: 700; margin: 0 0 8px;
   letter-spacing: -0.015em; text-transform: none; color: var(--text);
   line-height: 1.25;
 }
 .shot .dialog p { margin: 0; color: var(--text-quiet); line-height: 1.5; }
-.shot .dialog h2 + p { margin-bottom: 18px; }
+.shot .dialog h2 + p,
+.shot .dialog [data-h="2"] + p { margin-bottom: 18px; }
 /* A field is the dialog's last block; the footer owns the space above it. */
 .shot .dialog .field { margin-bottom: 0; }
 .shot .dialog-footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 22px; }
@@ -2883,11 +2897,13 @@
    Eight above it when it follows the sentence rather than replacing it: the
    two lines are one introduction and read as a pair, not as two blocks. */
 .shot .dialog > .settings-info-note { margin-bottom: 18px; }
-.shot .dialog h2 + .settings-info-note { margin-top: 0; }
+.shot .dialog h2 + .settings-info-note,
+.shot .dialog [data-h="2"] + .settings-info-note { margin-top: 0; }
 .shot .dialog p + .settings-info-note { margin-top: 8px; }
 /* And where the note follows the sentence, the sentence gives up its own gap:
    the two are one introduction, and 18 between them would read as two. */
-.shot .dialog h2 + p:has(+ .settings-info-note) { margin-bottom: 0; }
+.shot .dialog h2 + p:has(+ .settings-info-note),
+.shot .dialog [data-h="2"] + p:has(+ .settings-info-note) { margin-bottom: 0; }
 /* What is in an update, in the dialog that offers it. No margin of its own:
    `.dialog h2 + p` owns the gap above, like every other block in a dialog.
    240 px is about eight items — beyond that the box scrolls, so a talkative
@@ -2896,7 +2912,8 @@
    follows it is a column of marks, not a paragraph, and at 18 the first tick
    sat close enough to the sentence to read as part of it. The dialog still owns
    the gap, as every dialog does — the list carries no margin of its own. */
-.shot .release-notes-dialog h2 + p { margin-bottom: 24px; }
+.shot .release-notes-dialog h2 + p,
+.shot .release-notes-dialog [data-h="2"] + p { margin-bottom: 24px; }
 /* The gap between blocks belongs to the column, not to margins on what is in
    it. `.release-notes ul` sets `margin: 0` and outranks any `* + *` rule, so a
    margin-top here was overruled and the introducing sentence sat on the first
@@ -3138,7 +3155,8 @@
   display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;
   padding: 20px 26px 14px;
 }
-.shot .ai-preview-header h2 + p { margin-bottom: 0; }
+.shot .ai-preview-header h2 + p,
+.shot .ai-preview-header [data-h="2"] + p { margin-bottom: 0; }
 .shot .ai-preview-warning {
   margin: 0 26px 14px; padding: 10px 12px;
   border: 1px solid hsl(var(--ds-destructive) / 0.25);
@@ -3198,7 +3216,8 @@
 .shot .sidebar .sidebar-section:focus-within {
   border-color: var(--line-field); box-shadow: var(--shadow);
 }
-.shot .sidebar .sidebar-section h2 { margin: 0; line-height: 1.3; }
+.shot .sidebar .sidebar-section h2,
+.shot .sidebar .sidebar-section [data-h="2"] { margin: 0; line-height: 1.3; }
 /* The whole card width, because the action moved inside the body and nothing
    competes with it on this row any more. Every arrangement before this one was
    a way around a button that could not contain another button. */
@@ -3516,7 +3535,8 @@
   width: 21px; height: 21px; fill: none; stroke: currentColor;
   stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round;
 }
-.shot .ai-preview-empty h3 { margin: 0 0 6px; font-size: 16px; }
+.shot .ai-preview-empty h3,
+.shot .ai-preview-empty [data-h="3"] { margin: 0 0 6px; font-size: 16px; }
 .shot .ai-preview-empty p { max-width: 440px; margin: 0 0 18px; color: var(--text-quiet); }
 .shot .ai-preview-actions {
   flex: 0 0 auto; margin: 0; padding: 14px 22px;
@@ -4270,7 +4290,8 @@
   margin-bottom: 14px; border-radius: 50%;
   background: var(--accent-light); color: var(--accent);
 }
-.shot .transcript-empty h2 { margin: 0 0 18px; font-size: 16px; font-weight: 680; }
+.shot .transcript-empty h2,
+.shot .transcript-empty [data-h="2"] { margin: 0 0 18px; font-size: 16px; font-weight: 680; }
 
 /* ------------------------------------------------------- save as */
 .shot .save { position: relative; }

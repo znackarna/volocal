@@ -61,9 +61,10 @@ jobs:
         run: |
           mkdir -p _site
           cp docs/site/index.html _site/
-          cp docs/site/brand.css docs/site/app-shot.css _site/
+          cp docs/site/brand.css docs/site/app-shot.css docs/site/page.css _site/
           cp docs/site/brand.js docs/site/chibi.js docs/site/preview.js _site/
           cp docs/site/og.png docs/site/og-en.png _site/
+          cp docs/site/robots.txt docs/site/sitemap.xml _site/
           cp -r docs/site/fonts _site/fonts
           # `_tokens.html`, `bundle.py`, `scope-app-css.py`, `translate.mjs` and
           # `en.json` stay behind: they are how the page is worked on and how the

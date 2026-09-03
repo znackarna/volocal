@@ -41,7 +41,7 @@ the time.
 | [2026-08-31](2026-08-31.md) | 15 | The three pieces of ballast, and what each one turned out to be … |
 | [2026-09-01](2026-09-01.md) | 9 | The release script asks whether the version is already out; then what an interpreted recording showed Volocal was losing … |
 | [2026-09-02](2026-09-02.md) | 86 | The first real fill stuck on screen and was then found to be chaos on paper; the second-language pass was rebuilt from the sound rather than from the first transcript's word timings — 409 English blocks where there were 108. |
-| [2026-09-03](2026-09-03.md) | 7 | Every comment out of the presentation page, a title that says what the program does, and a card for a pasted link … |
+| [2026-09-03](2026-09-03.md) | 13 | Every comment out of the presentation page, a title that says what the program does, and a card for a pasted link … |
 
 ## What each day was about
 
@@ -101,3 +101,6 @@ the time.
 
 
 **[2026-09-01](2026-09-01.md)** — The release script asks `origin` whether the version is already published, before the twenty minutes rather than after: 1.2.22 went out at 23:01 and this session kept building it, having twice broken its own promise to check. Checked against the real tags. Recorded with it: the guard was written mid-build and had to be set aside so the tree still matched the installer — a repair to the release machinery cannot land in the middle of a release. Then stage one of the split of the large React components, on a `refactor` branch: sixty-nine characterization tests across `Detail`, `Settings` and the shell — which nothing had rendered before — written against whole screens so that the moves they exist to protect will not have to rewrite them. 187 tests at the start of the day, 256 at the end, and not a line of the product changed. Then all ten stages of it, on the same branch: `Detail.tsx` from 3 507 lines and 53 pieces of state to 1 005 and 6, `Settings.tsx` from 2 929 to 1 099, `App.tsx` from 1 960 to 1 372 — and the tests written first passed unchanged the whole way through, which is the answer to whether writing them first was worth it. A review of the finished branch then found four regressions the split had left behind — the improved document never going stale being the worst of them — none of which the 256 tests had caught, because none is a thing a reader does. In the evening, a sixth feature and a measurement: an interpreted recording showed Volocal drops close to half the speech without saying so, and one flag — `--max-context 0` against today's 64 — recovers seven times more of the missing language. Characterization tests first, then the sweep that notices it.
+
+
+**[2026-09-03](2026-09-03.md)** — Both READMEs take the heading the site has had since 25 August: `Co nedělá dobře` becomes `Jaké má limity?`, and the English is the page’s own `What are its limits?` out of `en.json` rather than translated again, so the two cannot drift apart by a word.

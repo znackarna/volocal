@@ -12,7 +12,8 @@ needs before touching anything.
 
 | | |
 |---|---|
-| `index.html` | the whole page: markup, stylesheet, and the boot script at the foot |
+| `index.html` | the page: markup, and the boot script at the foot |
+| `page.css` | the page's own stylesheet. It sat inside `index.html` until 3 September |
 | `brand.css`, `brand.js` | all three states of the mark, copied out of `src/brandArt.ts` and `Brand.tsx` |
 | `chibi.js` | the cartoon in the hero — four beats, using the real face and mill |
 | `preview.js` | the carousel, the playing transcript, the waveform, the archive's progress |
@@ -21,6 +22,8 @@ needs before touching anything.
 | `bundle.py` | builds one self-contained file (fonts inlined) for handing the page to somebody |
 | `translate.mjs` | writes the English page from this one; `--check` is in `npm run docs:check` |
 | `en.json` | every Czech sentence on the page and its English |
+| `og.png`, `og-en.png` | the card a pasted link shows, one per language |
+| `robots.txt`, `sitemap.xml` | served as they are; the sitemap names both languages |
 | `fonts/` | Geist and Literata, four woff2 out of `node_modules/@fontsource-variable/` |
 
 ## Looking at it
