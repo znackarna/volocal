@@ -1014,6 +1014,7 @@ footer.wrap { padding-top: 0; padding-bottom: 96px; }
 }
 
 .row-face.second-shot .second-language { height: 100%; align-content: center; }
+.row-face.second-shot .second-language-text { min-width: 0; }
 .row-face.clip-shot { padding: 0 22px; height: 92px; }
 .clip-pair { display: flex; align-items: center; gap: 16px; min-width: 0; height: 100%; }
 .clip-pair .segment { flex: 1 1 auto; min-width: 0; }
@@ -1025,7 +1026,6 @@ footer.wrap { padding-top: 0; padding-bottom: 96px; }
 
 @media (max-width: 700px) {
   .row-face.second-shot .second-language { padding: 8px 14px; gap: 8px; }
-  .row-face.second-shot .second-language-text { min-width: 0; }
   .row-face.clip-shot { padding: 0 16px; }
   .clip-pair { gap: 12px; }
 }
