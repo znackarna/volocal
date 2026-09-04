@@ -37,13 +37,11 @@ ANGLICISMY = [
     (r"\bfeedback\w*\b", "zpětná vazba"),
     (r"\bbrand(ing|ová|ové|ový)?\b", "značka"),
     (r"\bcontent\w*\b", "obsah"),
-    (r"\bdesign systém\w*\b", "?? rozhodnout"),
     (r"\bmeeting\w*\b", "schůzka"),
     (r"\bdeadline\w*\b", "termín"),
     (r"\bmanuál\w*\b", "příručka"),
     (r"\bimplementac\w*\b", "provedení"),
     (r"\bkonzistenc\w*\b", "jednotnost"),
-    (r"\bkonzistentn\w*\b", "jednotný"),
     (r"\bdeterministick\w*\b", "pokaždé stejně"),
     (r"\borchestrac\w*\b", "řízení"),
     (r"\bvektorizac\w*\b", "?? vysvětlit"),
@@ -57,7 +55,6 @@ ANGLICISMY = [
     (r"\bdigitalizac\w*\b", "?? rozhodnout"),
     (r"\bdiskur[zs]\w*\b", "veřejná debata"),
     (r"\bmašineri\w*\b", "?? zvážit"),
-    (r"\bvizuál\w*\b", "grafika"),
     (r"\bbackend\w*\b", "co běží na pozadí"),
     (r"\bfrontend\w*\b", "co je vidět"),
     (r"\bsoftware\w*\b", "program"),
@@ -108,7 +105,11 @@ TYPO = [
 # Zdomácnělá slova, u kterých by náhrada zněla křečovitě, a úřední termíny,
 # které se jinak nejmenují. Rozhodnuto 4. 9. 2026; kdo to bude chtít změnit,
 # ať to změní tady a ne potichu v textu.
+# O těchhle třech rozhodl majitel 4. 9. 2026, když jsem mu je přeložil:
+# vizuál ne na grafiku, design systém ne na designový, konzistentně ne na
+# pokaždé stejně. Je to pracovní slovník oboru a jeho stránka.
 ZDOMÁCNĚLÉ = [
+    "vizuál", "design systém", "konzistentn",
     "marketér", "marketérka", "marketérce",
     "kampaň", "kampaně", "kampani",
     "generátor", "generátoru",
@@ -154,7 +155,7 @@ def viditelny_text(html: str) -> list[tuple[int, str]]:
 def cisty(text: str) -> str:
     """Vyhodí z textu to, co se nepřekládá, ať to nespouští poplach."""
     for slovo in NEDOTKNUTELNÉ:
-        text = text.replace(slovo, " ")
+        text = re.sub(re.escape(slovo), " ", text, flags=re.I)
     return text
 
 
