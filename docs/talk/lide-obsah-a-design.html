@@ -179,63 +179,38 @@ mark{background:var(--hl);color:var(--hl-ink);padding:.06em .18em;}
 .vzkaz strong{color:var(--ink);font-weight:700;}
 
 /* ================================================================ kostka
-   Značkobotova kostka, obkreslená z jeho vlastní značky: modrá stěna
-   s kosočtvercem je design, červená lidé, zelená s kolečkem obsah.
+   Značka je převzatá z Volocalu, ne obkreslená: `mark-motion` i s klipovými
+   cestami je přesně to, co posílá jeho autor. Tři stěny, tři
+   tvary — a trojúhelník na červené je značkárnina vlastní značka.
 
-   Vypisuje se stejně jako značka Volocalu, a je to doslova týž mechanismus
-   z `docs/site/brand.css`: obrys stojí od prvního snímku a pero — bílý tah
-   uvnitř masky — ho zaplňuje. Co postupuje, je odkrytí tvaru, ne tah, který
-   by tvar předstíral. Ploché čelo (`butt`), ne kulaté: kulatá čepička je
-   kotouč o poloměru poloviny tahu a na hraně by se objevila barva tam, kam
-   pero ještě nedošlo.
+   Jak to funguje: každý tvar je „ústa“ (klipová cesta v jeho vlastním
+   obrysu) a v nich leží dvě vrstvy. `walls` je týž tvar v barvě stěny, takže
+   dokud dílek nepřijde, po otvoru není vidět nic. `piece` je bílý dílek. Když
+   dílek padá shora, ústa ho odkrývají odshora dolů — je to vkládačka tvarů.
 
-   `stroke-dashoffset: 101`, ne 100 — na rovné stovce leží klid přesně na
-   hranici mezi nakreslenou a nenakreslenou půlkou vzoru a zaokrouhlení nechá
-   na začátku každého tahu proužek. Jedna jednotka vůle to schová dovnitř.
-
-   Klidová hodnota je 0, tedy dopsáno. Animace si stav před psaním bere přes
-   `both` ze svého `from`, takže kdo si řekne o klid, vidí kostku hotovou —
-   ne prázdné místo. */
-.kostka-blok{margin:clamp(40px,5vw,68px) 0 0;max-width:880px;}
+   Klidový stav je vložený dílek, ne prázdná stěna: animace si výchozí polohu
+   bere přes `both` ze svého `from`. Kdo si řekne o klid, vidí kostku hotovou. */
+.kostka-blok{margin:clamp(40px,5vw,68px) 0 0;max-width:940px;}
 .kostka{display:block;width:100%;height:auto;color:var(--ink);}
-.st-modra{fill:#5584EA;}
-.st-cervena{fill:#D94438;}
-.st-zelena{fill:#94C65F;}
-.st-symbol{fill:var(--paper);}
-.st-obrys{fill:none;stroke:currentColor;stroke-width:1.4;opacity:.24;stroke-linejoin:round;}
-.st-hrana{fill:none;stroke:var(--ground);stroke-width:2;stroke-linejoin:round;}
-.st-jmeno{fill:currentColor;font-weight:700;font-size:23px;letter-spacing:-.02em;}
-.st-role{fill:currentColor;font-size:13px;opacity:.62;}
-.st-vodic{fill:none;stroke:currentColor;stroke-width:1.2;opacity:.45;}
-.st-stena{transform-box:view-box;}
+.walls{pointer-events:none;}
+.piece{fill:#fff;}
+.st-jmeno{fill:currentColor;font-weight:700;font-size:30px;letter-spacing:-.02em;}
+.st-role{fill:currentColor;font-size:16px;opacity:.62;}
+.st-vodic{fill:none;stroke:currentColor;stroke-width:1.4;opacity:.45;}
 
-.pero{fill:none;stroke:#fff;stroke-linecap:butt;
-  stroke-dasharray:100 200;stroke-dashoffset:0;}
-.pero-lide{stroke-width:106;}
-.pero-obsah{stroke-width:106;}
-.pero-design{stroke-width:112;}
-@keyframes pise{from{stroke-dashoffset:101;}to{stroke-dashoffset:0;}}
+@keyframes padne{from{transform:translateY(-330px);}to{transform:none;}}
 @keyframes prijde{from{opacity:0;}to{opacity:1;}}
-
 @media (prefers-reduced-motion:no-preference){
-  /* Pořadí je pořadí ruky: dvě boční stěny, a víko naposled, protože to je
-     ta chvíle, kdy se z tří ploch stane předmět. */
-  .pero{animation:pise var(--pero-doba) cubic-bezier(.65,0,.35,1) var(--pero-start) both;}
-  .pero-lide{--pero-start:120ms;--pero-doba:660ms;}
-  .pero-obsah{--pero-start:700ms;--pero-doba:660ms;}
-  .pero-design{--pero-start:1300ms;--pero-doba:760ms;}
-  .st-popis{animation:prijde 420ms ease-out var(--popis-start) both;}
-  .st-popis-lide{--popis-start:640ms;}
-  .st-popis-obsah{--popis-start:1220ms;}
-  .st-popis-design{--popis-start:1920ms;}
-  /* Až je kostka napsaná, žije: rozestoupí se a zase složí. */
-  .st-vrch{animation:kostka-vrch 6.4s cubic-bezier(.5,0,.3,1) 2500ms infinite;}
-  .st-vlevo{animation:kostka-vlevo 6.4s cubic-bezier(.5,0,.3,1) 2500ms infinite;}
-  .st-vpravo{animation:kostka-vpravo 6.4s cubic-bezier(.5,0,.3,1) 2500ms infinite;}
+  /* Pořadí je pořadí té věty nad kostkou: lidé, obsah, design. */
+  .piece{animation:padne var(--dilek-doba) cubic-bezier(.34,1.06,.64,1) var(--dilek-start) both;}
+  .s-triangle .piece{--dilek-start:280ms;--dilek-doba:640ms;}
+  .s-circle   .piece{--dilek-start:660ms;--dilek-doba:640ms;}
+  .s-square   .piece{--dilek-start:1040ms;--dilek-doba:700ms;}
+  .st-popis{animation:prijde 400ms ease-out var(--popis-start) both;}
+  .st-popis-lide  {--popis-start:800ms;}
+  .st-popis-obsah {--popis-start:1180ms;}
+  .st-popis-design{--popis-start:1600ms;}
 }
-@keyframes kostka-vrch{0%,16%{transform:none}44%,60%{transform:translate(0,-34px)}88%,100%{transform:none}}
-@keyframes kostka-vlevo{0%,16%{transform:none}44%,60%{transform:translate(-32px,18px)}88%,100%{transform:none}}
-@keyframes kostka-vpravo{0%,16%{transform:none}44%,60%{transform:translate(32px,18px)}88%,100%{transform:none}}
 
 /* ============================================================ rozcestník */
 .rozcestnik{list-style:none;margin:0;padding:0;display:grid;gap:1px;
@@ -505,66 +480,50 @@ figure{margin:0;}
     <p class="hero-teze">Nepíšeme pravidla. Tvoříme nástroje.</p>
 
     <figure class="kostka-blok">
-      <svg class="kostka" viewBox="0 0 720 300" role="img" aria-label="Kostka o třech stěnách: červená jsou lidé, zelená s kolečkem je obsah, modrá s kosočtvercem je design. Tvary se vypisují jeden po druhém a stěny se pak rozestoupí a zase složí v jeden předmět.">
+      <svg class="kostka" viewBox="0 0 1240 720" role="img" aria-label="Kostka o třech stěnách: na červené je trojúhelník a jsou to lidé, na zelené kolečko a je to obsah, na modré čtverec a je to design. Tvary postupně padají do svých míst.">
         <defs>
-          <mask id="m-lide" maskUnits="userSpaceOnUse" x="250" y="30" width="240" height="240">
-            <path class="pero pero-lide" d="M320 84 L320 250" pathLength="100"/>
-          </mask>
-          <mask id="m-obsah" maskUnits="userSpaceOnUse" x="330" y="30" width="240" height="240">
-            <path class="pero pero-obsah" d="M400 84 L400 250" pathLength="100"/>
-          </mask>
-          <mask id="m-design" maskUnits="userSpaceOnUse" x="260" y="20" width="220" height="180">
-            <path class="pero pero-design" d="M266 98 L454 98" pathLength="100"/>
-          </mask>
+          <clipPath id="mark-mouth-circle"><rect width="186.375" height="186.375" rx="93.1877" transform="matrix(0.866025 -0.5 0 1 413.776 429.219)"/></clipPath>
+          <clipPath id="mark-mouth-square"><rect width="167.26" height="167.26" transform="matrix(0.866025 0.5 -0.866025 0.5 329.653 106.695)"/></clipPath>
+          <clipPath id="mark-mouth-triangle"><path d="M254.779 617.635L74.8743 513.767L165.282 386.188L254.779 617.635Z"/></clipPath>
         </defs>
 
-        <!-- Obrysy stojí od prvního snímku: jsou to cíle pera. -->
-        <path class="st-obrys" d="M360 52 L440 98 L360 144 L280 98 Z"/>
-        <path class="st-obrys" d="M280 98 L360 144 L360 236 L280 190 Z"/>
-        <path class="st-obrys" d="M440 98 L360 144 L360 236 L440 190 Z"/>
-
-        <!-- vlevo: lidé -->
-        <g class="st-stena st-vlevo">
-          <g mask="url(#m-lide)">
-            <path class="st-cervena" d="M280 98 L360 144 L360 236 L280 190 Z"/>
-          </g>
-          <path class="st-hrana" d="M280 98 L360 144 L360 236 L280 190 Z"/>
-          <g class="st-popis st-popis-lide">
-            <path class="st-vodic" d="M316 178 L250 208 L204 208"/>
-            <text class="st-jmeno" x="194" y="205" text-anchor="end">Lidé</text>
-            <text class="st-role" x="194" y="226" text-anchor="end">příběhy a vztahy</text>
-          </g>
-        </g>
-
-        <!-- vpravo: obsah -->
-        <g class="st-stena st-vpravo">
-          <g mask="url(#m-obsah)">
-            <path class="st-zelena" d="M440 98 L360 144 L360 236 L440 190 Z"/>
-            <ellipse class="st-symbol" cx="400" cy="169" rx="15" ry="21" transform="rotate(13 400 169)"/>
-          </g>
-          <path class="st-hrana" d="M440 98 L360 144 L360 236 L440 190 Z"/>
-          <g class="st-popis st-popis-obsah">
-            <path class="st-vodic" d="M424 182 L470 208 L516 208"/>
-            <text class="st-jmeno" x="526" y="205">Obsah</text>
-            <text class="st-role" x="526" y="226">ve dvou podobách</text>
+        <g transform="translate(356 55) scale(0.8)">
+          <g class="mark-motion">
+            <rect width="380.65" height="380.65" transform="matrix(0.866025 -0.5 0 1 329.653 380.65)" fill="#7AC942"/>
+            <rect width="380.65" height="380.65" transform="matrix(0.866025 0.5 -0.866025 0.5 329.653 0)" fill="#007AFF"/>
+            <rect width="380.65" height="380.65" transform="matrix(0.866025 0.5 0 1 0.000488281 190.325)" fill="#FF1C26"/>
+            <g class="shape s-circle" clip-path="url(#mark-mouth-circle)">
+              <g class="walls"><rect width="186.375" height="186.375" rx="93.1877" transform="matrix(0.866025 -0.5 0 1 413.776 429.219)" fill="#7AC942"/></g>
+              <g class="piece"><rect width="186.375" height="186.375" rx="93.1877" transform="matrix(0.866025 -0.5 0 1 413.776 429.219)"/></g>
+            </g>
+            <g class="shape s-square" clip-path="url(#mark-mouth-square)">
+              <g class="walls"><rect width="167.26" height="167.26" transform="matrix(0.866025 0.5 -0.866025 0.5 329.653 106.695)" fill="#007AFF"/></g>
+              <g class="piece"><rect width="167.26" height="167.26" transform="matrix(0.866025 0.5 -0.866025 0.5 329.653 106.695)"/></g>
+            </g>
+            <g class="shape s-triangle" clip-path="url(#mark-mouth-triangle)">
+              <g class="walls"><path d="M254.779 617.635L74.8743 513.767L165.282 386.188L254.779 617.635Z" fill="#FF1C26"/></g>
+              <g class="piece"><path d="M254.779 617.635L74.8743 513.767L165.282 386.188L254.779 617.635Z"/></g>
+            </g>
           </g>
         </g>
 
-        <!-- víko naposled: design -->
-        <g class="st-stena st-vrch">
-          <g mask="url(#m-design)">
-            <path class="st-modra" d="M360 52 L440 98 L360 144 L280 98 Z"/>
-            <path class="st-symbol" d="M360 76 L396 98 L360 120 L324 98 Z"/>
-          </g>
-          <path class="st-hrana" d="M360 52 L440 98 L360 144 L280 98 Z"/>
-          <g class="st-popis st-popis-design">
-            <path class="st-vodic" d="M400 82 L470 58 L516 58"/>
-            <text class="st-jmeno" x="526" y="55">Design</text>
-            <text class="st-role" x="526" y="76">drží ho designér</text>
-          </g>
+        <g class="st-popis st-popis-lide">
+          <path class="st-vodic" d="M470 470 L360 520 L300 520"/>
+          <text class="st-jmeno" x="288" y="514" text-anchor="end">Lidé</text>
+          <text class="st-role" x="288" y="542" text-anchor="end">příběhy a vztahy</text>
+        </g>
+        <g class="st-popis st-popis-obsah">
+          <path class="st-vodic" d="M770 470 L880 520 L940 520"/>
+          <text class="st-jmeno" x="952" y="514">Obsah</text>
+          <text class="st-role" x="952" y="542">ve dvou podobách</text>
+        </g>
+        <g class="st-popis st-popis-design">
+          <path class="st-vodic" d="M660 200 L880 130 L940 130"/>
+          <text class="st-jmeno" x="952" y="124">Design</text>
+          <text class="st-role" x="952" y="152">drží ho designér</text>
         </g>
       </svg>
-      <figcaption>Kostka značkobota — kolegy, který u&nbsp;nás třídí tok informací. Tři stěny, tři věci, jeden předmět. Vypisuje se stejným perem jako značka Volocalu: obrys stojí a tah pod maskou tvar odkrývá.</figcaption>
+      <figcaption>Vkládačka tvarů: každý dílek padá do svých úst, a dokud tam není, po otvoru není vidět nic. Trojúhelník na červené stěně je značkárnina vlastní značka. Kostku i s pohybem přebíráme z Volocalu, nekreslili jsme ji znovu.</figcaption>
     </figure>
 
     <div class="vzkaz">
