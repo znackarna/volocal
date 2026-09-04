@@ -42,7 +42,7 @@ the time.
 | [2026-09-01](2026-09-01.md) | 9 | The release script asks whether the version is already out; then what an interpreted recording showed Volocal was losing … |
 | [2026-09-02](2026-09-02.md) | 86 | The first real fill stuck on screen and was then found to be chaos on paper; the second-language pass was rebuilt from the sound rather than from the first transcript's word timings — 409 English blocks where there were 108. |
 | [2026-09-03](2026-09-03.md) | 13 | Every comment out of the presentation page, a title that says what the program does, and a card for a pasted link … |
-| [2026-09-04](2026-09-04.md) | 9 | Two more cards in Co získáte?, for the two features that shipped; and a one-page answer to Vít, seven layers deep, with every client name out of it … |
+| [2026-09-04](2026-09-04.md) | 10 | Two more cards in Co získáte?, for the two features that shipped; a one-page answer to Vít, seven layers deep, with every client name out of it; and four readers over its Czech, which left two scripts behind so the next page cannot read as a translation … |
 
 ## What each day was about
 
