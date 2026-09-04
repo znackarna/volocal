@@ -198,18 +198,27 @@ mark{background:var(--hl);color:var(--hl-ink);padding:.06em .18em;}
 .st-role{fill:currentColor;font-size:16px;opacity:.62;}
 .st-vodic{fill:none;stroke:currentColor;stroke-width:1.4;opacity:.45;}
 
-@keyframes padne{from{transform:translateY(-330px);}to{transform:none;}}
-@keyframes prijde{from{opacity:0;}to{opacity:1;}}
+/* Dokola, ne jednou. Napoprvé to bylo jedno přehrání při načtení — jenže
+   karta otevřená na pozadí animaci doběhne dřív, než se na ni někdo podívá,
+   a pak už kostka jen stojí. Dílek proto propadne ústy dál dolů a vrátí se
+   shora; oba krajní body jsou mimo ústa, takže skok zpět není vidět.
+
+   Záporné zpoždění je tu schválně: cyklus začíná už rozběhnutý, takže první
+   snímek stránky ukazuje kostku složenou, ne prázdnou. */
+@keyframes padne{
+  0%     {transform:translateY(-330px);animation-timing-function:cubic-bezier(.34,1.06,.64,1);}
+  13%    {transform:translateY(0);}
+  68%    {transform:translateY(0);animation-timing-function:cubic-bezier(.55,0,.9,1);}
+  82%    {transform:translateY(330px);}
+  82.01% {transform:translateY(-330px);}
+  100%   {transform:translateY(-330px);}
+}
 @media (prefers-reduced-motion:no-preference){
   /* Pořadí je pořadí té věty nad kostkou: lidé, obsah, design. */
-  .piece{animation:padne var(--dilek-doba) cubic-bezier(.34,1.06,.64,1) var(--dilek-start) both;}
-  .s-triangle .piece{--dilek-start:280ms;--dilek-doba:640ms;}
-  .s-circle   .piece{--dilek-start:660ms;--dilek-doba:640ms;}
-  .s-square   .piece{--dilek-start:1040ms;--dilek-doba:700ms;}
-  .st-popis{animation:prijde 400ms ease-out var(--popis-start) both;}
-  .st-popis-lide  {--popis-start:800ms;}
-  .st-popis-obsah {--popis-start:1180ms;}
-  .st-popis-design{--popis-start:1600ms;}
+  .piece{animation:padne 7s linear var(--dilek-start) infinite both;}
+  .s-triangle .piece{--dilek-start:-1500ms;}
+  .s-circle   .piece{--dilek-start:-1280ms;}
+  .s-square   .piece{--dilek-start:-1060ms;}
 }
 
 /* ============================================================ rozcestník */
