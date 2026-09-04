@@ -179,47 +179,112 @@ mark{background:var(--hl);color:var(--hl-ink);padding:.06em .18em;}
 .vzkaz strong{color:var(--ink);font-weight:700;}
 
 /* ================================================================ kostka
-   Značka je převzatá z Volocalu, ne obkreslená: `mark-motion` i s klipovými
-   cestami je přesně to, co posílá jeho autor. Tři stěny, tři
-   tvary — a trojúhelník na červené je značkárnina vlastní značka.
+   Značka i její pohyb jsou převzaté z Volocalu — pravidla níž jsou zkopírovaná
+   z `docs/site/page.css`, jen s jiným prefixem selektoru a bez rozměrů, které
+   tam patří k malé značce v panelu. Nic z toho jsem nevymýšlel a nepřekresloval.
 
-   Jak to funguje: každý tvar je „ústa“ (klipová cesta v jeho vlastním
-   obrysu) a v nich leží dvě vrstvy. `walls` je týž tvar v barvě stěny, takže
-   dokud dílek nepřijde, po otvoru není vidět nic. `piece` je bílý dílek. Když
-   dílek padá shora, ústa ho odkrývají odshora dolů — je to vkládačka tvarů.
+   Jak to funguje: dílek se vysune ze stěny, přebarví se z barvy stěny na bílou
+   a zapadne zpátky — tak se ty tvary v kostce objeví. `walls` je tentýž tvar
+   ztmavený na 45 %, tedy stín v otvoru; rozsvítí se jen na tu chvíli, kdy je
+   dílek venku. Tvary jdou po sobě a v druhé půlce cyklu se stejnou cestou
+   vracejí do barvy stěny.
 
-   Klidový stav je vložený dílek, ne prázdná stěna: animace si výchozí polohu
-   bere přes `both` ze svého `from`. Kdo si řekne o klid, vidí kostku hotovou. */
+   `mark-flat` je verze bez pohybu; při omezeném pohybu se ukazuje ona. */
 .kostka-blok{margin:clamp(40px,5vw,68px) 0 0;max-width:940px;}
 .kostka{display:block;width:100%;height:auto;color:var(--ink);}
-.walls{pointer-events:none;}
-.piece{fill:#fff;}
 .st-jmeno{fill:currentColor;font-weight:700;font-size:30px;letter-spacing:-.02em;}
 .st-role{fill:currentColor;font-size:16px;opacity:.62;}
 .st-vodic{fill:none;stroke:currentColor;stroke-width:1.4;opacity:.45;}
 
-/* Dokola, ne jednou. Napoprvé to bylo jedno přehrání při načtení — jenže
-   karta otevřená na pozadí animaci doběhne dřív, než se na ni někdo podívá,
-   a pak už kostka jen stojí. Dílek proto propadne ústy dál dolů a vrátí se
-   shora; oba krajní body jsou mimo ústa, takže skok zpět není vidět.
+.kostka .mark-motion { display: none; }
+.kostka .walls { filter: brightness(0.45); opacity: 0; }
+.kostka .piece { transform-box: fill-box; transform-origin: center; }
+@media (prefers-reduced-motion: no-preference) {
+  .kostka .mark-flat { display: none; }
+  .kostka .mark-motion { display: block; }
+  .kostka .s-circle .piece {
+    animation: mark-travel-circle 8.84s cubic-bezier(.45, 0, .25, 1) infinite both,
+               mark-ink-circle 8.84s linear infinite both;
+  }
+  .kostka .s-circle .walls { animation: mark-hole-circle 8.84s linear infinite both; }
+  .kostka .s-square .piece {
+    animation: mark-travel-square 8.84s cubic-bezier(.45, 0, .25, 1) infinite both,
+               mark-ink-square 8.84s linear infinite both;
+  }
+  .kostka .s-square .walls { animation: mark-hole-square 8.84s linear infinite both; }
+  .kostka .s-triangle .piece {
+    animation: mark-travel-triangle 8.84s cubic-bezier(.45, 0, .25, 1) infinite both,
+               mark-ink-triangle 8.84s linear infinite both;
+  }
+  .kostka .s-triangle .walls { animation: mark-hole-triangle 8.84s linear infinite both; }
+}
+@keyframes mark-travel-circle {
+  0%, 3.394% { transform: none; }
+  9.050%, 11.482% { transform: translate(-54px, -31px); }
+  17.138%, 78.846% { transform: none; }
+  84.502%, 86.934% { transform: translate(-54px, -31px); }
+  92.590%, 100% { transform: none; }
+}
+@keyframes mark-ink-circle {
+  0%, 3.394% { fill: #7AC942; }
+  9.050% { fill: #5f9d33; }
+  10.266%, 78.846% { fill: #ffffff; }
+  84.502% { fill: #cccccc; }
+  85.718%, 86.934% { fill: #5f9d33; }
+  92.590%, 100% { fill: #7AC942; }
+}
+@keyframes mark-hole-circle {
+  0%, 2.489% { opacity: 0; }
+  4.072%, 15.781% { opacity: 1; }
+  18.043%, 77.941% { opacity: 0; }
+  79.525%, 91.233% { opacity: 1; }
+  93.495%, 100% { opacity: 0; }
+}
+@keyframes mark-travel-square {
+  0%, 16.176% { transform: none; }
+  21.833%, 24.265% { transform: translate(0px, 62px); }
+  29.921%, 65.950% { transform: none; }
+  71.606%, 74.038% { transform: translate(0px, 62px); }
+  79.695%, 100% { transform: none; }
+}
+@keyframes mark-ink-square {
+  0%, 16.176% { fill: #007AFF; }
+  21.833% { fill: #005fc7; }
+  23.049%, 65.950% { fill: #ffffff; }
+  71.606% { fill: #cccccc; }
+  72.822%, 74.038% { fill: #005fc7; }
+  79.695%, 100% { fill: #007AFF; }
+}
+@keyframes mark-hole-square {
+  0%, 15.271% { opacity: 0; }
+  16.855%, 28.563% { opacity: 1; }
+  30.826%, 65.045% { opacity: 0; }
+  66.629%, 78.337% { opacity: 1; }
+  80.600%, 100% { opacity: 0; }
+}
+@keyframes mark-travel-triangle {
+  0%, 29.072% { transform: none; }
+  34.729%, 37.161% { transform: translate(54px, -31px); }
+  42.817%, 53.167% { transform: none; }
+  58.824%, 61.256% { transform: translate(54px, -31px); }
+  66.912%, 100% { transform: none; }
+}
+@keyframes mark-ink-triangle {
+  0%, 29.072% { fill: #FF1C26; }
+  34.729% { fill: #c7161e; }
+  35.945%, 53.167% { fill: #ffffff; }
+  58.824% { fill: #cccccc; }
+  60.040%, 61.256% { fill: #c7161e; }
+  66.912%, 100% { fill: #FF1C26; }
+}
+@keyframes mark-hole-triangle {
+  0%, 28.167% { opacity: 0; }
+  29.751%, 41.459% { opacity: 1; }
+  43.722%, 52.262% { opacity: 0; }
+  53.846%, 65.554% { opacity: 1; }
+  67.817%, 100% { opacity: 0; }
+}
 
-   Záporné zpoždění je tu schválně: cyklus začíná už rozběhnutý, takže první
-   snímek stránky ukazuje kostku složenou, ne prázdnou. */
-@keyframes padne{
-  0%     {transform:translateY(-330px);animation-timing-function:cubic-bezier(.34,1.06,.64,1);}
-  13%    {transform:translateY(0);}
-  68%    {transform:translateY(0);animation-timing-function:cubic-bezier(.55,0,.9,1);}
-  82%    {transform:translateY(330px);}
-  82.01% {transform:translateY(-330px);}
-  100%   {transform:translateY(-330px);}
-}
-@media (prefers-reduced-motion:no-preference){
-  /* Pořadí je pořadí té věty nad kostkou: lidé, obsah, design. */
-  .piece{animation:padne 7s linear var(--dilek-start) infinite both;}
-  .s-triangle .piece{--dilek-start:-1500ms;}
-  .s-circle   .piece{--dilek-start:-1280ms;}
-  .s-square   .piece{--dilek-start:-1060ms;}
-}
 
 /* ============================================================ rozcestník */
 .rozcestnik{list-style:none;margin:0;padding:0;display:grid;gap:1px;
@@ -488,7 +553,7 @@ figure{margin:0;}
     <p class="hero-veta">Propojujeme lidi, obsah a&nbsp;design. My hledáme příběhy a&nbsp;vztahy. AI hlídá procesy a&nbsp;stavy.</p>
     <p class="hero-teze">Nepíšeme pravidla. Tvoříme nástroje.</p>
 
-    <figure class="kostka-blok">
+    <div class="kostka-blok">
       <svg class="kostka" viewBox="0 0 1240 720" role="img" aria-label="Kostka o třech stěnách: na červené je trojúhelník a jsou to lidé, na zelené kolečko a je to obsah, na modré čtverec a je to design. Tvary postupně padají do svých míst.">
         <defs>
           <clipPath id="mark-mouth-circle"><rect width="186.375" height="186.375" rx="93.1877" transform="matrix(0.866025 -0.5 0 1 413.776 429.219)"/></clipPath>
@@ -497,6 +562,13 @@ figure{margin:0;}
         </defs>
 
         <g transform="translate(356 55) scale(0.8)">
+          <g class="mark-flat">
+            <rect width="380.65" height="380.65" transform="matrix(0.866025 -0.5 0 1 329.653 380.65)" fill="#7AC942"/>
+            <rect width="186.375" height="186.375" rx="93.1877" transform="matrix(0.866025 -0.5 0 1 413.776 429.219)" fill="white"/>
+            <rect width="380.65" height="380.65" transform="matrix(0.866025 0.5 -0.866025 0.5 329.653 0)" fill="#007AFF"/>
+            <rect width="167.26" height="167.26" transform="matrix(0.866025 0.5 -0.866025 0.5 329.653 106.695)" fill="white"/>
+            <rect width="380.65" height="380.65" transform="matrix(0.866025 0.5 0 1 0.000488281 190.325)" fill="#FF1C26"/>
+          </g>
           <g class="mark-motion">
             <rect width="380.65" height="380.65" transform="matrix(0.866025 -0.5 0 1 329.653 380.65)" fill="#7AC942"/>
             <rect width="380.65" height="380.65" transform="matrix(0.866025 0.5 -0.866025 0.5 329.653 0)" fill="#007AFF"/>
@@ -532,8 +604,7 @@ figure{margin:0;}
           <text class="st-role" x="952" y="152">drží ho designér</text>
         </g>
       </svg>
-      <figcaption>Vkládačka tvarů: každý dílek padá do svých úst, a dokud tam není, po otvoru není vidět nic. Trojúhelník na červené stěně je značkárnina vlastní značka. Kostku i s pohybem přebíráme z Volocalu, nekreslili jsme ji znovu.</figcaption>
-    </figure>
+    </div>
 
     <div class="vzkaz">
       <p><strong>Vítku,</strong> tady je obecná verze toho, o&nbsp;čem jsme si psali. Bez jmen klientů, bez rozpracovaných věcí a&nbsp;bez toho, jak jsou systémy postavené uvnitř. Principy jsou tu celé, takže si z&nbsp;nich ber, co se ti hodí do přednášky.</p>
