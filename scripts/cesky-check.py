@@ -123,6 +123,9 @@ NEDOTKNUTELNÉ = [
     "Payload", "hasOfferCatalog", "Figma",
 ] + ZDOMÁCNĚLÉ
 
+# Jméno souboru není slovo v textu: `brand.css` je cesta a překládat se nemá.
+CESTA = re.compile(r"[A-Za-z0-9_.\-]+\.(?:css|js|mjs|ts|tsx|py|html|json|md|woff2|webp|svg|png|jpg)\b")
+
 
 def viditelny_text(html: str) -> list[tuple[int, str]]:
     """Vrátí (číslo řádku, text) pro každý kus, který čte člověk."""
@@ -154,6 +157,7 @@ def viditelny_text(html: str) -> list[tuple[int, str]]:
 
 def cisty(text: str) -> str:
     """Vyhodí z textu to, co se nepřekládá, ať to nespouští poplach."""
+    text = CESTA.sub(" ", text)
     for slovo in NEDOTKNUTELNÉ:
         text = re.sub(re.escape(slovo), " ", text, flags=re.I)
     return text
