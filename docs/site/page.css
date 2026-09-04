@@ -1002,6 +1002,7 @@ footer.wrap { padding-top: 0; padding-bottom: 96px; }
   .row-reveal .sources { flex: 0 0 auto; }
   .row-reveal .bar-right,
   .row-reveal .mini-player { width: auto; flex: 1 1 auto; min-width: 0; }
+  .row-reveal .mini-player.mini-recorder { width: 200px; flex: 0 0 200px; }
   .wrap { padding: 0 20px; }
   .hero { padding-top: 56px; }
   .btn { width: 100%; }
@@ -1033,7 +1034,6 @@ footer.wrap { padding-top: 0; padding-bottom: 96px; }
 @media (max-width: 480px) {
   .row-face.second-shot .second-language-text { min-width: 140px; }
   .row-face.second-shot .second-language .button.quiet { display: none; }
-  .clip-pair .segment { display: none; }
-  .clip-pair { justify-content: center; }
-  .clip-pair .context-menu { align-self: center; margin-top: 0; }
+  .clip-pair .context-menu { display: none; }
+  .clip-pair .segment { flex: 1 1 auto; }
 }
