@@ -1029,3 +1029,11 @@ footer.wrap { padding-top: 0; padding-bottom: 96px; }
   .row-face.clip-shot { padding: 0 16px; }
   .clip-pair { gap: 12px; }
 }
+
+@media (max-width: 480px) {
+  .row-face.second-shot .second-language-text { min-width: 140px; }
+  .row-face.second-shot .second-language .button.quiet { display: none; }
+  .clip-pair .segment { display: none; }
+  .clip-pair { justify-content: center; }
+  .clip-pair .context-menu { align-self: center; margin-top: 0; }
+}
