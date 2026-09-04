@@ -1016,11 +1016,16 @@ footer.wrap { padding-top: 0; padding-bottom: 96px; }
 
 .row-face.second-shot .second-language { height: 100%; align-content: center; }
 .row-face.second-shot .second-language-text { min-width: 0; }
-.row-face.clip-shot { padding: 0 22px; height: 92px; }
+.row-face.clip-shot { padding: 0 22px; height: 92px; position: relative; }
+.row-face.clip-shot::after {
+  content: ""; position: absolute; inset: 0; z-index: 1;
+  border-radius: inherit; box-shadow: inset 0 0 0 1px var(--line);
+  pointer-events: none;
+}
 .clip-pair { display: flex; align-items: center; gap: 16px; min-width: 0; height: 100%; }
 .clip-pair .segment { flex: 1 1 auto; min-width: 0; }
 .clip-pair .context-menu {
-  position: static; flex: 0 1 auto; min-width: 0;
+  position: static; flex: 0 0 auto;
   align-self: start; margin-top: 16px;
 }
 .row-face .word.picked { background: color-mix(in srgb, var(--accent-solid) 26%, transparent); }
