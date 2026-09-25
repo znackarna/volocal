@@ -44,6 +44,7 @@ the time.
 | [2026-09-03](2026-09-03.md) | 13 | Every comment out of the presentation page, a title that says what the program does, and a card for a pasted link … |
 | [2026-09-04](2026-09-04.md) | 8 | Two more cards in Co získáte?, for the two features that shipped … |
 | [2026-09-08](2026-09-08.md) | 4 | The audio row could not succeed for a video, and had nowhere to say so … |
+| [2026-09-25](2026-09-25.md) | 1 | Settings stops offering itself … |
 
 ## What each day was about
 
@@ -108,3 +109,5 @@ the time.
 **[2026-09-03](2026-09-03.md)** — Both READMEs take the heading the site has had since 25 August: `Co nedělá dobře` becomes `Jaké má limity?`, and the English is the page’s own `What are its limits?` out of `en.json` rather than translated again, so the two cannot drift apart by a word.
 
 **[2026-09-08](2026-09-08.md)** — The audio row of `Uložit jako` built its file name from the source’s extension, and the core writes only three containers — so a video proposed `.mp4`, was refused, and the message asked for another with nowhere to choose it. Three buttons on the row now, opening on the source’s own container where it can be written so the file is still copied rather than re-encoded. And the notice bar goes where the front is rather than staying where the page is: raised over the scrim so no message is lost, it had become a strip floating on a blurred backdrop and painted across the dialog. Registered in `useDialog`, the one door every modal goes through, so there is still one bar and no dialog carries a slot. My own answer — pushing the dialog down — was wrong and he said so: stopping an overlap is not the same as belonging somewhere. And a gender that had been wrong in `detail.saved.summary` since it was written — *Shrnutí byl uložen* — spotted while looking for the sentence the bar was covering. The day ends at 1.2.26, carrying the two of them a reader can see.
+
+**[2026-09-25](2026-09-25.md)** — The header’s `Nastavení` button hides on the screen it opens, where it had been the only button left and the one that could do nothing; the way out is `Zpět`. The wizard keeps it, pending his word.

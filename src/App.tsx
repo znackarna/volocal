@@ -993,6 +993,13 @@ export default function App() {
               {t("app.newTranscript")}
             </button>
           )}
+          {/* Not on the screen it opens. It stood there alone once `Nový přepis`
+              beside it stepped aside for Settings, the one button left in the
+              header and the one that could do nothing — pressing it reloaded
+              the page the reader was on. The way out is `Zpět` on the left.
+              Its warning dot loses nothing by going: in Settings the missing
+              component is on the page. Noticed by him on 25 September. */}
+          {screen !== "settings" && (
           <button
             className={`button quiet ${blockingIssues.length ? "danger" : ""}`}
             onClick={() => {
@@ -1009,6 +1016,7 @@ export default function App() {
             </svg>
             {t("common.settings")}{blockingIssues.length > 0 ? " •" : ""}
           </button>
+          )}
         </div>
       </header>
       )}
