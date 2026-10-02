@@ -45,7 +45,7 @@ the time.
 | [2026-09-04](2026-09-04.md) | 8 | Two more cards in Co získáte?, for the two features that shipped … |
 | [2026-09-08](2026-09-08.md) | 4 | The audio row could not succeed for a video, and had nowhere to say so … |
 | [2026-09-25](2026-09-25.md) | 1 | Settings stops offering itself … |
-| [2026-10-02](2026-10-02.md) | 1 | The page can be served from our own server, and Vercel keeps serving it until the address moves |
+| [2026-10-02](2026-10-02.md) | 2 | The page can be served from our own server, and Vercel keeps serving it until the address moves |
 
 ## What each day was about
 
@@ -113,4 +113,4 @@ the time.
 
 **[2026-09-25](2026-09-25.md)** — The header’s `Nastavení` button hides on the screen it opens, where it had been the only button left and the one that could do nothing; the way out is `Zpět`. The wizard keeps it, pending his word.
 
-**[2026-10-02](2026-10-02.md)** — `site-server/`, a one-route Next.js application, so the page can move to the company's own server: it serves `docs/site` as `site.yml` publishes it, asks GitHub for the latest release every ten minutes because no release event reaches it, and refuses to build a page `site.yml` would have refused. Vercel and `site.yml` are untouched.
+**[2026-10-02](2026-10-02.md)** — `site-server/`, a one-route Next.js application, so the page can move to the company's own server: it serves `docs/site` as `site.yml` publishes it, asks GitHub for the latest release every ten minutes because no release event reaches it, and refuses to build a page `site.yml` would have refused. Vercel and `site.yml` are untouched. And a plan for a command line, in English and on the application’s own archive, written down as `docs/cli-plan.md` and not started.
