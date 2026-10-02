@@ -9,6 +9,17 @@ edition = "2021"
 rust-version = "1.88"
 # Not a crate anybody publishes; the guard is here so nobody does by accident.
 publish = false
+# Two programs over one engine: the window, and the command line beside it.
+# `volocal` stays the one run by default, and the one the installer is built
+# around.
+default-run = "volocal"
+
+# The engine. Named apart from the program: a library and a binary of the same
+# name on Windows write the same `.pdb`, and the second build overwrites the
+# first one's debug symbols. Tauri's own templates name theirs `*_lib` for it.
+[lib]
+name = "volocal_lib"
+path = "src/lib.rs"
 
 # Windows only, and pinned to exactly what wry 0.55 already links: two copies of
 # these COM bindings in one binary would be two unrelated types with one name.

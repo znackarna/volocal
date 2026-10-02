@@ -45,7 +45,7 @@ the time.
 | [2026-09-04](2026-09-04.md) | 8 | Two more cards in Co získáte?, for the two features that shipped … |
 | [2026-09-08](2026-09-08.md) | 4 | The audio row could not succeed for a video, and had nowhere to say so … |
 | [2026-09-25](2026-09-25.md) | 1 | Settings stops offering itself … |
-| [2026-10-02](2026-10-02.md) | 3 | The page can be served from our own server, and Vercel keeps serving it until the address moves |
+| [2026-10-02](2026-10-02.md) | 4 | The page can be served from our own server, and Vercel keeps serving it until the address moves |
 
 ## What each day was about
 
