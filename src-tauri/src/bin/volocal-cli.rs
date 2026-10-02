@@ -46,7 +46,8 @@ enum Command {
     /// Add an audio or video file to the archive and transcribe it
     #[command(
         long_about = "Add an audio or video file to the archive and transcribe it.\n\n\
-        Uses the model and the other choices made in the Volocal window. Progress goes to the error stream; when it is done, the \
+        Uses the model and the other choices made in the Volocal window. A second \
+        language heard in the recording is written in as well. Progress goes to the error stream; when it is done, the \
         new recording's id is printed, ready for `export`. Ctrl+C stops the \
         transcription and keeps the recording in the archive."
     )]
@@ -301,6 +302,15 @@ fn transcribe(
     };
     follow(|report| transcription::transcribe(report, archive, &id, &task, speakers))
         .map_err(stopped)?;
+    // A second language heard and not written in is an offer the window shows
+    // and waits on. Here there is nobody to ask, and a language left out is
+    // half of a translated talk, so the offer is taken — before the speakers,
+    // so the blocks it adds are told apart with the rest.
+    let offer = db::second_language(connection, &id).map_err(|e| e.to_string())?;
+    if let Some(offer) = offer.filter(|o| o.state == db::second_language_state::OFFERED) {
+        eprintln!("also spoken: {}", offer.language);
+        write_in_second_language(archive, &id, &task).map_err(stopped)?;
+    }
     // With speaker recognition switched on in the window, the transcription
     // above has already told the speakers apart. With it off, the window
     // never asks for a count, so `--speakers` runs the pass the window offers
@@ -322,7 +332,43 @@ enum Ending {
 /// how it ended. The engine reports its end through the same event as its
 /// steps, as it does to the window.
 fn follow(work: impl FnOnce(&Report)) -> Result<(), Ending> {
-    let ending: Arc<Mutex<Option<(String, UserMessage)>>> = Arc::default();
+    let (report, ending) = drawn();
+    work(&report);
+    progress_done();
+    let ending = ending.lock().unwrap().take();
+    match ending {
+        Some((phase, _)) if phase == "complete" => Ok(()),
+        Some((phase, _)) if phase == "cancelled" => Err(Ending::Cancelled),
+        Some((_, message)) => Err(Ending::Failed(message)),
+        None => Err(Ending::Failed(
+            UserMessage::new("unknown").detail("the work ended without saying how"),
+        )),
+    }
+}
+
+/// The second language, written in. Its end is not an event but the answer
+/// the fill returns — the window announces it itself — so it is read from
+/// there.
+fn write_in_second_language(
+    archive: &Path,
+    id: &str,
+    task: &TranscriptionTask,
+) -> Result<(), Ending> {
+    let (report, _) = drawn();
+    let (done, cancelled) = transcription::fill_second_language(&report, archive, id, task);
+    progress_done();
+    match done {
+        _ if cancelled => Err(Ending::Cancelled),
+        Err(message) => Err(Ending::Failed(message)),
+        Ok(_) => Ok(()),
+    }
+}
+
+/// A report that draws each step here, and keeps how the work ended.
+type Ended = Arc<Mutex<Option<(String, UserMessage)>>>;
+
+fn drawn() -> (Report, Ended) {
+    let ending: Ended = Arc::default();
     let report = {
         let ending = ending.clone();
         let shown = Mutex::new(String::new());
@@ -343,17 +389,7 @@ fn follow(work: impl FnOnce(&Report)) -> Result<(), Ending> {
             progress(&mut shown.lock().unwrap(), percent, &tell(&message));
         }))
     };
-    work(&report);
-    progress_done();
-    let ending = ending.lock().unwrap().take();
-    match ending {
-        Some((phase, _)) if phase == "complete" => Ok(()),
-        Some((phase, _)) if phase == "cancelled" => Err(Ending::Cancelled),
-        Some((_, message)) => Err(Ending::Failed(message)),
-        None => Err(Ending::Failed(
-            UserMessage::new("unknown").detail("the work ended without saying how"),
-        )),
-    }
+    (report, ending)
 }
 
 /// Ctrl+C asks the run to stop, the way the window's `Zrušit` does, rather

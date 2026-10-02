@@ -48,7 +48,7 @@ Options:
 ```text
 Add an audio or video file to the archive and transcribe it.
 
-Uses the model and the other choices made in the Volocal window. Progress goes to the error stream; when it is done, the new recording's id is printed, ready for `export`. Ctrl+C stops the transcription and keeps the recording in the archive.
+Uses the model and the other choices made in the Volocal window. A second language heard in the recording is written in as well. Progress goes to the error stream; when it is done, the new recording's id is printed, ready for `export`. Ctrl+C stops the transcription and keeps the recording in the archive.
 
 Usage: transcribe [OPTIONS] <FILE>
 

@@ -138,33 +138,12 @@ fn run_fill(
     task.enqueue(&id);
     task.begin(&id);
     std::thread::spawn(move || {
-        let ours = task.wait_for_turn(&id);
-        /* **Through the net, like every other worker.** A panic in here used
-        to skip everything below it: the row stayed on `transcribing`, the
-        recording kept its place at the head of the queue, and every job behind
-        it waited on a thread that had already died. There has been a real
-        panic in this very work. */
-        let done = if ours {
-            transcription::without_panicking(|| {
-                transcription::fill_second_language_in(
-                    &transcription::Report::Window(window.clone()),
-                    &db_path,
-                    &id,
-                    &task,
-                )
-            })
-        } else {
-            Err(UserMessage::new("transcription.cancelled"))
-        };
-        let cancelled = task.was_cancelled(&id);
-        /* `done` is written *before* the job is forgotten. `cancel_transcription`
-        answers a click that lands after the work finished by setting a
-        still-transcribing row to `new`; with the order the other way round
-        there was a moment where the job was gone and the row still said
-        transcribing, and a finished transcript would have become `new`. */
-        back_to_done(&db_path, &id);
-        task.leave_queue(&id);
-        task.cleanup(&id);
+        let (done, cancelled) = transcription::fill_in_turn(
+            &transcription::Report::Window(window.clone()),
+            &db_path,
+            &id,
+            &task,
+        );
         match (&done, cancelled) {
             (_, true) => {
                 let _ = window.emit(
@@ -193,19 +172,6 @@ fn run_fill(
         }
         let _ = window.emit("transcription:complete", id.clone());
     });
-}
-
-/// The transcript is there whatever the fill did, so the recording is `done`
-/// again whichever way it ended. The fill never touched the text on failure
-/// or cancellation — it writes in one transaction at the end — so `done` is
-/// simply the truth about the row.
-fn back_to_done(db_path: &std::path::Path, id: &str) {
-    match db::open(db_path).and_then(|db| db::set_status(&db, id, db::status::DONE, None)) {
-        Ok(()) => {}
-        Err(error) => {
-            crate::note!("second language: the recording could not be marked done: {error}")
-        }
-    }
 }
 
 /// The terminal report a finished fill owes the screens.
@@ -260,33 +226,12 @@ pub async fn fill_second_language(
     let outcome = tauri::async_runtime::spawn_blocking(move || {
         task.enqueue(&id);
         task.begin(&id);
-        let ours = task.wait_for_turn(&id);
-        /* **Through the net, like every other worker.** A panic in here used
-        to skip everything below it: the row stayed on `transcribing`, the
-        recording kept its place at the head of the queue, and every job behind
-        it waited on a thread that had already died. There has been a real
-        panic in this very work. */
-        let done = if ours {
-            transcription::without_panicking(|| {
-                transcription::fill_second_language_in(
-                    &transcription::Report::Window(window.clone()),
-                    &db_path,
-                    &id,
-                    &task,
-                )
-            })
-        } else {
-            Err(UserMessage::new("transcription.cancelled"))
-        };
-        let cancelled = task.was_cancelled(&id);
-        /* `done` is written *before* the job is forgotten. `cancel_transcription`
-        answers a click that lands after the work finished by setting a
-        still-transcribing row to `new`; with the order the other way round
-        there was a moment where the job was gone and the row still said
-        transcribing, and a finished transcript would have become `new`. */
-        back_to_done(&db_path, &id);
-        task.leave_queue(&id);
-        task.cleanup(&id);
+        let (done, cancelled) = transcription::fill_in_turn(
+            &transcription::Report::Window(window.clone()),
+            &db_path,
+            &id,
+            &task,
+        );
         match (&done, cancelled) {
             (Ok(added), false) => announce_done(&window, &id, *added),
             (Err(error), false) => {
