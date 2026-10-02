@@ -8,12 +8,18 @@ and addresses the reader formally (vykání) — `npm run i18n:check` enforces i
 
 **Work goes on `dev`. `main` is what is published.** Committed straight to
 `dev` — no branch per change, no pull request per change, nothing in between.
-When the owner has looked at it and says so, `dev` goes to `main`, and that
-merge is the deployment: `site.yml` publishes the page from `main`, and a
-release is tagged there.
+When the owner has looked at it and says so, `dev` goes to `main` as a
+fast-forward, `git push origin dev:main`, and that push is the deployment:
+znackarna-server2 builds the page from `main` (`site-server/`), and a release is
+tagged there. Never a merge commit made on `main`: since 2026-10-02 the server
+deploys `main` only if its commit is already in `dev`, so such a merge is
+refused (`SELHALO … neprošel větví dev` in the deploy log) and the page stays as
+it was. To recover, `git push origin main:dev`, and the deploy runs again by
+itself. If `dev:main` is refused because `main` has a commit `dev` lacks, merge
+`origin/main` into `dev` and push `dev` first.
 
 So the shape of a piece of work is: commit to `dev`, push, say what changed —
-and wait. **Merging to `main` is his call, never a step in finishing a task.**
+and wait. **Moving `dev` to `main` is his call, never a step in finishing a task.**
 
 `Checks` runs on both branches, so nothing reaches `main` unchecked and the
 first thing anybody hears about a failure is on `dev`, where it costs nothing.
