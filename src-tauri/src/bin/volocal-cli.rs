@@ -686,6 +686,35 @@ fn reference() -> String {
         "*Generated from the program's own help. After changing a command, run*",
         "`UPDATE_CLI_DOCS=1 cargo test --manifest-path src-tauri/Cargo.toml --bin volocal-cli`.",
     ];
+    // What a script calling the program relies on, which the help of no single
+    // command says. Kept here, beside the code it describes, so a change to
+    // the behaviour and to this text are one change.
+    const FOR_SCRIPTS: &str = "\
+## For scripts
+
+- **The result goes to standard output, everything else to standard error.**
+  `transcribe` prints the new recording's id and nothing more; `export` and
+  `export-audio` print the path they wrote. Progress and errors go to standard
+  error, so `id=$(volocal-cli transcribe talk.mp3)` captures the id alone.
+- **Exit codes.** `0` when the command did what it was asked. `1` when it could
+  not; the reason is the last line on standard error, starting `error:`. `2`
+  when the command line itself was wrong, such as an unknown option.
+- **Ids.** A command that takes an id also takes its first few characters, as
+  long as only one recording starts with them. `list` prints eight.
+- **Nothing is overwritten** without `--force`; the command fails instead.
+- **One transcription at a time.** `transcribe` fails at once while anything in
+  the archive is being transcribed, from the window or from another
+  `volocal-cli`.
+- **Ctrl+C** stops a transcription and ends with `1`. The recording stays in
+  the archive with whatever was finished before the key.
+- **Progress** is one line that keeps being rewritten in a terminal, and one
+  line per step when standard error goes to a file.
+- **`list`** prints one recording per line, its fields separated by two
+  spaces: id, date, length, status, title. With `--search`, one match per
+  line: id, time in the recording, title, the matching text.
+- **Diagnostics** go to `volocal-log.txt` beside the archive, the file the
+  window writes too.
+";
     // The help names the program by its file name as the system reports it;
     // the reference names it as people type it, the same on every machine.
     let help = |text: String| text.replace("volocal-cli.exe", "volocal-cli");
@@ -704,6 +733,8 @@ fn reference() -> String {
         out.push_str(&help(sub.render_long_help().to_string()));
         out.push_str("```\n");
     }
+    out.push('\n');
+    out.push_str(FOR_SCRIPTS);
     out
 }
 
