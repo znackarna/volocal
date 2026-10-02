@@ -820,6 +820,40 @@ fn profile_folder(profile: PathBuf) -> PathBuf {
     }
 }
 
+/// The folder Tauri gives this application under `%APPDATA%`. The window asks
+/// Tauri for it; a program without the window cannot, so it is spelled out —
+/// and `the_identifier_matches_the_configuration` holds it to `tauri.conf.json`.
+pub const IDENTIFIER: &str = "cz.znackarna.volocal";
+
+/// Where the archive is, for a program that must not move it.
+///
+/// **The window's own lookup cannot be borrowed.** `archive_path` finds the
+/// archive and, on the way, finishes two renames left from when the
+/// application was Whisp — the profile folder and the file. That is the
+/// window's job on start-up, done once, and the command line opening an
+/// archive must not quietly perform a migration behind the window's back.
+///
+/// So this looks in the same places, in the same order, and moves nothing. An
+/// archive still under its old name is found under its old name; the window
+/// renames it the next time it starts. If there is none, the answer is to start
+/// Volocal once, which creates it.
+pub fn find_archive() -> Option<PathBuf> {
+    let appdata = PathBuf::from(std::env::var_os("APPDATA")?);
+    let profile = appdata.join(IDENTIFIER);
+    let directory = tools::data_directory(profile.clone());
+    let other = if directory == profile {
+        tools::app_directory().join("data")
+    } else {
+        profile
+    };
+    let old_profile = appdata.join(PROFILE_FOLDER_BEFORE_THE_RENAME);
+    let candidates: Vec<PathBuf> = [directory, other, old_profile]
+        .into_iter()
+        .flat_map(|folder| [folder.join(ARCHIVE), folder.join(ARCHIVE_BEFORE_THE_RENAME)])
+        .collect();
+    candidates.into_iter().find(|path| path.is_file())
+}
+
 fn archive_path(app: &tauri::App) -> Result<PathBuf> {
     // Portable mode: the archive sits beside the program, and nothing is
     // written into the user profile of somebody else's computer.
@@ -1302,6 +1336,16 @@ mod tools_folder_tests {
 mod archive_location_tests {
     use super::*;
     use std::sync::atomic::{AtomicUsize, Ordering};
+
+    /// The command line finds the archive by this name rather than by asking
+    /// Tauri, so the two must not drift apart: a renamed identifier would leave
+    /// the command line looking in a folder the window no longer uses.
+    #[test]
+    fn the_identifier_matches_the_configuration() {
+        let config: serde_json::Value =
+            serde_json::from_str(include_str!("../tauri.conf.json")).unwrap();
+        assert_eq!(config["identifier"].as_str(), Some(IDENTIFIER));
+    }
 
     static COUNTER: AtomicUsize = AtomicUsize::new(0);
 

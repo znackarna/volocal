@@ -16,13 +16,17 @@ it is the same archive.
 ## Commands
 
 ```
-volocal transcribe <file> [--language cs] [--model fast|accurate] [--speakers N]
-volocal list [--folder <name>] [--search <text>]
-volocal show <id>
-volocal export <id> --format txt|md|srt|vtt|json [--out <path>]
-volocal export-audio <id> --format mp3|m4a|wav [--out <path>]
-volocal status
+volocal-cli transcribe <file> [--language cs] [--model fast|accurate] [--speakers N]
+volocal-cli list [--folder <name>] [--search <text>]
+volocal-cli show <id>
+volocal-cli export <id> --format txt|md|srt|vtt|json [--out <path>] [--force]
+volocal-cli export-audio <id> --format mp3|m4a|wav [--out <path>] [--force]
+volocal-cli status
 ```
+
+`status`, `list`, `show`, `export` and `export-audio` exist since 2 October
+2026. An id may be given as its first few characters, as `git` takes a short
+hash.
 
 Later, once they can be reached without the window: `import <url>` and
 `ai <id> improve|summary|translate`. Never offered, because they belong to the

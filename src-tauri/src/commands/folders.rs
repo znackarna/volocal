@@ -124,66 +124,12 @@ pub fn export_audio(app: State<'_, AppState>, id: String, destination: String) -
             reported(db::load_settings(&db))?,
         )
     };
-    let source = std::path::Path::new(&source);
-    if !source.exists() {
-        return Err(UserMessage::new("audio_export.source_missing"));
-    }
-    let target = std::path::Path::new(&destination);
-    /* **Not onto itself.** Both branches below would destroy the recording:
-    `fs::copy` truncates the destination before reading the source, and
-    ffmpeg's `-y` opens the output for writing over the input it is reading.
-    Either way the audio is gone and the archive still points at the path.
-
-    The picker makes this easy rather than exotic — a recording the archive
-    holds a copy of already lives in the recordings folder, which is where
-    the save dialog opens. `points_at_the_same_file` is the same comparison
-    `restore_backup` makes before overwriting an archive, and it is here for
-    the same reason: a file dialog cannot be relied on to refuse. */
-    if crate::commands::backups::points_at_the_same_file(source, target) {
-        return Err(UserMessage::new("audio_export.same_file"));
-    }
-    let extension = |path: &std::path::Path| {
-        path.extension()
-            .map(|value| value.to_string_lossy().to_ascii_lowercase())
-            .unwrap_or_default()
-    };
-    let wanted = extension(target);
-    let have = extension(source);
-
-    if wanted == have && AUDIO_ONLY_FORMATS.contains(&wanted.as_str()) {
-        std::fs::copy(source, target)
-            .map_err(|error| UserMessage::new("audio_export.failed").detail(error.to_string()))?;
-        return Ok(());
-    }
-
-    let codec: &[&str] = match wanted.as_str() {
-        // VBR around 190 kb/s: transparent for speech and small enough to send.
-        "mp3" => &["-c:a", "libmp3lame", "-q:a", "2"],
-        "m4a" | "aac" => &["-c:a", "aac", "-b:a", "192k"],
-        "wav" => &["-c:a", "pcm_s16le"],
-        _ => return Err(UserMessage::new("audio_export.unsupported_format")),
-    };
-
-    let ffmpeg = tools::check(&settings)
-        .ffmpeg
-        .ok_or_else(|| UserMessage::new("audio_export.ffmpeg_missing"))?;
-    let result = tools::command(&ffmpeg)
-        .args(["-hide_banner", "-loglevel", "error", "-y", "-i"])
-        .arg(source)
-        // Audio only. Without this a video source would be copied through
-        // with its picture, which is not what the action promises.
-        .arg("-vn")
-        .args(codec)
-        .arg(target)
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::piped())
-        .output()
-        .map_err(|error| UserMessage::new("audio_export.failed").detail(error.to_string()))?;
-    if !result.status.success() {
-        return Err(UserMessage::new("audio_export.failed")
-            .detail(String::from_utf8_lossy(&result.stderr).trim()));
-    }
-    Ok(())
+    // The writing itself is the engine's, so the command line can do it too.
+    crate::export::audio(
+        &settings,
+        std::path::Path::new(&source),
+        std::path::Path::new(&destination),
+    )
 }
 
 #[tauri::command]

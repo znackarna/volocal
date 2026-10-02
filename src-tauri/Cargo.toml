@@ -91,6 +91,11 @@ hex = "0.4"
 # fetches is the DirectML build.
 ort = "=2.0.0-rc.13"
 tauri-plugin-updater = "2.10.1"
+# The command line's arguments, its `--help`, and the errors for a value it does
+# not accept. Only `volocal-cli` uses it; the window never parses arguments.
+# `docs/cli.md` is generated from the help this produces, so the documentation
+# and the program cannot say different things.
+clap = { version = "4", features = ["derive"] }
 
 [profile.release]
 opt-level = "s"
