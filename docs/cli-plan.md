@@ -1,7 +1,10 @@
 # Command line — plan
 
 Decided with the owner on 2 October 2026: **English command names, working on
-the application's own archive.** Not started; each phase waits for his word.
+the application's own archive**, and — his shape, which replaced a first plan
+the same day — **the command line must not change how the window works.** Then,
+later, a build with no window at all. Not started; each stage waits for his
+word.
 
 ## What it is for
 
@@ -14,56 +17,68 @@ it is the same archive.
 
 ```
 volocal transcribe <file> [--language cs] [--model fast|accurate] [--speakers N]
-volocal import <url>
 volocal list [--folder <name>] [--search <text>]
 volocal show <id>
 volocal export <id> --format txt|md|srt|vtt|json [--out <path>]
 volocal export-audio <id> --format mp3|m4a|wav [--out <path>]
-volocal ai <id> improve|summary|translate [--to <language>]
-volocal delete <id>
 volocal status
 ```
 
-Not offered, because they belong to the window: recording from a microphone,
-playback, and editing a transcript by hand.
+Later, once they can be reached without the window: `import <url>` and
+`ai <id> improve|summary|translate`. Never offered, because they belong to the
+window: recording from a microphone, playback, and editing by hand.
 
-## Phases
+## Why it can be done without touching the window
 
-**1. Split the crate.** `src-tauri` is one binary today with no `lib.rs`. The
-core becomes a library, the window one binary on top of it, the command line a
-second. Nothing a user can see changes; the existing tests prove it.
+Most of the engine never knew there was one. Measured by import, not assumed:
+`db.rs`, `export.rs`, `tools.rs`, `transcription/speakers.rs`,
+`transcription/languages.rs` and `voiceprint.rs` have no tie to Tauri at all.
+What is tied to the window is the layer that drives a transcription and reports
+its progress (`transcription/mod.rs`), and the import, language-model and
+download code.
 
-**2. The commands that only read.** `list`, `show`, `export`, `export-audio`,
-`status`. They call `db.rs` and `export.rs`, which have no tie to the window at
-all, so this phase needs nothing else. Useful on its own.
+So the command line uses the engine and **writes its own small driver** rather
+than borrowing the window's. That repeats a little orchestration — convert,
+transcribe, separate speakers, store — on purpose: the window's driver stays
+exactly as it is, and nothing in it can break because of the command line.
 
-**3. The long-running commands.** `transcribe`, `import`, `ai`. These report
-progress by `app.emit(…)` — about fifteen places across the transcription,
-import and language-model code. That becomes one reporting interface: the
-window implements it by sending events, the command line by printing.
+## Stage 1 — beside the desktop application
 
-**4. Shipping and documentation.** The installer carries `volocal-cli.exe`.
-`docs/cli.md` is generated from the program's own `--help`, and
-`scripts/docs-check.mjs` refuses a command documented but not present, or
-present but not documented.
+**The core becomes a library.** `src-tauri` is one program today with no
+`lib.rs`. The engine moves under a library; the window and the command line are
+two programs on top of it. Structure changes, behaviour does not, and the
+existing tests have to say so.
 
-## Why a second program
+**One struct stops requiring the window.** `Run` in `whisper.rs` carries an
+`AppHandle`, though `run_over_files` reports progress through its own callback
+and never uses it. The window keeps passing it; the command line passes none.
 
-The application is built with `windows_subsystem = "windows"`, which gives it
-no console: anything it prints from a terminal goes nowhere. A separate
-`volocal-cli.exe` built as a console program prints normally and shares the
-same core.
+**A separate `volocal-cli.exe`.** The application is built with
+`windows_subsystem = "windows"`, which leaves it no console — anything it printed
+from a terminal would go nowhere. A console program prints normally.
+
+**Then the commands**, reading ones first (`list`, `show`, `export`,
+`export-audio`, `status`) because they need nothing else, then `transcribe`.
+
+**Shipping and documentation.** The installer carries the second program.
+`docs/cli.md` is generated from its own `--help`, and `scripts/docs-check.mjs`
+refuses a command documented but not present, or present but not documented.
+
+## Stage 2 — no window at all
+
+A build of the same command line that does not link Tauri or WebView2, for a
+machine with no desktop. Stage 1 already makes it possible, because the engine
+the command line uses has no tie to the window; what stage 2 adds is the build
+and its own installer or archive.
 
 ## What to watch
 
-- **Two transcriptions at once.** The window queues its own work; the command
-  line would not know about it. Two whisper processes double the memory, and a
-  memory failure is exactly what a user hit on 24 September (`kód 10`, the
-  accurate model on a 72-minute recording). The command line should refuse to
-  start while the window is transcribing, or join the same queue.
-- **The window does not see changes made beside it.** A recording added from
-  the command line shows up the next time the archive is read. Not dangerous;
-  worth knowing.
-- **Two writers.** The archive runs in WAL with a five-second busy timeout
-  (`db.rs`), so readers never block a writer and writers wait their turn. Two
-  processes on one archive are safe for this.
+- **Two transcriptions at once.** The window queues its own work and the
+  command line would not know about it. Two whisper processes double the
+  memory, and a memory failure is what a user hit on 24 September (`kód 10`,
+  the accurate model on 72 minutes). The command line refuses to transcribe
+  while the window is.
+- **The window does not see changes made beside it** until it next reads the
+  archive. Not dangerous; worth knowing.
+- **Two writers are safe.** The archive runs in WAL with a five-second busy
+  timeout (`db.rs`): readers never block a writer, and writers wait their turn.
