@@ -164,6 +164,16 @@ Opening the `volocal-*.vercel.app` address asks for a Vercel login and that is
 not a fault — deployment protection is `all_except_custom_domains`, so the
 deployment URLs are private and volocal.app is public.
 
+**The same page from the company's own server.** `site-server/` is a Next.js
+application of one route that serves these files from disk as `site.yml`
+publishes them: the same list, the English page from `translate.mjs`, and the
+latest release in the version, asked of GitHub every ten minutes because the
+server is not told about releases. Its build fails where `site.yml` would.
+Nothing here is copied into it, so the page is still edited only in this folder.
+Until the address moves, Vercel is what answers on volocal.app, and the
+analytics script below answers only there. The reasoning is in
+[docs/history/2026-10-02.md](../history/2026-10-02.md).
+
 **How many people read it** is counted by Vercel's own Web Analytics, a single
 deferred script at the foot of `index.html`. No cookie and no identifier kept on
 the reader's machine, so the page asks for no consent and says nothing about it;
