@@ -361,7 +361,7 @@ fn destination(
 fn highlight(text: &str) -> String {
     use std::io::IsTerminal;
     if std::io::stdout().is_terminal() {
-        text.replace("<<", "[1m").replace(">>", "[0m")
+        text.replace("<<", "\x1b[1m").replace(">>", "\x1b[0m")
     } else {
         text.replace("<<", "").replace(">>", "")
     }
@@ -426,6 +426,49 @@ fn parse_errors(source: &str) -> HashMap<String, String> {
         .collect()
 }
 
+/// The reference in `docs/cli.md`, built from the program's own help.
+///
+/// **The documentation is a snapshot of `--help`, not a second text.**
+/// `the_documentation_is_the_help` below fails whenever the two differ, so a
+/// command cannot be added, renamed or reworded without the reference saying
+/// so — the same discipline `docs-check.mjs` keeps over `SECURITY.md`.
+///
+/// Only the test calls it, so only the test build carries it.
+#[cfg(test)]
+fn reference() -> String {
+    use clap::CommandFactory;
+
+    // Only what the help does not say. What the program is and that the window
+    // has to be started once are its first lines, just below.
+    const INTRO: &[&str] = &[
+        "# volocal-cli",
+        "",
+        "Installed beside the application, in the same folder.",
+        "",
+        "*Generated from the program's own help. After changing a command, run*",
+        "`UPDATE_CLI_DOCS=1 cargo test --manifest-path src-tauri/Cargo.toml --bin volocal-cli`.",
+    ];
+    // The help names the program by its file name as the system reports it;
+    // the reference names it as people type it, the same on every machine.
+    let help = |text: String| text.replace("volocal-cli.exe", "volocal-cli");
+
+    let mut cli = Cli::command();
+    let mut out = INTRO.join("\n");
+    out.push_str("\n\n## volocal-cli\n\n```text\n");
+    out.push_str(&help(cli.render_long_help().to_string()));
+    out.push_str("```\n");
+    for sub in cli.get_subcommands_mut() {
+        let name = sub.get_name().to_string();
+        if name == "help" {
+            continue;
+        }
+        out.push_str(&format!("\n## {name}\n\n```text\n"));
+        out.push_str(&help(sub.render_long_help().to_string()));
+        out.push_str("```\n");
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -460,5 +503,26 @@ mod tests {
     fn writes_clock_times_the_way_the_window_does() {
         assert_eq!(clock(14.0), "0:14");
         assert_eq!(clock(4354.0), "1:12:34");
+    }
+
+    /// `docs/cli.md` is the help, word for word. Set `UPDATE_CLI_DOCS=1` to
+    /// write it after changing a command; without it the test only compares.
+    #[test]
+    fn the_documentation_is_the_help() {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../docs/cli.md");
+        let wanted = reference();
+        if std::env::var_os("UPDATE_CLI_DOCS").is_some() {
+            std::fs::write(&path, &wanted).unwrap();
+            return;
+        }
+        // Git on Windows may hand the file back with CRLF; the help has LF.
+        let have = std::fs::read_to_string(&path)
+            .unwrap_or_default()
+            .replace("\r\n", "\n");
+        assert!(
+            have == wanted,
+            "docs/cli.md no longer matches the program's help. Regenerate it with: \
+             UPDATE_CLI_DOCS=1 cargo test --manifest-path src-tauri/Cargo.toml --bin volocal-cli"
+        );
     }
 }
