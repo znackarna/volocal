@@ -11,8 +11,12 @@ src-tauri/gen/
 
 # Tools and models: gigabytes of third-party binaries, not source.
 # The setup wizard downloads them on first run.
-bin/
-models/
+#
+# Anchored to the root. Unanchored, `bin/` also caught `src-tauri/src/bin/` —
+# where Cargo looks for a project's second program — and on 2 October 2026 it
+# kept the source of `volocal-cli` out of the commit that described it.
+/bin/
+/models/
 
 # Translation hand-off files, written by `npm run i18n:export`.
 i18n/
