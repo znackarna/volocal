@@ -11,6 +11,11 @@ altered, not how, not which file. Entries before 1.2.6 are written the old way
 and are left as they are; they are not a model for the next one. The mechanism
 belongs in `docs/history/`, which is what that folder is for.
 
+## 1.2.27 — 2 October 2026
+
+- **Volocal works from the command line too** — transcribe, search and export from a script, in the same archive.
+- **The header no longer offers Settings while you are in them.**
+
 ## 1.2.26 — 8 September 2026
 
 - **A video's audio can be saved**, in MP3, M4A or WAV — chosen on the row that writes it.
