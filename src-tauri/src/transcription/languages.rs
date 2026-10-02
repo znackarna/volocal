@@ -1094,7 +1094,7 @@ fn borrowed_from_the_neighbour(segment: &Segment, from: f64, to: f64) -> bool {
 /// [`fill`], which has to make one first.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn fill_with_audio(
-    app: &AppHandle,
+    app: &Report,
     connection: &rusqlite::Connection,
     check: &tools::ToolCheck,
     settings: &db::Settings,
@@ -1462,7 +1462,7 @@ pub(crate) fn fill_with_audio(
 /// What it fills is whatever the recording's row says: the language the reader
 /// named, or the one a sweep found and the reader accepted.
 pub fn fill(
-    app: &AppHandle,
+    app: &Report,
     db_path: &Path,
     recording_id: &str,
     task: &TranscriptionTask,

@@ -79,7 +79,7 @@ pub(crate) const WHISPER_TEMPERATURE_INCREMENT: f64 = 0.2;
 /// so it can be cancelled. They are set once when a run starts and never vary
 /// within it — which is what makes them a group rather than a bag.
 pub(crate) struct Run<'a> {
-    pub(crate) app: &'a AppHandle,
+    pub(crate) app: &'a Report,
     pub(crate) recording_id: &'a str,
     pub(crate) task: &'a TranscriptionTask,
 }
@@ -419,7 +419,7 @@ pub(crate) fn start_whisper(
                     + s.parse::<f64>().unwrap_or(0.0)
                     + ms.parse::<f64>().unwrap_or(0.0) / 1000.0
             };
-            let _ = app.emit(
+            app.emit(
                 "transcription:segment",
                 LiveSegment {
                     recording_id: recording_id.to_string(),

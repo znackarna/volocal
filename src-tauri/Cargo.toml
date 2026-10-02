@@ -40,10 +40,13 @@ webview2-com = "0.38.2"
 # metrics constants; Win32_UI_HiDpi carries GetDpiForWindow, which is what makes
 # the metric this screen's rather than a nominal 96 dpi one; and
 # Win32_System_LibraryLoader carries GetModuleHandleW, which names the module
-# the icon resource lives in.
+# the icon resource lives in. Win32_System_Console carries
+# SetConsoleCtrlHandler, which lets `volocal-cli transcribe` stop its run
+# cleanly on Ctrl+C instead of leaving the row marked as transcribing.
 windows = { version = "0.61.3", features = [
     "Win32_Foundation",
     "Win32_Security",
+    "Win32_System_Console",
     "Win32_System_JobObjects",
     "Win32_System_LibraryLoader",
     "Win32_System_SystemInformation",

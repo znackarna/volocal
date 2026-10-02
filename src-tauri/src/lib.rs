@@ -9,10 +9,13 @@
 //! meaning exactly what it meant.
 //!
 //! **Public is what the command line uses, and nothing else.** Most of it
-//! never knew there was a window: `db`, `export`, `tools`, `voiceprint` and the
-//! speaker and language passes under `transcription` import nothing from Tauri.
-//! `commands` is the window's own door into the engine and stays private, and
-//! so do the import, the language model and the downloads, which report to the
+//! never knew there was a window: `db`, `export`, `tools` and `voiceprint`
+//! import nothing from Tauri. The transcription did only to report its
+//! progress, and reports through `transcription::Report` instead — to the
+//! window or to a terminal, with the same pipeline behind both. `commands` is
+//! the window's own door into the engine and stays private; the two steps of
+//! adding a file that the command line shares with it are re-exported below.
+//! The online import, the language model and the downloads report to the
 //! window as they go and are not offered on the command line yet.
 
 mod ai_edit;
@@ -26,6 +29,8 @@ pub mod tools;
 pub mod transcription;
 pub mod user_message;
 pub mod voiceprint;
+
+pub use commands::library::{create_recording, prepare_import};
 
 use anyhow::Result;
 use rusqlite::Connection;

@@ -146,7 +146,12 @@ fn run_fill(
         panic in this very work. */
         let done = if ours {
             transcription::without_panicking(|| {
-                transcription::fill_second_language_in(&window, &db_path, &id, &task)
+                transcription::fill_second_language_in(
+                    &transcription::Report::Window(window.clone()),
+                    &db_path,
+                    &id,
+                    &task,
+                )
             })
         } else {
             Err(UserMessage::new("transcription.cancelled"))
@@ -263,7 +268,12 @@ pub async fn fill_second_language(
         panic in this very work. */
         let done = if ours {
             transcription::without_panicking(|| {
-                transcription::fill_second_language_in(&window, &db_path, &id, &task)
+                transcription::fill_second_language_in(
+                    &transcription::Report::Window(window.clone()),
+                    &db_path,
+                    &id,
+                    &task,
+                )
             })
         } else {
             Err(UserMessage::new("transcription.cancelled"))

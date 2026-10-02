@@ -112,11 +112,11 @@ pub(crate) fn probe_duration(settings: &Settings, file: &std::path::Path) -> f64
         .unwrap_or(0.0)
 }
 
-pub(crate) fn create_recording(
+pub fn create_recording(
     db: &Connection,
     file: PathBuf,
     duration: f64,
-) -> Reported<Recording> {
+) -> Result<Recording, UserMessage> {
     if !file.is_file() {
         return Err(UserMessage::new("file.not_found").with("path", file.to_string_lossy()));
     }
@@ -160,8 +160,19 @@ pub fn add_recording(app: State<'_, AppState>, path: String) -> Reported<Recordi
         let db = app.db.lock().unwrap();
         (reported(db::load_settings(&db))?, app.db_path.clone())
     };
-    let mut file = PathBuf::from(path);
+    let (file, duration) = prepare_import(&settings, &db_path, PathBuf::from(path))?;
+    let db = app.db.lock().unwrap();
+    create_recording(&db, file, duration)
+}
 
+/// The file a new recording will point at, and how long it is: a copy inside
+/// the archive when the settings ask for one, the original otherwise. Shared by
+/// the window and the command line, and run without the archive's lock.
+pub fn prepare_import(
+    settings: &Settings,
+    db_path: &std::path::Path,
+    mut file: PathBuf,
+) -> Result<(PathBuf, f64), UserMessage> {
     /* Asked for a self-contained archive: the file is copied in and the row
     points at our copy, so deleting the original loses nothing. Deliberately
     a copy and not a move — the file is the owner's and this application does
@@ -169,7 +180,7 @@ pub fn add_recording(app: State<'_, AppState>, path: String) -> Reported<Recordi
     rather than quietly filing the original: the answer to "is my audio
     safe here" must not be sometimes. */
     if settings.copy_imports {
-        let root = recordings_dir(&settings, &db_path);
+        let root = recordings_dir(settings, db_path);
         std::fs::create_dir_all(&root)
             .map_err(|error| UserMessage::new("import.copy_failed").detail(error))?;
         let stem = file
@@ -194,9 +205,8 @@ pub fn add_recording(app: State<'_, AppState>, path: String) -> Reported<Recordi
         }
     }
 
-    let duration = probe_duration(&settings, &file);
-    let db = app.db.lock().unwrap();
-    create_recording(&db, file, duration)
+    let duration = probe_duration(settings, &file);
+    Ok((file, duration))
 }
 
 /// Checks the configured directory once. Polling lives in the window so this

@@ -19,6 +19,46 @@ use crate::db::{self, Segment, Settings};
 use crate::tools::{self, command};
 use crate::user_message::UserMessage;
 
+/// Where a transcription says how it is going.
+///
+/// **The one thing the transcription needed the window for.** Every step of it
+/// — converting, recognising speech, the second language, the speakers,
+/// storing — is plain work on files and the archive; the window was only ever
+/// told about it, through `app.emit`. So the window became one of two places to
+/// tell, and the command line the other (decided with the owner on 2 October
+/// 2026, rather than giving the command line a copy of the pipeline that would
+/// drift from this one).
+///
+/// `Window` sends every event exactly as it was sent before: the same name and
+/// the same payload, through the same `emit`. That is what keeps the window's
+/// behaviour unchanged, and why the parameter carrying this is still called
+/// `app` — the change to the pipeline is its type, not one line of its logic.
+///
+/// Owned and cheap to clone, because whisper's progress is read on a thread of
+/// its own that takes a copy with it.
+#[derive(Clone)]
+pub enum Report {
+    Window(AppHandle),
+    /// Anything else. Given the event's name and its payload as JSON.
+    Callback(Listener),
+}
+
+/// What the command line hands in to hear about a transcription.
+pub type Listener = Arc<dyn Fn(&str, serde_json::Value) + Send + Sync>;
+
+impl Report {
+    pub(crate) fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) {
+        match self {
+            Report::Window(app) => {
+                let _ = app.emit(event, payload);
+            }
+            Report::Callback(tell) => {
+                tell(event, serde_json::to_value(payload).unwrap_or_default());
+            }
+        }
+    }
+}
+
 /// Result of anything that can end up in front of the user.
 type Reported<T> = std::result::Result<T, UserMessage>;
 
@@ -88,10 +128,10 @@ const ENDINGS: [&str; 3] = ["complete", "error", "cancelled"];
 /// Every phase caption goes through here, which is why the clock lives here
 /// rather than in each pass: a phase nobody reports is a phase nobody waits
 /// through.
-fn status(app: &AppHandle, id: &str, phase: &str, percent: u32, description: UserMessage) {
+fn status(app: &Report, id: &str, phase: &str, percent: u32, description: UserMessage) {
     let _ =
         phase_clock((!ENDINGS.contains(&phase)).then(|| format!("{phase}/{}", description.code)));
-    let _ = app.emit(
+    app.emit(
         "transcription:status",
         TranscriptionProgress {
             recording_id: id.to_string(),
@@ -128,6 +168,8 @@ mod text;
 mod whisper;
 
 pub(crate) use jobs::*;
+// The command line runs its one transcription through the same queue type.
+pub use jobs::TranscriptionTask;
 pub(crate) use speakers::*;
 pub(crate) use text::*;
 pub(crate) use whisper::*;
@@ -204,108 +246,131 @@ pub fn start_in_thread(
     // the recording and not to the machine.
     speaker_count: Option<i64>,
 ) {
+    let app = Report::Window(app);
+    join_the_queue(&app, &db_path, &recording_id, &task);
+    std::thread::spawn(move || {
+        transcribe_in_turn(&app, &db_path, &recording_id, &task, speaker_count)
+    });
+}
+
+/// The same transcription as [`start_in_thread`], on the caller's thread and
+/// reporting wherever `report` says. The command line waits for it; the window
+/// never does.
+pub fn transcribe(
+    report: &Report,
+    db_path: &Path,
+    recording_id: &str,
+    task: &TranscriptionTask,
+    speaker_count: Option<i64>,
+) {
+    join_the_queue(report, db_path, recording_id, task);
+    transcribe_in_turn(report, db_path, recording_id, task, speaker_count);
+}
+
+fn join_the_queue(app: &Report, db_path: &Path, recording_id: &str, task: &TranscriptionTask) {
     // The place in the queue is taken here rather than inside the thread, so
     // that a batch keeps the order it was started in and `is_running` answers
     // for a waiting recording as well as for a working one.
-    let waiting = task.enqueue(&recording_id);
-    task.begin(&recording_id);
-    mark_as_working(&db_path, &recording_id);
+    let waiting = task.enqueue(recording_id);
+    task.begin(recording_id);
+    mark_as_working(db_path, recording_id);
     if waiting {
-        status(
-            &app,
-            &recording_id,
-            "queued",
-            0,
-            step("transcription.queued"),
-        );
+        status(app, recording_id, "queued", 0, step("transcription.queued"));
     }
-    std::thread::spawn(move || {
-        let ours = task.wait_for_turn(&recording_id);
-        let result = if ours {
-            without_panicking(|| run(&app, &db_path, &recording_id, &task, speaker_count))
-        } else {
-            Err(UserMessage::new("transcription.cancelled"))
-        };
-        let connection = db::open(&db_path).ok();
-        let cancelled = task.was_cancelled(&recording_id);
-        task.leave_queue(&recording_id);
-        task.cleanup(&recording_id);
+}
 
-        if cancelled {
-            /* **Cancelling is not a failure, and it is not a deletion
-            either.** This used to throw the segments away and set the row to
-            `new` whatever was there — so stopping a *second* transcription of
-            a recording destroyed the first one, which nobody asked to lose.
-            Worse, a click landing just after the run committed took the fresh
-            transcript with it.
+fn transcribe_in_turn(
+    app: &Report,
+    db_path: &Path,
+    recording_id: &str,
+    task: &TranscriptionTask,
+    speaker_count: Option<i64>,
+) {
+    let ours = task.wait_for_turn(recording_id);
+    let result = if ours {
+        without_panicking(|| run(app, db_path, recording_id, task, speaker_count))
+    } else {
+        Err(UserMessage::new("transcription.cancelled"))
+    };
+    let connection = db::open(db_path).ok();
+    let cancelled = task.was_cancelled(recording_id);
+    task.leave_queue(recording_id);
+    task.cleanup(recording_id);
 
-            What the archive holds at this moment decides. A transcript there
-            is a transcript worth keeping, whether it is the old one this run
-            never replaced or the new one it had just finished writing; only a
-            recording left with nothing goes back to `new`. */
-            if let Some(s) = &connection {
-                let kept = db::recording(s, &recording_id)
-                    .map(|recording| recording.segment_count > 0)
-                    .unwrap_or(false);
-                if kept {
-                    let _ = db::set_status(s, &recording_id, db::status::DONE, None);
-                } else {
-                    let _ = db::delete_segments(s, &recording_id);
-                    let _ = db::set_status(s, &recording_id, db::status::NEW, None);
+    if cancelled {
+        /* **Cancelling is not a failure, and it is not a deletion
+        either.** This used to throw the segments away and set the row to
+        `new` whatever was there — so stopping a *second* transcription of
+        a recording destroyed the first one, which nobody asked to lose.
+        Worse, a click landing just after the run committed took the fresh
+        transcript with it.
+
+        What the archive holds at this moment decides. A transcript there
+        is a transcript worth keeping, whether it is the old one this run
+        never replaced or the new one it had just finished writing; only a
+        recording left with nothing goes back to `new`. */
+        if let Some(s) = &connection {
+            let kept = db::recording(s, recording_id)
+                .map(|recording| recording.segment_count > 0)
+                .unwrap_or(false);
+            if kept {
+                let _ = db::set_status(s, recording_id, db::status::DONE, None);
+            } else {
+                let _ = db::delete_segments(s, recording_id);
+                let _ = db::set_status(s, recording_id, db::status::NEW, None);
+            }
+        }
+        status(
+            app,
+            recording_id,
+            "cancelled",
+            0,
+            step("transcription.cancelled"),
+        );
+        app.emit("transcription:complete", recording_id.to_string());
+        return;
+    }
+
+    match result {
+        Ok(count) => {
+            // The work is already written; this only records that it is.
+            // Failing quietly leaves the row on `prepisuje`, and the next
+            // start reads that as an interrupted run. Retried on its own
+            // connection; `recover_interrupted` catches the rest.
+            let stored = connection
+                .as_ref()
+                .map(|s| db::set_status(s, recording_id, db::status::DONE, None));
+            if !matches!(stored, Some(Ok(_))) {
+                if let Ok(second) = db::open(db_path) {
+                    if let Err(error) =
+                        db::set_status(&second, recording_id, db::status::DONE, None)
+                    {
+                        crate::note!("finished but not marked as such: {error}");
+                    }
                 }
             }
             status(
-                &app,
-                &recording_id,
-                "cancelled",
-                0,
-                step("transcription.cancelled"),
+                app,
+                recording_id,
+                "complete",
+                100,
+                UserMessage::new("transcription.complete").with("count", count),
             );
-            let _ = app.emit("transcription:complete", recording_id.clone());
-            return;
+            app.emit("transcription:complete", recording_id.to_string());
         }
-
-        match result {
-            Ok(count) => {
-                // The work is already written; this only records that it is.
-                // Failing quietly leaves the row on `prepisuje`, and the next
-                // start reads that as an interrupted run. Retried on its own
-                // connection; `recover_interrupted` catches the rest.
-                let stored = connection
-                    .as_ref()
-                    .map(|s| db::set_status(s, &recording_id, db::status::DONE, None));
-                if !matches!(stored, Some(Ok(_))) {
-                    if let Ok(second) = db::open(&db_path) {
-                        if let Err(error) =
-                            db::set_status(&second, &recording_id, db::status::DONE, None)
-                        {
-                            crate::note!("finished but not marked as such: {error}");
-                        }
-                    }
-                }
-                status(
-                    &app,
-                    &recording_id,
-                    "complete",
-                    100,
-                    UserMessage::new("transcription.complete").with("count", count),
+        Err(message) => {
+            if let Some(s) = &connection {
+                let _ = db::set_status(
+                    s,
+                    recording_id,
+                    db::status::FAILED,
+                    Some(&message.to_stored()),
                 );
-                let _ = app.emit("transcription:complete", recording_id.clone());
             }
-            Err(message) => {
-                if let Some(s) = &connection {
-                    let _ = db::set_status(
-                        s,
-                        &recording_id,
-                        db::status::FAILED,
-                        Some(&message.to_stored()),
-                    );
-                }
-                status(&app, &recording_id, "error", 0, message.clone());
-                let _ = app.emit("transcription:error", (recording_id.clone(), message));
-            }
+            status(app, recording_id, "error", 0, message.clone());
+            app.emit("transcription:error", (recording_id.to_string(), message));
         }
-    });
+    }
 }
 
 /// Runs diarization over an already finished transcript. No need to
@@ -320,92 +385,103 @@ pub fn start_diarization_in_thread(
     // sherpa ignores its distance threshold entirely once it has one.
     speaker_count: Option<i64>,
 ) {
+    let app = Report::Window(app);
     // Speaker recognition is as heavy as a transcription and runs on the same
     // machine, so it stands in the same queue rather than beside it.
-    let waiting = task.enqueue(&recording_id);
-    task.begin(&recording_id);
-    mark_as_working(&db_path, &recording_id);
-    if waiting {
-        status(
-            &app,
-            &recording_id,
-            "queued",
-            0,
-            step("transcription.queued"),
-        );
-    }
+    join_the_queue(&app, &db_path, &recording_id, &task);
     std::thread::spawn(move || {
-        let ours = task.wait_for_turn(&recording_id);
-        let result = if ours {
-            without_panicking(|| {
-                run_diarization(&app, &db_path, &recording_id, &task, speaker_count)
-            })
-        } else {
-            Err(UserMessage::new("transcription.cancelled"))
-        };
-        let connection = db::open(&db_path).ok();
-        let cancelled = task.was_cancelled(&recording_id);
-        task.leave_queue(&recording_id);
-        task.cleanup(&recording_id);
-
-        if cancelled {
-            // The transcript itself was never in danger — recognising speakers
-            // only rewrites who said what, and it writes at the very end. So a
-            // cancelled run leaves the recording exactly as it found it.
-            if let Some(s) = &connection {
-                let _ = db::set_status(s, &recording_id, db::status::DONE, None);
-            }
-            status(
-                &app,
-                &recording_id,
-                "cancelled",
-                0,
-                step("transcription.cancelled"),
-            );
-            let _ = app.emit("transcription:complete", recording_id.clone());
-            return;
-        }
-
-        match result {
-            Ok(count) => {
-                // The work is already written; this only records that it is.
-                // Failing quietly leaves the row on `prepisuje`, and the next
-                // start reads that as an interrupted run. Retried on its own
-                // connection; `recover_interrupted` catches the rest.
-                let stored = connection
-                    .as_ref()
-                    .map(|s| db::set_status(s, &recording_id, db::status::DONE, None));
-                if !matches!(stored, Some(Ok(_))) {
-                    if let Ok(second) = db::open(&db_path) {
-                        if let Err(error) =
-                            db::set_status(&second, &recording_id, db::status::DONE, None)
-                        {
-                            crate::note!("finished but not marked as such: {error}");
-                        }
-                    }
-                }
-                status(
-                    &app,
-                    &recording_id,
-                    "complete",
-                    100,
-                    UserMessage::new("diarization.complete").with("count", count),
-                );
-                let _ = app.emit("transcription:complete", recording_id.clone());
-            }
-            Err(message) => {
-                if let Some(s) = &connection {
-                    let _ = db::set_status(s, &recording_id, db::status::DONE, None);
-                }
-                status(&app, &recording_id, "error", 0, message.clone());
-                let _ = app.emit("transcription:error", (recording_id.clone(), message));
-            }
-        }
+        diarize_in_turn(&app, &db_path, &recording_id, &task, speaker_count)
     });
 }
 
+/// The same speaker recognition as [`start_diarization_in_thread`], on the
+/// caller's thread, as [`transcribe`] is to [`start_in_thread`].
+pub fn recognise_speakers(
+    report: &Report,
+    db_path: &Path,
+    recording_id: &str,
+    task: &TranscriptionTask,
+    speaker_count: Option<i64>,
+) {
+    join_the_queue(report, db_path, recording_id, task);
+    diarize_in_turn(report, db_path, recording_id, task, speaker_count);
+}
+
+fn diarize_in_turn(
+    app: &Report,
+    db_path: &Path,
+    recording_id: &str,
+    task: &TranscriptionTask,
+    speaker_count: Option<i64>,
+) {
+    let ours = task.wait_for_turn(recording_id);
+    let result = if ours {
+        without_panicking(|| run_diarization(app, db_path, recording_id, task, speaker_count))
+    } else {
+        Err(UserMessage::new("transcription.cancelled"))
+    };
+    let connection = db::open(db_path).ok();
+    let cancelled = task.was_cancelled(recording_id);
+    task.leave_queue(recording_id);
+    task.cleanup(recording_id);
+
+    if cancelled {
+        // The transcript itself was never in danger — recognising speakers
+        // only rewrites who said what, and it writes at the very end. So a
+        // cancelled run leaves the recording exactly as it found it.
+        if let Some(s) = &connection {
+            let _ = db::set_status(s, recording_id, db::status::DONE, None);
+        }
+        status(
+            app,
+            recording_id,
+            "cancelled",
+            0,
+            step("transcription.cancelled"),
+        );
+        app.emit("transcription:complete", recording_id.to_string());
+        return;
+    }
+
+    match result {
+        Ok(count) => {
+            // The work is already written; this only records that it is.
+            // Failing quietly leaves the row on `prepisuje`, and the next
+            // start reads that as an interrupted run. Retried on its own
+            // connection; `recover_interrupted` catches the rest.
+            let stored = connection
+                .as_ref()
+                .map(|s| db::set_status(s, recording_id, db::status::DONE, None));
+            if !matches!(stored, Some(Ok(_))) {
+                if let Ok(second) = db::open(db_path) {
+                    if let Err(error) =
+                        db::set_status(&second, recording_id, db::status::DONE, None)
+                    {
+                        crate::note!("finished but not marked as such: {error}");
+                    }
+                }
+            }
+            status(
+                app,
+                recording_id,
+                "complete",
+                100,
+                UserMessage::new("diarization.complete").with("count", count),
+            );
+            app.emit("transcription:complete", recording_id.to_string());
+        }
+        Err(message) => {
+            if let Some(s) = &connection {
+                let _ = db::set_status(s, recording_id, db::status::DONE, None);
+            }
+            status(app, recording_id, "error", 0, message.clone());
+            app.emit("transcription:error", (recording_id.to_string(), message));
+        }
+    }
+}
+
 fn run_diarization(
-    app: &AppHandle,
+    app: &Report,
     db_path: &Path,
     recording_id: &str,
     task: &TranscriptionTask,
@@ -566,7 +642,7 @@ impl Drop for PhasesLogged {
 }
 
 fn run(
-    app: &AppHandle,
+    app: &Report,
     db_path: &Path,
     recording_id: &str,
     task: &TranscriptionTask,

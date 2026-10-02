@@ -17,6 +17,7 @@
 
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::OnceLock;
 
 /// Set once the archive's location is known, because that is where the file
@@ -29,6 +30,14 @@ static FILE: OnceLock<PathBuf> = OnceLock::new();
 /// somebody who is already reporting a problem.
 const MAX_BYTES: u64 = 512 * 1024;
 
+/// Set by the command line, whose terminal belongs to the person using it:
+/// these lines then go to the file alone, where a problem report finds them.
+static OFF_THE_TERMINAL: AtomicBool = AtomicBool::new(false);
+
+pub fn keep_off_the_terminal() {
+    OFF_THE_TERMINAL.store(true, Ordering::Relaxed);
+}
+
 pub fn set_file(archive: &Path) {
     let file = archive
         .parent()
@@ -40,7 +49,9 @@ pub fn set_file(archive: &Path) {
 /// Never fails and never panics: a diagnostic that could take the application
 /// down would be worse than the failure it describes.
 pub fn write(message: std::fmt::Arguments) {
-    eprintln!("{message}");
+    if !OFF_THE_TERMINAL.load(Ordering::Relaxed) {
+        eprintln!("{message}");
+    }
     let Some(path) = FILE.get() else {
         return;
     };

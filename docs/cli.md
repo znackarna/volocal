@@ -16,6 +16,7 @@ Usage: volocal-cli <COMMAND>
 
 Commands:
   status        Show where the archive is and what is installed
+  transcribe    Add an audio or video file to the archive and transcribe it
   list          List recordings, newest first
   show          Show one recording in detail
   export        Write a recording's transcript to a file
@@ -40,6 +41,30 @@ Usage: status
 Options:
   -h, --help
           Print help
+```
+
+## transcribe
+
+```text
+Add an audio or video file to the archive and transcribe it.
+
+Uses the model and the other choices made in the Volocal window. Progress goes to the error stream; when it is done, the new recording's id is printed, ready for `export`. Ctrl+C stops the transcription and keeps the recording in the archive.
+
+Usage: transcribe [OPTIONS] <FILE>
+
+Arguments:
+  <FILE>
+          The file to transcribe
+
+Options:
+      --language <LANGUAGE>
+          The language spoken, as a code such as cs or en [default: the window's choice]
+
+      --speakers <COUNT>
+          Tell the speakers apart, and how many there are; 0 when you do not know [default: as set in the window]
+
+  -h, --help
+          Print help (see a summary with '-h')
 ```
 
 ## list

@@ -122,7 +122,7 @@ pub(crate) fn diarize(
     segments: &[Segment],
     task: &TranscriptionTask,
     recording_id: &str,
-    report: Option<(&AppHandle, &str, f64, f64)>,
+    report: Option<(&Report, &str, f64, f64)>,
 ) -> Reported<Vec<SpeakerTurn>> {
     if let Some(alone) = one_voice_throughout(settings, segments) {
         return Ok(alone);
