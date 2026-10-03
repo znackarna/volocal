@@ -842,7 +842,15 @@ impl App {
             Screen::Archive => (
                 vec![
                     (g.updown, w.key_move),
-                    (g.enter, w.key_read),
+                    (
+                        g.enter,
+                        if self.archive.query.trim().is_empty() {
+                            w.key_read
+                        } else {
+                            // A hit opens the transcript where the word was said.
+                            w.key_show_in_transcript
+                        },
+                    ),
                     ("/", w.key_search),
                     ("a", w.key_new),
                     ("e", w.key_save_as),
@@ -1156,8 +1164,10 @@ mod tests {
         }
         std::thread::sleep(Duration::from_millis(250));
         app.tick();
+        app.key(Key::Enter);
         let text = screen(&app, 100, 30, "archive-search");
         assert!(text.contains("rezer"), "{text}");
+        assert!(text.contains("Ukázat v přepisu"), "{text}");
         assert!(!text.contains("Hovor s účetní"), "{text}");
         let _ = std::fs::remove_dir_all(folder);
     }

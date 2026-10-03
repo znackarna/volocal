@@ -136,6 +136,7 @@ pub struct Words {
     // keys
     pub key_move: &'static str,
     pub key_read: &'static str,
+    pub key_show_in_transcript: &'static str,
     pub key_search: &'static str,
     pub key_new: &'static str,
     pub key_save_as: &'static str,
@@ -310,6 +311,7 @@ pub const EN: Words = Words {
 
     key_move: "Move",
     key_read: "Read",
+    key_show_in_transcript: "Show in the transcript",
     key_search: "Search",
     key_new: "New transcription",
     key_save_as: "Save as",
@@ -486,6 +488,7 @@ pub const CS: Words = Words {
 
     key_move: "Pohyb",
     key_read: "Číst",
+    key_show_in_transcript: "Ukázat v přepisu",
     key_search: "Hledat",
     key_new: "Nový přepis",
     key_save_as: "Uložit jako",
