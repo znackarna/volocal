@@ -125,6 +125,7 @@ export const csLibrary = {
   "library.card.phase.error": "Chyba",
   "library.card.phase.cancelled": "Přerušeno",
   "library.card.phase.working": "Pracuji",
+  "library.card.commandLine": "Přepisuje se v příkazové řádce",
   "library.card.aiEditing": "Upravuji dokument",
 
   // Empty states.
@@ -222,6 +223,8 @@ export const csLibraryContext: Partial<Record<keyof typeof csLibrary, string>> =
   "library.card.phase.error": "Průběh přepisu: přepis skončil chybou.",
   "library.card.phase.cancelled": "Průběh přepisu: přepis přerušil uživatel.",
   "library.card.phase.working": "Průběh přepisu, když není známo, co se právě děje.",
+  "library.card.commandLine":
+    "Na kartě nahrávky místo průběhu, když ji právě přepisuje program volocal-cli v terminálu. Průběh z něj do okna nepřichází.",
   "library.card.aiEditing": "Průběh úpravy hotového přepisu jazykovým modelem.",
 
   "library.notice.concurrent":

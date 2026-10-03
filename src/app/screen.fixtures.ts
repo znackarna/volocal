@@ -146,6 +146,7 @@ export const api = {
   transcribeInLanguage: vi.fn(),
   diarizeSpeakers: vi.fn(),
   cancelTranscription: vi.fn(),
+  transcriptionsElsewhere: () => Promise.resolve([]),
   addRecording: vi.fn(),
   deleteRecording: vi.fn(),
   deleteTranscription: vi.fn(),

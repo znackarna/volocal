@@ -31,6 +31,8 @@ interface Props {
   progress: Record<string, TranscriptionProgress>;
   aiProgress: Record<string, AiEditProgress>;
   liveSegments: Record<string, LiveSegment[]>;
+  /** Recordings `volocal-cli` is transcribing; their progress is not ours to show. */
+  commandLineRuns?: ReadonlySet<string>;
   issues: UserMessage[];
   watchCandidates: WatchFolderCandidate[];
   watchDecisionRunning: boolean;
@@ -458,11 +460,14 @@ function shownName(recording: Recording): string {
   return recording.title || fileName(recording.path);
 }
 
+const NO_RUNS: ReadonlySet<string> = new Set();
+
 export default function Library({
   recordings,
   progress,
   aiProgress,
   liveSegments,
+  commandLineRuns = NO_RUNS,
   issues,
   watchCandidates,
   watchDecisionRunning,
@@ -838,6 +843,7 @@ export default function Library({
               progress={progress[n.id]}
               aiProgress={aiProgress[n.id]}
               liveSegments={liveSegments[n.id] ?? []}
+              inCommandLine={commandLineRuns.has(n.id)}
               onOpen={() => onOpen(n.id)}
               onExportAudio={() => onExportAudio(n.id)}
               folders={folders}
@@ -1215,6 +1221,7 @@ function Row({
   progress,
   aiProgress,
   liveSegments,
+  inCommandLine,
   onOpen,
   onExportAudio,
   folders,
@@ -1232,6 +1239,7 @@ function Row({
   progress?: TranscriptionProgress;
   aiProgress?: AiEditProgress;
   liveSegments: LiveSegment[];
+  inCommandLine: boolean;
   onOpen: () => void;
   onExportAudio: () => void;
   folders: Folder[];
@@ -1251,6 +1259,10 @@ function Row({
   const labels = useLabels();
   const formats = useFormats();
   const running = recording.status === "transcribing";
+  /* Running in `volocal-cli`, beside the window. Nothing of its progress
+     reaches this window, and this window cannot stop it: the card says where
+     the work is happening and offers nothing it could not keep. */
+  const elsewhere = running && inCommandLine;
   const aiRunning = !!aiProgress && !["complete", "error", "cancelled"].includes(aiProgress.phase);
   const [renaming, setRenaming] = useState(false);
   const last = liveSegments.slice(-3);
@@ -1369,7 +1381,7 @@ function Row({
       </button>
 
       <div className="row-actions">
-        {running ? (
+        {elsewhere ? null : running ? (
           <button className="button" onClick={onCancel}>
             {t("common.cancel")}
           </button>
@@ -1414,7 +1426,15 @@ function Row({
         )}
       </div>
 
-      {running && (
+      {elsewhere && (
+        <div className="progress">
+          <div className="progress-label">
+            <span>{t("library.card.commandLine")}</span>
+          </div>
+        </div>
+      )}
+
+      {running && !elsewhere && (
         <div className="progress">
           <div className="progress-bar">
             <div className="progress-fill" style={{ width: `${progress?.percent ?? 0}%` }} />

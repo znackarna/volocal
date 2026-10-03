@@ -21,6 +21,7 @@ import { applyFonts, applyTheme, fileName, noteUpdateCheck } from "./types";
 import { useNotices } from "./app/useNotices";
 import { useWatchFolder } from "./app/useWatchFolder";
 import { useTranscriptionRuntime } from "./app/useTranscriptionRuntime";
+import { useCommandLineRuns } from "./app/useCommandLineRuns";
 import { useFolderManagement } from "./app/useFolderManagement";
 import { AppFooter } from "./app/AppFooter";
 import { AppDialogs } from "./app/AppDialogs";
@@ -218,6 +219,9 @@ export default function App() {
     onError: reportError,
   });
   const { progress, aiProgress, liveSegments, diarizingIds, downloading } = runtime.state;
+  // What the command line is transcribing beside the window, which no event
+  // reports here; a change reads the archive again.
+  const commandLineRuns = useCommandLineRuns(() => void loadRecordings());
   const [query, setQuery] = useState<ConfirmationRequest | null>(null);
   const [addRecordingOpen, setAddRecordingOpen] = useState(false);
 
@@ -1052,6 +1056,7 @@ export default function App() {
           progress={progress}
           aiProgress={aiProgress}
           liveSegments={liveSegments}
+          commandLineRuns={commandLineRuns}
           issues={blockingIssues}
           fetching={!!downloading}
           watchCandidates={watch.state.candidates}

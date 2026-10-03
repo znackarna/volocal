@@ -100,6 +100,11 @@ static PHASE: Mutex<Option<(String, Instant)>> = Mutex::new(None);
 /// Returns what it wrote, which is what the tests read: a phase reported again
 /// is the same phase going on, not a new one, and the percentage inside it
 /// moves several times a second.
+/// Tests that report a phase go one at a time: the clock is one slot for the
+/// whole process, and two of them at once would read each other's phases.
+#[cfg(test)]
+pub(crate) static PHASE_CLOCK_TESTS: Mutex<()> = Mutex::new(());
+
 fn phase_clock(now: Option<String>) -> Option<(String, f64)> {
     let Ok(mut held) = PHASE.lock() else {
         return None;
@@ -179,7 +184,7 @@ pub fn fill_in_turn(
     id: &str,
     task: &TranscriptionTask,
 ) -> (Result<usize, UserMessage>, bool) {
-    let ours = task.wait_for_turn(id);
+    let ours = take_turn(report, db_path, id, task);
     /* **Through the net, like every other worker.** A panic in here used
     to skip everything below it: the row stayed on `transcribing`, the
     recording kept its place at the head of the queue, and every job behind
@@ -332,6 +337,47 @@ pub fn transcribe(
     transcribe_in_turn(report, db_path, recording_id, task, speaker_count);
 }
 
+/// Waits for this recording's turn in the queue, and then for any
+/// transcription `volocal-cli` is running beside it. `false` means it was
+/// cancelled while it waited.
+///
+/// **One whisper on the machine, not one per program.** The queue keeps this
+/// process's runs apart; the other program's run it cannot see, and two
+/// whisper processes take memory from each other — a memory failure is what a
+/// user hit on 24 September. The command line refuses to start while anything
+/// is being transcribed; this is the same rule the other way round, except
+/// that the window waits rather than refusing, as its queue always has. Its
+/// own lock is not counted, so the command line does not wait for itself.
+/// With no command line running nothing is held, and this is the queue alone.
+fn take_turn(app: &Report, db_path: &Path, id: &str, task: &TranscriptionTask) -> bool {
+    if !task.wait_for_turn(id) {
+        return false;
+    }
+    let mut said = false;
+    loop {
+        let others = crate::run_lock::held_elsewhere(db_path)
+            .into_iter()
+            .any(|held| held != id);
+        if !others {
+            return true;
+        }
+        if task.was_cancelled(id) {
+            return false;
+        }
+        if !said {
+            status(
+                app,
+                id,
+                "queued",
+                0,
+                step("transcription.waiting_for_command_line"),
+            );
+            said = true;
+        }
+        std::thread::sleep(std::time::Duration::from_secs(2));
+    }
+}
+
 fn join_the_queue(app: &Report, db_path: &Path, recording_id: &str, task: &TranscriptionTask) {
     // The place in the queue is taken here rather than inside the thread, so
     // that a batch keeps the order it was started in and `is_running` answers
@@ -351,7 +397,7 @@ fn transcribe_in_turn(
     task: &TranscriptionTask,
     speaker_count: Option<i64>,
 ) {
-    let ours = task.wait_for_turn(recording_id);
+    let ours = take_turn(app, db_path, recording_id, task);
     let result = if ours {
         without_panicking(|| run(app, db_path, recording_id, task, speaker_count))
     } else {
@@ -479,7 +525,7 @@ fn diarize_in_turn(
     task: &TranscriptionTask,
     speaker_count: Option<i64>,
 ) {
-    let ours = task.wait_for_turn(recording_id);
+    let ours = take_turn(app, db_path, recording_id, task);
     let result = if ours {
         without_panicking(|| run_diarization(app, db_path, recording_id, task, speaker_count))
     } else {
@@ -1576,6 +1622,9 @@ mod tests {
     /// it.
     #[test]
     fn a_phase_reported_again_is_the_same_phase() {
+        let _one_at_a_time = super::PHASE_CLOCK_TESTS
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         assert_eq!(phase_clock(None), None, "nothing was running");
         assert_eq!(phase_clock(Some("run/cutting".into())), None);
         assert_eq!(phase_clock(Some("run/cutting".into())), None);
@@ -1600,5 +1649,93 @@ mod tests {
             );
         }
         assert!(super::ENDINGS.contains(&"complete"));
+    }
+}
+
+#[cfg(all(test, windows))]
+mod command_line_turn_tests {
+    use super::*;
+    use std::sync::Mutex;
+    use std::time::{Duration, Instant};
+
+    fn archive(name: &str) -> PathBuf {
+        let directory =
+            std::env::temp_dir().join(format!("volocal-turn-{name}-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&directory).unwrap();
+        directory.join("volocal.db")
+    }
+
+    fn listening() -> (Report, Arc<Mutex<Vec<String>>>) {
+        let heard = Arc::new(Mutex::new(Vec::new()));
+        let report = {
+            let heard = heard.clone();
+            Report::Callback(Arc::new(move |_event, payload| {
+                if let Some(code) = payload["description"]["code"].as_str() {
+                    heard.lock().unwrap().push(code.to_string());
+                }
+            }))
+        };
+        (report, heard)
+    }
+
+    #[test]
+    fn a_turn_waits_for_the_command_line_and_then_runs() {
+        let _one_at_a_time = PHASE_CLOCK_TESTS.lock().unwrap_or_else(|e| e.into_inner());
+        let db_path = archive("waits");
+        let held = crate::run_lock::hold(&db_path, "cli-run").unwrap();
+        let task = TranscriptionTask::default();
+        task.enqueue("window-run");
+        let (report, heard) = listening();
+        let started = Instant::now();
+        let waiting = {
+            let (task, db_path) = (task.clone(), db_path.clone());
+            std::thread::spawn(move || take_turn(&report, &db_path, "window-run", &task))
+        };
+        std::thread::sleep(Duration::from_millis(500));
+        assert!(!waiting.is_finished(), "it waits while the lock is held");
+        assert_eq!(
+            heard.lock().unwrap().as_slice(),
+            ["transcription.waiting_for_command_line"],
+            "and says why, once"
+        );
+        drop(held);
+        assert!(waiting.join().unwrap(), "then it runs");
+        assert!(started.elapsed() < Duration::from_secs(5));
+        // The waiting was reported as a phase; close it for the next test.
+        phase_clock(None);
+        let _ = std::fs::remove_dir_all(db_path.parent().unwrap());
+    }
+
+    #[test]
+    fn a_turn_does_not_wait_for_its_own_lock() {
+        let db_path = archive("own");
+        let held = crate::run_lock::hold(&db_path, "cli-run").unwrap();
+        let task = TranscriptionTask::default();
+        task.enqueue("cli-run");
+        let (report, heard) = listening();
+        assert!(take_turn(&report, &db_path, "cli-run", &task));
+        assert!(heard.lock().unwrap().is_empty());
+        drop(held);
+        let _ = std::fs::remove_dir_all(db_path.parent().unwrap());
+    }
+
+    #[test]
+    fn a_turn_waiting_for_the_command_line_can_be_cancelled() {
+        let _one_at_a_time = PHASE_CLOCK_TESTS.lock().unwrap_or_else(|e| e.into_inner());
+        let db_path = archive("cancel");
+        let held = crate::run_lock::hold(&db_path, "cli-run").unwrap();
+        let task = TranscriptionTask::default();
+        task.enqueue("window-run");
+        let (report, _) = listening();
+        let waiting = {
+            let (task, db_path) = (task.clone(), db_path.clone());
+            std::thread::spawn(move || take_turn(&report, &db_path, "window-run", &task))
+        };
+        std::thread::sleep(Duration::from_millis(300));
+        task.cancel("window-run");
+        assert!(!waiting.join().unwrap(), "a cancelled turn does not run");
+        phase_clock(None);
+        drop(held);
+        let _ = std::fs::remove_dir_all(db_path.parent().unwrap());
     }
 }

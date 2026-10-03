@@ -111,8 +111,21 @@ so the block does not flicker between phases.
 What has not been seen yet is the live block on a real Windows console during a
 real transcription; the checks above ran under Wine, without whisper.
 
-## Questions for the owner
+## The window and a run in the command line
 
-1. The window, on starting, treats a running command-line transcription as
-   crashed (`recover_interrupted`) and offers *Zkusit znovu*. Should it look at
-   the archive first? That is a change to the window, so it is left alone.
+The owner's answer to the one open question, the same day: the window checks.
+`transcribe` holds `running\<id>.lock` beside the archive while it works,
+opened so nobody else can open it and deleted by Windows when the process
+ends, however it ends (`src-tauri/src/run_lock.rs`). The window asks for the
+held ones and then:
+
+- **on starting**, leaves those recordings to the command line instead of
+  marking them as failed;
+- **before its own transcription**, waits while one is held, showing *Čeká, až
+  skončí přepis v příkazové řádce*, so there is never a second whisper beside
+  the first;
+- **on the card**, says *Přepisuje se v příkazové řádce* and offers no
+  *Zrušit*, and reads the archive again when such a run starts or ends.
+
+With no command line running, nothing is held and the window does what it did
+before.

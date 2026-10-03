@@ -42,7 +42,7 @@ function recording(status: Recording["status"], segment_count: number): Recordin
   };
 }
 
-function card(one: Recording) {
+function card(one: Recording, commandLineRuns: ReadonlySet<string> = new Set()) {
   render(
     <I18nProvider>
       <Library
@@ -50,6 +50,7 @@ function card(one: Recording) {
         progress={{}}
         aiProgress={{}}
         liveSegments={{}}
+        commandLineRuns={commandLineRuns}
         issues={[]}
         watchCandidates={[]}
         watchDecisionRunning={false}
@@ -102,5 +103,21 @@ describe("opening a recording something is running over", () => {
 
   test("a finished recording opens, as it always did", () => {
     expect(card(recording("done", 964)).disabled).toBe(false);
+  });
+});
+
+describe("a recording the command line is transcribing", () => {
+  /** No progress reaches the window from `volocal-cli`, and the window cannot
+   *  stop its run: the card says where the work is and offers no Zrušit. */
+  test("says it is being transcribed in the command line, with nothing to cancel", () => {
+    card(recording("transcribing", 0), new Set(["r"]));
+    expect(screen.getByText("Being transcribed in the command line")).toBeTruthy();
+    expect(screen.queryByText("Cancel")).toBeNull();
+  });
+
+  test("the window's own run keeps its Zrušit", () => {
+    card(recording("transcribing", 0));
+    expect(screen.queryByText("Being transcribed in the command line")).toBeNull();
+    expect(screen.getByText("Cancel")).toBeTruthy();
   });
 });

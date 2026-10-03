@@ -67,6 +67,8 @@ export const api = {
   transcribeInLanguage: (id: string, language: string, speakerCount?: number | null) =>
     invoke<void>("transcribe_in_language", { id, language, speakerCount: speakerCount ?? null }),
   cancelTranscription: (id: string) => invoke<void>("cancel_transcription", { id }),
+  /** Recordings `volocal-cli` is transcribing right now, beside the window. */
+  transcriptionsElsewhere: () => invoke<string[]>("transcriptions_elsewhere"),
   deleteTranscription: (id: string) => invoke<void>("delete_transcription", { id }),
   renameRecording: (id: string, title: string) =>
     invoke<void>("rename_recording", { id, title }),

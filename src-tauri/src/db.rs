@@ -1593,7 +1593,14 @@ pub fn set_status(db: &Connection, id: &str, status: &str, error: Option<&str>) 
 /// Caveat: two instances of the app over one archive would have the second one
 /// declare the first one's work interrupted. Sharing an archive between two
 /// running copies is a worse problem than this one, so it is left alone.
-pub fn recover_interrupted(db: &Connection) -> Result<usize> {
+///
+/// `still_running` is the exception the command line brought: recordings
+/// `volocal-cli` is transcribing at this moment (`run_lock::held_elsewhere`).
+/// Theirs is not a leftover, and they are not touched. Empty, as it is
+/// whenever no command line is running, the statements are the ones they
+/// always were.
+pub fn recover_interrupted(db: &Connection, still_running: &[String]) -> Result<usize> {
+    let still_running = serde_json::to_string(still_running)?;
     let tx = transaction_unless_in_one(db)?;
     // A row still saying `prepisuje` while its segments are there is a run
     // that finished and failed to write down that it had. Segments are
@@ -1605,12 +1612,18 @@ pub fn recover_interrupted(db: &Connection) -> Result<usize> {
     db.execute(
         "UPDATE recordings SET status = 'done', error = NULL
          WHERE status = 'transcribing'
-           AND EXISTS (SELECT 1 FROM segments WHERE recording_id = recordings.id)",
-        [],
+           AND EXISTS (SELECT 1 FROM segments WHERE recording_id = recordings.id)
+           AND id NOT IN (SELECT value FROM json_each(?1))",
+        params![still_running],
     )?;
     let count = db.execute(
-        "UPDATE recordings SET status = 'error', error = ?1 WHERE status = 'transcribing'",
-        params![UserMessage::new("transcription.interrupted").to_stored()],
+        "UPDATE recordings SET status = 'error', error = ?1
+         WHERE status = 'transcribing'
+           AND id NOT IN (SELECT value FROM json_each(?2))",
+        params![
+            UserMessage::new("transcription.interrupted").to_stored(),
+            still_running
+        ],
     )?;
     commit(tx)?;
     Ok(count)
@@ -4066,7 +4079,7 @@ mod tests {
         written.recording_id = "done".into();
         insert_segment(&db, &written).unwrap();
 
-        recover_interrupted(&db).unwrap();
+        recover_interrupted(&db, &[]).unwrap();
 
         assert_eq!(status_of(&db, "done"), status::DONE);
         let error: Option<String> = db
@@ -4086,10 +4099,28 @@ mod tests {
         )
         .unwrap();
 
-        let count = recover_interrupted(&db).unwrap();
+        let count = recover_interrupted(&db, &[]).unwrap();
 
         assert_eq!(count, 1);
         assert_eq!(status_of(&db, "empty"), status::FAILED);
+    }
+
+    #[test]
+    fn a_run_the_command_line_is_holding_is_left_alone() {
+        let db = interrupted_archive();
+        for id in ["cli", "crashed"] {
+            db.execute(
+                "INSERT INTO recordings (id, status) VALUES (?1, ?2)",
+                params![id, status::TRANSCRIBING],
+            )
+            .unwrap();
+        }
+
+        let count = recover_interrupted(&db, &["cli".to_string()]).unwrap();
+
+        assert_eq!(count, 1, "only the leftover is recovered");
+        assert_eq!(status_of(&db, "cli"), status::TRANSCRIBING);
+        assert_eq!(status_of(&db, "crashed"), status::FAILED);
     }
 
     #[test]

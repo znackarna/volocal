@@ -31,6 +31,9 @@ and a Rust backend.
 - `src-tauri/src/db.rs` owns SQLite persistence.
 - `src-tauri/src/download.rs` installs tools and models.
 - `src-tauri/src/tools.rs` resolves paths and external programs.
+- `src-tauri/src/run_lock.rs` lets the window see a transcription that
+  `volocal-cli` is running: a lock file the command line holds, which goes
+  when its process goes.
 - `src-tauri/src/export.rs` produces TXT, Markdown, SRT, VTT, and JSON exports.
 - `src-tauri/src/user_message.rs` defines the code-plus-values message Rust
   sends instead of a finished sentence.

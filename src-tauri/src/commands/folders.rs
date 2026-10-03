@@ -224,6 +224,11 @@ pub fn cancel_transcription(app: State<'_, AppState>, id: String) -> Reported<()
         // call. Clear the flag, or the next transcription of this recording
         // would abort itself, and tidy up a status left behind by a crash.
         app.bezici.forget_cancellation(&id);
+        // A run `volocal-cli` is holding is alive in the other program; its
+        // row is not a leftover to tidy, and this window cannot stop it.
+        if crate::run_lock::held_elsewhere(&app.db_path).contains(&id) {
+            return Ok(());
+        }
         let db = app.db.lock().unwrap();
         if let Ok(recording) = db::recording(&db, &id) {
             if recording.status == db::status::TRANSCRIBING {
@@ -232,6 +237,15 @@ pub fn cancel_transcription(app: State<'_, AppState>, id: String) -> Reported<()
         }
     }
     Ok(())
+}
+
+/// The recordings `volocal-cli` is transcribing right now. The archive shows
+/// them as transcribing, but no progress reaches this window from the other
+/// program; the library asks this to say where the work is happening, and to
+/// notice when it ends.
+#[tauri::command]
+pub fn transcriptions_elsewhere(app: State<'_, AppState>) -> Vec<String> {
+    crate::run_lock::held_elsewhere(&app.db_path)
 }
 
 /// Discards a finished transcript but keeps the recording in the archive.

@@ -9,6 +9,7 @@ export const csProgress = {
   "progress.preparation.converting_audio": "Převádím zvuk",
   "progress.playback.preparing": "Připravuji přesné přehrávání",
   "progress.transcription.queued": "Čeká ve frontě",
+  "progress.transcription.waiting_for_command_line": "Čeká, až skončí přepis v příkazové řádce",
   "progress.transcription.running": "Přepisuji",
   "progress.transcription.cancelled": "Přepis přerušen",
   "progress.transcription.complete": "{count} úseků",
@@ -71,6 +72,8 @@ export const csProgressContext: Partial<Record<keyof typeof csProgress, string>>
   "progress.transcription.complete":
     "{count} je počet úseků hotového přepisu. Zobrazuje se místo popisu fáze, když je práce hotová.",
   "progress.saving": "Poslední krok: hotový přepis se zapisuje do archivu.",
+  "progress.transcription.waiting_for_command_line":
+    "Přepis v okně čeká, protože program volocal-cli v terminálu právě přepisuje jinou nahrávku. Dva přepisy najednou by si braly paměť.",
   "progress.diarization.running":
     "„Rozpoznávám mluvčí“ = program hledá, kdo zrovna mluví. Průběhový tvar, první osoba.",
   "progress.diarization.complete": "{count} je počet rozpoznaných mluvčích.",

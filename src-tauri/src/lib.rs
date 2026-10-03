@@ -25,6 +25,7 @@ pub mod diagnostics;
 mod download;
 pub mod export;
 mod online_import;
+pub mod run_lock;
 pub mod tools;
 pub mod transcription;
 pub mod user_message;
@@ -580,6 +581,7 @@ pub fn run() {
             commands::folders::start_transcription,
             commands::folders::transcribe_in_language,
             commands::folders::cancel_transcription,
+            commands::folders::transcriptions_elsewhere,
             commands::folders::delete_transcription,
             commands::folders::rename_recording,
             commands::folders::diarize_speakers,
@@ -1045,7 +1047,18 @@ fn connect_database(app: &tauri::App, db_path: PathBuf) -> Result<()> {
     // Anything still marked as running belongs to a session that never
     // finished. Without this the recording would sit there for ever showing a
     // progress bar that goes nowhere, with no way to start over.
-    match db::recover_interrupted(&connection) {
+    //
+    // Except what `volocal-cli` is transcribing right now: its rows say
+    // transcribing too, and it holds a lock to say they are alive. With no
+    // command line running there is none, and this is what it always was.
+    let still_running = run_lock::held_elsewhere(&db_path);
+    if !still_running.is_empty() {
+        crate::note!(
+            "left {} transcription(s) to the command line, which is running them",
+            still_running.len()
+        );
+    }
+    match db::recover_interrupted(&connection, &still_running) {
         Ok(0) => {}
         Ok(n) => crate::note!("recovered {n} interrupted transcription(s)"),
         Err(e) => crate::note!("could not recover interrupted transcriptions: {e:#}"),

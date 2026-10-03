@@ -82,7 +82,8 @@ and its own installer or archive.
   memory, and a memory failure is what a user hit on 24 September (`kód 10`,
   the accurate model on 72 minutes). The command line refuses to transcribe
   while the archive says anything is being transcribed. The window does not
-  check the other way round yet.
+  check the other way round yet. *Since 3 October 2026 it does: it waits for a
+  run the command line holds a lock for, see `docs/cli-look-plan.md`.*
 - **The window does not see changes made beside it** until it next reads the
   archive. Not dangerous; worth knowing.
 - **Two writers are safe.** The archive runs in WAL with a five-second busy

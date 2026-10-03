@@ -448,6 +448,10 @@ fn transcribe(
 
     let task = TranscriptionTask::default();
     let id = recording.id.clone();
+    // Tells the window this run is alive: it neither marks it as failed when
+    // it starts nor starts a whisper of its own beside it. The lock goes when
+    // this process does, however it ends.
+    let _alive = volocal_lib::run_lock::hold(archive, &id);
     // Until this is dropped, closing the console waits for the run to end.
     let _ends = RunEnds;
     stop_on_ctrl_c(&task, &id);
