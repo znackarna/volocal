@@ -165,12 +165,13 @@ impl Status {
             ui::rows(area, 9, area.height.saturating_sub(10)),
         );
 
-        // The publisher, bottom right: one character a shape, in its colours.
+        // The publisher, bottom right: one character a shape, side by side, in its colours.
         let mut signature = Vec::new();
         if g.braille {
-            for (i, shape) in ["▲", "●", "■"].iter().enumerate() {
-                signature.push(Span::styled(format!("{shape} "), theme.brand(i)));
+            for (i, shape) in ["▲", "●", "■"].into_iter().enumerate() {
+                signature.push(Span::styled(shape, theme.brand(i)));
             }
+            signature.push(Span::raw(" "));
         }
         signature.push(Span::styled("Značkárna  ", theme.muted()));
         let width = ui::line_cells(&signature) as u16;
