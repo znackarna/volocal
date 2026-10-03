@@ -15,43 +15,12 @@
 //! just been closed fails; `eprint!` would panic inside the engine's report.
 //! Every write here ignores its error instead.
 
+use crate::common::keeps_moving_forward;
 use crate::look::{self, Look, Role};
 use std::io::Write;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
-
-/// The order the pipeline goes through, from `src/app/useTranscriptionRuntime.ts`.
-/// A report from a phase earlier than the one shown is late, not a step back.
-const PHASE_ORDER: [&str; 8] = [
-    "queued",
-    "preparation",
-    "playback",
-    "second_language_question",
-    "transcription",
-    "diarization",
-    "saving",
-    "second_language",
-];
-const FINAL_PHASES: [&str; 3] = ["complete", "error", "cancelled"];
-
-/// Should this report replace the one shown? The window's rule, ported with
-/// its test: progress arrives from several threads, and a late report must
-/// not throw the line back a step.
-pub fn keeps_moving_forward(previous: Option<(&str, u64)>, next: (&str, u64)) -> bool {
-    let Some((before_phase, before_percent)) = previous else {
-        return true;
-    };
-    if FINAL_PHASES.contains(&before_phase) || FINAL_PHASES.contains(&next.0) {
-        return true;
-    }
-    let position = |phase: &str| PHASE_ORDER.iter().position(|p| *p == phase);
-    match (position(before_phase), position(next.0)) {
-        (Some(before), Some(after)) if after != before => after > before,
-        (Some(_), Some(_)) => next.1 >= before_percent,
-        _ => true,
-    }
-}
 
 struct Phase {
     name: String,
@@ -422,37 +391,6 @@ fn fit(line: &str, width: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    /// The cases of `src/app/phaseOrder.test.ts`.
-    #[test]
-    fn a_late_report_does_not_move_the_run_back() {
-        assert!(keeps_moving_forward(None, ("preparation", 0)));
-        assert!(!keeps_moving_forward(
-            Some(("transcription", 40)),
-            ("preparation", 5)
-        ));
-        assert!(keeps_moving_forward(
-            Some(("second_language_question", 8)),
-            ("transcription", 10)
-        ));
-        assert!(!keeps_moving_forward(
-            Some(("transcription", 40)),
-            ("transcription", 39)
-        ));
-        assert!(keeps_moving_forward(
-            Some(("saving", 90)),
-            ("second_language", 2)
-        ));
-        assert!(keeps_moving_forward(Some(("complete", 100)), ("queued", 0)));
-        assert!(keeps_moving_forward(
-            Some(("transcription", 50)),
-            ("cancelled", 0)
-        ));
-        assert!(keeps_moving_forward(
-            Some(("something_new", 50)),
-            ("preparation", 0)
-        ));
-    }
 
     #[test]
     fn a_line_is_cut_to_the_width_and_keeps_its_colour() {

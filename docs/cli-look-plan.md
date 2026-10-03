@@ -1,8 +1,9 @@
 # How the command line looks in a terminal
 
-Built on 3 October 2026. It replaces a proposal for a full-screen interface,
-which the owner turned down the same day: the command line deserves a better
-picture of its progress, not a program of its own inside the terminal.
+Built on 3 October 2026. It replaces a proposal for a full-screen interface
+inside `volocal-cli`: the command line deserves a better picture of its
+progress, and the full screen belongs to a program of its own, `volocal-tui`
+([tui-plan.md](tui-plan.md)).
 
 The output is drawn in [prototypes/volocal-cli-look.html](prototypes/volocal-cli-look.html).
 

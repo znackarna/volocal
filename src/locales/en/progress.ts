@@ -5,7 +5,7 @@ export const enProgress: Partial<Record<keyof typeof csProgress, string>> = {
   "progress.preparation.converting_audio": "Converting audio",
   "progress.playback.preparing": "Preparing precise playback",
   "progress.transcription.queued": "Waiting in the queue",
-  "progress.transcription.waiting_for_command_line": "Waiting for the transcription in the command line",
+  "progress.transcription.waiting_for_command_line": "Waiting for the transcription in the terminal",
   "progress.transcription.running": "Transcribing",
   "progress.transcription.cancelled": "Transcription interrupted",
   "progress.transcription.complete": "{count} segments",

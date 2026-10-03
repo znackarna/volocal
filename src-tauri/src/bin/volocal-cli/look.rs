@@ -18,11 +18,7 @@
 
 use std::io::IsTerminal;
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Lang {
-    En,
-    Cs,
-}
+pub use crate::common::Lang;
 
 #[derive(Clone, Copy)]
 pub enum Stream {

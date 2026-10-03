@@ -13,13 +13,14 @@
 //! window's start-up migrations, and an existing file is never overwritten
 //! unless `--force` says so.
 
+mod common;
 mod live;
 mod look;
 mod styled;
 
 use clap::{Parser, Subcommand, ValueEnum};
-use look::{Lang, Look, Stream};
-use std::collections::HashMap;
+use common::{clock, describe, describe_in, short, tell, tell_in, Lang};
+use look::{Look, Stream};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::sync::{Arc, Mutex, OnceLock};
@@ -872,147 +873,6 @@ fn highlight(text: &str) -> String {
     }
 }
 
-pub(crate) fn short(id: &str) -> &str {
-    id.get(..8).unwrap_or(id)
-}
-
-pub(crate) fn clock(seconds: f64) -> String {
-    let total = seconds.max(0.0).round() as u64;
-    let (h, m, s) = (total / 3600, (total % 3600) / 60, total % 60);
-    if h > 0 {
-        format!("{h}:{m:02}:{s:02}")
-    } else {
-        format!("{m}:{s:02}")
-    }
-}
-
-/// A message from the engine in the words the window would use.
-///
-/// The engine returns codes, and the text for them lives in the window's
-/// dictionary. Reading the English half of that dictionary here, rather than
-/// writing a second set of sentences, keeps one text per message for both
-/// programs — the same reason the window's notices are never written in Rust.
-fn describe(message: UserMessage) -> String {
-    fill(english_errors().get(message.code.as_str()), &message)
-}
-
-/// A step of a running transcription, from the window's progress dictionary.
-/// A failure arrives through the same event, so a code that is not a step is
-/// looked up among the errors.
-fn tell(message: &UserMessage) -> String {
-    let template = english_progress()
-        .get(message.code.as_str())
-        .or_else(|| english_errors().get(message.code.as_str()));
-    fill(template, message)
-}
-
-/// The same in the reader's language. Czech is the window's source language,
-/// so its dictionary has every code; English falls back to the code as above.
-fn describe_in(lang: Lang, message: &UserMessage) -> String {
-    match lang {
-        Lang::En => describe(message.clone()),
-        Lang::Cs => fill(czech_errors().get(message.code.as_str()), message),
-    }
-}
-
-fn tell_in(lang: Lang, message: &UserMessage) -> String {
-    match lang {
-        Lang::En => tell(message),
-        Lang::Cs => {
-            let template = czech_progress()
-                .get(message.code.as_str())
-                .or_else(|| czech_errors().get(message.code.as_str()));
-            fill(template, message)
-        }
-    }
-}
-
-fn fill(template: Option<&String>, message: &UserMessage) -> String {
-    let template = template.cloned().unwrap_or_else(|| message.code.clone());
-    let mut text = template.clone();
-    for (key, value) in &message.params {
-        text = text.replace(&format!("{{{key}}}"), value);
-    }
-    if !message.detail.is_empty() && !template.contains("{detail}") {
-        text = format!("{text} ({})", message.detail);
-    }
-    text
-}
-
-fn english_errors() -> &'static HashMap<String, String> {
-    static ERRORS: OnceLock<HashMap<String, String>> = OnceLock::new();
-    ERRORS.get_or_init(|| {
-        parse_dictionary(
-            include_str!("../../../../src/locales/en/errors.ts"),
-            "errors",
-        )
-    })
-}
-
-fn english_progress() -> &'static HashMap<String, String> {
-    static PROGRESS: OnceLock<HashMap<String, String>> = OnceLock::new();
-    PROGRESS.get_or_init(|| {
-        parse_dictionary(
-            include_str!("../../../../src/locales/en/progress.ts"),
-            "progress",
-        )
-    })
-}
-
-/// Czech is the source language, so its files carry a second table under the
-/// first — `csErrorsContext`, the notes for the translator, under the same
-/// keys. Only the first table is the text.
-fn czech_errors() -> &'static HashMap<String, String> {
-    static ERRORS: OnceLock<HashMap<String, String>> = OnceLock::new();
-    ERRORS.get_or_init(|| {
-        parse_dictionary(
-            first_table(include_str!("../../../../src/locales/cs/errors.ts")),
-            "errors",
-        )
-    })
-}
-
-fn czech_progress() -> &'static HashMap<String, String> {
-    static PROGRESS: OnceLock<HashMap<String, String>> = OnceLock::new();
-    PROGRESS.get_or_init(|| {
-        parse_dictionary(
-            first_table(include_str!("../../../../src/locales/cs/progress.ts")),
-            "progress",
-        )
-    })
-}
-
-/// A dictionary file up to its second `export`.
-fn first_table(source: &str) -> &str {
-    let Some(first) = source.find("export const") else {
-        return source;
-    };
-    match source[first + 1..].find("export const") {
-        Some(second) => &source[..first + 1 + second],
-        None => source,
-    }
-}
-
-/// `"errors.x.y": "text",` — and a value may be split over lines and joined with
-/// `+`. Only the code after the prefix is kept, which is what the engine names.
-fn parse_dictionary(source: &str, prefix: &str) -> HashMap<String, String> {
-    let entry = regex::Regex::new(&format!(
-        r#"(?s)"{prefix}\.([a-z0-9_.]+)"\s*:\s*((?:"(?:[^"\\]|\\.)*"\s*\+?\s*)+)"#
-    ))
-    .expect("the pattern is fixed");
-    let piece = regex::Regex::new(r#""((?:[^"\\]|\\.)*)""#).expect("the pattern is fixed");
-    entry
-        .captures_iter(source)
-        .map(|c| {
-            let value: String = piece
-                .captures_iter(&c[2])
-                .map(|p| p[1].replace("\\\"", "\"").replace("\\\\", "\\"))
-                .collect();
-            (c[1].to_string(), value)
-        })
-        .collect()
-}
-
 /// The reference in `docs/cli.md`, built from the program's own help.
 ///
 /// **The documentation is a snapshot of `--help`, not a second text.**
@@ -1096,6 +956,7 @@ fn reference() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::common::{czech_errors, czech_progress, english_errors, parse_dictionary};
 
     #[test]
     fn reads_the_english_messages_the_window_uses() {

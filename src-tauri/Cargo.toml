@@ -99,6 +99,12 @@ tauri-plugin-updater = "2.10.1"
 # `docs/cli.md` is generated from the help this produces, so the documentation
 # and the program cannot say different things.
 clap = { version = "4", features = ["derive"] }
+# The full-screen interface of `volocal-tui`, and nothing else uses it; the
+# window and `volocal-cli` never link it. Without default features: no
+# calendar widget, no macros, no underline colour, none of which the screens
+# draw. crossterm comes through ratatui's own re-export, so the tree holds one
+# version of it.
+ratatui = { version = "0.30.2", default-features = false, features = ["crossterm"] }
 
 [profile.release]
 opt-level = "s"

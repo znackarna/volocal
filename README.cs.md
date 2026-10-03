@@ -42,6 +42,8 @@ toho, které modely si vyberete — a po tom už je internet nepovinný.
 - **Uloží** do TXT, Markdownu, SRT, VTT nebo JSON — a zvuk do MP3, M4A či WAV.
 - **Funguje i z příkazové řádky.** `volocal-cli` přepisuje, vyhledává a ukládá
   ze skriptu, ve stejném archivu — viz [docs/cli.md](docs/cli.md).
+- **A také v terminálu, třeba přes SSH.** `volocal-tui` ukáže archiv, přepis
+  i běžící přepis na celé obrazovce.
 
 ## Vaše nahrávky zůstávají u vás
 

@@ -1259,7 +1259,7 @@ function Row({
   const labels = useLabels();
   const formats = useFormats();
   const running = recording.status === "transcribing";
-  /* Running in `volocal-cli`, beside the window. Nothing of its progress
+  /* Running in `volocal-cli` or `volocal-tui`, beside the window. Nothing of its progress
      reaches this window, and this window cannot stop it: the card says where
      the work is happening and offers nothing it could not keep. */
   const elsewhere = running && inCommandLine;

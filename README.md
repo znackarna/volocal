@@ -40,6 +40,8 @@ depending on which models you choose — and after that the internet is optional
   WAV.
 - **Works from the command line too.** `volocal-cli` transcribes, searches and
   exports from a script, in the same archive — see [docs/cli.md](docs/cli.md).
+- **And in a terminal, over SSH as well.** `volocal-tui` shows the archive, a
+  transcript and a running transcription on the whole screen.
 
 ## Your recordings stay with you
 

@@ -88,7 +88,7 @@ export const enLibrary: Partial<Record<keyof typeof csLibrary, string>> = {
   "library.card.phase.error": "Error",
   "library.card.phase.cancelled": "Interrupted",
   "library.card.phase.working": "Working",
-  "library.card.commandLine": "Being transcribed in the command line",
+  "library.card.commandLine": "Being transcribed in the terminal",
   "library.card.aiEditing": "Editing document",
   "library.folders.heading": "Folders",
   "library.folders.create": "New folder",

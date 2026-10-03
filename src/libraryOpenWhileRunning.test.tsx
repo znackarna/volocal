@@ -111,13 +111,13 @@ describe("a recording the command line is transcribing", () => {
    *  stop its run: the card says where the work is and offers no Zrušit. */
   test("says it is being transcribed in the command line, with nothing to cancel", () => {
     card(recording("transcribing", 0), new Set(["r"]));
-    expect(screen.getByText("Being transcribed in the command line")).toBeTruthy();
+    expect(screen.getByText("Being transcribed in the terminal")).toBeTruthy();
     expect(screen.queryByText("Cancel")).toBeNull();
   });
 
   test("the window's own run keeps its Zrušit", () => {
     card(recording("transcribing", 0));
-    expect(screen.queryByText("Being transcribed in the command line")).toBeNull();
+    expect(screen.queryByText("Being transcribed in the terminal")).toBeNull();
     expect(screen.getByText("Cancel")).toBeTruthy();
   });
 });
