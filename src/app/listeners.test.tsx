@@ -13,9 +13,8 @@
  * still reaches the current callback.
  */
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { cleanup, fireEvent, waitFor } from "@testing-library/react";
+import { cleanup, waitFor } from "@testing-library/react";
 import {
-  api,
   installBrowserStubs,
   listeners,
   recording,

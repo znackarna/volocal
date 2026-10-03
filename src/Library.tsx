@@ -499,7 +499,6 @@ export default function Library({
 }: Props) {
   const { t, compare } = useI18n();
   const formats = useFormats();
-  const userMessage = useUserMessage();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[] | null>(null);
   const [dateFilter, setDateFilter] = useState<ArchiveDateFilterValue>("all");

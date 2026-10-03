@@ -15,6 +15,7 @@ import { api } from "./api";
 import ConfirmationDialog from "./ConfirmationDialog";
 import type { ConfirmationRequest } from "./ConfirmationDialog";
 import { useI18n } from "./i18n";
+import { formatTime } from "./types";
 import { Waveform, usePlayer } from "./player";
 import type { Waveform as StoredWaveform } from "./player";
 
@@ -557,11 +558,6 @@ export function useRecorder(): RecorderValue {
   return value;
 }
 
-/** m:ss, the format every clock in this interface uses. */
-export function recorderTime(seconds: number): string {
-  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
-}
-
 /**
  * The live spectrum, sampled while the microphone listens or records.
  *
@@ -666,7 +662,7 @@ export function MiniRecorder({ onOpen }: { onOpen: () => void }) {
       <button className="mini-label" onClick={onOpen} title={t("app.recorder.open")}>
         {t("app.recorder.label")}
       </button>
-      <span className="mini-time">{recorderTime(seconds)}</span>
+      <span className="mini-time">{formatTime(seconds)}</span>
       <button
         className="mini-close"
         onClick={() => {

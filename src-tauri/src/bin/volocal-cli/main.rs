@@ -739,7 +739,7 @@ fn list(
             println!(
                 "{}  {}  {}  {}",
                 short(&hit.recording_id),
-                clock(hit.start),
+                export::format_duration(hit.start),
                 hit.title,
                 highlight(hit.text.trim())
             );
@@ -778,7 +778,7 @@ fn list(
                 .created_at
                 .get(..10)
                 .unwrap_or(&recording.created_at),
-            clock(recording.duration),
+            export::format_duration(recording.duration),
             recording.status,
             recording.title
         );
@@ -797,7 +797,10 @@ fn show(connection: &rusqlite::Connection, id: &str) -> Result<(), Problem> {
     println!("title        {}", recording.title);
     println!("file         {}", recording.path);
     println!("recorded     {}", recording.created_at);
-    println!("length       {}", clock(recording.duration));
+    println!(
+        "length       {}",
+        export::format_duration(recording.duration)
+    );
     println!("status       {}", recording.status);
     if !recording.language.is_empty() {
         println!("language     {}", recording.language);
@@ -1032,12 +1035,6 @@ mod tests {
     #[test]
     fn a_code_with_no_text_says_the_code() {
         assert_eq!(describe(UserMessage::new("no.such.code")), "no.such.code");
-    }
-
-    #[test]
-    fn writes_clock_times_the_way_the_window_does() {
-        assert_eq!(clock(14.0), "0:14");
-        assert_eq!(clock(4354.0), "1:12:34");
     }
 
     /// `docs/cli.md` is the help, word for word. Set `UPDATE_CLI_DOCS=1` to

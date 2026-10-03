@@ -45,8 +45,6 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
-const aiButton = (container: HTMLElement) =>
-  container.querySelector(".ai-edit-button") as HTMLButtonElement;
 const choiceDialog = () => document.querySelector("#ai-configure-title");
 
 /** The application's own way into the window on this path: a run finishes and

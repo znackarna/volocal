@@ -87,13 +87,7 @@ function languages() {
 }
 
 const PLURAL_SUFFIXES = ["zero", "one", "two", "few", "many", "other"];
-const CLDR_FORMS = {
-  en: ["one", "other"],
-  de: ["one", "other"],
-  fr: ["one", "many", "other"],
-  pl: ["one", "few", "many", "other"],
-  sk: ["one", "few", "many", "other"],
-};
+const pluralForms = (language) => new Intl.PluralRules(language).resolvedOptions().pluralCategories;
 
 function pluralBase(key) {
   const dot = key.lastIndexOf(".");
@@ -484,25 +478,6 @@ function sync({ quiet = false } = {}) {
   return changed;
 }
 
-/** Empties a language without unwiring it, so the interface falls back to
- *  Czech everywhere and the work can start again later from a clean file. */
-function clearLanguage(language) {
-  if (language === "cs") {
-    console.log("Čeština je zdroj, tu smazat nelze.");
-    process.exitCode = 1;
-    return;
-  }
-  if (!existsSync(join(localesDir, language))) {
-    console.log(`Jazyk ${language} tu není.`);
-    process.exitCode = 1;
-    return;
-  }
-  for (const namespace of namespaces) {
-    writeFileSync(join(localesDir, language, `${namespace}.ts`), languageStub(language, namespace), "utf8");
-  }
-  console.log(`${language} vyprázdněn — rozhraní se všude vrátí k češtině.`);
-}
-
 function createNamespace(namespace) {
   if (!/^[a-z][a-zA-Z0-9]*$/.test(namespace)) {
     console.log("Název musí být jedno slovo bez diakritiky, například `recorder`.");
@@ -756,7 +731,7 @@ function check(strict = false) {
   for (const language of languages()) {
     const target = load(language);
     const translated = Object.keys(target.entries);
-    const forms = CLDR_FORMS[language] ?? ["one", "other"];
+    const forms = pluralForms(language);
     // Czech has four plural categories and most languages have fewer. A form
     // the target language never selects is not missing, it is inapplicable.
     const wanted = keys.filter((key) => {
@@ -863,7 +838,7 @@ function check(strict = false) {
 function exportLanguage(language) {
   const source = load("cs");
   const target = load(language);
-  const forms = CLDR_FORMS[language] ?? ["one", "other"];
+  const forms = pluralForms(language);
 
   const items = {};
   let skipped = 0;
@@ -963,7 +938,6 @@ const [command, language, file] = process.argv.slice(2);
 if (command === "check") check(process.argv.includes("--strict"));
 else if (command === "sync") sync();
 else if (command === "new" && language) createNamespace(language);
-else if (command === "clear" && language) clearLanguage(language);
 else if (command === "export" && language) exportLanguage(language);
 else if (command === "import" && language && file) importLanguage(language, file);
 else if (command === "approve" && language) approve(language, process.argv.slice(4));
@@ -976,6 +950,5 @@ else {
   console.log("  i18n.mjs export <jazyk>           vypsat, co zbývá přeložit");
   console.log("  i18n.mjs import <jazyk> <soubor>  načíst hotový překlad");
   console.log("  i18n.mjs approve <jazyk> [klíče]  potvrdit, že překlad odpovídá dnešní češtině");
-  console.log("  i18n.mjs clear <jazyk>            vyprázdnit jazyk zpět na češtinu");
   process.exitCode = 1;
 }

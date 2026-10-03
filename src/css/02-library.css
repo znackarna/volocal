@@ -538,14 +538,29 @@
 /* Buttons centred in the block, not pinned to the top. */
 .row-actions { display: flex; gap: 4px; align-items: center; }
 
-.action-menu { position: relative; }
 .action-menu-list {
-  position: absolute; top: calc(100% + 6px); right: 0; z-index: 40;
   min-width: 190px; padding: 6px;
   background: var(--panel); border: 1px solid var(--line);
   border-radius: var(--r-large); box-shadow: var(--shadow-high);
   display: flex; flex-direction: column;
 }
+/* A menu opened by a button is a popover (`Popover.tsx`): it sits in the top
+   layer, so no scrolling box clips it, and it is anchored to the button that
+   opened it (`popovertarget`, the implicit anchor). The first line takes back
+   what the browser gives every popover — centred in the window, a border,
+   padding, its own colours. The rest puts it 6 px under the button, right
+   edges aligned, and turns it upwards when the window has no room below. The
+   save menu shares the rule. */
+.action-menu-list[popover], .save-list[popover] {
+  position: fixed; inset: auto; margin: 6px 0 0; color: inherit; overflow: visible;
+  position-area: bottom span-left;
+  position-try-fallbacks: flip-block;
+}
+/* The surface stays in the page while closed. The browser hides a closed
+   popover with `display: none`, and `display: flex` above, being the author's,
+   would win over it — the closed menu stayed on screen in a test page. */
+.action-menu-list[popover]:not(:popover-open),
+.save-list[popover]:not(:popover-open) { display: none; }
 .action-menu-list button {
   display: flex; align-items: center; gap: 10px;
   border: 0; background: none; cursor: pointer; text-align: left;

@@ -4,13 +4,14 @@ import { listen } from "@tauri-apps/api/event";
 import { api } from "./api";
 import { equalizerAtTime, handleRatio, Waveform } from "./player";
 import { LineIcon } from "./icons";
-import { recorderTime, useRecorder, useSpectrum } from "./recorder";
+import { useRecorder, useSpectrum } from "./recorder";
 import type { RecorderPhase } from "./recorder";
 import { useDialog } from "./useDialog";
 import { useI18n } from "./i18n";
 import { DiscardIcon } from "./detail/documents";
 import type { TranslationKey } from "./i18n";
 import { useProgressMessage, useUserMessage } from "./messages";
+import { formatTime } from "./types";
 import type { DownloadProgress, Recording, UserMessage } from "./types";
 
 type OnlineImportPhase =
@@ -625,8 +626,8 @@ function MicrophoneView({
           {(phase === "recording" || phase === "preview" || phase === "saving") && (
             <span className="mic-time">
               {(playing || position > 0) &&
-                `${recorderTime(Math.floor(position))} / `}
-              {recorderTime(recorder.seconds)}
+                `${formatTime(Math.floor(position))} / `}
+              {formatTime(recorder.seconds)}
             </span>
           )}
         </div>

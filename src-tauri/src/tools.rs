@@ -1263,26 +1263,13 @@ const TEMPORARY_FOLDERS: [&str; 4] = [
 /// Safe to call only at startup, before anything has been started: at that
 /// moment nothing can be using these folders. Returns the bytes reclaimed.
 pub fn clear_leftover_temporary() -> u64 {
-    fn size_of(path: &Path) -> u64 {
-        let Ok(entries) = std::fs::read_dir(path) else {
-            return 0;
-        };
-        entries
-            .filter_map(|e| e.ok())
-            .map(|e| match e.file_type() {
-                Ok(t) if t.is_dir() => size_of(&e.path()),
-                _ => e.metadata().map(|m| m.len()).unwrap_or(0),
-            })
-            .sum()
-    }
-
     let mut reclaimed = 0;
     for name in TEMPORARY_FOLDERS {
         let folder = std::env::temp_dir().join(name);
         if !folder.is_dir() {
             continue;
         }
-        let size = size_of(&folder);
+        let size = crate::download::directory_size(&folder);
         if std::fs::remove_dir_all(&folder).is_ok() {
             reclaimed += size;
         }
@@ -1304,19 +1291,6 @@ pub fn clear_leftover_temporary() -> u64 {
 /// Same rule as `clear_leftover_temporary`: startup only, before anything has
 /// been started, when nothing can be inside one of them.
 pub fn clear_leftover_imports(recordings: &Path) -> u64 {
-    fn size_of(path: &Path) -> u64 {
-        let Ok(entries) = std::fs::read_dir(path) else {
-            return 0;
-        };
-        entries
-            .filter_map(|e| e.ok())
-            .map(|e| match e.file_type() {
-                Ok(t) if t.is_dir() => size_of(&e.path()),
-                _ => e.metadata().map(|m| m.len()).unwrap_or(0),
-            })
-            .sum()
-    }
-
     let Ok(entries) = std::fs::read_dir(recordings) else {
         return 0;
     };
@@ -1332,7 +1306,7 @@ pub fn clear_leftover_imports(recordings: &Path) -> u64 {
         if !ours || !path.is_dir() {
             continue;
         }
-        let size = size_of(&path);
+        let size = crate::download::directory_size(&path);
         if std::fs::remove_dir_all(&path).is_ok() {
             reclaimed += size;
         }

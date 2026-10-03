@@ -88,22 +88,17 @@ pub struct DownloadComponent {
     pub origin_verified: bool,
     /// File whose presence means this component is complete (relative to root)
     verification_path: String,
-    source: Source,
+    /// The address of one artefact, named exactly.
+    ///
+    /// There used to be a second kind of source that searched recent GitHub releases for a
+    /// file matching a pattern, because asset names carry the version and therefore
+    /// change. It is gone: what it downloaded depended on what the project had
+    /// published that morning, every machine could receive a different build, and
+    /// no digest could ever be written down for it. A version is now chosen
+    /// deliberately in `components.json`, and moving to a newer one is a pull
+    /// request somebody reads — proposed weekly by `scripts/update-components.mjs`.
+    source: String,
     destination: Destination,
-}
-
-/// One artefact, named exactly.
-///
-/// There used to be a second variant that searched recent GitHub releases for a
-/// file matching a pattern, because asset names carry the version and therefore
-/// change. It is gone: what it downloaded depended on what the project had
-/// published that morning, every machine could receive a different build, and
-/// no digest could ever be written down for it. A version is now chosen
-/// deliberately in `components.json`, and moving to a newer one is a pull
-/// request somebody reads — proposed weekly by `scripts/update-components.mjs`.
-#[derive(Serialize, Deserialize, Clone, Debug)]
-enum Source {
-    Url(String),
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -183,7 +178,7 @@ fn raw_catalog() -> Vec<DownloadComponent> {
              required: bool,
              verification_path: &str,
              destination: Destination| DownloadComponent {
-        source: Source::Url(pin(id).url.clone()),
+        source: pin(id).url.clone(),
         id: id.into(),
         name_code: format!("catalog.{id}.name"),
         description_code: format!("catalog.{id}.description"),
@@ -525,7 +520,7 @@ pub fn installed_megabytes(settings: &crate::db::Settings) -> f64 {
 /// opened — so several gigabytes of models cost a few dozen directory reads.
 /// A folder that is not there is nothing rather than an error: it is what a
 /// machine that has downloaded nothing has.
-fn directory_size(root: &Path) -> u64 {
+pub(crate) fn directory_size(root: &Path) -> u64 {
     let mut total = 0;
     let mut pending = vec![root.to_path_buf()];
     while let Some(directory) = pending.pop() {
@@ -639,12 +634,6 @@ fn client() -> Result<reqwest::blocking::Client> {
         .tcp_keepalive_interval(KEEPALIVE_INTERVAL)
         .tcp_keepalive_retries(KEEPALIVE_RETRIES)
         .build()?)
-}
-
-fn resolve_url(source: &Source) -> String {
-    match source {
-        Source::Url(url) => url.clone(),
-    }
 }
 
 /// The server a URL names, for a sentence a person reads.
@@ -961,7 +950,12 @@ fn download_file(
 
     file.flush()?;
     drop(file);
-    place_verified(&partial, target, hex::encode(digest.finalize()), expected)
+    place_verified(
+        &partial,
+        target,
+        format!("{:x}", digest.finalize()),
+        expected,
+    )
 }
 
 /// The last gate before a downloaded file becomes the installed one.
@@ -1563,7 +1557,7 @@ pub fn install_component(
         },
     );
 
-    let url = resolve_url(&component.source);
+    let url = component.source.clone();
     let expected = expected_hash(&component.id);
     // The digest of what actually arrived, whether or not anything was
     // expected. It goes into the record so that a later version, once the
@@ -2431,7 +2425,7 @@ mod tests {
     fn sha256_of(bytes: &[u8]) -> String {
         let mut digest = Sha256::new();
         digest.update(bytes);
-        hex::encode(digest.finalize())
+        format!("{:x}", digest.finalize())
     }
 
     /// The published vector for the empty input. If this fails, the digest is
@@ -3184,7 +3178,7 @@ mod tests {
     #[test]
     fn no_address_points_at_whatever_is_newest() {
         for component in raw_catalog() {
-            let Source::Url(url) = &component.source;
+            let url = &component.source;
             assert!(
                 !url.contains("/releases/latest/"),
                 "{} downloads whatever is newest",
@@ -3199,7 +3193,7 @@ mod tests {
     #[test]
     fn a_hashed_hugging_face_url_is_pinned_to_a_revision() {
         for component in raw_catalog() {
-            let Source::Url(url) = &component.source;
+            let url = &component.source;
             if !url.contains("huggingface.co") || expected_hash(&component.id).is_none() {
                 continue;
             }

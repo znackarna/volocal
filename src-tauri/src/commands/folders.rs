@@ -76,7 +76,7 @@ pub fn delete_folder(app: State<'_, AppState>, id: String, contents: bool) -> Re
         // One transaction over the whole errand. Giving up in the middle of
         // the loop used to leave some recordings deleted, the rest in a folder
         // that was about to go, and nothing said about either.
-        let tx = reported(db.unchecked_transaction().map_err(anyhow::Error::from))?;
+        let tx = db.unchecked_transaction()?;
         let ids = if contents {
             reported(db::folder_recording_ids(&tx, &id))?
         } else {
@@ -86,7 +86,7 @@ pub fn delete_folder(app: State<'_, AppState>, id: String, contents: bool) -> Re
             reported(db::delete_recording(&tx, recording))?;
         }
         reported(db::delete_folder(&tx, &id))?;
-        reported(tx.commit().map_err(anyhow::Error::from))?;
+        tx.commit()?;
         ids
     };
     // Outside the lock: each removal has its own playback proxies to clear.

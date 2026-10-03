@@ -5563,7 +5563,6 @@ dependencies = [
  "anyhow",
  "chrono",
  "clap",
- "hex",
  "ort",
  "ratatui",
  "regex",

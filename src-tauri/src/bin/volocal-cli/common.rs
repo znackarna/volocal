@@ -21,15 +21,8 @@ pub fn short(id: &str) -> &str {
     id.get(..8).unwrap_or(id)
 }
 
-pub fn clock(seconds: f64) -> String {
-    let total = seconds.max(0.0).round() as u64;
-    let (h, m, s) = (total / 3600, (total % 3600) / 60, total % 60);
-    if h > 0 {
-        format!("{h}:{m:02}:{s:02}")
-    } else {
-        format!("{m}:{s:02}")
-    }
-}
+/// A length as the window writes it, `0:14` or `1:12:34`.
+pub use volocal_lib::export::format_duration as clock;
 
 /// A message from the engine in the words the window would use.
 ///

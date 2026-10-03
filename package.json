@@ -19,7 +19,6 @@
     "i18n:new": "node scripts/i18n.mjs new",
     "i18n:export": "node scripts/i18n.mjs export",
     "i18n:import": "node scripts/i18n.mjs import",
-    "i18n:clear": "node scripts/i18n.mjs clear",
     "i18n:approve": "node scripts/i18n.mjs approve"
   },
   "dependencies": {

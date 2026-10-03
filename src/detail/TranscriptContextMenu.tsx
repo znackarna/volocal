@@ -1,5 +1,6 @@
 /** The menu the right button opens over the transcript. */
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { PointedPopover } from "../Popover";
 /** One action in the transcript's context menu.
  *
  *  An item with `children` opens them in place of the menu rather than acting,
@@ -52,31 +53,24 @@ export function TranscriptContextMenu({
     surface.current?.querySelector("button")?.focus();
   }, [x, y, submenu]);
 
+  // A click outside and Escape close it through the popover. These two the
+  // browser does not know about: scrolling the transcript or resizing the
+  // window would leave the menu pointing at nothing.
   useEffect(() => {
-    const away = (event: MouseEvent) => {
-      if (!surface.current?.contains(event.target as Node)) onClose();
-    };
-    const key = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    document.addEventListener("mousedown", away);
-    document.addEventListener("keydown", key);
     window.addEventListener("resize", onClose);
-    // Scrolling the transcript would leave the menu pointing at nothing.
     window.addEventListener("scroll", onClose, true);
     return () => {
-      document.removeEventListener("mousedown", away);
-      document.removeEventListener("keydown", key);
       window.removeEventListener("resize", onClose);
       window.removeEventListener("scroll", onClose, true);
     };
   }, [onClose]);
 
   return (
-    <div
+    <PointedPopover
       className="context-menu"
       style={{ left: placed.left, top: placed.top }}
-      ref={surface}
+      surface={surface}
+      onDismiss={onClose}
     >
       <div className="action-menu-list" role="menu">
         {submenu && (
@@ -118,7 +112,7 @@ export function TranscriptContextMenu({
           </button>
         ))}
       </div>
-    </div>
+    </PointedPopover>
   );
 }
 

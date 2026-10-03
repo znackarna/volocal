@@ -1,4 +1,4 @@
-/* The presentation page as site.yml publishes it to Vercel: the same files from
+/* The presentation page: the same files from
  * docs/site, the English page made from the Czech one, and the version a reader
  * can download written into both. Read from disk on request, so there is no
  * copy of the page to drift from the one in the repository. */
@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 
 const SITE = join(process.cwd(), "..", "docs", "site");
 
-// What site.yml copies into `_site`. The rest of docs/site is how the page is
+// What is served. The rest of docs/site is how the page is
 // worked on, not part of it.
 const FILES = new Set([
   "brand.css",
@@ -88,9 +88,8 @@ async function englishTemplate() {
 
 // ----------------------------------------------------------------- the version
 
-// site.yml writes the latest release into the page when it deploys, and deploys
-// again when a release is published. Here a release is not an event the server
-// hears about, so the number is asked for every ten minutes instead.
+// The latest release is written into the page. A release is not an event the
+// server hears about, so the number is asked for every ten minutes instead.
 const RELEASES = "https://api.github.com/repos/znackarna/volocal/releases/latest";
 const FRESH = 10 * 60_000;
 const RETRY = 60_000;

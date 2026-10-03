@@ -1,41 +1,28 @@
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import type { MouseEvent as ReactMouseEvent, ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { MouseEvent as ReactMouseEvent } from "react";
 import { open, save } from "@tauri-apps/plugin-dialog";
-import { listen } from "@tauri-apps/api/event";
 
 import { api } from "./api";
 import InfoNote from "./InfoNote";
 import PlaybackControls from "./PlaybackControls";
 import ConfirmationDialog from "./ConfirmationDialog";
 import type { ConfirmationRequest } from "./ConfirmationDialog";
-import { LineIcon, type LineIconName } from "./icons";
-import { changedWords } from "./transcriptText";
-import { Wordmark } from "./Brand";
+import { LineIcon } from "./icons";
 import {
   usePlayer,
 } from "./player";
 import { useI18n } from "./i18n";
-import { useProgressMessage, useUserMessage } from "./messages";
-import type { TranslationKey } from "./i18n";
-import { useLabels } from "./labels";
+import { useUserMessage } from "./messages";
 import {
   formatTime,
   fileName,
 } from "./types";
-import { useFormats } from "./formats";
 import { useProgressiveList } from "./progressiveList";
 /* The transcript screen's own parts. They were all in this file until it had
    grown to 3 688 lines; each of these is a piece somebody reads on its own. */
-import {
-  EXPORT_FORMATS,
-} from "./detail/documents";
 import { copyPlainText } from "./detail/clipboard";
-import type {
-} from "./detail/documents";
 import {
   PlayMark,
-  SIDEBAR_SECTIONS,
-  SidebarEmpty,
   SidebarSection,
   readOpenSections,
 } from "./detail/sidebar";
@@ -67,16 +54,12 @@ import { useDetailPlayback } from "./detail/useDetailPlayback";
 import { useRecordingDetail } from "./detail/useRecordingDetail";
 import type { LoadedRecording } from "./detail/useRecordingDetail";
 import { MENU_ICONS, TranscriptContextMenu } from "./detail/TranscriptContextMenu";
-import type { TranscriptMenuItem } from "./detail/TranscriptContextMenu";
 import { SegmentRow } from "./detail/corrections";
 import type {
   Folder,
-  AiEditProgress,
-  Speaker,
   Segment,
   TranscriptionProgress,
   LiveSegment,
-  RecordingNote,
 } from "./types";
 
 interface Props {
@@ -145,10 +128,6 @@ export default function Detail({
 }: Props) {
   const { t, tPlural } = useI18n();
   const userMessage = useUserMessage();
-  const progressMessage = useProgressMessage();
-  const labels = useLabels();
-  /** For the one sentence that names how large the language editor is. */
-  const { dataSize } = useFormats();
   /* Everything one visit to the backend brings back is given out here, not
      inside the hook that fetched it: six things belonging to five owners, and
      the wiring is meant to be visible.
@@ -207,7 +186,6 @@ export default function Detail({
   );
   // The source file may have been deleted after transcription — the text
   // stays in the database, but there is nothing to play.
-  const listRef = useRef<HTMLDivElement>(null);
 
   // ---------------------------------------------------------------- loading
   // Everything is gathered first and only then written to state.

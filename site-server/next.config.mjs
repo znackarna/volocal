@@ -28,8 +28,8 @@ export default async function config(phase) {
   };
 }
 
-// The two things that make site.yml fail, checked before the build, so a page
-// it would have refused never replaces the one being served.
+// The two things that make the page unservable, checked before the build, so a
+// broken page never replaces the one being served.
 async function check() {
   let english;
   try {
