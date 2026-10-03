@@ -4,6 +4,7 @@ import { api } from "./api";
 import ConfirmationDialog from "./ConfirmationDialog";
 import type { ConfirmationRequest } from "./ConfirmationDialog";
 import InfoNote from "./InfoNote";
+import { Filled } from "./settings/filled";
 import { LineIcon, ModelMark } from "./icons";
 import { useI18n, type TranslationKey } from "./i18n";
 import { useProgressMessage, useUserMessage } from "./messages";
@@ -828,10 +829,6 @@ export default function SetupWizard({
     ? tDynamic(currentItem.name_code, currentItem.id)
     : t("wizard.download.preparing");
 
-  // The keyboard key is set in bold inside the sentence, so the sentence is
-  // split around its placeholder instead of being assembled from fragments.
-  const tabHint = t("wizard.done.tabHint").split("{key}");
-
   /** Name of a catalogue item; the identifier stands in until it is loaded. */
   const itemName = (id: string) => {
     const item = items.find((p) => p.id === id);
@@ -1211,10 +1208,10 @@ export default function SetupWizard({
                     would be a second one stacked on top. Geometry unchanged
                     from the plain `.small-text` line this replaces. */}
                 <InfoNote compact>
-                  {tabHint[0]}
-                  {/* i18n-ignore: the key is labelled F3 on every keyboard */}
-                  <strong>F3</strong>
-                  {tabHint[1] ?? ""}
+                  <Filled message={t("wizard.done.tabHint")} name="key">
+                    {/* i18n-ignore: the key is labelled F3 on every keyboard */}
+                    <strong>F3</strong>
+                  </Filled>
                 </InfoNote>
                 <div className="dialog-footer">
                   <button className="button primary" onClick={onComplete}>

@@ -1590,6 +1590,47 @@
    stands for to choose it. */
 .shot .clip-shape-note,
 .shot .save-choice-note { font-size: 12.5px; color: var(--text-quiet); }
+/* The container the audio is written in, on the row that writes it. A third
+   line of the same grid column rather than a control beside the name: the
+   question is *in what*, which follows *whether*, and a row that answers two
+   questions on one line reads as two rows.
+
+   `.choice`'s geometry would be far too big for three words, so these take the
+   segmented control's instead — 26 px against its 30, because that one sits in
+   a track and this one stands in a list. */
+/* A third column, and only here: `.clip-shape` shares the grid above and has
+   nothing to put in it. It is `auto`, so on the five rows with no buttons it
+   collapses to nothing and they are the two-column rows they were. */
+.shot .save-choice { grid-template-columns: auto 1fr auto; }
+/* **And both texts are told which column they are in.** Auto-placement fills
+   the first free cell, so with a third column standing open the note of every
+   row without buttons went into it — sitting to the right of its own name
+   instead of under it, on five of the six rows. Only the audio row looked
+   right, because its buttons had taken that cell. */
+.shot .save-choice .save-choice-name,
+.shot .save-choice .save-choice-note { grid-column: 2; }
+/* Against the right edge, and across both text lines rather than under them —
+   so the row keeps the height it has. Asked for on 2026-09-08: *zarovnal
+   na právo a nezvyšoval ten blok*. */
+.shot .save-formats {
+  grid-column: 3; grid-row: 1 / span 2; align-self: center;
+  display: flex; gap: 6px;
+}
+.shot .save-format {
+  height: 26px; padding: 0 11px;
+  border: 1px solid var(--line); border-radius: var(--r-pill);
+  background: transparent; color: var(--text-quiet);
+  font: inherit; font-size: 12px; font-weight: 650;
+  cursor: pointer;
+  transition: background var(--hover-duration) var(--hover-ease),
+    color var(--hover-duration) var(--hover-ease),
+    border-color var(--hover-duration) var(--hover-ease);
+}
+.shot .save-format:hover { background: var(--muted); color: var(--text); }
+.shot .save-format.chosen {
+  border-color: transparent; background: var(--accent-light); color: var(--accent);
+}
+
 /* There is no finished state to draw: a fill that is done is said in the
    notice bar like every other confirmation, and this bar simply goes. */
 
@@ -2539,32 +2580,6 @@
    Weight is not what makes it findable, and at 600 beside a 15/600 title the
    two read as equals. */
 .shot .choice-size { font-size: 13px; font-weight: 500; color: var(--text-quiet); white-space: nowrap; font-variant-numeric: tabular-nums; }
-/* What a choice costs, as a line inside the card rather than a figure in a
-   column at its edge. The wizard's two quality cards are the only cards that
-   need it: a size alone answers *how many megabytes*, and what somebody
-   choosing a transcription model is weighing is minutes against megabytes,
-   which is one sentence and not two columns.
-
-   It is `.choice-size`'s own type — 13 px, 500, `--text-quiet`, `tabular-nums`,
-   the pair documented above — and deliberately not that class, for the one
-   property it must not take: `.choice-size` is `nowrap`, which is right for a
-   figure in a column and wrong for a sentence that has to wrap at 520 px in
-   whatever language it is read in. */
-.shot .choice-cost { font-size: 13px; font-weight: 500; color: var(--text-quiet); font-variant-numeric: tabular-nums; }
-/* Three points on top of `.choice-body`'s own three, so the card reads as a
-   name over its detail and then two statements of a different kind. At the
-   plain 3 px all four lines sat in one block: the description and the cost are
-   both 13 px and both quiet, and 500 against 400 is the whole of what tells
-   them apart within a line. Six is what separates them as blocks. */
-.shot .choice-cost,
-.shot .choice-reason { margin-top: 3px; }
-/* Why this card is the one for this computer. It replaced a `doporučeno` badge,
-   and the colour is the badge's accent kept: this is still the application
-   pointing at one of two cards, and losing the accent would have made the
-   recommendation quieter than the sentence above it, which is the wrong way
-   round. 600 rather than the 700 a badge carries — it is a sentence now, and
-   700 over three lines of it reads as shouting. */
-.shot .choice-reason { font-size: 13px; font-weight: 600; color: var(--accent); line-height: 1.45; }
 
 .shot .badge {
   font-style: normal; font-size: 11px; font-weight: 700;
@@ -2854,6 +2869,38 @@
   padding: 24px 26px; width: 100%; max-width: 420px;
   max-height: calc(100vh - 48px); overflow-y: auto;
   animation: dialog-nabehne 0.14s ease-out;
+}
+/* The notice, when one is open. The bar carries `z-index: 70` so a message is
+   never lost behind the scrim — and what that left was a coloured strip
+   floating on a blurred backdrop, belonging to nothing on screen. It is drawn
+   inside the dialog now (`NoticeBar` portals it to a host `useDialog` names),
+   so it belongs to the surface the reader is looking at.
+
+   Bled to the dialog's own edges by its padding, and the top corners are the
+   dialog's less its border, which is how an inset radius meets an outset one.
+   18 px below, the same gap the heading gives its sentence's content. */
+/* **No negative margins.** They were `-24px -26px`, the padding `.dialog`
+   carries — and a dialog with padding of its own, as the language model's
+   preview has, then pushed the bar out through its own top edge, clipped
+   against the window behind. The bar takes whatever box it is put in. */
+.shot .dialog-notice { margin-bottom: 18px; }
+/* A slot the dialog placed itself sits exactly where it was placed — no gap of
+   its own, so the bar lands on the boundary the dialog already draws rather
+   than floating below it. It takes no room at all until there is something to
+   say. Asked for on 8 September: *dej tomu rovne ostre rohy a posad to presne
+   na tu linku*. */
+.shot .dialog-notice-slot { flex: 0 0 auto; }
+.shot .dialog-notice-slot:empty { display: none; }
+.shot .dialog-notice .notice,
+.shot .dialog-notice-slot .notice {
+  /* Square. Inside a dialog the bar is a band across it, not a card lying on
+     it, and a rounded corner over a straight edge is what made it read as a
+     second thing on top of the first. */
+  border-radius: 0;
+  /* Inside a dialog nothing can be painted over it, so the raising is not
+     needed — and leaving it would lift the bar over a dialog opened on top of
+     this one. */
+  z-index: auto;
 }
 @keyframes dialog-nabehne {
   from { opacity: 0; transform: translateY(6px) scale(0.98); }
@@ -4012,7 +4059,7 @@
 
    The wizard's two quality cards were the third user and are not any more:
    their size moved into the card as part of a sentence about what the choice
-   costs on this machine — see `.choice-cost`. Nothing else changed for them,
+   costs on this machine. Nothing else changed for them,
    and the rule is left as it is because the Settings cards still need it. */
 .shot .choice.with-icon > .badge,
 .shot .choice.with-icon > .choice-size { flex: 0 0 auto; margin-left: auto; }
@@ -4307,12 +4354,6 @@
 .shot .document-save-menu.opens-above {
   top: auto; bottom: calc(100% + 6px);
 }
-.shot .save-menu-group {
-  display: block; padding: 9px 12px 5px;
-  font-size: 11px; font-weight: 700; letter-spacing: 0.09em;
-  text-transform: uppercase; color: var(--text-quiet);
-}
-.shot .save-menu-group:not(:first-child) { margin-top: 4px; border-top: 1px solid var(--line); }
 .shot .save-list button {
   display: grid; grid-template-columns: 46px 1fr; align-items: baseline;
   gap: 10px; width: 100%; text-align: left; cursor: pointer;

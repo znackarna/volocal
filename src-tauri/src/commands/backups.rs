@@ -192,7 +192,7 @@ pub fn restore_backup(app: State<'_, AppState>, file: String) -> Reported<()> {
         crate::note!("restore: the archive could not be copied aside: {error}");
     }
 
-    *held = reported(Connection::open(":memory:").map_err(anyhow::Error::from))?;
+    *held = Connection::open(":memory:")?;
 
     let replaced = std::fs::copy(&source, &app.db_path).map(|_| ());
     for suffix in ["-wal", "-shm"] {
@@ -205,7 +205,7 @@ pub fn restore_backup(app: State<'_, AppState>, file: String) -> Reported<()> {
     // holding `:memory:` would make every screen answer with an empty archive,
     // which is the lie this whole day has been about.
     *held = reported(db::open(&app.db_path))?;
-    reported(replaced.map_err(anyhow::Error::from))?;
+    replaced?;
     crate::note!("restore: the archive was replaced with {file}");
     Ok(())
 }
@@ -334,7 +334,7 @@ pub fn import_archive(app: State<'_, AppState>, path: String) -> Reported<()> {
         crate::note!("import: the archive could not be copied aside: {error}");
     }
 
-    *held = reported(Connection::open(":memory:").map_err(anyhow::Error::from))?;
+    *held = Connection::open(":memory:")?;
 
     let replaced = std::fs::copy(&source, &app.db_path).map(|_| ());
     for suffix in ["-wal", "-shm"] {
@@ -347,7 +347,7 @@ pub fn import_archive(app: State<'_, AppState>, path: String) -> Reported<()> {
     // an application left holding `:memory:` answers every screen with an empty
     // archive.
     *held = reported(db::open(&app.db_path))?;
-    reported(replaced.map_err(anyhow::Error::from))?;
+    replaced?;
     crate::note!("archive: replaced with the one at {}", source.display());
     Ok(())
 }
