@@ -1323,6 +1323,7 @@ mod tests {
         press(&mut app, &[Key::Char('s')]);
         let text = screen(&app, 100, 30, "status");
         assert!(text.contains("SOUČÁSTI"), "{text}");
+        assert!(text.contains("▲ ● ■ Značkárna"), "{text}");
         let _ = std::fs::remove_dir_all(folder);
     }
 

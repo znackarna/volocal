@@ -343,6 +343,18 @@ impl Theme {
         }
     }
 
+    /// The publisher's mark: red, green and blue, the same in both themes,
+    /// because a signature keeps its colours (`ZnackarnaMark` in `Brand.tsx`).
+    pub fn brand(&self, which: usize) -> Style {
+        const VALUES: [u32; 3] = [0xff1c26, 0x7ac942, 0x007aff];
+        const SIXTEEN: [Color; 3] = [Color::LightRed, Color::LightGreen, Color::LightBlue];
+        match self.colours {
+            Colours::Full | Colours::Indexed => Style::new().fg(self.colour(VALUES[which % 3])),
+            Colours::Sixteen => Style::new().fg(SIXTEEN[which % 3]),
+            Colours::None => Style::new(),
+        }
+    }
+
     /// A speaker's name, by the colour stored with them.
     pub fn speaker(&self, hex: &str) -> Style {
         self.fg(&SPEAKERS[speaker_index(hex)])

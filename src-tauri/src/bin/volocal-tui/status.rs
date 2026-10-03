@@ -159,9 +159,31 @@ impl Status {
                 }
             }
         }
+        // The last row is the publisher's, so the lines stop one short of it.
         frame.render_widget(
             Paragraph::new(lines),
-            ui::rows(area, 9, area.height.saturating_sub(9)),
+            ui::rows(area, 9, area.height.saturating_sub(10)),
         );
+
+        // The publisher, bottom right: one character a shape, in its colours.
+        let mut signature = Vec::new();
+        if g.braille {
+            for (i, shape) in ["▲", "●", "■"].iter().enumerate() {
+                signature.push(Span::styled(format!("{shape} "), theme.brand(i)));
+            }
+        }
+        signature.push(Span::styled("Značkárna  ", theme.muted()));
+        let width = ui::line_cells(&signature) as u16;
+        if area.height > 10 && area.width > width {
+            frame.render_widget(
+                Paragraph::new(Line::from(signature)),
+                Rect {
+                    x: area.right() - width,
+                    y: area.bottom() - 1,
+                    width,
+                    height: 1,
+                },
+            );
+        }
     }
 }
