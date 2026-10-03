@@ -46,7 +46,7 @@ the time.
 | [2026-09-08](2026-09-08.md) | 4 | The audio row could not succeed for a video, and had nowhere to say so … |
 | [2026-09-25](2026-09-25.md) | 1 | Settings stops offering itself … |
 | [2026-10-02](2026-10-02.md) | 13 | The page can be served from our own server, and Vercel keeps serving it until the address moves; volocal.app moved to the server, Umami instead of Vercel Analytics |
-| [2026-10-03](2026-10-03.md) | 4 | Dead code, finished plans and the Vercel workflow removed; small Rust duplicates folded, `hex` dropped; the rest of the audit that cannot change behaviour |
+| [2026-10-03](2026-10-03.md) | 5 | Dead code, finished plans and the Vercel workflow removed; small Rust duplicates folded, `hex` dropped; the rest of the audit that cannot change behaviour |
 
 ## What each day was about
 

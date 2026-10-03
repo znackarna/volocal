@@ -608,18 +608,14 @@ button.current > .row-play { color: var(--accent); }
 .transcript-empty h2 { margin: 0 0 18px; font-size: 16px; font-weight: 680; }
 
 /* ------------------------------------------------------- save as */
-.save { position: relative; }
 .save > .button { gap: 7px; }
 .save-arrow { color: var(--text-quiet); margin-left: 2px; }
+/* Placed beside its button by `.save-list[popover]` in 02-library.css. */
 .save-list {
-  position: absolute; top: calc(100% + 6px); right: 0; z-index: 40;
   min-width: 210px; padding: 6px;
   background: var(--panel); border: 1px solid var(--line);
   border-radius: var(--r-large); box-shadow: var(--shadow-high);
   display: flex; flex-direction: column;
-}
-.document-save-menu.opens-above {
-  top: auto; bottom: calc(100% + 6px);
 }
 .save-list button {
   display: grid; grid-template-columns: 46px 1fr; align-items: baseline;
@@ -872,6 +868,12 @@ button.current > .row-play { color: var(--accent); }
    but the two must not disagree in the meantime. */
 .context-menu {
   position: fixed; z-index: 60;
+}
+/* A popover too, placed by its own `left` and `top`; this takes back what the
+   browser gives every popover (centred, bordered, padded, its own colours). */
+.context-menu[popover] {
+  inset: auto; margin: 0; padding: 0; border: 0; background: none;
+  color: inherit; overflow: visible;
 }
 .context-menu .action-menu-list {
   position: static; min-width: 208px;

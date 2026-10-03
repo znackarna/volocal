@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { useI18n } from "./i18n";
 import { useLabels } from "./labels";
 import type { Folder } from "./types";
 import { LINE_ICONS } from "./icons";
+import { useMenu } from "./Popover";
 
 interface Props {
   status: string;
@@ -263,38 +264,21 @@ export function ActionMenu({
   className?: string;
 }) {
   const { t } = useI18n();
-  const [open, setOpen] = useState(false);
+  const menu = useMenu();
   /* Where the reader has walked in, outermost first. A single `submenu` was
      enough while nothing went two levels deep; the language item does, and
      Back from its second level has to return to its first, not to the top. */
   const [trail, setTrail] = useState<ActionItem[]>([]);
   const submenu = trail[trail.length - 1] ?? null;
-  const container = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!open) setTrail([]);
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    const handleOutsideClick = (event: MouseEvent) => {
-      if (!container.current?.contains(event.target as Node)) setOpen(false);
-    };
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("mousedown", handleOutsideClick);
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", handleOutsideClick);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [open]);
+    if (!menu.open) setTrail([]);
+  }, [menu.open]);
 
   return (
-    <div className={`action-menu ${className}`.trim()} ref={container}>
-      <button className="icon-button" onClick={() => setOpen((value) => !value)}
-              aria-haspopup="menu" aria-expanded={open}
+    <div className={`action-menu ${className}`.trim()}>
+      <button className="icon-button" ref={menu.trigger} onClick={menu.toggle}
+              aria-haspopup="menu" aria-expanded={menu.open}
               aria-label={t("dialogs.recordingMenu.more")}>
         <svg width="16" height="4" viewBox="0 0 16 4" aria-hidden>
           <circle cx="2" cy="2" r="1.7" fill="currentColor" />
@@ -302,8 +286,8 @@ export function ActionMenu({
           <circle cx="14" cy="2" r="1.7" fill="currentColor" />
         </svg>
       </button>
-      {open && (
-        <div className="action-menu-list" role="menu">
+      <div className="action-menu-list" role="menu" ref={menu.surface}>
+        {menu.open && (<>
           {submenu && (
             <button className="menu-back" onClick={() => setTrail((t) => t.slice(0, -1))}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -320,7 +304,7 @@ export function ActionMenu({
                         setTrail((t) => [...t, item]);
                         return;
                       }
-                      setOpen(false);
+                      menu.close();
                       item.action?.();
                     }}>
               {item.icon && <MenuIcon path={item.icon} />}
@@ -337,8 +321,8 @@ export function ActionMenu({
               )}
             </button>
           ))}
-        </div>
-      )}
+        </>)}
+      </div>
     </div>
   );
 }

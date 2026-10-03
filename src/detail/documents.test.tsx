@@ -1,91 +1,48 @@
 // @vitest-environment jsdom
 /**
- * Which way the save menu opens, over the report of 20 August: inside the
- * improved-transcript dialog it opened downwards and the dialog — which
- * scrolls, and therefore clips — cut it in half.
+ * The save menu in the improved-transcript dialog.
  *
- * jsdom does no layout, so the geometry is supplied: what is being pinned is
- * the decision, and the decision was reading the wrong box.
+ * On 20 August it opened downwards inside the dialog, and the dialog, which
+ * scrolls and therefore clips, cut it in half. It then measured the nearest
+ * scrolling box to decide which way to open. Since 2026-10-03 it is a popover:
+ * it sits in the top layer, above the dialog, where nothing clips it, and the
+ * CSS flips it upwards at the window's edge. jsdom does neither layout nor the
+ * top layer, so what is pinned here is that it is a popover anchored to its
+ * button, and that it arrives whole.
  */
-import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { afterEach, describe, expect, test } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { I18nProvider } from "../i18n";
 import { DocumentSaveMenu } from "./documents";
 import { enCommon } from "../locales/en/common";
 
-/** A window 1000 tall, and inside it a dialog that scrolls. */
-function stage({ dialogBottom, buttonTop }: { dialogBottom: number; buttonTop: number }) {
-  window.innerHeight = 1000;
-
-  const view = render(
+function openMenu() {
+  render(
     <I18nProvider>
-      <div data-testid="dialog" style={{ overflowY: "auto" }}>
-        <DocumentSaveMenu disabled={false} onChoose={() => {}} />
-      </div>
+      <DocumentSaveMenu disabled={false} onChoose={() => {}} />
     </I18nProvider>
   );
-
-  const dialog = screen.getByTestId("dialog");
-  dialog.getBoundingClientRect = () =>
-    ({ top: 100, bottom: dialogBottom }) as DOMRect;
-
-  // The menu's own container is the button's parent.
-  const button = screen.getByText(enCommon["common.save"]!).closest("button")!;
-  const container = button.parentElement!;
-  container.getBoundingClientRect = () =>
-    ({ top: buttonTop, bottom: buttonTop + 34 }) as DOMRect;
-
-  return { view, button };
+  fireEvent.click(screen.getByText(enCommon["common.save"]!).closest("button")!);
+  return document.querySelector(".document-save-menu") as HTMLElement;
 }
 
-beforeEach(() => {
-  // jsdom reports "" for overflowY unless it is asked to compute it.
-  vi.spyOn(window, "getComputedStyle").mockImplementation(
-    (element: Element) =>
-      ({
-        overflowY: (element as HTMLElement).style.overflowY || "visible",
-      }) as CSSStyleDeclaration
-  );
-});
-
-afterEach(() => {
-  vi.restoreAllMocks();
-  cleanup();
-});
-
-const opensAbove = () =>
-  !!document.querySelector(".document-save-menu")?.classList.contains("opens-above");
+afterEach(() => cleanup());
 
 describe("the save menu", () => {
-  /** The reported fault. The window has 460 px below the button, so measuring
-   *  the window said *plenty of room* — while the dialog had 26 px. */
-  test("opens upwards when the dialog would cut it off, though the window would not", () => {
-    const { button } = stage({ dialogBottom: 540, buttonTop: 480 });
-
-    fireEvent.click(button);
-
-    expect(opensAbove()).toBe(true);
+  test("is a popover, so no scrolling dialog can cut it off", () => {
+    expect(openMenu().getAttribute("popover")).toBe("auto");
   });
 
-  /** And still opens downwards where the dialog really does have the room —
-   *  the flip is for the case that needs it, not the normal one. */
-  test("opens downwards when the dialog has room", () => {
-    const { button } = stage({ dialogBottom: 900, buttonTop: 300 });
-
-    fireEvent.click(button);
-
-    expect(opensAbove()).toBe(false);
-  });
-
-  /** Both formats are on offer either way — the menu that was being cut in
-   *  half is the one that has to arrive whole. */
   test("offers both formats", () => {
-    const { button } = stage({ dialogBottom: 540, buttonTop: 480 });
-
-    fireEvent.click(button);
-
+    openMenu();
     expect(screen.getByText("TXT")).toBeTruthy();
     expect(screen.getByText("MD")).toBeTruthy();
     expect(document.querySelectorAll(".document-save-menu button").length).toBe(2);
+  });
+
+  test("closes when the browser closes it", () => {
+    const menu = openMenu();
+    fireEvent(menu, Object.assign(new Event("toggle"), { newState: "closed" }));
+    expect(menu.querySelectorAll("button").length).toBe(0);
   });
 });

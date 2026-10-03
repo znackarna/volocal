@@ -99,22 +99,18 @@ describe("TranscriptContextMenu", () => {
     expect(order).toEqual(["close", "action"]);
   });
 
-  test("Escape closes it", () => {
-    const { onClose } = open();
-    fireEvent.keyDown(document, { key: "Escape" });
-    expect(onClose).toHaveBeenCalledTimes(1);
+  /** Escape and a press outside are the browser's now: the menu is a
+   *  popover, which closes on both by itself. What is the menu's own is that
+   *  the transcript hears about it. */
+  test("is a popover, so the browser closes it on Escape and a press outside", () => {
+    const { surface } = open();
+    expect(surface.getAttribute("popover")).toBe("auto");
   });
 
-  test("a press anywhere else closes it", () => {
-    const { onClose } = open();
-    fireEvent.mouseDown(document.body);
-    expect(onClose).toHaveBeenCalledTimes(1);
-  });
-
-  test("a press inside it does not", () => {
+  test("tells the transcript when the browser has closed it", () => {
     const { onClose, surface } = open();
-    fireEvent.mouseDown(surface);
-    expect(onClose).not.toHaveBeenCalled();
+    surface.dispatchEvent(Object.assign(new Event("toggle"), { newState: "closed" }));
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   test("scrolling the transcript closes it, because it was pointing at something", () => {

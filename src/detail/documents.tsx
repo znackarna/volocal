@@ -1,6 +1,6 @@
 /** The saved documents: which formats exist, which views the preview offers,
  *  and the two menus that write them to disk. */
-import { useEffect, useRef, useState } from "react";
+import { useMenu } from "../Popover";
 import { useI18n } from "./../i18n";
 import type { TranslationKey } from "./../i18n";
 export const EXPORT_FORMATS = ["txt", "md", "srt", "vtt", "json"] as const;
@@ -115,26 +115,14 @@ export function DiscardIcon() {
   );
 }
 
-/** The order the sidebar shows notes in, matching what the database returns.
- *  Notes about the whole recording come first in the order they were written;
-/** Compact format menu used in the document preview footer. */
-/** The edges of the first ancestor that clips, or the window where none does.
+/** Compact format menu used in the document preview footer.
  *
- *  `overflow` anything but `visible` cuts a child off at the box's edge, and
- *  an absolutely positioned menu is a child like any other. A dialog that
- *  scrolls is exactly such a box, and it is the one this menu lives in.
- */
-function clippingBox(from: HTMLElement | null): { top: number; bottom: number } {
-  for (let node = from?.parentElement; node; node = node.parentElement) {
-    const overflow = getComputedStyle(node).overflowY;
-    if (overflow && overflow !== "visible") {
-      const box = node.getBoundingClientRect();
-      return { top: box.top, bottom: box.bottom };
-    }
-  }
-  return { top: 0, bottom: window.innerHeight };
-}
-
+ *  It opens beside its button and turns upwards when the window has no room
+ *  below (`.document-save-menu` in the CSS). Until 2026-10-03 it measured that
+ *  itself, against the nearest scrolling box: inside the improved-transcript
+ *  dialog it had opened downwards and `.dialog`, which scrolls and so clips,
+ *  cut it in half (20 August). As a popover it sits above every dialog, where
+ *  nothing can clip it, so only the window's own edge is left to decide. */
 export function DocumentSaveMenu({
   disabled,
   onChoose,
@@ -143,56 +131,12 @@ export function DocumentSaveMenu({
   onChoose: (format: "txt" | "md") => void;
 }) {
   const { t } = useI18n();
-  const [open, setOpen] = useState(false);
-  const [openAbove, setOpenAbove] = useState(false);
-  const container = useRef<HTMLDivElement>(null);
-
-  const toggleMenu = () => {
-    if (open) {
-      setOpen(false);
-      return;
-    }
-
-    const bounds = container.current?.getBoundingClientRect();
-    if (bounds) {
-      /* **Measured against whatever will actually cut the menu off**, which
-         is not the window. This asked `window.innerHeight`, and inside the
-         improved-transcript dialog there is plenty of window below the footer
-         — so the menu opened downwards and `.dialog`, which scrolls and
-         therefore clips, took the bottom half of it. The reader saw TXT and
-         half of MD.
-
-         The nearest scrolling ancestor is the box that decides. Where there is
-         none, it is the window after all, which is what the fallback says. */
-      const room = clippingBox(container.current);
-      const roomBelow = room.bottom - bounds.bottom;
-      const roomAbove = bounds.top - room.top;
-      const estimatedMenuHeight = 112;
-      setOpenAbove(roomBelow < estimatedMenuHeight && roomAbove > roomBelow);
-    }
-    setOpen(true);
-  };
-
-  useEffect(() => {
-    if (!open) return;
-    const handleOutsideClick = (event: MouseEvent) => {
-      if (!container.current?.contains(event.target as Node)) setOpen(false);
-    };
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("mousedown", handleOutsideClick);
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", handleOutsideClick);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [open]);
+  const menu = useMenu();
 
   return (
-    <div className="save" ref={container}>
-      <button className="button primary" onClick={toggleMenu}
-              disabled={disabled} aria-haspopup="menu" aria-expanded={open}>
+    <div className="save">
+      <button className="button primary" ref={menu.trigger} onClick={menu.toggle}
+              disabled={disabled} aria-haspopup="menu" aria-expanded={menu.open}>
         <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden>
           <path d="M8 2v8M4.6 6.8 8 10.2l3.4-3.4M2.5 12.5h11"
                 stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"
@@ -205,22 +149,17 @@ export function DocumentSaveMenu({
                 strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </button>
-      {open && (
-        <div
-          className={`save-list document-save-menu${openAbove ? " opens-above" : ""}`}
-          role="menu"
-        >
-          {(["txt", "md"] as const).map((format) => (
-            <button key={format} role="menuitem" onClick={() => {
-              setOpen(false);
-              onChoose(format);
-            }}>
-              <span className="save-format">{format.toUpperCase()}</span>
-              <span className="save-label">{t(FORMAT_DESCRIPTIONS[format])}</span>
-            </button>
-          ))}
-        </div>
-      )}
+      <div className="save-list document-save-menu" role="menu" ref={menu.surface}>
+        {menu.open && (["txt", "md"] as const).map((format) => (
+          <button key={format} role="menuitem" onClick={() => {
+            menu.close();
+            onChoose(format);
+          }}>
+            <span className="save-format">{format.toUpperCase()}</span>
+            <span className="save-label">{t(FORMAT_DESCRIPTIONS[format])}</span>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { holdsOpenPopover } from "./Popover";
 
 /** What every modal in this application owes the keyboard: Escape closes it,
  *  Tab stays inside it, and when it goes the focus returns where it was.
@@ -42,6 +43,9 @@ export function useDialog<T extends HTMLElement>(onClose?: () => void, active = 
     // starts inside, which is what makes the events arrive here at all.
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape" && close.current) {
+        // A menu open inside the dialog takes Escape first, as a popover does
+        // by itself; closing the dialog under it as well would take both.
+        if (holdsOpenPopover(element)) return;
         event.preventDefault();
         close.current();
         return;
