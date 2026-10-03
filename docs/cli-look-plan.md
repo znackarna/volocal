@@ -59,9 +59,12 @@ says so.
   name in its colour.
 - **`status`** — a checklist: `✓` for what is found, `!` for what is missing
   with the window's sentence on where to get it, then whether it is ready.
-- **`export`, `export-audio`** — `✓ Saved` with the path; audio export, which
-  runs ffmpeg, shows the live block while it converts. A refusal (`already
-  exists; add --force`) is marked `✕` in the danger colour.
+- **`export`, `export-audio`** — stdout keeps the bare path, as today; when both
+  streams are terminals, stderr shows it as `✓ Saved` with the path. Audio
+  export, which runs ffmpeg, shows the mill while it converts; ffmpeg reports no
+  percent to it today.
+- **Errors** — on a terminal, `error:` becomes a `✕` in the danger colour; a
+  redirected stderr still ends with the `error:` line `docs/cli.md` promises.
 
 ## Look
 
