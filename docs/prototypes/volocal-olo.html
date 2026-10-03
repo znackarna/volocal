@@ -1,0 +1,1222 @@
+<title>volocal → olo</title>
+<style>
+  :root {
+    --ground: #FBFBFC;
+    --panel: #FFFFFF;
+    --panel-2: #F5F6F8;
+    --ink: #0C0E12;
+    --muted: #656C79;
+    --faint: #99A1B0;
+    --line: #E4E7EC;
+    --line-soft: #EFF1F4;
+    --red: #FF1C26;
+    --green: #7AC942;
+    --blue: #007AFF;
+    --blue-ink: #0063CF;
+    --blue-wash: #EAF3FF;
+    --shadow: 0 1px 2px rgba(12,14,18,.05), 0 8px 24px rgba(12,14,18,.06);
+    --ui: ui-sans-serif, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", "SF Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0D0F13;
+      --panel: #151920;
+      --panel-2: #1B2029;
+      --ink: #EDF0F4;
+      --muted: #949CAB;
+      --faint: #6C7484;
+      --line: #232936;
+      --line-soft: #1D222C;
+      --red: #FF4A52;
+      --green: #8FD858;
+      --blue: #3B95FF;
+      --blue-ink: #7FBAFF;
+      --blue-wash: #12233A;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.34);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #0D0F13;
+    --panel: #151920;
+    --panel-2: #1B2029;
+    --ink: #EDF0F4;
+    --muted: #949CAB;
+    --faint: #6C7484;
+    --line: #232936;
+    --line-soft: #1D222C;
+    --red: #FF4A52;
+    --green: #8FD858;
+    --blue: #3B95FF;
+    --blue-ink: #7FBAFF;
+    --blue-wash: #12233A;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.34);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--ui);
+    font-size: 14px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 940px; margin: 0 auto; padding: 40px 24px 80px; display: flex; flex-direction: column; gap: 40px; }
+
+  /* ---------- page head ---------- */
+  .eyebrow { display: flex; align-items: center; gap: 9px; color: var(--faint); font-size: 11px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
+  /* Logo vydavatele. Barvy má napevno a je to tak správně — logo si je drží
+     v obou motivech, na rozdíl od značky produktu, která bere `currentColor`. */
+  .znackarna { display: block; flex: 0 0 auto; }
+  .znackarna svg { display: block; height: var(--zh, 11px); width: auto; }
+  h1 { font-size: 28px; font-weight: 700; letter-spacing: -.015em; margin: 10px 0 0; text-wrap: balance; }
+  .lede { color: var(--muted); margin: 6px 0 0; max-width: 62ch; }
+
+  /* ---------- the brand animation ---------- */
+  .brand-stage {
+    height: calc(25px * var(--u));
+    width: calc(82px * var(--u));
+    overflow: hidden;
+    flex: 0 0 auto;
+    transition: width var(--dur) var(--ease);
+  }
+  .brand-svg { display: block; width: calc(82px * var(--u)); height: calc(25px * var(--u)); flex: 0 0 auto; color: var(--ink); }
+  .shift, .pc { transition: transform var(--dur) var(--ease), opacity var(--dur) var(--ease); }
+
+  /* Mezera před ™ je proměnná, ne odvozená z originálu. Tam ™ stojí za rovným
+     dříkem `l` s odstupem 3,15; tady stojí za kulatým `o`, a kulaté písmeno
+     couvá — v téhle kresbě je mezera po `o` o 0,59 menší než po `l`. */
+  .brand.done .brand-stage { width: calc((36.4947px + var(--tm-gap) * 1px) * var(--u)); }
+  .brand.done .shift { transform: translateX(-12.4528px); }
+  .brand.done .tm { transform: translateX(calc((var(--tm-gap) - 32.7086) * 1px)); }
+
+  /* A — výřez: krajní písmena zhasnou na místě */
+  .brand[data-variant="a"].done .v   { opacity: 0; transform: translateX(-7px); }
+  .brand[data-variant="a"].done .cal { opacity: 0; transform: translateX(7px); }
+
+  /* B — vysunutí: krajní písmena odjedou z rámu, nic nebledne */
+  .brand[data-variant="b"].done .v   { transform: translateX(-16px); }
+  .brand[data-variant="b"].done .cal { transform: translateX(44px); }
+
+  /* C — dvoudobé: nejdřív zhasnou, pak se to sesune */
+  .brand[data-variant="c"] .v,
+  .brand[data-variant="c"] .cal { transition-duration: calc(var(--dur) * .42); }
+  .brand[data-variant="c"] .shift,
+  .brand[data-variant="c"] .tm,
+  .brand[data-variant="c"] .brand-stage {
+    transition-delay: calc(var(--dur) * .58);
+    transition-duration: calc(var(--dur) * .42);
+  }
+  .brand[data-variant="c"].done .v   { opacity: 0; }
+  .brand[data-variant="c"].done .cal { opacity: 0; }
+
+  /* Po dojetí úvodu se z toho stane hoverovatelný prvek. Odpověď na ukazovátko
+     musí být svižnější než scénovaný úvod, proto vlastní délka a nulové zpoždění
+     i u dvoudobé varianty. Zvětšená plocha zásahu: po sesunutí má ten znak
+     necelých 40 px, což je na míření málo. */
+  .brand.ready .brand-stage,
+  .brand.ready .shift,
+  .brand.ready .pc {
+    transition-duration: var(--dur-hover);
+    transition-delay: 0ms;
+  }
+  .brand.ready { padding: 10px 12px; margin: -10px -12px; }
+
+  .brand.ready:hover .brand-stage { width: calc(82px * var(--u)); }
+  .brand.ready:hover .shift,
+  .brand.ready:hover .tm,
+  .brand.ready:hover .v,
+  .brand.ready:hover .cal { transform: none; opacity: 1; }
+
+  .brand.instant .brand-stage,
+  .brand.instant .shift,
+  .brand.instant .pc { transition: none !important; }
+
+  /* ---------- mock window ---------- */
+  .window {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+  .titlebar {
+    height: 28px; display: flex; align-items: center; gap: 8px;
+    padding: 0 10px; border-bottom: 1px solid var(--line-soft); background: var(--panel-2);
+  }
+  .appbar {
+    height: 56px; display: flex; align-items: center; gap: 16px;
+    padding: 0 20px; border-bottom: 1px solid var(--line);
+  }
+  .appbar-right { margin-left: auto; display: flex; align-items: center; gap: 18px; color: var(--muted); font-size: 13px; font-weight: 500; }
+  .appbar-right span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .canvas { height: 92px; background: var(--ground); display: grid; place-items: center; color: var(--faint); font-size: 12.5px; }
+
+  /* ---------- controls ---------- */
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 20px; }
+  .controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 18px 22px; }
+  .ctl { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .ctl > label { font-size: 11px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--faint); }
+  .val { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 12px; color: var(--muted); }
+  .hint { font-size: 11.5px; color: var(--blue-ink); margin-top: -2px; }
+  input[type="range"] { width: 100%; accent-color: var(--blue); }
+  select {
+    font: inherit; font-size: 13px; color: var(--ink); background: var(--panel-2);
+    border: 1px solid var(--line); border-radius: 999px; padding: 7px 12px; width: 100%;
+  }
+  .row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 18px; }
+  /* Text se centruje flexem, ne paddingem. S `height: 34px`, paddingem 8+8 a
+     rámečkem 1+1 zbyde na obsah 16 px, jenže zděděný `line-height: 1.55` dělá
+     na třináctce 20,15 px — řádek je vyšší než místo, které má, a přeteče dolů.
+     Svislý padding proto nula a zarovnání dělá `align-items`, takže výška tlačítka
+     je opravdu 34 px bez ohledu na to, co zdědí za řádkování. */
+  button {
+    font: inherit; font-size: 13px; font-weight: 600; line-height: 1; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    border-radius: 999px; padding: 0 16px; height: 34px;
+    border: 1px solid var(--line); background: var(--panel-2); color: var(--ink);
+  }
+  button.primary { background: var(--ink); color: var(--panel); border-color: var(--ink); }
+  button:hover { border-color: var(--blue); }
+  :focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; border-radius: 4px; }
+  .check { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); cursor: pointer; }
+  .check input { accent-color: var(--blue); width: 15px; height: 15px; }
+
+  /* ---------- variants ---------- */
+  h2 { font-size: 19px; font-weight: 700; letter-spacing: -.01em; margin: 0; }
+  h2 + p { color: var(--muted); margin: 4px 0 0; max-width: 64ch; }
+  .section { display: flex; flex-direction: column; gap: 18px; }
+  .variants { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+  .variant { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 12px; }
+  .variant.picked { border-color: var(--blue); box-shadow: 0 0 0 1px var(--blue); }
+  .variant h3 { font-size: 14px; font-weight: 680; margin: 0; display: flex; align-items: baseline; gap: 8px; }
+  .variant h3 b { font-family: var(--mono); font-size: 11px; font-weight: 700; color: var(--blue-ink); background: var(--blue-wash); border-radius: 4px; padding: 1px 5px; }
+  .variant p { margin: 0; font-size: 12.5px; color: var(--muted); }
+  .variant-stage { background: var(--panel-2); border-radius: 8px; min-height: 58px; display: flex; align-items: center; padding: 0 16px; }
+
+  /* ---------- measurement ---------- */
+  .scroller { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; min-width: 420px; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line-soft); }
+  th { font-size: 11px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--faint); }
+  td.n { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  tr.hit td { color: var(--ink); font-weight: 600; }
+  tr.hit td.n { color: var(--blue-ink); }
+  tbody tr:last-child td { border-bottom: 0; }
+
+  /* ---------- psaný obličej ----------
+     Šedivá předloha leží dole a nikam nemizí; černá výplň nad ní je odkrývaná
+     maskou, ve které jsou osy tahů jako bílé čáry s `stroke-dashoffset`.
+     `pathLength="100"` normalizuje každý tah na stovku, takže délky křivek
+     nemusí nikdo počítat — poměry níž jsou z nich, ne z dashoffsetu. */
+  .dropzone {
+    border: 1.5px dashed var(--line); border-radius: 12px; background: var(--panel);
+    padding: 34px 24px 28px; display: flex; flex-direction: column; align-items: center; gap: 14px;
+  }
+  .face-svg { display: block; height: calc(26.2px * var(--fu)); width: auto; }
+  .face-grey path { fill: var(--line); }
+  .face-ink path { fill: var(--ink); }
+  /* `butt`, ne `round`. Kulatá špička je kotouč o poloměru poloviny tahu, a na
+     kroužku s osou r 4,35 dosáhne i na části ringu daleko od pera — odkryje
+     černou skvrnu tam, kde pero není. Rovný řez jede čistě a smí být širší,
+     protože přesah ořízne samo písmeno. */
+  /* `100 200`, ne `100`, a klid na 101, ne na 100. Se vzorem `100` a posunem
+     `100` leží klidový stav přesně na hranici mezi kreslenou a nekreslenou
+     částí; prohlížeč si skutečnou délku křivky přepočítává na těch sto jednotek
+     z `pathLength` a při zaokrouhlení nechá na startu subpixelový proužek — na
+     šest jednotek širokém tahu je z toho viditelná čárka. Dlouhá nekreslená část
+     a jedna jednotka vůle posadí klid dovnitř, ne na okraj. Daň je 1 % doby
+     tahu, kdy se ještě nic nekreslí. */
+  .wr {
+    fill: none; stroke: #fff; stroke-linecap: butt; stroke-linejoin: round;
+    stroke-dasharray: 100 200; stroke-dashoffset: 101;
+    transition: stroke-dashoffset var(--draw) var(--draw-ease);
+  }
+  .w1, .w3 { stroke-width: 6; }
+  .w2, .w4 { stroke-width: 5; }
+  /* Doby jsou úměrné délce tahu — o 28,6 · l 16,2 · o 28,6 · úsměv 13,8 jednotky —
+     ale samotné poměry počítá skript, protože závisí na překryvu a celek se pak
+     musí znormalizovat zpátky na `--draw`. Jinak by posuvník doby psaní přestal
+     znamenat dobu psaní ve chvíli, kdy se sáhne na překryv. */
+  .w1 { transition-duration: calc(var(--draw) * var(--d1)); transition-delay: calc(var(--draw) * var(--s1)); }
+  .w2 { transition-duration: calc(var(--draw) * var(--d2)); transition-delay: calc(var(--draw) * var(--s2)); }
+  .w3 { transition-duration: calc(var(--draw) * var(--d3)); transition-delay: calc(var(--draw) * var(--s3)); }
+  .w4 { transition-duration: calc(var(--draw) * var(--d4)); transition-delay: calc(var(--draw) * var(--s4)); }
+  .face.drawn .wr { stroke-dashoffset: 0; }
+  .face.instant .wr { transition: none !important; }
+  .dz-title { font-size: 22px; font-weight: 700; letter-spacing: -.01em; margin: 4px 0 0; }
+  .dz-note { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 12.5px; margin: 0; }
+  .dz-note svg { flex: 0 0 auto; }
+  .dz-btn { background: var(--ink); color: var(--panel); border-color: var(--ink); margin-top: 4px; }
+
+
+
+  /* ---------- obličej žije ----------
+     Mrknutí i širší úsměv jsou tytéž tvary, jen jinak natažené. Nic se
+     nedokresluje, stejně jako u válcovny.
+
+     `transform-box: fill-box` je tu to podstatné: bez něj se `transform-origin`
+     počítá z viewBoxu, takže by se obě oči zmáčkly k jednomu bodu mezi sebou.
+     S ním má každé oko svůj vlastní střed a mrkne na místě. */
+  /* Mrka cele pismeno, ne jen dira uvnitr.
+
+     Zkusili jsme i tissi verzi, kde obrys stoji a zaviraji se jen protilehle
+     plochy — udelanou maskou, aby diry zustaly pruhledne. Byla zamitnuta:
+     *to predchozi mrknuti bylo lepsi*. Zpatky tedy cele oko.
+
+     `transform-box: fill-box` je tu to podstatne: bez nej se `transform-origin`
+     pocita z viewBoxu, takze by se obe oci zmackly k jednomu bodu mezi sebou.
+     S nim ma kazde oko svuj vlastni stred a mrkne na miste.
+
+     `.08` a ne nula: zavrene oko necha uzkou skulinu. Uplna nula by z `o`
+     udelala plnou tecku. */
+  .alive-eye {
+    transform-box: fill-box; transform-origin: center;
+    transition: transform var(--blink) cubic-bezier(.4,0,.6,1);
+  }
+  .alive.blinking .alive-eye { transform: scaleY(.08); }
+  .alive.still .alive-eye { transition: none; transform: none; }
+
+  .alive-svg { display: block; height: calc(26.2px * var(--au, 2.4)); width: auto; }
+  .alive-svg path { fill: var(--ink); }
+
+  /* ---------- válcovna ----------
+     Otočením o 90° se z obličeje stane stroj: dvě `o` přestanou být oči a
+     stanou se válci, dřík přestane být nos a stane se plechem. Nic se
+     nedokresluje — je to táž kresba z jiné strany, což je jediný důvod, proč
+     tenhle nápad může fungovat.
+
+     Plech se hýbe v nepootočených souřadnicích po ose y; teprve rotace rodiče
+     z toho udělá vodorovný průjezd. Kdyby se posouval po x, jel by po rotaci
+     svisle a projel by válci podél, ne mezi nimi. */
+  .mill { display: block; }
+  .mill-svg { display: block; height: calc(34px * var(--mu, 2.2)); width: auto; }
+  .mill-svg path { fill: var(--ink); }
+  /* Střed značky, ne střed rámu: kresba je široká 30,4 a vysoká 24,1, takže
+     otáčení kolem středu viewBoxu by ji odneslo stranou. */
+  .mill-rot {
+    transform-origin: 27.655px 12.13px;
+    transition: transform var(--mill-turn) cubic-bezier(.65,0,.35,1);
+  }
+  /* Úsměv se otáčí kolem středu svého vlastního oblouku — (27,66 / 13,81),
+     poloměr 8,81 — takže klouže po křivce, kterou sám tvoří. Nedeformuje se a
+     nejede po přímce: přesně to dělá „přitočí se podle osy svého radiusu".
+
+     Odejít pouhým otočením nemůže: od svého středu je pořád stejně daleko, tedy
+     jen obíhá a z rámu se nedostane. Proto k tomu patří i zhasnutí — otočení
+     nese pohyb, průhlednost odchod.
+
+     Zpoždění je na základním pravidle, ne na `busy`, takže platí jen pro návrat:
+     odchází hned, ale vrací se až po tom, co se značka otočí zpátky. Stroj se
+     nejdřív stane obličejem a úsměv přijede poslední. */
+  .mill-smile {
+    transform-origin: 27.66px 13.81px;
+    transition: opacity calc(var(--mill-turn) * .7) ease,
+                transform calc(var(--mill-turn) * .9) cubic-bezier(.34, 1.25, .64, 1);
+    transition-delay: var(--mill-turn);
+  }
+  /* Bez zmenseni, na rozdil od aplikace — a je to ten rozdil, kvuli kteremu se
+     kresba orezavala tam a ne tady. Tenhle ram je ctvercovy (34 x 34 kolem
+     stredu kresby), takze otocena znacka s dosahem 15,21 ma na obe strany 17 a
+     vejde se. Ram obliceje v archivu je 26,2 vysoky a nabizi jen 13,07 dolu,
+     takze tam se zmensit musi. Prototyp proto tuhle chybu ukazat nemohl. */
+  .mill.busy .mill-rot { transform: rotate(90deg); }
+  .mill.busy .mill-smile {
+    transition-delay: 0ms;
+    opacity: 0;
+    transform: rotate(var(--mill-smile-turn));
+  }
+  /* Plech se rozjede ještě během otáčení — *at je to plynulé*.
+
+     První verze čekala na dojetí rotace a byla to zbytečná pauza: podmínka není
+     „nerozjíždět se dřív", ale „nedorazit k válcům dřív". Plech startuje 26
+     jednotek za rámem, takže mu cesta k válcům trvá zhruba třetinu průjezdu —
+     může se tedy rozjet o tu třetinu dřív, než rotace skončí, a k válcům dorazí
+     přesně ve chvíli, kdy stojí. Mezi otočením a prací pak není okamžik, kdy se
+     nic neděje. */
+  .mill.busy .mill-sheet {
+    animation: mill-pass var(--mill-pass) linear infinite;
+    animation-delay: calc(var(--mill-turn) * var(--mill-lead));
+  }
+  @keyframes mill-pass {
+    from { transform: translateY(26px); }
+    to   { transform: translateY(-26px); }
+  }
+  .mill-stage {
+    background: var(--panel-2); border-radius: 12px;
+    display: grid; place-items: center; padding: 22px; min-height: 190px;
+  }
+
+  /* ---------- swatches ---------- */
+  .swatches { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; }
+  .sw { display: grid; grid-template-columns: 34px 1fr; grid-template-rows: auto auto; column-gap: 12px; align-items: center; }
+  .sw span { grid-row: 1 / span 2; width: 34px; height: 34px; border-radius: 7px; border: 1px solid rgba(128,128,128,.22); }
+  .sw b { font-family: var(--mono); font-size: 12.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .sw i { font-style: normal; font-size: 11.5px; color: var(--faint); }
+
+  /* ---------- open questions ---------- */
+  ol.q { margin: 0; padding-left: 0; list-style: none; counter-reset: q; display: flex; flex-direction: column; gap: 14px; }
+  ol.q li { counter-increment: q; display: grid; grid-template-columns: 26px 1fr; gap: 12px; align-items: start; }
+  ol.q li::before {
+    content: counter(q); font-family: var(--mono); font-size: 11px; font-weight: 700;
+    color: var(--muted); background: var(--panel-2); border: 1px solid var(--line);
+    border-radius: 999px; width: 24px; height: 24px; display: grid; place-items: center;
+  }
+  ol.q b { font-weight: 680; }
+  ol.q p { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
+  footer { color: var(--faint); font-size: 12px; border-top: 1px solid var(--line); padding-top: 18px; }
+  code { font-family: var(--mono); font-size: .92em; background: var(--panel-2); border: 1px solid var(--line-soft); border-radius: 4px; padding: 1px 5px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .brand-stage, .shift, .pc { transition: none !important; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">
+      <span class="znackarna" style="--zh:9px" aria-hidden="true">
+        <svg viewBox="0 0 88 28" xmlns="http://www.w3.org/2000/svg">
+          <path d="M88 27.5215H61.1784V0.438232H87.9988V27.5215H88Z" fill="#007AFF"/>
+          <path d="M31.4428 27.5216H0L15.801 0L31.4428 27.5216Z" fill="#FF1C26"/>
+          <path d="M50.7702 1.89426C52.903 3.1567 54.5945 4.86591 55.8459 7.01948C57.0961 9.17304 57.7219 11.5141 57.7219 14.039C57.7219 16.565 57.0961 18.8988 55.8459 21.039C54.5945 23.1791 52.903 24.875 50.7702 26.124C48.6375 27.3743 46.319 27.9988 43.8174 27.9988C41.3157 27.9988 39.0045 27.3743 36.885 26.124C34.7643 24.875 33.0861 23.1791 31.8479 21.039C30.6097 18.8988 29.9912 16.565 29.9912 14.039C29.9912 11.5129 30.6097 9.17304 31.8479 7.01948C33.0861 4.86591 34.7643 3.1567 36.885 1.89426C39.0057 0.631826 41.3169 0 43.8186 0C46.3202 0 48.6375 0.631826 50.7702 1.89426Z" fill="#7AC942"/>
+        </svg>
+      </span>
+      Prototyp značky
+    </div>
+    <h1>volocal → olo</h1>
+    <p class="lede">
+      Ne přechod mezi dvěma logy. <code>olo</code> je střed slova <code>volocal</code>
+      a úsměv už je vycentrovaný pod ním — takže je to výřez, který v tom nápisu byl celou
+      dobu, a animace je ten výřez, jak se děje před divákem.
+      <b>Při startu se sesune, na hover se zase rozvine</b> — najeďte na značku v hlavičce.
+    </p>
+  </header>
+
+  <!-- ============ hlavní scéna ============ -->
+  <section class="section">
+    <div class="window">
+      <div class="titlebar">
+        <span class="znackarna" style="--zh:11px" title="Značkárna">
+          <svg viewBox="0 0 88 28" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Značkárna">
+            <path d="M88 27.5215H61.1784V0.438232H87.9988V27.5215H88Z" fill="#007AFF"/>
+            <path d="M31.4428 27.5216H0L15.801 0L31.4428 27.5216Z" fill="#FF1C26"/>
+            <path d="M50.7702 1.89426C52.903 3.1567 54.5945 4.86591 55.8459 7.01948C57.0961 9.17304 57.7219 11.5141 57.7219 14.039C57.7219 16.565 57.0961 18.8988 55.8459 21.039C54.5945 23.1791 52.903 24.875 50.7702 26.124C48.6375 27.3743 46.319 27.9988 43.8174 27.9988C41.3157 27.9988 39.0045 27.3743 36.885 26.124C34.7643 24.875 33.0861 23.1791 31.8479 21.039C30.6097 18.8988 29.9912 16.565 29.9912 14.039C29.9912 11.5129 30.6097 9.17304 31.8479 7.01948C33.0861 4.86591 34.7643 3.1567 36.885 1.89426C39.0057 0.631826 41.3169 0 43.8186 0C46.3202 0 48.6375 0.631826 50.7702 1.89426Z" fill="#7AC942"/>
+          </svg>
+        </span>
+      </div>
+      <div class="appbar">
+        <div class="brand" id="hero" data-variant="b" style="--u:1; --dur:1000ms; --dur-hover:500ms; --ease:cubic-bezier(.65,0,.35,1)"></div>
+        <div class="appbar-right">
+          <span>+ Nový přepis</span>
+          <span>Nastavení</span>
+        </div>
+      </div>
+      <div class="canvas">archiv</div>
+    </div>
+
+    <div class="panel">
+      <div class="controls">
+        <div class="ctl">
+          <label for="hold">Výdrž plného nápisu <span class="val" id="hold-v">5000 ms</span></label>
+          <input type="range" id="hold" min="0" max="15000" step="250" value="5000">
+        </div>
+        <div class="ctl">
+          <label for="dur">Délka přechodu <span class="val" id="dur-v">1000 ms</span></label>
+          <input type="range" id="dur" min="160" max="1600" step="20" value="1000">
+        </div>
+        <div class="ctl">
+          <label for="durh">Rozvinutí na hover <span class="val" id="durh-v">500 ms</span></label>
+          <input type="range" id="durh" min="80" max="700" step="10" value="500">
+        </div>
+        <div class="ctl">
+          <label for="tmgap">Mezera před ™ <span class="val" id="tmgap-v">0,00</span></label>
+          <input type="range" id="tmgap" min="0" max="5" step="0.02" value="0">
+        </div>
+        <div class="ctl">
+          <label for="size">Velikost <span class="val" id="size-v">1,00×</span></label>
+          <input type="range" id="size" min="0.7" max="2.6" step="0.05" value="1">
+        </div>
+        <div class="ctl">
+          <label for="ease">Křivka</label>
+          <select id="ease">
+            <option value="cubic-bezier(.65,0,.35,1)">Plynulá do obou stran</option>
+            <option value="cubic-bezier(.22,1,.36,1)">Rychlý start, měkké dojetí</option>
+            <option value="cubic-bezier(.83,0,.17,1)">Ostrá, rozhodná</option>
+            <option value="cubic-bezier(.34,1.56,.64,1)">S doskokem</option>
+            <option value="linear">Lineární (kontrolní)</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <button class="primary" id="play">Přehrát znovu</button>
+        <button id="reset">Zpět na plný nápis</button>
+        <label class="check"><input type="checkbox" id="loop"> Opakovat</label>
+        <label class="check"><input type="checkbox" id="rm"> Simulovat <code>prefers-reduced-motion</code></label>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ varianty ============ -->
+  <section class="section">
+    <div>
+      <h2>Tři způsoby, jak se to může stát</h2>
+      <p>Všechny končí stejně. Liší se tím, co udělají <code>v</code> a <code>cal</code> cestou ven — a to je ta volba. Hover funguje na všech třech, zkuste na ně najet.</p>
+    </div>
+    <div class="variants" id="variants">
+      <div class="variant" data-v="a">
+        <h3><b>A</b> Výřez</h3>
+        <div class="variant-stage"><div class="brand" data-variant="a" style="--u:1.15"></div></div>
+        <p>Krajní písmena zhasnou na místě, <code>olo</code> se sveze doleva. Jedna doba, jedna křivka. Nejtišší.</p>
+      </div>
+      <div class="variant picked" data-v="b">
+        <h3><b>B</b> Vysunutí</h3>
+        <div class="variant-stage"><div class="brand" data-variant="b" style="--u:1.15"></div></div>
+        <p>Nic nebledne. <code>v</code> odjede vlevo z rámu, <code>cal</code> vpravo. Fyzičtější, ale <code>cal</code> musí urazit 44 jednotek.</p>
+      </div>
+      <div class="variant" data-v="c">
+        <h3><b>C</b> Dvoudobé</h3>
+        <div class="variant-stage"><div class="brand" data-variant="c" style="--u:1.15"></div></div>
+        <p>Nejdřív zhasnou krajní písmena a nápis chvíli stojí s dírami. Pak se to sesune. Nejzřetelnější, že jde o výřez.</p>
+      </div>
+    </div>
+    <div class="row" style="margin-top:0">
+      <button class="primary" id="play-all">Přehrát všechny tři</button>
+      <button id="reset-all">Zpět</button>
+    </div>
+  </section>
+
+  <!-- ============ psaný obličej ============ -->
+  <section class="section">
+    <div>
+      <h2>Obličej se píše</h2>
+      <p>
+        Šedivá předloha leží na místě od začátku a pero ji zatahuje černou. Pořadí je
+        pořadí ruky: <code>o</code>, dřík, <code>o</code>, a úsměv naposled — protože
+        úsměv je pointa, a pointa se neříká první. Čelo pera je rovný řez, ne kulatá
+        špička, a tahy na sebe nečekají — další začne, když je předchozí ze dvou třetin
+        hotový. Úsměv dopadne <b>123 ms po pravém oku</b>: je poslední tah a poslední
+        věc, která na obrazovce dosedne, což je u pointy správné pořadí.
+      </p>
+      <p style="margin:10px 0 0;color:var(--muted);font-size:12.5px">
+        <b style="color:var(--ink)">Zvolené hodnoty:</b> psaní 1800 ms · překryv 35 % ·
+        křivka <code>cubic-bezier(.45,.05,.35,1)</code> · velikost 2,4× · psaní 400 ms po spuštění. Posuvníky zůstávají, ale tohle je stav, ve kterém se to otevře.
+      </p>
+    </div>
+
+    <div class="dropzone">
+      <div class="face" id="face" style="--fu:2.4; --draw:1800ms; --draw-ease:cubic-bezier(.45,.05,.35,1)"></div>
+      <h3 class="dz-title">Co dnes přepíšeme?</h3>
+      <p class="dz-note">
+        <svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true">
+          <circle cx="8" cy="8" r="7" fill="none" stroke="var(--blue)" stroke-width="1.5"/>
+          <path d="M8 7v4.5M8 4.6v.9" stroke="var(--blue)" stroke-width="1.6" stroke-linecap="round"/>
+        </svg>
+        Přetažení souboru zahájí přepis.
+      </p>
+      <button class="dz-btn">+ Nový přepis</button>
+    </div>
+
+    <div class="panel">
+      <div class="controls">
+        <div class="ctl">
+          <label for="draw">Doba psaní <span class="val" id="draw-v">1800 ms</span></label>
+          <input type="range" id="draw" min="400" max="3200" step="50" value="1800">
+        </div>
+        <div class="ctl">
+          <label for="ov">Překryv tahů <span class="val" id="ov-v">35 %</span></label>
+          <input type="range" id="ov" min="0" max="75" step="1" value="35">
+          <span class="hint" id="ov-note">úsměv dojede o 123 ms po oku</span>
+        </div>
+        <div class="ctl">
+          <label for="lag">Psaní po spuštění <span class="val" id="lag-v">400 ms</span></label>
+          <input type="range" id="lag" min="0" max="3000" step="20" value="400">
+        </div>
+        <div class="ctl">
+          <label for="dease">Křivka tahu</label>
+          <select id="dease">
+            <option value="cubic-bezier(.42,0,.58,1)">Ease-in-out (souměrné)</option>
+            <option value="cubic-bezier(.45,.05,.35,1)" selected>Ease-in-out, měkčí dojezd</option>
+            <option value="cubic-bezier(.55,.06,.2,1)">Rozjezd váhavý, dojezd dlouhý</option>
+            <option value="cubic-bezier(.65,0,.35,1)">Ostřejší, rozhodné</option>
+            <option value="linear">Lineární (kontrolní)</option>
+          </select>
+        </div>
+        <div class="ctl">
+          <label for="fsize">Velikost obličeje <span class="val" id="fsize-v">2,40×</span></label>
+          <input type="range" id="fsize" min="1.2" max="4" step="0.1" value="2.4">
+        </div>
+      </div>
+      <div class="row">
+        <button class="primary" id="play-face">Napsat znovu</button>
+        <button id="reset-face">Zpět na šedivé</button>
+        <button id="play-both">Start aplikace — obojí za sebou</button>
+      </div>
+      <p style="margin:16px 0 0;color:var(--muted);font-size:13px">
+        <b style="color:var(--ink)">V prototypu jsem napsal, že tohle má stát — a byla to
+        chyba.</b> Bál jsem se dvou stejných pohybů naráz, jenže tohle nejsou dva stejné:
+        hlavička se sesouvá, obličej se píše. Konkurují si jen v čase, ne v druhu — proto
+        <em>obojí za sebou</em>, ne obojí najednou.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ měření ============ -->
+  <section class="section">
+    <div>
+      <h2>Proč to sedí</h2>
+      <p>Změřeno z cest v <code>src/wordmark.svg</code>. Kdyby úsměv patřil k celému slovu, seděl by kolem&nbsp;x&nbsp;41.</p>
+    </div>
+    <div class="panel scroller">
+      <table>
+        <thead>
+          <tr><th>Prvek</th><th>x od</th><th>x do</th><th>střed x</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>v</td><td class="n">0,00</td><td class="n">12,33</td><td class="n">6,17</td></tr>
+          <tr class="hit"><td>olo</td><td class="n">12,45</td><td class="n">42,86</td><td class="n">27,66</td></tr>
+          <tr class="hit"><td>úsměv</td><td class="n">20,35</td><td class="n">34,97</td><td class="n">27,66</td></tr>
+          <tr><td>cal</td><td class="n">43,76</td><td class="n">72,42</td><td class="n">58,09</td></tr>
+          <tr><td>™</td><td class="n">75,57</td><td class="n">81,66</td><td class="n">78,61</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="panel">
+      <p style="margin:0;color:var(--muted);font-size:13px">
+        Z toho plyne celý pohyb: <code>olo</code> se posune o <b>−12,45</b>,
+        <code>™</code> o <b>−29,56</b> navíc, aby dosedlo za druhé <code>o</code> se stejnou
+        mezerou <b>3,15</b>, jakou má dnes za posledním <code>l</code>. Šířka nápisu jde
+        z <b>82</b> na <b>39,64</b> jednotky. Žádná nová kresba, žádná knihovna.
+      </p>
+    </div>
+  </section>
+
+
+  <!-- ============ obličej žije ============ -->
+  <section class="section">
+    <div>
+      <h2>Obličej mrká a občas se usměje</h2>
+      <p>
+        Tytéž čtyři tvary, jen jinak natažené. Mrknutí je oko stlačené na osminu
+        výšky; širší úsměv je týž oblouk o téže kružnici, jen delší — poloměr se
+        nemění, roste jen to, kolik ho je vidět. Nic se nedokresluje.
+        <b>Najeďte na obličej</b> — pod ukazovátkem se usměje a drží to, dokud tam jste.
+      </p>
+    </div>
+
+    <div class="mill-stage">
+      <div class="alive" id="alive" style="--au:2.4; --blink:120ms"></div>
+    </div>
+
+    <div class="panel">
+      <div class="controls">
+        <div class="ctl">
+          <label for="blinkevery">Mrknutí po <span class="val" id="blinkevery-v">6000 ms</span></label>
+          <input type="range" id="blinkevery" min="2000" max="20000" step="500" value="6000">
+          <span class="hint">rozptyl &plusmn;40 %, aby to nebylo metronomem</span>
+        </div>
+        <div class="ctl">
+          <label for="blinkfast">Mrknutí trvá <span class="val" id="blinkfast-v">120 ms</span></label>
+          <input type="range" id="blinkfast" min="50" max="300" step="10" value="120">
+        </div>
+        <div class="ctl">
+          <label for="grinevery">Úsměv po <span class="val" id="grinevery-v">14000 ms</span></label>
+          <input type="range" id="grinevery" min="4000" max="40000" step="1000" value="14000">
+        </div>
+        <div class="ctl">
+          <label for="grinfast">Úsměv naskočí za <span class="val" id="grinfast-v">420 ms</span></label>
+          <input type="range" id="grinfast" min="120" max="900" step="20" value="420">
+          <span class="hint">zpátky se vrací 1,6&times; pomaleji</span>
+        </div>
+        <div class="ctl">
+          <label for="grinsize">Šířka úsměvu <span class="val" id="grinsize-v">55&deg;</span></label>
+          <input type="range" id="grinsize" min="45" max="80" step="1" value="55">
+          <span class="hint">v klidu 45&deg; na každou stranu &mdash; tažením se drží na značce</span>
+        </div>
+      </div>
+      <div class="row">
+        <button class="primary" id="alive-run">Nechat žít</button>
+        <button id="alive-stop">Zastavit</button>
+        <button id="alive-blink">Mrknout teď</button>
+        <button id="alive-grin">Usmát se teď</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <ol class="q">
+        <li><div><b><code>transform-box: fill-box</code> je tu to podstatné.</b><p>Bez něj se střed počítá z celého viewBoxu, takže by se obě oči zmáčkly k jednomu bodu mezi sebou. S ním má každé svůj vlastní střed a mrkne na místě.</p></div></li>
+        <li><div><b>Úsměv se prodlužuje, nenafukuje.</b><p>Poloměry zůstávají 7,24 a 10,3428 a mění se jediné číslo — úhel výseku. To je rozdíl mezi <i>usměje se víc</i> a <i>obličej se přiblížil</i>, na kterém padl první pokus.</p></div></li>
+        <li><div><b>Je to pořád výplň, ne tah &mdash; a to je celá oprava.</b><p>Druhý pokus úsměv převedl na tah po střední kružnici a délku řídil přes <code>pathLength</code> a <code>stroke-dasharray</code>. Nechával artefakt, který se nepodařilo najít. Tady žádný tah není: je to táž vyplněná cesta jako v kresbě, jen s jiným úhlem. Odpadly tím dva kusy stýkající se uprostřed, rovná čela i přepočet <code>pathLength</code> &mdash; tedy všechno, v čem ten artefakt mohl být.</p></div></li>
+        <li><div><b>Geometrie je odečtená z kresby, ne odhadnutá.</b><p>Všech osm koncových bodů v <code>P.smile</code> leží na dvou kružnicích se středem 27,66&nbsp;/&nbsp;13,833, a nejvzdálenější vzorek té křivky se od nich liší o 0,00008 jednotky. V klidu má výsek přesně 45,000&deg; na stranu. Minulý pokus jel s 8,812&nbsp;/&nbsp;13,81&nbsp;/&nbsp;44,9&deg;, což bylo o kus vedle.</p></div></li>
+        <li><div><b>Vlastní smyčka místo CSS přechodu.</b><p>Přepočítávaná cesta se nedá předat <code>transition</code>. Nahoru jede s malým překmitem &mdash; úsměv, který dojede a zastaví se, je mechanický; zpátky bez něj, obličeji nemá úsměv vystřelit dovnitř.</p></div></li>
+        <li><div><b>Úsměv na hover drží, občasný odejde sám.</b><p>Ten rozdíl je celý smysl: samovolný úsměv je nálada a po 1,2 s se vrátí, hover je odpověď a nemá zmizet dřív než otázka. Hodiny občasného úsměvu přitom běží dál — zastavit je a po odjetí spustit znovu by znamenalo, že se obličej hned po odjetí usměje podruhé, tedy že reaguje na to, že jsem tam byl.</p></div></li>
+        <li><div><b>Kdo hover nemá, o nic nepřijde.</b><p>Je to ozdoba, ne informace, takže dotyk a klávesnice ji nespouštějí a nic tím nechybí. <code>mouseenter</code>, ne <code>pointerenter</code>: na dotyku by se úsměv zapnul ťuknutím a <code>pointerleave</code> už nemusí přijít, takže by zůstal viset.</p></div></li>
+        <li><div><b>Rozptyl, ne pevný interval.</b><p>Skutečné oko nemrká na metronom. Interval kolísá o &plusmn;40 %, jinak se ten rytmus dá po chvíli předvídat a začne rušit víc než samotný pohyb.</p></div></li>
+        <li><div><b>Otevřené: mrká i během přepisu?</b><p>Tam je značka otočená na bok a mrknutí by bylo vodorovné stlačení válce. Nejspíš se má na tu dobu zastavit — stroj nemrká.</p></div></li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ============ válcovna ============ -->
+  <section class="section">
+    <div>
+      <h2>Co obličej dělá, když běží přepis</h2>
+      <p>
+        Značka se otočí na bok a přestane být obličejem: <b>dvě <code>o</code> jsou
+        válce a dřík je plech</b>, který mezi nimi opakovaně projíždí. Úsměv odejde
+        první — stroj se neusmívá, dokud nemá hotovo. Až přepis skončí, všechno se
+        vrátí zpátky.
+      </p>
+    </div>
+
+    <div class="mill-stage">
+      <div class="mill" id="mill" style="--mu:2.2; --mill-turn:520ms; --mill-pass:1100ms; --mill-lead:0; --mill-smile-turn:62deg"></div>
+    </div>
+
+    <div class="panel">
+      <div class="controls">
+        <div class="ctl">
+          <label for="turn">Otočení <span class="val" id="turn-v">520 ms</span></label>
+          <input type="range" id="turn" min="200" max="1400" step="20" value="520">
+        </div>
+        <div class="ctl">
+          <label for="pass">Jeden průjezd <span class="val" id="pass-v">1100 ms</span></label>
+          <input type="range" id="pass" min="300" max="2600" step="50" value="1100">
+        </div>
+        <div class="ctl">
+          <label for="lead">Náběh plechu <span class="val" id="lead-v">0 %</span></label>
+          <input type="range" id="lead" min="0" max="100" step="5" value="0">
+          <span class="hint" id="lead-note">rozjede se během otáčení</span>
+        </div>
+        <div class="ctl">
+          <label for="smileturn">Přitočení úsměvu <span class="val" id="smileturn-v">62°</span></label>
+          <input type="range" id="smileturn" min="-140" max="140" step="2" value="62">
+          <span class="hint">otáčí se kolem středu svého oblouku</span>
+        </div>
+        <div class="ctl">
+          <label for="msize">Velikost <span class="val" id="msize-v">2,20×</span></label>
+          <input type="range" id="msize" min="1.2" max="4" step="0.1" value="2.2">
+        </div>
+      </div>
+      <div class="row">
+        <button class="primary" id="mill-start">Spustit přepis</button>
+        <button id="mill-stop">Hotovo — zpátky do normálu</button>
+      </div>
+      <p style="margin:16px 0 0;color:var(--muted);font-size:13px">
+        <b style="color:var(--ink)">Nic se nedokresluje.</b> Je to táž čtveřice tvarů
+        z jiné strany, což je jediný důvod, proč tenhle nápad může fungovat — kdyby
+        se pro ten stav muselo cokoliv přikreslit, byla by to druhá značka.
+      </p>
+    </div>
+
+    <div class="panel">
+      <ol class="q">
+        <li><div><b>Plech se hýbe po ose y, ne po x.</b><p>Rotace rodiče z toho udělá vodorovný průjezd. Po ose x by po otočení jel svisle a projel by válci podél, ne mezi nimi.</p></div></li>
+        <li><div><b>Otáčí se kolem středu kresby, ne rámu.</b><p>Značka je široká 30,4 a vysoká 24,1; otáčení kolem středu viewBoxu by ji odneslo stranou. Rám je proto čtvercový, aby se do něj vešla naležato i nastojato.</p></div></li>
+        <li><div><b>Plech se rozjede současně s otáčením.</b><p>Podmínka není „nerozjíždět se dřív", ale „nedorazit k válcům dřív". Plech startuje 26 jednotek za rámem, takže mu cesta k válcům trvá polovinu průjezdu — při 520 a 1100 ms dorazí 30 ms po dotočení, tedy bez pauzy mezi otočením a prací.</p></div></li>
+        <li><div><b>Úsměv se otáčí kolem středu svého oblouku.</b><p>Ne kolem sebe a ne po přímce: oblouk má poloměr 8,81 se středem v (27,66 / 13,81), takže otáčením kolem <em>toho</em> bodu klouže po křivce, kterou sám tvoří — nedeformuje se a přijede po své vlastní dráze. Odejít pouhým otočením ale nemůže, protože od svého středu je pořád stejně daleko, takže jen obíhá; proto k tomu patří i zhasnutí. Otočení nese pohyb, průhlednost odchod.</p></div></li>
+        <li><div><b>Poslední plech zůstane nosem.</b><p>Konec se netrhne: průjezd vede z +26 do −26, takže nos je přesně v polovině. Stačí počkat na nejbližší příští polovinu a v ten okamžik animaci sundat — klidový stav nemá žádný posun, takže plech zůstane stát tam, kam dojel, a teprve pak se to otočí zpátky.</p></div></li>
+        <li><div><b>Otevřené: neříká to, jak daleko přepis je.</b><p>Smyčka je stav „pracuje se", ne postup. Aplikace má vlastní procenta a popisky, takže je otázka, jestli to tahle značka má opakovat — nebo jestli má být právě jen tím, že se něco děje.</p></div></li>
+        <li><div><b>Otevřené: kde to bude.</b><p>Tenhle obličej žije v prázdném stavu archivu. Během přepisu ale archiv prázdný není, takže je potřeba rozhodnout, jestli se stav odehrává tam, v hlavičce, nebo u řádku té nahrávky.</p></div></li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ============ dvě značky, dvě role ============ -->
+  <section class="section">
+    <div>
+      <h2>Dvě značky, dvě role</h2>
+      <p>Značkárna v titulkovém pruhu, produkt v hlavičce. A jedna shoda, která nebude náhoda.</p>
+    </div>
+    <div class="panel">
+      <div class="swatches">
+        <div class="sw"><span style="background:#FF1C26"></span><b>#FF1C26</b><i>trojúhelník · levá stěna kostky</i></div>
+        <div class="sw"><span style="background:#7AC942"></span><b>#7AC942</b><i>kruh · pravá stěna kostky</i></div>
+        <div class="sw"><span style="background:#007AFF"></span><b>#007AFF</b><i>čtverec · horní stěna kostky</i></div>
+      </div>
+      <p style="margin:18px 0 0;color:var(--muted);font-size:13px">
+        <b style="color:var(--ink)">Kostka Volocalu je postavená z palety Značkárny</b> — tytéž tři
+        hodnoty, žádná navíc, žádná jiná. Takže tohle není výměna loga za logo, ale
+        <b style="color:var(--ink)">rozdělení rolí</b>: barvu doteď nesl produkt, nově ji nese vydavatel
+        v titulku a značka produktu zůstane černá. Paleta se neztrácí, mění majitele.
+        Vedlejší důsledek stojí za vědomí — <b style="color:var(--ink)">v okně pak nebude žádná
+        barva, která by patřila Volocalu.</b>
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ otevřené otázky ============ -->
+  <section class="section">
+    <div>
+      <h2>Co to potřebuje rozhodnout</h2>
+      <p>Nic z toho nerozhodne kód sám a každé z toho jde vidět na obrazovce.</p>
+    </div>
+    <div class="panel">
+      <ol class="q">
+        <li><div><b>Jak často to hraje.</b><p>Jednou při startu aplikace, nebo při každém návratu na archiv? Z detailu se člověk vrací pořád — po dvacáté by to byla otrava.</p></div></li>
+        <li><div><b>První snímek musí být plný nápis.</b><p>Když se okno vykreslí s <code>olo</code> a teprve pak se rozvine, blikne to obráceně. Kreslit plný stav a přechod pustit až po prvním snímku.</p></div></li>
+        <li><div><b><code>prefers-reduced-motion</code> přeskočí, nezrychlí.</b><p>Rovnou <code>olo™</code>, bez pohybu. Vyzkoušejte přepínačem nahoře.</p></div></li>
+        <li><div><b>Obličej v drop zóně se píše — a jde na řadu až po hlavičce.</b><p>Stálo tu, že má stát, a byla to chyba: hlavička se sesouvá, obličej se píše, což nejsou dva stejné pohyby. Konkurují si jen v čase, proto jeden po druhém.</p></div></li>
+        <li><div><b>Osy tahů nejsou v <code>wordmark.svg</code>.</b><p>Ty cesty jsou dopočítané ze středů mezi vnější a vnitřní hranou výplně a budou v repu jako nový soubor. Když se kresba písma někdy změní, musí se přepočítat s ní — a nic na obrazovce to samo neprozradí.</p></div></li>
+        <li><div><b>Hover odpovídá na otázku, kde zůstane plné jméno.</b><p>Nikde jinde ho pak není potřeba shánět: je pořád jedno najetí daleko. Titulek okna a <code>Nastavení → Informace</code> ho nesou dál, ale už nemusí být jediné místo.</p></div></li>
+        <li><div><b>Hover je rychlejší než úvod.</b><p>Úvod je scéna, hover je odpověď na ukazovátko — a odpověď, která trvá 600 ms, působí, že aplikace vázne. Proto vlastní délka, ve výchozím stavu 220 ms.</p></div></li>
+        <li><div><b>Plocha zásahu je větší než kresba.</b><p>Sesunutá značka má necelých 40 px. Kolem ní je 10 × 12 px odsazení bez posunu vzhledu, jinak se na ni míří hůř, než jak vypadá.</p></div></li>
+        <li><div><b>Kdo hover nemá, o nic nepřijde.</b><p>Na dotyku a při ovládání klávesnicí se to nespustí, a to je v pořádku — dokud je to ozdoba. Ve chvíli, kdy by se z toho stalo tlačítko, přestane to platit a musí to mít i stav pro klávesnici.</p></div></li>
+        <li><div><b>Co bude ikona aplikace.</b><p>Do <code>src-tauri/icons/</code> patří produkt, ne studio — na hlavním panelu a v Průzkumníku má být poznat Volocal. Jenže <code>olo</code> je černé na průhledném a jako 32px ikona to bez barvy zmizí. Tohle je jediná část plánu, která zatím nemá kresbu.</p></div></li>
+      </ol>
+    </div>
+  </section>
+
+  <footer>
+    Prototyp v prohlížeči. Hlavička je jedno SVG se skupinami a CSS přechody — beze změny kresby
+    v <code>wordmark.svg</code>, jen s obalením cest do <code>&lt;g&gt;</code>. Obličej navíc potřebuje
+    čtyři osy tahů, které v tom souboru nejsou a jsou dopočítané. Pozor na <code>01-base.css</code>:
+    dnešní poměry hlavičky jsou odměřené z <code>src-tauri/nsis/header.bmp</code> a s odchodem kostky
+    přestanou platit.
+  </footer>
+</div>
+
+<script>
+  const P = {
+    v:   'M12.3349 4.63817L8.20079 16.2541H4.2689L0 4.63817H3.46006L6.26855 13.131L8.91976 4.63817H12.3349Z',
+    o1:  'M18.4742 16.5237C17.3358 16.5237 16.3098 16.2765 15.3961 15.7823C14.4824 15.288 13.7634 14.584 13.2392 13.6703C12.7149 12.7566 12.4528 11.6856 12.4528 10.4574C12.4528 9.22911 12.7149 8.15814 13.2392 7.24445C13.7634 6.31577 14.4824 5.60429 15.3961 5.11C16.3098 4.6157 17.3358 4.36856 18.4742 4.36856C19.6126 4.36856 20.6386 4.6157 21.5523 5.11C22.466 5.60429 23.185 6.31577 23.7092 7.24445C24.2335 8.15814 24.4956 9.22911 24.4956 10.4574C24.4956 11.6856 24.2335 12.7566 23.7092 13.6703C23.185 14.584 22.466 15.288 21.5523 15.7823C20.6386 16.2765 19.6126 16.5237 18.4742 16.5237ZM18.4742 13.8725C19.2531 13.8725 19.8897 13.5654 20.384 12.9513C20.8783 12.3372 21.1254 11.5059 21.1254 10.4574C21.1254 9.39388 20.8783 8.55508 20.384 7.94095C19.8897 7.32683 19.2456 7.01977 18.4518 7.01977C17.6579 7.01977 17.0138 7.32683 16.5195 7.94095C16.0252 8.55508 15.7781 9.39388 15.7781 10.4574C15.7781 11.5059 16.0252 12.3372 16.5195 12.9513C17.0288 13.5654 17.6804 13.8725 18.4742 13.8725Z',
+    l1:  'M29.3301 16.2541H25.9824V0.077179H29.3301V16.2541Z',
+    o2:  'M36.8391 16.5237C35.7007 16.5237 34.6747 16.2765 33.761 15.7823C32.8473 15.288 32.1283 14.584 31.6041 13.6703C31.0798 12.7566 30.8177 11.6856 30.8177 10.4574C30.8177 9.22911 31.0798 8.15814 31.6041 7.24445C32.1283 6.31577 32.8473 5.60429 33.761 5.11C34.6747 4.6157 35.7007 4.36856 36.8391 4.36856C37.9775 4.36856 39.0035 4.6157 39.9172 5.11C40.8309 5.60429 41.5499 6.31577 42.0741 7.24445C42.5984 8.15814 42.8605 9.22911 42.8605 10.4574C42.8605 11.6856 42.5984 12.7566 42.0741 13.6703C41.5499 14.584 40.8309 15.288 39.9172 15.7823C39.0035 16.2765 37.9775 16.5237 36.8391 16.5237ZM36.8391 13.8725C37.618 13.8725 38.2546 13.5654 38.7489 12.9513C39.2432 12.3372 39.4903 11.5059 39.4903 10.4574C39.4903 9.39388 39.2432 8.55508 38.7489 7.94095C38.2546 7.32683 37.6105 7.01977 36.8166 7.01977C36.0228 7.01977 35.3787 7.32683 34.8844 7.94095C34.3901 8.55508 34.1429 9.39388 34.1429 10.4574C34.1429 11.5059 34.3901 12.3372 34.8844 12.9513C35.3937 13.5654 36.0452 13.8725 36.8391 13.8725Z',
+    smile:'M34.9735 21.1465C34.0131 22.1069 32.8729 22.8687 31.618 23.3885C30.3632 23.9083 29.0182 24.1758 27.66 24.1758C26.3018 24.1758 24.9568 23.9083 23.702 23.3885C22.4471 22.8687 21.3069 22.1069 20.3465 21.1465L22.5406 18.9524C23.2129 19.6247 24.011 20.158 24.8894 20.5219C25.7678 20.8857 26.7092 21.073 27.66 21.073C28.6108 21.073 29.5522 20.8857 30.4306 20.5219C31.309 20.158 32.1071 19.6247 32.7794 18.9524L34.9735 21.1465Z',
+    c:   'M49.6722 16.5237C48.5338 16.5237 47.5152 16.284 46.6165 15.8047C45.7178 15.3104 45.0138 14.6064 44.5045 13.6927C44.0102 12.7641 43.7631 11.6856 43.7631 10.4574C43.7631 9.21414 44.0102 8.13567 44.5045 7.22198C45.0138 6.29331 45.7178 5.58931 46.6165 5.11C47.5152 4.6157 48.5338 4.36856 49.6722 4.36856C51.2898 4.36856 52.5705 4.77298 53.5142 5.58182C54.4578 6.37569 55.027 7.43168 55.2217 8.7498H51.8515C51.7317 8.16563 51.4846 7.73125 51.1101 7.44666C50.7506 7.16207 50.2563 7.01977 49.6272 7.01977C48.8633 7.01977 48.2567 7.31934 47.8073 7.91849C47.358 8.51763 47.1333 9.34894 47.1333 10.4124C47.1333 11.4909 47.358 12.3372 47.8073 12.9513C48.2567 13.5654 48.8708 13.8725 49.6497 13.8725C50.2788 13.8725 50.7656 13.7302 51.1101 13.4456C51.4546 13.161 51.7018 12.7191 51.8515 12.12H55.1993C54.9896 13.4531 54.4054 14.5241 53.4468 15.3329C52.4881 16.1268 51.2299 16.5237 49.6722 16.5237Z',
+    a:   'M61.8887 4.36856C63.5663 4.36856 64.8545 4.72804 65.7532 5.44702C66.6669 6.16599 67.1238 7.25943 67.1238 8.72733V16.2541H64.158V14.7937C63.2892 15.947 62.0685 16.5237 60.4957 16.5237C59.6569 16.5237 58.9155 16.3739 58.2714 16.0743C57.6423 15.7748 57.148 15.3629 56.7885 14.8386C56.444 14.2994 56.2718 13.7002 56.2718 13.0412C56.2718 12.0376 56.6013 11.2213 57.2603 10.5922C57.9344 9.94809 58.9979 9.55864 60.4508 9.42383L63.821 9.08682V8.50265C63.821 7.91849 63.6487 7.47662 63.3042 7.17704C62.9747 6.86249 62.5104 6.70522 61.9112 6.70522C61.3121 6.70522 60.8402 6.83254 60.4957 7.08717C60.1662 7.32683 59.9415 7.7013 59.8217 8.21057H56.474C56.6387 6.96734 57.178 6.0162 58.0917 5.35714C59.0203 4.69808 60.286 4.36856 61.8887 4.36856ZM61.3944 14.3892C62.1733 14.3892 62.765 14.1496 63.1694 13.6703C63.5738 13.191 63.776 12.5469 63.776 11.738V10.9741L61.2596 11.3111C60.7204 11.386 60.3085 11.5658 60.0239 11.8504C59.7393 12.12 59.597 12.4645 59.597 12.8839C59.597 13.3183 59.7618 13.6778 60.0913 13.9624C60.4208 14.2469 60.8552 14.3892 61.3944 14.3892Z',
+    l2:  'M72.4229 16.2541H69.0751V0.077179H72.4229V16.2541Z',
+    tm:  'M75.5691 0H78.0025V0.671058H77.2095V2.56222H76.3893V0.671058H75.5691V0ZM81.6561 0V2.56222H80.8359V0.725285L80.2665 2.56222H79.6971L79.1277 0.725285V2.56222H78.3075V0H79.6022L79.9818 1.42346L80.3614 0H81.6561Z'
+  };
+
+  const p = d => `<path d="${d}" fill="currentColor"/>`;
+  const MARKUP = `
+    <div class="brand-stage">
+      <svg class="brand-svg" viewBox="0 0 82 25" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="volocal">
+        <g class="shift">
+          <g class="pc v">${p(P.v)}</g>
+          <g class="pc olo">${p(P.o1)}${p(P.l1)}${p(P.o2)}${p(P.smile)}</g>
+          <g class="pc cal">${p(P.c)}${p(P.a)}${p(P.l2)}</g>
+          <g class="pc tm">${p(P.tm)}</g>
+        </g>
+      </svg>
+    </div>`;
+
+  document.querySelectorAll('.brand').forEach(b => { b.innerHTML = MARKUP; });
+
+  /* Osy tahů, spočítané ze středů mezi vnější a vnitřní hranou výplní:
+     `o` je elipsa rx 4,35 ry 4,75 (kresba má vodorovné tahy tenčí než svislé),
+     dřík je svislice na x 27,66, úsměv je oblouk o poloměru 8,81 se středem
+     v (27,66 / 13,81). Kruh se píše od vršku proti směru hodin, jak se píše
+     rukou; dřík shora dolů; úsměv zleva doprava.
+
+     Každá dráha je delší než tvar, který zatahuje, a to je záměr:
+
+     · Kruh jede 380°, ne 360. Pero startuje na vršku, jede proti směru hodin a
+       vrací se na vršek zprava — tam konec čárkované dráhy nedojel úplně do
+       výchozího bodu a zůstával zub v oku. Dvacet stupňů přes start si smyčku
+       zavře přes sebe, jako když se dopisuje `o` rukou.
+     · Dřík přesahuje o 0,5 nahoře i dole, aby rovné čelo nenechalo vlásek.
+     · Oblouk úsměvu je o 13° na každé straně delší, protože konce toho tvaru
+       jsou šikmo seříznuté a rovné čelo by je nedojelo.
+
+     Přesah je vždycky bezpečný — ořízne ho samo písmeno. Nedojetí bezpečné není. */
+  const FACE = `
+    <svg class="face-svg" viewBox="11.5 -1 32.3 26.2" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="olo">
+      <g class="face-grey">${p(P.o1)}${p(P.l1)}${p(P.o2)}${p(P.smile)}</g>
+      <mask id="pen" maskUnits="userSpaceOnUse" x="6" y="-8" width="44" height="42">
+        <path class="wr w1" pathLength="100" d="M18.4742 5.6961A4.35 4.75 0 0 0 18.4742 15.1961A4.35 4.75 0 0 0 18.4742 5.6961A4.35 4.75 0 0 0 16.986 5.9825"/>
+        <path class="wr w2" pathLength="100" d="M27.6563 -0.5V16.8"/>
+        <path class="wr w3" pathLength="100" d="M36.8391 5.6961A4.35 4.75 0 0 0 36.8391 15.1961A4.35 4.75 0 0 0 36.8391 5.6961A4.35 4.75 0 0 0 35.3509 5.9825"/>
+        <path class="wr w4" pathLength="100" d="M20.196 18.491A8.812 8.812 0 0 0 35.124 18.491"/>
+      </mask>
+      <g class="face-ink" mask="url(#pen)">${p(P.o1)}${p(P.l1)}${p(P.o2)}${p(P.smile)}</g>
+    </svg>`;
+
+  const face = document.getElementById('face');
+  face.innerHTML = FACE;
+
+  /* Čtvercový rám 34 × 34 se středem na středu kresby, aby se značka vešla
+     naležato (30,4 široká) i nastojato (30,4 vysoká). */
+  const mill = document.getElementById('mill');
+  mill.innerHTML = `
+    <svg class="mill-svg" viewBox="10.655 -4.87 34 34" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="olo">
+      <g class="mill-rot">
+        <g class="mill-eyes">${p(P.o1)}${p(P.o2)}</g>
+        <g class="mill-sheet">${p(P.l1)}</g>
+        <g class="mill-smile">${p(P.smile)}</g>
+      </g>
+    </svg>`;
+
+  const hero = document.getElementById('hero');
+  const $ = id => document.getElementById(id);
+  const systemRM = matchMedia('(prefers-reduced-motion: reduce)');
+  let timer = null, loopTimer = null;
+
+  const reduced = () => $('rm').checked || systemRM.matches;
+
+  function settings() {
+    return {
+      hold: reduced() ? 0 : +$('hold').value,
+      dur:  +$('dur').value,
+      durh: +$('durh').value,
+      gap:  +$('tmgap').value,
+      draw: +$('draw').value,
+      ease: $('ease').value,
+      u:    +$('size').value
+    };
+  }
+
+  /* Délky drah v jednotkách. Doba tahu je jim úměrná, takže pero jede pořád
+     stejně rychle a krátký dřík netrvá jako celé oko. */
+  const LEN = [28.6, 16.2, 28.6, 13.8];
+
+  /* Překryv posouvá každý další tah dopředu o `ov` z doby toho předchozího.
+     Celek se pak znormalizuje zpátky na jedničku — jinak by zvětšení překryvu
+     zkrátilo psaní a posuvník doby psaní by přestal znamenat, co říká. */
+  function strokeTiming(ov) {
+    const total = LEN.reduce((a, b) => a + b, 0);
+    const d = LEN.map(l => l / total);
+    const starts = [0];
+    for (let i = 1; i < d.length; i++) starts[i] = starts[i - 1] + d[i - 1] * (1 - ov);
+    const ends = d.map((v, i) => starts[i] + v);
+    /* Nejpozdější konec, ne konec posledního tahu. Úsměv je nejkratší, takže
+       nad 48 % překryvu dojede dřív než pravé oko a normalizace podle něj by
+       nechala psaní běžet dýl, než kolik říká posuvník. */
+    const span = Math.max(...ends);
+    d.forEach((v, i) => {
+      face.style.setProperty(`--d${i + 1}`, (v / span).toFixed(4));
+      face.style.setProperty(`--s${i + 1}`, (starts[i] / span).toFixed(4));
+    });
+    $('ov-v').textContent = Math.round(ov * 100) + ' %';
+
+    const diff = Math.round((ends[3] - ends[2]) / span * (+$('draw').value));
+    $('ov-note').textContent =
+      Math.abs(diff) <= 8 ? 'oko a úsměv dojedou spolu'
+      : diff < 0 ? `úsměv dojede o ${-diff} ms dřív než oko`
+      : `úsměv dojede o ${diff} ms po oku`;
+  }
+
+  function apply() {
+    const s = settings();
+    hero.style.setProperty('--u', s.u);
+    hero.style.setProperty('--dur', s.dur + 'ms');
+    hero.style.setProperty('--dur-hover', (reduced() ? 0 : s.durh) + 'ms');
+    hero.style.setProperty('--ease', s.ease);
+    document.querySelectorAll('.brand').forEach(b => b.style.setProperty('--tm-gap', s.gap));
+    document.querySelectorAll('.variant .brand').forEach(b => {
+      b.style.setProperty('--dur', s.dur + 'ms');
+      b.style.setProperty('--dur-hover', (reduced() ? 0 : s.durh) + 'ms');
+      b.style.setProperty('--ease', s.ease);
+    });
+    face.style.setProperty('--draw', (reduced() ? 0 : s.draw) + 'ms');
+    face.style.setProperty('--draw-ease', $('dease').value);
+    strokeTiming(+$('ov').value / 100);
+    $('hold-v').textContent  = s.hold + ' ms';
+    $('dur-v').textContent   = s.dur + ' ms';
+    $('durh-v').textContent  = s.durh + ' ms';
+    $('tmgap-v').textContent = s.gap.toFixed(2).replace('.', ',');
+    $('draw-v').textContent  = s.draw + ' ms';
+    $('size-v').textContent  = s.u.toFixed(2).replace('.', ',') + '×';
+  }
+
+  /* `ready` je až po dojetí úvodu. Kdyby viselo od začátku, ukazovátko stojící
+     nad hlavičkou při startu by úvod přerušilo dřív, než by ho někdo viděl. */
+  function play(el, hold, dur) {
+    el.classList.toggle('instant', reduced());
+    el.classList.remove('done', 'ready');
+    void el.offsetWidth;
+    clearTimeout(el._t); clearTimeout(el._r);
+    if (reduced()) {
+      el.classList.add('done');
+      el._r = setTimeout(() => el.classList.add('ready'), 0);
+      return;
+    }
+    el._t = setTimeout(() => el.classList.add('done'), hold);
+    el._r = setTimeout(() => el.classList.add('ready'), hold + dur + 60);
+  }
+
+  function playHero() {
+    const s = settings();
+    play(hero, s.hold, s.dur);
+    clearTimeout(loopTimer);
+    if ($('loop').checked && !reduced()) {
+      loopTimer = setTimeout(playHero, s.hold + s.dur + 1400);
+    }
+  }
+
+  function playVariants() {
+    const s = settings();
+    document.querySelectorAll('.variant .brand').forEach(b => play(b, s.hold, s.dur));
+  }
+
+  function playFace() {
+    face.classList.toggle('instant', reduced());
+    face.classList.remove('drawn');
+    void face.offsetWidth;
+    requestAnimationFrame(() => face.classList.add('drawn'));
+  }
+
+  /* Start aplikace: obojí běží od spuštění. Řadit je za sebe mělo smysl, dokud
+     hlavička držela 2,5 s; při 10 s by obličej zůstal šedivý jedenáct sekund a
+     to čte jako obrazovka, která se nenačetla. Námitka byla proti dvěma
+     pohybům naráz — a hlavička se během výdrže nehýbe, jen stojí. */
+  function playBoth() {
+    const s = settings();
+    playHero();
+    clearTimeout(playBoth._t);
+    face.classList.remove('drawn');
+    /* Obojí od spuštění, ne jedno po druhém. Hlavička během výdrže nestojí
+       v cestě — ona stojí, tečka — takže obličej nemá na co čekat. */
+    playBoth._t = setTimeout(playFace, reduced() ? 0 : Math.max(0, +$('lag').value));
+  }
+
+  ['hold','dur','durh','tmgap','draw','size','ease','dease','ov'].forEach(id => $(id).addEventListener('input', apply));
+  $('ov').addEventListener('change', playFace);
+  $('lag').addEventListener('input', () => { $('lag-v').textContent = $('lag').value + ' ms'; });
+  $('lag').addEventListener('change', playBoth);
+  $('dease').addEventListener('change', () => { apply(); playFace(); });
+  $('fsize').addEventListener('input', () => {
+    face.style.setProperty('--fu', $('fsize').value);
+    $('fsize-v').textContent = (+$('fsize').value).toFixed(2).replace('.', ',') + '×';
+  });
+  const millApply = () => {
+    const lead = +$('lead').value / 100;
+    mill.style.setProperty('--mill-turn', $('turn').value + 'ms');
+    mill.style.setProperty('--mill-pass', $('pass').value + 'ms');
+    mill.style.setProperty('--mill-lead', lead);
+    mill.style.setProperty('--mill-smile-turn', $('smileturn').value + 'deg');
+    mill.style.setProperty('--mu', $('msize').value);
+    $('turn-v').textContent = $('turn').value + ' ms';
+    $('pass-v').textContent = $('pass').value + ' ms';
+    $('lead-v').textContent = $('lead').value + ' %';
+    $('smileturn-v').textContent = $('smileturn').value + '°';
+    $('msize-v').textContent = (+$('msize').value).toFixed(2).replace('.', ',') + '×';
+    /* Kdy plech dorazí k válcům, proti tomu, kdy dojede otáčení. Plech startuje
+       26 jednotek za rámem a k místu nosu má polovinu průjezdu, takže jeho
+       příjezd je delay + pass/2. */
+    const arrive = lead * +$('turn').value + +$('pass').value / 2;
+    const turn = +$('turn').value;
+    const diff = Math.round(arrive - turn);
+    $('lead-note').textContent =
+      Math.abs(diff) <= 40 ? 'k válcům dorazí přesně, když dotočí'
+      : diff < 0 ? `k válcům dorazí o ${-diff} ms dřív, než dotočí`
+      : `k válcům dorazí o ${diff} ms po dotočení`;
+  };
+  ['turn', 'pass', 'lead', 'smileturn', 'msize'].forEach((id) => $(id).addEventListener('input', millApply));
+
+  $('mill-start').addEventListener('click', () => {
+    clearTimeout(mill._stop);
+    mill.classList.add('busy');
+  });
+
+  /* Konec se netrhne: poslední plech dojede do místa nosu a teprve pak se to
+     otočí zpátky — *poslední nos co přijede by měl zůstat jako nos*.
+     Průjezd vede z +26 do −26, takže nos je přesně v polovině; stačí tedy počkat
+     na nejbližší příští polovinu a v ten okamžik animaci sundat. Klidový stav
+     nemá žádný posun, takže plech zůstane stát tam, kam právě dojel. */
+  $('mill-stop').addEventListener('click', () => {
+    clearTimeout(mill._stop);
+    const sheet = mill.querySelector('.mill-sheet');
+    const anim = sheet && sheet.getAnimations()[0];
+    if (!mill.classList.contains('busy') || !anim) {
+      mill.classList.remove('busy');
+      return;
+    }
+    const pass = +$('pass').value;
+    const delay = (+$('lead').value / 100) * +$('turn').value;
+    const progress = anim.effect.getComputedTiming().progress;
+    const wait = progress === null
+      ? (delay - anim.currentTime) + pass / 2
+      : ((progress <= 0.5 ? 0.5 - progress : 1.5 - progress)) * pass;
+    mill._stop = setTimeout(() => mill.classList.remove('busy'), Math.max(0, wait));
+  });
+
+  millApply();
+
+  $('play-face').addEventListener('click', playFace);
+  $('reset-face').addEventListener('click', () => { clearTimeout(playBoth._t); face.classList.remove('drawn'); });
+  $('play-both').addEventListener('click', playBoth);
+  $('play').addEventListener('click', playHero);
+  $('play-all').addEventListener('click', playVariants);
+  $('reset').addEventListener('click', () => {
+    clearTimeout(loopTimer); clearTimeout(hero._t); clearTimeout(hero._r);
+    hero.classList.remove('done', 'ready');
+  });
+  $('reset-all').addEventListener('click', () => document.querySelectorAll('.variant .brand').forEach(b => {
+    clearTimeout(b._t); clearTimeout(b._r);
+    b.classList.remove('done', 'ready');
+  }));
+  $('loop').addEventListener('change', () => { clearTimeout(loopTimer); if ($('loop').checked) playHero(); });
+  $('rm').addEventListener('change', () => { clearTimeout(loopTimer); apply(); playHero(); playVariants(); playFace(); });
+
+  document.getElementById('variants').addEventListener('click', e => {
+    const card = e.target.closest('.variant');
+    if (!card) return;
+    document.querySelectorAll('.variant').forEach(v => v.classList.toggle('picked', v === card));
+    hero.dataset.variant = card.dataset.v;
+    playHero();
+  });
+
+
+
+  /* ---- usmev ----
+     Usmev je mezikruzi vyseku: dva soustredne oblouky spojene radialnimi rezy.
+     Jeho geometrie je odectena z `P.smile` a je presna, ne priblizna — vsech
+     osm koncovych bodu tech cubik lezi na dvou kruznicich se stredem
+     (27,66 / 13,833) a polomery 7,2400 a 10,3428, a odchylka nejvzdalenejsiho
+     vzorku z te krivky je 0,00008 jednotky. V klidu ma vysek presne 45,000
+     stupne na kazdou stranu.
+
+     Prodlouzeni je tedy jedina promenna: uhel. Polomery se nemeni, takze usmev
+     roste po sve vlastni kruznici — coz je rozdil mezi *usmeje se vic* a
+     *oblicej se priblizil*, a byla to jedina tvrda podminka zadani.
+
+     Proc se cesta prepocitava misto animovani necim hotovym: zadna CSS
+     transformace tohle neumi. `scale` meni polomer, `rotate` usmev pootoci a
+     nerozsiri. Predchozi pokus proto usmev prevedl na tah po stredni kruznici
+     a delku ridil pres `pathLength` a `stroke-dasharray` — a nechal na obrazku
+     artefakt, ktery se nepodarilo najit. Tady zadny tah neni: je to porad tataz
+     vyplnena cesta jako v kresbe, jen s jinym uhlem. Odpada tim cely mechanismus
+     (dva kusy stykajici se uprostred, rovna cela, prepocet `pathLength`), ve
+     kterem ten artefakt mohl byt. */
+  const SM = { cx: 27.66, cy: 13.833, ri: 7.2400, ro: 10.3428, rest: 45 };
+  const smilePath = (deg) => {
+    const t = deg * Math.PI / 180, s = Math.sin(t), c = Math.cos(t);
+    const x = (r, k) => (SM.cx + k * r * s).toFixed(4), y = (r) => (SM.cy + r * c).toFixed(4);
+    /* Nad 90 stupnu na stranu uz je vysek vetsi nez pulkruh a `large-arc-flag`
+       se musi otocit, jinak oblouk skoci na kratsi cestu. Slider tam nedosahne,
+       ale cesta by pak byla spatne pro kohokoli, kdo ji zavola primo. */
+    const big = deg > 90 ? 1 : 0;
+    return 'M' + x(SM.ro, 1) + ' ' + y(SM.ro) +
+      'A' + SM.ro + ' ' + SM.ro + ' 0 ' + big + ' 1 ' + x(SM.ro, -1) + ' ' + y(SM.ro) +
+      'L' + x(SM.ri, -1) + ' ' + y(SM.ri) +
+      'A' + SM.ri + ' ' + SM.ri + ' 0 ' + big + ' 0 ' + x(SM.ri, 1) + ' ' + y(SM.ri) + 'Z';
+  };
+
+  const alive = document.getElementById('alive');
+  alive.innerHTML =
+    '<svg class="alive-svg" viewBox="11.5 -1 32.3 26.2" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="olo">' +
+    '<path class="alive-eye" d="' + P.o1 + '"/>' +
+    '<path d="' + P.l1 + '"/>' +
+    '<path class="alive-eye" d="' + P.o2 + '"/>' +
+    '<path class="alive-smile" d="' + smilePath(SM.rest) + '"/>' +
+    '</svg>';
+  const smileNode = alive.querySelector('.alive-smile');
+  const setSmile = (deg) => smileNode.setAttribute('d', smilePath(deg));
+
+  let blinkTimer = null, grinTimer = null, grinBack = null, grinFrame = null;
+  let grinFrom = SM.rest, hovering = false;
+  /* Rozptyl, ne pevny interval: oko nemrka na metronom, a pravidelny rytmus
+     zacne po chvili rusit vic nez samotny pohyb. */
+  const jitter = (ms) => ms * (0.6 + Math.random() * 0.8);
+
+  /* Prepocitavana cesta se neda predat CSS prechodu, takze si usmev vede vlastni
+     smycku. `easeOutBack` s malym prekmitem: usmev, ktery dojede a zastavi se,
+     je mechanicky; ten kousek za cil je to, co dela rozdil mezi grimasou a
+     vyrazem. Zpatky se vraci bez prekmitu — obliceji nema usmev vystrelit dovnitr. */
+  const easeOutBack = (t) => 1 + 2.2 * Math.pow(t - 1, 3) + 1.2 * Math.pow(t - 1, 2);
+  const easeOut = (t) => 1 - Math.pow(1 - t, 3);
+  const glide = (to, ms, ease) => {
+    cancelAnimationFrame(grinFrame);
+    const from = grinFrom, t0 = performance.now();
+    const step = (now) => {
+      const k = Math.min(1, (now - t0) / ms);
+      grinFrom = from + (to - from) * ease(k);
+      setSmile(grinFrom);
+      if (k < 1) grinFrame = requestAnimationFrame(step); else grinFrom = to;
+    };
+    grinFrame = requestAnimationFrame(step);
+  };
+
+  const aliveApply = () => {
+    alive.style.setProperty('--blink', $('blinkfast').value + 'ms');
+    $('blinkevery-v').textContent = $('blinkevery').value + ' ms';
+    $('blinkfast-v').textContent = $('blinkfast').value + ' ms';
+    $('grinevery-v').textContent = $('grinevery').value + ' ms';
+    $('grinfast-v').textContent = $('grinfast').value + ' ms';
+    $('grinsize-v').textContent = $('grinsize').value + '°';
+  };
+  const blinkOnce = () => {
+    alive.classList.add('blinking');
+    setTimeout(() => alive.classList.remove('blinking'), +$('blinkfast').value);
+  };
+  /* Dva casovace, ne jeden: `grinBack` vraci usmev do klidu, `grinTimer` planuje
+     ten dalsi. Jedna promenna na oboji znamena, ze druhy prepise odkaz na prvni
+     a zastaveni uz ho nedosahne. */
+  const grinOnce = () => {
+    const up = +$('grinfast').value;
+    clearTimeout(grinBack);
+    glide(+$('grinsize').value, up, easeOutBack);
+    grinBack = setTimeout(() => glide(SM.rest, up * 1.6, easeOut), up + 1200);
+  };
+  const aliveStop = () => {
+    clearTimeout(blinkTimer); clearTimeout(grinTimer); clearTimeout(grinBack);
+    cancelAnimationFrame(grinFrame);
+  };
+  const nextBlink = () => {
+    blinkOnce();
+    blinkTimer = setTimeout(nextBlink, jitter(+$('blinkevery').value));
+  };
+  /* Pod ukazovátkem se samovolný úsměv přeskočí, ale hodiny běží dál. Zastavit
+     je a po odjetí spustit znovu by znamenalo, že se obličej hned po odjetí
+     usměje podruhé — a to je přesně to, co má být občasné, ne odpovědí na to,
+     že jsem tam byl. */
+  const nextGrin = () => {
+    if (!hovering) grinOnce();
+    grinTimer = setTimeout(nextGrin, jitter(+$('grinevery').value));
+  };
+  const aliveRun = () => {
+    aliveStop();
+    alive.classList.toggle('still', reduced());
+    if (reduced()) { grinFrom = SM.rest; setSmile(SM.rest); return; }
+    blinkTimer = setTimeout(nextBlink, jitter(+$('blinkevery').value));
+    grinTimer = setTimeout(nextGrin, jitter(+$('grinevery').value));
+  };
+
+  /* Úsměv na najetí. Drží, dokud tam ukazovátko je — na rozdíl od občasného,
+     který sám odejde. Ten rozdíl je celý smysl: samovolný úsměv je nálada,
+     tenhle je odpověď, a odpověď nemá zmizet dřív než otázka.
+
+     `mouseenter`/`mouseleave`, ne `pointer*`: na dotyku by `pointerenter`
+     usměv zapnul při ťuknutí a `pointerleave` už nemusí přijít, takže by
+     zůstal viset. Kdo hover nemá, o nic nepřijde — je to ozdoba, ne informace.
+
+     Při omezeném pohybu se úsměv nastaví rovnou, bez dojezdu. Reduced motion
+     ruší animaci, ne funkci; mrkání se ruší celé, protože to je jen pohyb. */
+  const hoverGlide = (to, ms, ease) => {
+    if (reduced()) { grinFrom = to; setSmile(to); return; }
+    glide(to, ms, ease);
+  };
+  alive.addEventListener('mouseenter', () => {
+    hovering = true;
+    clearTimeout(grinBack);
+    hoverGlide(+$('grinsize').value, +$('grinfast').value, easeOutBack);
+  });
+  alive.addEventListener('mouseleave', () => {
+    hovering = false;
+    hoverGlide(SM.rest, +$('grinfast').value * 1.6, easeOut);
+  });
+  ['blinkevery', 'blinkfast', 'grinevery', 'grinfast', 'grinsize'].forEach(
+    (id) => $(id).addEventListener('input', aliveApply)
+  );
+  /* Sirka se ladi okem, takze ji tahani slideru ukazuje rovnou na znacce a drzi
+     ji tam. Po pusteni se obicej vrati do klidu a bezi dal — jinak by se sirka
+     nastavovala proti tvaru, ktery zrovna odjizdi. */
+  $('grinsize').addEventListener('input', () => {
+    aliveStop(); grinFrom = +$('grinsize').value; setSmile(grinFrom);
+  });
+  $('grinsize').addEventListener('change', () => { glide(SM.rest, 420, easeOut); aliveRun(); });
+  $('alive-run').addEventListener('click', aliveRun);
+  $('alive-stop').addEventListener('click', aliveStop);
+  $('alive-blink').addEventListener('click', blinkOnce);
+  $('alive-grin').addEventListener('click', grinOnce);
+  aliveApply();
+  aliveRun();
+
+  apply();
+  setTimeout(() => { playBoth(); playVariants(); }, 320);
+</script>
