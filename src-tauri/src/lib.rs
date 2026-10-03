@@ -1,7 +1,7 @@
 //! Volocal's engine, and the window built on top of it.
 //!
 //! **A library since 2 October 2026**, so that a second program can use the
-//! engine without the window: `volocal-cli` (`src/bin/volocal-cli.rs`). The
+//! engine without the window: `volocal-cli` (`src/bin/volocal-cli/`). The
 //! window itself is still started from here — `run()` is what `main()` used to
 //! be, unchanged — and `src/main.rs` is the three lines that call it. That is
 //! the shape Tauri's own templates use, and it was chosen over moving the
@@ -330,8 +330,12 @@ fn quiet_the_browser(window: &tauri::WebviewWindow) {
 /// somebody else's job — a debugger, a test runner — is not a reason to fail.
 /// Every step is silent on failure: a machine where the job cannot be created
 /// must still start the application, and `kill_all` is still there.
+///
+/// Public so that `volocal-cli` can make the same call for itself: whisper
+/// started from a terminal must not outlive the terminal either. The window's
+/// own call below is unchanged.
 #[cfg(windows)]
-fn die_with_this_process() {
+pub fn die_with_this_process() {
     use windows::core::PCWSTR;
     use windows::Win32::System::JobObjects::{
         AssignProcessToJobObject, CreateJobObjectW, JobObjectExtendedLimitInformation,

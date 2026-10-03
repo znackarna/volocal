@@ -13,7 +13,12 @@
 //! window's start-up migrations, and an existing file is never overwritten
 //! unless `--force` says so.
 
+mod live;
+mod look;
+mod styled;
+
 use clap::{Parser, Subcommand, ValueEnum};
+use look::{Lang, Look, Stream};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -157,20 +162,160 @@ fn main() -> ExitCode {
     let cli = Cli::parse();
     match run(cli.command) {
         Ok(()) => ExitCode::SUCCESS,
-        Err(message) => {
-            eprintln!("error: {message}");
+        Err(problem) => {
+            // A script reading standard error gets the `error:` line
+            // `docs/cli.md` promises; a person, the same thing in a sentence.
+            match Look::of(Stream::Err) {
+                Some(look) => eprintln!(
+                    "  {} {}",
+                    look::paint(look::Role::Danger, look.glyphs().failed),
+                    problem.said(look.lang)
+                ),
+                None => eprintln!("error: {}", problem.english()),
+            }
             ExitCode::FAILURE
         }
     }
 }
 
-fn run(command: Command) -> Result<(), String> {
-    let archive = find_archive()
-        .ok_or("no Volocal archive was found. Start Volocal once, which creates it.".to_string())?;
+/// Why a command could not do what it was asked.
+///
+/// The English of each is exactly what the command line printed before it
+/// spoke Czech, and `the_english_is_what_it_always_was` holds it there, since
+/// scripts read it after `error:`. The Czech is for a person at a terminal.
+enum Problem {
+    /// Already words: the database's, or the operating system's.
+    Text(String),
+    /// The engine's, looked up in the window's dictionaries.
+    Engine(UserMessage),
+    NoArchive,
+    NoTranscript(String),
+    Busy(String),
+    NotAFile(PathBuf),
+    Stopped {
+        id: String,
+        title: String,
+        kept: bool,
+    },
+    NoFolder(String),
+    NoRecording(String),
+    Ambiguous(String),
+    Exists(PathBuf),
+}
+
+impl From<String> for Problem {
+    fn from(text: String) -> Self {
+        Problem::Text(text)
+    }
+}
+
+impl Problem {
+    fn english(&self) -> String {
+        match self {
+            Problem::Text(text) => text.clone(),
+            Problem::Engine(message) => describe(message.clone()),
+            Problem::NoArchive => {
+                "no Volocal archive was found. Start Volocal once, which creates it.".to_string()
+            }
+            Problem::NoTranscript(title) => {
+                format!("\"{title}\" has no transcript yet, so there is nothing to export.")
+            }
+            Problem::Busy(title) => format!(
+                "\"{title}\" is being transcribed already. Wait until it finishes; \
+                 two transcriptions at once can run out of memory."
+            ),
+            Problem::NotAFile(path) => format!("{} is not a file", path.display()),
+            Problem::Stopped { id, .. } => format!(
+                "stopped. The recording stays in the archive as {}",
+                short(id)
+            ),
+            Problem::NoFolder(name) => format!("there is no folder called \"{name}\""),
+            Problem::NoRecording(id) => {
+                format!("there is no recording whose id starts with \"{id}\"")
+            }
+            Problem::Ambiguous(id) => {
+                format!("more than one recording's id starts with \"{id}\"; give more of it")
+            }
+            Problem::Exists(path) => format!(
+                "{} already exists; add --force to overwrite it",
+                path.display()
+            ),
+        }
+    }
+
+    /// The same, for a person reading it in their language.
+    fn said(&self, lang: Lang) -> String {
+        match (self, lang) {
+            (Problem::Engine(message), _) => describe_in(lang, message),
+            (Problem::Stopped { title, kept, .. }, Lang::En) => {
+                if *kept {
+                    format!("Stopped. \"{title}\" stays in the archive with its transcript.")
+                } else {
+                    format!(
+                        "Stopped. \"{title}\" stays in the archive without a transcript; \
+                         the text so far was not kept."
+                    )
+                }
+            }
+            (Problem::Text(text), _) => text.clone(),
+            (_, Lang::En) => {
+                let english = self.english();
+                let mut chars = english.chars();
+                match chars.next() {
+                    Some(first) => first.to_uppercase().chain(chars).collect(),
+                    None => english,
+                }
+            }
+            (Problem::NoArchive, Lang::Cs) => {
+                "Archiv Volocalu jsme nenašli. Spusťte jednou aplikaci Volocal, ta ho vytvoří."
+                    .to_string()
+            }
+            (Problem::NoTranscript(title), Lang::Cs) => {
+                format!("Nahrávka „{title}“ zatím nemá přepis, není co ukládat.")
+            }
+            (Problem::Busy(title), Lang::Cs) => format!(
+                "Nahrávka „{title}“ se právě přepisuje. Počkejte, až přepis skončí: \
+                 dva přepisy najednou mohou vyčerpat paměť."
+            ),
+            (Problem::NotAFile(path), Lang::Cs) => format!("{} není soubor.", path.display()),
+            (Problem::Stopped { title, kept, .. }, Lang::Cs) => {
+                if *kept {
+                    format!(
+                        "Přepis je zastavený. Nahrávka „{title}“ zůstává v archivu i s přepisem."
+                    )
+                } else {
+                    format!(
+                        "Přepis je zastavený. Nahrávka „{title}“ zůstává v archivu bez přepisu, \
+                         dosavadní text se neuložil."
+                    )
+                }
+            }
+            (Problem::NoFolder(name), Lang::Cs) => format!("Složka „{name}“ v archivu není."),
+            (Problem::NoRecording(id), Lang::Cs) => {
+                format!("Žádná nahrávka nemá id začínající „{id}“.")
+            }
+            (Problem::Ambiguous(id), Lang::Cs) => {
+                format!("Id začínající „{id}“ má víc nahrávek. Zadejte ho delší.")
+            }
+            (Problem::Exists(path), Lang::Cs) => format!(
+                "{} už existuje. Nahradit ho můžete přepínačem --force.",
+                path.display()
+            ),
+        }
+    }
+}
+
+fn run(command: Command) -> Result<(), Problem> {
+    let archive = find_archive().ok_or(Problem::NoArchive)?;
     // The engine's diagnostics go to the window's log file beside the archive,
     // not between the lines this program prints.
     volocal_lib::diagnostics::set_file(&archive);
     volocal_lib::diagnostics::keep_off_the_terminal();
+    // whisper and ffmpeg are started without a console of their own, so they
+    // would not notice this program's terminal closing; tied to it, they end
+    // with it. The same call the window makes for itself at its start.
+    #[cfg(windows)]
+    volocal_lib::die_with_this_process();
     let connection = db::open(&archive).map_err(|error| format!("{error:#}"))?;
     let settings = db::load_settings(&connection).map_err(|error| format!("{error:#}"))?;
 
@@ -193,10 +338,7 @@ fn run(command: Command) -> Result<(), String> {
             let target = destination(&recording, format.extension(), out, force)?;
             let segments = db::segments(&connection, &recording.id).map_err(|e| e.to_string())?;
             if segments.is_empty() {
-                return Err(format!(
-                    "\"{}\" has no transcript yet, so there is nothing to export.",
-                    recording.title
-                ));
+                return Err(Problem::NoTranscript(recording.title));
             }
             let speakers = db::speakers(&connection, &recording.id).map_err(|e| e.to_string())?;
             let text = match format {
@@ -207,7 +349,10 @@ fn run(command: Command) -> Result<(), String> {
                 TextFormat::Json => export::json(&recording, &segments, &speakers),
             };
             std::fs::write(&target, text).map_err(|e| e.to_string())?;
-            println!("{}", target.display());
+            match Look::of(Stream::Out) {
+                Some(look) => print!("{}", styled::saved(&look, &target)),
+                None => println!("{}", target.display()),
+            }
             Ok(())
         }
         Command::ExportAudio {
@@ -218,15 +363,31 @@ fn run(command: Command) -> Result<(), String> {
         } => {
             let recording = find_recording(&connection, &id)?;
             let target = destination(&recording, format.extension(), out, force)?;
-            export::audio(&settings, Path::new(&recording.path), &target).map_err(describe)?;
-            println!("{}", target.display());
+            let turning = Look::of(Stream::Err)
+                .map(|look| live::Turning::start(look, &format.extension().to_uppercase()));
+            let exported = export::audio(&settings, Path::new(&recording.path), &target);
+            drop(turning);
+            exported.map_err(Problem::Engine)?;
+            match Look::of(Stream::Out) {
+                Some(look) => print!("{}", styled::saved(&look, &target)),
+                None => println!("{}", target.display()),
+            }
             Ok(())
         }
     }
 }
 
-fn status(archive: &Path, settings: &db::Settings) -> Result<(), String> {
+fn status(archive: &Path, settings: &db::Settings) -> Result<(), Problem> {
     let check = tools::check(settings);
+    if let Some(look) = Look::of(Stream::Out) {
+        let issues: Vec<String> = check
+            .issues
+            .iter()
+            .map(|issue| describe_in(look.lang, issue))
+            .collect();
+        print!("{}", styled::status(&look, archive, &check, &issues));
+        return Ok(());
+    }
     let found = |value: &Option<String>| value.clone().unwrap_or_else(|| "missing".to_string());
     println!("archive      {}", archive.display());
     println!("ffmpeg       {}", found(&check.ffmpeg));
@@ -267,58 +428,116 @@ fn transcribe(
     file: PathBuf,
     language: Option<String>,
     speakers: Option<i64>,
-) -> Result<(), String> {
+) -> Result<(), Problem> {
     let recordings = db::list_recordings(connection).map_err(|e| e.to_string())?;
     if let Some(busy) = recordings
         .iter()
         .find(|r| r.status == db::status::TRANSCRIBING)
     {
-        return Err(format!(
-            "\"{}\" is being transcribed already. Wait until it finishes; \
-             two transcriptions at once can run out of memory.",
-            busy.title
-        ));
+        return Err(Problem::Busy(busy.title.clone()));
     }
     if !file.is_file() {
-        return Err(format!("{} is not a file", file.display()));
+        return Err(Problem::NotAFile(file));
     }
 
-    let (file, duration) = prepare_import(settings, archive, file).map_err(describe)?;
-    let recording = create_recording(connection, file, duration).map_err(describe)?;
+    let (file, duration) = prepare_import(settings, archive, file).map_err(Problem::Engine)?;
+    let recording = create_recording(connection, file, duration).map_err(Problem::Engine)?;
     if let Some(language) = &language {
         db::set_language_choice(connection, &recording.id, language).map_err(|e| e.to_string())?;
     }
 
     let task = TranscriptionTask::default();
     let id = recording.id.clone();
+    // Until this is dropped, closing the console waits for the run to end.
+    let _ends = RunEnds;
     stop_on_ctrl_c(&task, &id);
-    eprintln!("{}", recording.title);
+    let look = Look::of(Stream::Err);
+    let live = look.map(|look| {
+        let check = tools::check(settings);
+        let mut meta = vec![clock(recording.duration)];
+        meta.extend(check.model_whisper_id.clone());
+        meta.push(match check.compute.as_str() {
+            "cuda" => "CUDA".to_string(),
+            "vulkan" => "Vulkan".to_string(),
+            other => other.to_uppercase(),
+        });
+        let header = format!(
+            "{}  {}",
+            look::paint(look::Role::Bold, &recording.title),
+            look::paint(look::Role::Muted, &meta.join(" · "))
+        );
+        (live::Live::start(look, &header, recording.duration), look)
+    });
+    if live.is_none() {
+        eprintln!("{}", recording.title);
+    }
+    let started = std::time::Instant::now();
     let stopped = |ending: Ending| match ending {
-        Ending::Cancelled => format!(
-            "stopped. The recording stays in the archive as {}",
-            short(&id)
-        ),
-        Ending::Failed(message) => describe(message),
+        Ending::Cancelled => Problem::Stopped {
+            id: id.clone(),
+            title: recording.title.clone(),
+            kept: db::recording(connection, &id)
+                .map(|r| r.segment_count > 0)
+                .unwrap_or(false),
+        },
+        Ending::Failed(message) => Problem::Engine(message),
     };
-    follow(|report| transcription::transcribe(report, archive, &id, &task, speakers))
+    let mut written_in = None;
+    let done = (|| -> Result<(), Problem> {
+        follow(live.as_ref(), |report| {
+            transcription::transcribe(report, archive, &id, &task, speakers)
+        })
         .map_err(stopped)?;
-    // A second language heard and not written in is an offer the window shows
-    // and waits on. Here there is nobody to ask, and a language left out is
-    // half of a translated talk, so the offer is taken — before the speakers,
-    // so the blocks it adds are told apart with the rest.
-    let offer = db::second_language(connection, &id).map_err(|e| e.to_string())?;
-    if let Some(offer) = offer.filter(|o| o.state == db::second_language_state::OFFERED) {
-        eprintln!("also spoken: {}", offer.language);
-        write_in_second_language(archive, &id, &task).map_err(stopped)?;
-    }
-    // With speaker recognition switched on in the window, the transcription
-    // above has already told the speakers apart. With it off, the window
-    // never asks for a count, so `--speakers` runs the pass the window offers
-    // for a finished transcript.
-    if speakers.is_some() && !settings.diarization {
-        follow(|report| transcription::recognise_speakers(report, archive, &id, &task, speakers))
+        // A second language heard and not written in is an offer the window
+        // shows and waits on. Here there is nobody to ask, and a language left
+        // out is half of a translated talk, so the offer is taken — before the
+        // speakers, so the blocks it adds are told apart with the rest.
+        let offer = db::second_language(connection, &id).map_err(|e| e.to_string())?;
+        if let Some(offer) = offer.filter(|o| o.state == db::second_language_state::OFFERED) {
+            match &live {
+                Some((live, _)) => live.next_run(),
+                None => eprintln!("also spoken: {}", offer.language),
+            }
+            write_in_second_language(live.as_ref(), archive, &id, &task).map_err(stopped)?;
+            written_in = Some(offer.language);
+        }
+        // With speaker recognition switched on in the window, the
+        // transcription above has already told the speakers apart. With it
+        // off, the window never asks for a count, so `--speakers` runs the
+        // pass the window offers for a finished transcript.
+        if speakers.is_some() && !settings.diarization {
+            if let Some((live, _)) = &live {
+                live.next_run();
+            }
+            follow(live.as_ref(), |report| {
+                transcription::recognise_speakers(report, archive, &id, &task, speakers)
+            })
             .map_err(stopped)?;
+        }
+        Ok(())
+    })();
+    if let Some((live, look)) = &live {
+        let phases = live.finish();
+        if done.is_ok() {
+            if let Ok(finished) = db::recording(connection, &id) {
+                let speakers = db::speakers(connection, &id).map(|s| s.len()).unwrap_or(0);
+                eprint!(
+                    "{}",
+                    styled::summary(
+                        look,
+                        &styled::Summary {
+                            took: started.elapsed().as_secs_f64(),
+                            recording: &finished,
+                            speakers,
+                            second_language: written_in.as_deref(),
+                            phases: &phases,
+                        }
+                    )
+                );
+            }
+        }
     }
+    done?;
     println!("{id}");
     Ok(())
 }
@@ -331,10 +550,12 @@ enum Ending {
 /// Runs one piece of the engine's work with its progress drawn here, and says
 /// how it ended. The engine reports its end through the same event as its
 /// steps, as it does to the window.
-fn follow(work: impl FnOnce(&Report)) -> Result<(), Ending> {
-    let (report, ending) = drawn();
+fn follow(live: Option<&Shown>, work: impl FnOnce(&Report)) -> Result<(), Ending> {
+    let (report, ending) = drawn(live);
     work(&report);
-    progress_done();
+    if live.is_none() {
+        progress_done();
+    }
     let ending = ending.lock().unwrap().take();
     match ending {
         Some((phase, _)) if phase == "complete" => Ok(()),
@@ -350,13 +571,17 @@ fn follow(work: impl FnOnce(&Report)) -> Result<(), Ending> {
 /// the fill returns — the window announces it itself — so it is read from
 /// there.
 fn write_in_second_language(
+    live: Option<&Shown>,
     archive: &Path,
     id: &str,
     task: &TranscriptionTask,
 ) -> Result<(), Ending> {
-    let (report, _) = drawn();
+    let (report, _) = drawn(live);
     let (done, cancelled) = transcription::fill_second_language(&report, archive, id, task);
-    progress_done();
+    match live {
+        Some((live, _)) => live.close_phase(),
+        None => progress_done(),
+    }
     match done {
         _ if cancelled => Err(Ending::Cancelled),
         Err(message) => Err(Ending::Failed(message)),
@@ -367,12 +592,27 @@ fn write_in_second_language(
 /// A report that draws each step here, and keeps how the work ended.
 type Ended = Arc<Mutex<Option<(String, UserMessage)>>>;
 
-fn drawn() -> (Report, Ended) {
+/// The live block and the look it was started with, when standard error is a
+/// person's terminal.
+type Shown = (Arc<live::Live>, Look);
+
+fn drawn(live: Option<&Shown>) -> (Report, Ended) {
     let ending: Ended = Arc::default();
+    let live = live.cloned();
     let report = {
         let ending = ending.clone();
         let shown = Mutex::new(String::new());
         Report::Callback(Arc::new(move |event, payload| {
+            if event == "transcription:segment" {
+                if let Some((live, _)) = &live {
+                    live.segment(
+                        payload["start"].as_f64().unwrap_or(0.0),
+                        payload["end"].as_f64().unwrap_or(0.0),
+                        payload["text"].as_str().unwrap_or_default(),
+                    );
+                }
+                return;
+            }
             if event != "transcription:status" {
                 return;
             }
@@ -383,10 +623,16 @@ fn drawn() -> (Report, Ended) {
                 return;
             };
             if matches!(phase.as_str(), "complete" | "cancelled" | "error") {
+                if let Some((live, _)) = &live {
+                    live.close_phase();
+                }
                 *ending.lock().unwrap() = Some((phase, message));
                 return;
             }
-            progress(&mut shown.lock().unwrap(), percent, &tell(&message));
+            match &live {
+                Some((live, look)) => live.status(&phase, percent, &tell_in(look.lang, &message)),
+                None => progress(&mut shown.lock().unwrap(), percent, &tell(&message)),
+            }
         }))
     };
     (report, ending)
@@ -396,16 +642,32 @@ fn drawn() -> (Report, Ended) {
 /// than ending the program under it: whisper is started without a console of
 /// its own and would not hear the key, and the row would stay marked as
 /// transcribing, which the guard above then reads as busy.
+///
+/// **Closing the console waits for the run to end.** Windows ends the process
+/// as soon as the handler returns from a close, logoff or shutdown event — so
+/// a handler that only asked for the stop let the process die before the
+/// engine wrote down that it had stopped, and the row stayed marked as
+/// transcribing. For those three it waits until `RunEnds` is dropped, up to
+/// four of the five seconds Windows allows. Ctrl+C and Ctrl+Break return at
+/// once, as before: the process is not ended under them.
 #[cfg(windows)]
 fn stop_on_ctrl_c(task: &TranscriptionTask, id: &str) {
     use windows::core::BOOL;
     use windows::Win32::Foundation::TRUE;
-    use windows::Win32::System::Console::SetConsoleCtrlHandler;
+    use windows::Win32::System::Console::{
+        SetConsoleCtrlHandler, CTRL_CLOSE_EVENT, CTRL_LOGOFF_EVENT, CTRL_SHUTDOWN_EVENT,
+    };
 
     static RUN: OnceLock<(TranscriptionTask, String)> = OnceLock::new();
-    unsafe extern "system" fn handler(_kind: u32) -> BOOL {
+    unsafe extern "system" fn handler(kind: u32) -> BOOL {
         if let Some((task, id)) = RUN.get() {
             task.cancel(id);
+        }
+        if [CTRL_CLOSE_EVENT, CTRL_LOGOFF_EVENT, CTRL_SHUTDOWN_EVENT].contains(&kind) {
+            let (ended, signal) = &RUN_ENDED;
+            let guard = ended.lock().unwrap_or_else(|e| e.into_inner());
+            let _ = signal
+                .wait_timeout_while(guard, std::time::Duration::from_secs(4), |ended| !*ended);
         }
         TRUE
     }
@@ -416,6 +678,23 @@ fn stop_on_ctrl_c(task: &TranscriptionTask, id: &str) {
 
 #[cfg(not(windows))]
 fn stop_on_ctrl_c(_task: &TranscriptionTask, _id: &str) {}
+
+/// Whether the transcription this process started has ended, for the console
+/// handler above.
+static RUN_ENDED: (Mutex<bool>, std::sync::Condvar) =
+    (Mutex::new(false), std::sync::Condvar::new());
+
+/// Says the run has ended when it goes out of scope — on every way out of
+/// `transcribe`, a panic included.
+struct RunEnds;
+
+impl Drop for RunEnds {
+    fn drop(&mut self) {
+        let (ended, signal) = &RUN_ENDED;
+        *ended.lock().unwrap_or_else(|e| e.into_inner()) = true;
+        signal.notify_all();
+    }
+}
 
 /// One line that keeps being rewritten in a terminal; written to a file, a new
 /// line only when the step changes, because a log of percentages helps no one.
@@ -440,9 +719,14 @@ fn list(
     connection: &rusqlite::Connection,
     search: Option<String>,
     folder: Option<String>,
-) -> Result<(), String> {
+) -> Result<(), Problem> {
+    let look = Look::of(Stream::Out);
     if let Some(query) = search {
         let hits = db::search(connection, &query).map_err(|e| e.to_string())?;
+        if let Some(look) = look {
+            print!("{}", styled::search(&look, &hits));
+            return Ok(());
+        }
         if hits.is_empty() {
             println!("nothing found");
         }
@@ -465,7 +749,7 @@ fn list(
             let found = folders
                 .into_iter()
                 .find(|f| f.name.eq_ignore_ascii_case(&name))
-                .ok_or(format!("there is no folder called \"{name}\""))?;
+                .ok_or(Problem::NoFolder(name))?;
             Some(found.id)
         }
     };
@@ -474,6 +758,10 @@ fn list(
         .iter()
         .filter(|r| folder_id.is_none() || r.folder == folder_id)
         .collect();
+    if let Some(look) = look {
+        print!("{}", styled::list(&look, connection, &shown));
+        return Ok(());
+    }
     if shown.is_empty() {
         println!("no recordings");
     }
@@ -493,9 +781,13 @@ fn list(
     Ok(())
 }
 
-fn show(connection: &rusqlite::Connection, id: &str) -> Result<(), String> {
+fn show(connection: &rusqlite::Connection, id: &str) -> Result<(), Problem> {
     let recording = find_recording(connection, id)?;
     let speakers = db::speakers(connection, &recording.id).map_err(|e| e.to_string())?;
+    if let Some(look) = Look::of(Stream::Out) {
+        print!("{}", styled::show(&look, &recording, &speakers));
+        return Ok(());
+    }
     println!("id           {}", recording.id);
     println!("title        {}", recording.title);
     println!("file         {}", recording.path);
@@ -524,16 +816,14 @@ fn show(connection: &rusqlite::Connection, id: &str) -> Result<(), String> {
 
 /// A recording by its id or a prefix of it, as `git` takes a short hash: ids
 /// are long, and the first few characters `list` prints are enough to name one.
-fn find_recording(connection: &rusqlite::Connection, id: &str) -> Result<Recording, String> {
+fn find_recording(connection: &rusqlite::Connection, id: &str) -> Result<Recording, Problem> {
     let recordings = db::list_recordings(connection).map_err(|e| e.to_string())?;
     let mut matches = recordings.into_iter().filter(|r| r.id.starts_with(id));
-    let first = matches.next().ok_or(format!(
-        "there is no recording whose id starts with \"{id}\""
-    ))?;
+    let first = matches
+        .next()
+        .ok_or_else(|| Problem::NoRecording(id.to_string()))?;
     if matches.next().is_some() {
-        return Err(format!(
-            "more than one recording's id starts with \"{id}\"; give more of it"
-        ));
+        return Err(Problem::Ambiguous(id.to_string()));
     }
     Ok(first)
 }
@@ -546,7 +836,7 @@ fn destination(
     extension: &str,
     out: Option<PathBuf>,
     force: bool,
-) -> Result<PathBuf, String> {
+) -> Result<PathBuf, Problem> {
     let target = out.unwrap_or_else(|| {
         let plain: String = recording
             .title
@@ -561,10 +851,7 @@ fn destination(
         PathBuf::from(format!("{plain}.{extension}"))
     });
     if target.exists() && !force {
-        return Err(format!(
-            "{} already exists; add --force to overwrite it",
-            target.display()
-        ));
+        return Err(Problem::Exists(target));
     }
     Ok(target)
 }
@@ -581,11 +868,11 @@ fn highlight(text: &str) -> String {
     }
 }
 
-fn short(id: &str) -> &str {
+pub(crate) fn short(id: &str) -> &str {
     id.get(..8).unwrap_or(id)
 }
 
-fn clock(seconds: f64) -> String {
+pub(crate) fn clock(seconds: f64) -> String {
     let total = seconds.max(0.0).round() as u64;
     let (h, m, s) = (total / 3600, (total % 3600) / 60, total % 60);
     if h > 0 {
@@ -615,6 +902,27 @@ fn tell(message: &UserMessage) -> String {
     fill(template, message)
 }
 
+/// The same in the reader's language. Czech is the window's source language,
+/// so its dictionary has every code; English falls back to the code as above.
+fn describe_in(lang: Lang, message: &UserMessage) -> String {
+    match lang {
+        Lang::En => describe(message.clone()),
+        Lang::Cs => fill(czech_errors().get(message.code.as_str()), message),
+    }
+}
+
+fn tell_in(lang: Lang, message: &UserMessage) -> String {
+    match lang {
+        Lang::En => tell(message),
+        Lang::Cs => {
+            let template = czech_progress()
+                .get(message.code.as_str())
+                .or_else(|| czech_errors().get(message.code.as_str()));
+            fill(template, message)
+        }
+    }
+}
+
 fn fill(template: Option<&String>, message: &UserMessage) -> String {
     let template = template.cloned().unwrap_or_else(|| message.code.clone());
     let mut text = template.clone();
@@ -630,7 +938,10 @@ fn fill(template: Option<&String>, message: &UserMessage) -> String {
 fn english_errors() -> &'static HashMap<String, String> {
     static ERRORS: OnceLock<HashMap<String, String>> = OnceLock::new();
     ERRORS.get_or_init(|| {
-        parse_dictionary(include_str!("../../../src/locales/en/errors.ts"), "errors")
+        parse_dictionary(
+            include_str!("../../../../src/locales/en/errors.ts"),
+            "errors",
+        )
     })
 }
 
@@ -638,10 +949,44 @@ fn english_progress() -> &'static HashMap<String, String> {
     static PROGRESS: OnceLock<HashMap<String, String>> = OnceLock::new();
     PROGRESS.get_or_init(|| {
         parse_dictionary(
-            include_str!("../../../src/locales/en/progress.ts"),
+            include_str!("../../../../src/locales/en/progress.ts"),
             "progress",
         )
     })
+}
+
+/// Czech is the source language, so its files carry a second table under the
+/// first — `csErrorsContext`, the notes for the translator, under the same
+/// keys. Only the first table is the text.
+fn czech_errors() -> &'static HashMap<String, String> {
+    static ERRORS: OnceLock<HashMap<String, String>> = OnceLock::new();
+    ERRORS.get_or_init(|| {
+        parse_dictionary(
+            first_table(include_str!("../../../../src/locales/cs/errors.ts")),
+            "errors",
+        )
+    })
+}
+
+fn czech_progress() -> &'static HashMap<String, String> {
+    static PROGRESS: OnceLock<HashMap<String, String>> = OnceLock::new();
+    PROGRESS.get_or_init(|| {
+        parse_dictionary(
+            first_table(include_str!("../../../../src/locales/cs/progress.ts")),
+            "progress",
+        )
+    })
+}
+
+/// A dictionary file up to its second `export`.
+fn first_table(source: &str) -> &str {
+    let Some(first) = source.find("export const") else {
+        return source;
+    };
+    match source[first + 1..].find("export const") {
+        Some(second) => &source[..first + 1 + second],
+        None => source,
+    }
 }
 
 /// `"errors.x.y": "text",` — and a value may be split over lines and joined with
@@ -706,9 +1051,15 @@ fn reference() -> String {
   the archive is being transcribed, from the window or from another
   `volocal-cli`.
 - **Ctrl+C** stops a transcription and ends with `1`. The recording stays in
-  the archive with whatever was finished before the key.
-- **Progress** is one line that keeps being rewritten in a terminal, and one
-  line per step when standard error goes to a file.
+  the archive; its transcript is kept only if one had been saved before the
+  key.
+- **Progress** goes to standard error: one line per step when it goes to a
+  file. In a terminal it is a block redrawn in place, with the text printed
+  above it as it is transcribed.
+- **In a terminal** every command lays out and colours what it prints, in the
+  system's language when that is Czech, and an error is a sentence rather than
+  an `error:` line. What a script reads, from a pipe or a file, is the plain
+  English described here; `NO_COLOR` gives it in a terminal too.
 - **`list`** prints one recording per line, its fields separated by two
   spaces: id, date, length, status, title. With `--search`, one match per
   line: id, time in the recording, title, the matching text.
@@ -774,6 +1125,43 @@ mod tests {
     fn fills_in_the_parameters() {
         let message = UserMessage::new("transcription.whisper_failed").with("code", 10);
         assert!(describe(message).contains("10"));
+    }
+
+    #[test]
+    fn reads_the_czech_text_and_not_the_note_beside_it() {
+        let vad = czech_errors().get("tools.vad_model_missing").unwrap();
+        assert!(!vad.starts_with("VAD = "), "{vad}");
+        assert_eq!(
+            tell_in(Lang::Cs, &UserMessage::new("transcription.running")),
+            "Přepisuji"
+        );
+        assert_eq!(
+            czech_progress()
+                .get("preparation.converting_audio")
+                .map(String::as_str),
+            Some("Převádím zvuk")
+        );
+    }
+
+    /// Scripts read these after `error:`; each is the sentence the command
+    /// line printed before it learned Czech.
+    #[test]
+    fn the_english_is_what_it_always_was() {
+        let cases = [
+            (Problem::NoArchive, "no Volocal archive was found. Start Volocal once, which creates it."),
+            (Problem::NoTranscript("Porada".into()), "\"Porada\" has no transcript yet, so there is nothing to export."),
+            (Problem::Busy("Porada".into()), "\"Porada\" is being transcribed already. Wait until it finishes; two transcriptions at once can run out of memory."),
+            (Problem::NotAFile("talk.mp3".into()), "talk.mp3 is not a file"),
+            (Problem::Stopped { id: "3f9c2a17-5c2a".into(), title: "Porada".into(), kept: false }, "stopped. The recording stays in the archive as 3f9c2a17"),
+            (Problem::NoFolder("Porady".into()), "there is no folder called \"Porady\""),
+            (Problem::NoRecording("x".into()), "there is no recording whose id starts with \"x\""),
+            (Problem::Ambiguous("3".into()), "more than one recording's id starts with \"3\"; give more of it"),
+            (Problem::Exists("Porada.srt".into()), "Porada.srt already exists; add --force to overwrite it"),
+        ];
+        for (problem, english) in cases {
+            assert_eq!(problem.english(), english);
+            assert!(!problem.said(Lang::Cs).is_empty());
+        }
     }
 
     #[test]

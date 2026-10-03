@@ -1,155 +1,118 @@
-# How the command line looks in a terminal — proposal
+# How the command line looks in a terminal
 
-A proposal, 3 October 2026, not started. It replaces an earlier one for a
-full-screen interface, which the owner turned down the same day: the command
-line deserves a better picture of its progress, not a program of its own
-inside the terminal.
+Built on 3 October 2026. It replaces a proposal for a full-screen interface,
+which the owner turned down the same day: the command line deserves a better
+picture of its progress, not a program of its own inside the terminal.
 
 The output is drawn in [prototypes/volocal-cli-look.html](prototypes/volocal-cli-look.html).
 
 ## What changes
 
 The six commands print better **when their stream is a terminal**: aligned
-columns, a state mark on each recording, the search hit in the window's amber,
-speakers in their colours, and for `transcribe` a live block that shows where
-the work is.
+columns, a state mark on each recording, the search hit highlighted, speakers
+in their colours, and for `transcribe` a live block that shows where the work
+is. What a person reads is in the system's language when that is Czech, and
+English otherwise; `VOLOCAL_LANG=cs|en` chooses.
 
 **Nothing else changes.** No new command, no new flag, the same `--help`, the
-same `docs/cli.md`, the same exit codes. In a pipe, a file, with `NO_COLOR` or
-`TERM=dumb`, every byte is what it is today, and a test holds it there. Stdout
-keeps carrying only data (the id from `transcribe`, the path from `export`);
-everything drawn for a person goes to stderr, as progress does now.
+same exit codes. In a pipe, a file, with `NO_COLOR` or `TERM=dumb`, every byte
+is what it was, in English, and it comes from the same code as before: each
+command asks first whether its stream is a terminal, and only then hands its
+data to the new code. Stdout keeps carrying only data (the id from
+`transcribe`, the path from `export`) whenever a script reads it.
 
-The language stays English, as the command line is today (question 1).
+**The window is untouched.** Everything new is inside the command line's own
+program. The engine gained one word: `die_with_this_process` became `pub`, so
+the command line can make the same call the window makes. `Cargo.toml`, the
+dictionaries and the window's code are as they were.
 
 ## `transcribe`
 
-Today it rewrites one line with a percent. In a terminal it becomes:
+- **A header line**: the title, the length, the model and what it runs on.
+- **The words as whisper writes them**, a block at a time with its start time,
+  printed as ordinary lines, so they stay in the terminal's scrollback.
+- **A live block at the bottom**, redrawn in place: each finished phase ticked
+  with how long it took, the running one with the mill from the mark, the
+  position (`15:17 z 38:12`), a bar, the percent and an estimate of the time
+  left, then how to stop.
+- **A summary** in place of the block when the run ends: the time it took and
+  how much faster than the recording, the blocks, speakers, languages and
+  model, the phases on one line. The id follows on stdout.
 
-- **a header line**: the title, the length, the language, the model and what it
-  runs on (`CUDA`, `Vulkan` or the processor, which is all the engine knows);
-- **the words as whisper writes them**, a block at a time with its start time,
-  printed as ordinary lines. They stay in the terminal's scrollback after the
-  run, which a full-screen view could not offer. The engine already reports
-  each block (`transcription:segment`); today's CLI throws it away;
-- **a live block at the bottom**, redrawn in place: each finished phase ticked
-  with how long it took, and the running one with a four-cell mill taken from
-  the mark, the position (`15:17 / 38:12`), a bar in the accent colour, the
-  percent and an estimate of the time left. Phases appear when they start;
-- **a summary** that replaces the live block when the run ends: `✓ Transcribed
-  in 3:12, 12× faster than the recording`, then the blocks, speakers, languages
-  and model, then the phases folded into one muted line. The id follows on
-  stdout, alone on its line, as today.
+**Ctrl+C** stops the run, and the last line says what is left: a first
+transcription stopped before it saves stays in the archive without a
+transcript, because the engine writes blocks only at the end.
 
-**Ctrl+C** stops the run, as it does today, and the last line says what is
-left: a first transcription stopped before it saves stays in the archive,
-untranscribed, and the words shown so far are not kept, because the engine
-writes blocks only at the end.
-
-The second language is taken as today: heard, it is written in, and the summary
-says so.
+**Closing the console** during a run now waits for the stop to be written down,
+up to four of the five seconds Windows allows. Before, the process ended first
+and the recording stayed marked as transcribing, which blocked every later run.
+And whisper ends with the command line instead of outliving a closed terminal.
 
 ## The other commands
 
-- **`list`** — aligned columns: short id, date, length, a mark for the state
-  (`✓` done, the mill for transcribing, `✕` failed, `·` not transcribed), the
-  title, and the speakers and language in the muted colour. With `--search`,
-  hits are grouped under their recording, the match in amber rather than bold.
-- **`show`** — the same fields as now, labels in a muted column, each speaker's
-  name in its colour.
-- **`status`** — a checklist: `✓` for what is found, `!` for what is missing
-  with the window's sentence on where to get it, then whether it is ready.
-- **`export`, `export-audio`** — stdout keeps the bare path, as today; when both
-  streams are terminals, stderr shows it as `✓ Saved` with the path. Audio
-  export, which runs ffmpeg, shows the mill while it converts; ffmpeg reports no
-  percent to it today.
-- **Errors** — on a terminal, `error:` becomes a `✕` in the danger colour; a
-  redirected stderr still ends with the `error:` line `docs/cli.md` promises.
+- **`list`** — short id, date, length, a mark for the state, the title, then the
+  speakers and language, or the state in words; the count and total length at
+  the foot. With `--search`, the hits under their recording.
+- **`show`** — the same fields as before, labels in a muted column, each
+  speaker's name in their colour.
+- **`status`** — a checklist of what transcription needs, then whether it is
+  ready, and each missing part in the window's sentence.
+- **`export`, `export-audio`** — `✓ Uloženo` with the path; audio export shows
+  the mill while ffmpeg converts.
+- **Errors** — a sentence with `✕` instead of the `error:` line.
 
 ## Look
 
-From the earlier proposal, what fits on a line:
-
-- **Colours from the window's palette** (`src/css/01-base.css`), brought to
-  4.5:1 as text; speaker colours read from each speaker in the archive and
-  adjusted the same way. Used only where they carry meaning: the accent for the
-  running thing, success, warning, danger, the amber hit, speakers. Everything
-  else is the terminal's own text colour or muted.
-- **Truecolor, 256 colours or 16**, whichever the terminal offers; `NO_COLOR`
-  gives the plain output.
-- **The terminal's background is never painted.**
-- **The old Windows console** gets ASCII (`+`, `x`, `|/-\`, `[====>---]`): its
-  fonts have no braille and no ✓.
+- **The terminal's own sixteen colours.** The theme of the terminal decides what
+  green or bright blue look like, so the marks read on a dark background and a
+  light one alike. A fixed palette from the window, tuned for one background,
+  would not. Colour is used only where it says something: the running thing,
+  done, missing, failed, the hit, the speakers. Backgrounds are never painted,
+  except behind a search hit.
+- **Speakers** keep their place in the window's eight colours: the stored colour
+  is matched to the nearest of `db::COLORS`, and each of those has its own of
+  the sixteen.
+- **The old Windows console** gets ASCII marks (`+`, `x`, `|/-\`, `=>-`), since
+  its fonts have no braille and no ✓. Windows Terminal and VS Code say who
+  they are, and get the full set.
 
 ## How it is built
 
-**No new crate.** `clap` already brings `anstyle`, `anstream` and
-`anstyle-query` into `Cargo.lock`; listing `anstyle-query` among the
-dependencies lets the CLI ask whether a stream wants colour and switch on VT
-sequences in the Windows console (`enable_ansi_colors`). The console's width
-comes from `GetConsoleScreenBufferInfo`, whose feature (`Win32_System_Console`)
-the `windows` dependency already has.
+`src-tauri/src/bin/volocal-cli/`:
 
-**One small module beside the commands**, `src/bin/volocal-cli/look.rs` once
-the file becomes a folder: the palette roles and glyph sets, the styled
-writers, and the live block. The commands keep their content and their order;
-they hand it to the module instead of to `println!`.
+| file | |
+|---|---|
+| `main.rs` | the commands as they were, each asking first whether its stream is a terminal; the errors as `Problem`, whose English is the old text word for word |
+| `look.rs` | whether a stream is a person's terminal, the language, the width; colours, marks, counts in Czech and English, and the words the command line says itself |
+| `styled.rs` | `list`, `show`, `status`, the saved line and the summary, for a terminal |
+| `live.rs` | the live block under a transcription, and the turning mill for audio export |
 
-**The live block** is a few lines on stderr, moved over with
-`ESC[nA` and cleared with `ESC[J`. Each line is cut to the width so the count
-of rows stays true; a block of words is wrapped by the module before it is
-printed above. whisper reports its percent from a second thread, so the block
-sits behind a mutex, as the one line does today. It redraws at most ten times a
-second. The window's rule that a phase never moves backwards
-(`useTranscriptionRuntime.ts`) is ported with its test, so the block does not
-flicker between phases.
+The console is asked directly, through the `windows` crate's console calls the
+command line already used: to switch on escape sequences in the old console,
+and for its width. The display language comes from `GetUserDefaultUILanguage`,
+declared in the program rather than enabled as a new feature of the `windows`
+crate, so the window's build is unchanged.
 
-**Two fixes** that belong to `transcribe` whatever it looks like:
+The window's rule that a phase never moves backwards is ported with its cases,
+so the block does not flicker between phases.
 
-1. Closing the console during a run leaves the recording marked as
-   transcribing. `stop_on_ctrl_c` cancels and returns at once, and Windows ends
-   the process before the engine writes the status. The handler waits for the
-   run to end, up to about 4 s of the 5 Windows allows.
-2. whisper can outlive a closed terminal: the job object that ends child
-   processes with their parent is private to the window. `die_with_this_process`
-   becomes public and the CLI calls it first. The window's call is unchanged.
+## Verified
 
-**Tests.** The plain output of every command is pinned by tests that run it
-against a temporary archive, written before any styling is added, so the
-promise above is checked rather than asserted. The styled output is compared
-with text snapshots, kept the way `docs/cli.md` is kept: rewritten with an
-environment variable, compared otherwise.
+- Every plain output, compared byte for byte between the program before and
+  after on the same archive: `list`, `list --folder`, `list --search`, `show`,
+  `status`, `export` and its refusals, `transcribe` refusals, an unknown
+  command. Identical, exit codes included.
+- 25 tests of the command line, among them the old English of every error,
+  the Czech dictionary read without its translator notes, the phase order,
+  and the block's lines never wider than the console.
+- `cargo clippy --all-targets -D warnings` and `cargo test` for the Windows
+  target; the engine's 315 passing tests are the same before and after.
 
-## Order of work
-
-Each step goes to `dev` on its own, with its history entry.
-
-| | step | after it |
-|---|---|---|
-| 0 | tests pinning today's output of all six commands; the two fixes | the same CLI, two bugs fewer |
-| 1 | `look.rs`: palette, glyphs, colour and width detection | nothing visible yet |
-| 2 | `list`, `show`, `status`, `export` styled | the reading commands look better |
-| 3 | `transcribe`: live words, live block, summary | progress worth watching |
-| 4 | a pass on conhost, Windows Terminal, PowerShell 5 and 7, VS Code | release |
-
-About 600–900 lines of Rust with tests.
-
-## What to watch
-
-- **A terminal narrowed during a run** wraps the live block's old lines, and
-  the next redraw miscounts them; one frame is left behind in the scrollback.
-  The usual cost of the technique; `cargo` lives with it.
-- **The window's start-up tidy-up takes a running CLI transcription for a crashed
-  one** (`recover_interrupted`): opening the window during a long `transcribe`
-  shows it as failed and offers *Zkusit znovu*. This is true today and the look
-  does not change it (question 3).
+What has not been seen yet is the live block on a real Windows console during a
+real transcription; the checks above ran under Wine, without whisper.
 
 ## Questions for the owner
 
-1. English, as the command line is today, or the system's language (Czech with
-   formal address on a Czech system)?
-2. Live words shown by default in a terminal, as proposed, or only when asked
-   for? Asking would mean a flag, and so a change to `--help`.
-3. The window, on starting, treats a running CLI transcription as crashed.
-   Should it look at the archive first? That is a change to the window.
-4. The two fixes above: agreed?
+1. The window, on starting, treats a running command-line transcription as
+   crashed (`recover_interrupted`) and offers *Zkusit znovu*. Should it look at
+   the archive first? That is a change to the window, so it is left alone.

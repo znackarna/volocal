@@ -176,9 +176,15 @@ Options:
   the archive is being transcribed, from the window or from another
   `volocal-cli`.
 - **Ctrl+C** stops a transcription and ends with `1`. The recording stays in
-  the archive with whatever was finished before the key.
-- **Progress** is one line that keeps being rewritten in a terminal, and one
-  line per step when standard error goes to a file.
+  the archive; its transcript is kept only if one had been saved before the
+  key.
+- **Progress** goes to standard error: one line per step when it goes to a
+  file. In a terminal it is a block redrawn in place, with the text printed
+  above it as it is transcribed.
+- **In a terminal** every command lays out and colours what it prints, in the
+  system's language when that is Czech, and an error is a sentence rather than
+  an `error:` line. What a script reads, from a pipe or a file, is the plain
+  English described here; `NO_COLOR` gives it in a terminal too.
 - **`list`** prints one recording per line, its fields separated by two
   spaces: id, date, length, status, title. With `--search`, one match per
   line: id, time in the recording, title, the matching text.
