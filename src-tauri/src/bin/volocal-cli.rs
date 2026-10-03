@@ -450,7 +450,7 @@ fn list(
             println!(
                 "{}  {}  {}  {}",
                 short(&hit.recording_id),
-                clock(hit.start),
+                export::format_duration(hit.start),
                 hit.title,
                 highlight(hit.text.trim())
             );
@@ -485,7 +485,7 @@ fn list(
                 .created_at
                 .get(..10)
                 .unwrap_or(&recording.created_at),
-            clock(recording.duration),
+            export::format_duration(recording.duration),
             recording.status,
             recording.title
         );
@@ -500,7 +500,10 @@ fn show(connection: &rusqlite::Connection, id: &str) -> Result<(), String> {
     println!("title        {}", recording.title);
     println!("file         {}", recording.path);
     println!("recorded     {}", recording.created_at);
-    println!("length       {}", clock(recording.duration));
+    println!(
+        "length       {}",
+        export::format_duration(recording.duration)
+    );
     println!("status       {}", recording.status);
     if !recording.language.is_empty() {
         println!("language     {}", recording.language);
@@ -583,16 +586,6 @@ fn highlight(text: &str) -> String {
 
 fn short(id: &str) -> &str {
     id.get(..8).unwrap_or(id)
-}
-
-fn clock(seconds: f64) -> String {
-    let total = seconds.max(0.0).round() as u64;
-    let (h, m, s) = (total / 3600, (total % 3600) / 60, total % 60);
-    if h > 0 {
-        format!("{h}:{m:02}:{s:02}")
-    } else {
-        format!("{m}:{s:02}")
-    }
 }
 
 /// A message from the engine in the words the window would use.
@@ -779,12 +772,6 @@ mod tests {
     #[test]
     fn a_code_with_no_text_says_the_code() {
         assert_eq!(describe(UserMessage::new("no.such.code")), "no.such.code");
-    }
-
-    #[test]
-    fn writes_clock_times_the_way_the_window_does() {
-        assert_eq!(clock(14.0), "0:14");
-        assert_eq!(clock(4354.0), "1:12:34");
     }
 
     /// `docs/cli.md` is the help, word for word. Set `UPDATE_CLI_DOCS=1` to
