@@ -4,21 +4,14 @@ import {
   useMemo,
   useRef,
   useState,
-  type KeyboardEvent,
-  type ReactNode,
 } from "react";
-import { open, save } from "@tauri-apps/plugin-dialog";
-import { openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
+import { open } from "@tauri-apps/plugin-dialog";
 import { listen } from "@tauri-apps/api/event";
 import { api } from "./api";
-import { RecordingCalendar, RecordingMetadataItem } from "./Library";
 import ConfirmationDialog from "./ConfirmationDialog";
 import type { ConfirmationRequest } from "./ConfirmationDialog";
 import CountdownRing from "./CountdownRing";
-import { computeMode, computeRefused as computeWasRefused } from "./compute";
-import type { LineIconName } from "./icons";
-import Select from "./Select";
-import { useI18n, type AppLanguage } from "./i18n";
+import { useI18n } from "./i18n";
 import { useUserMessage } from "./messages";
 import type { TranslationKey } from "./i18n";
 import {
@@ -32,7 +25,6 @@ import {
   qualityChoice,
 } from "./types";
 import { useFormats } from "./formats";
-import { useLabels } from "./labels";
 import { AboutSettings } from "./settings/AboutSettings";
 import { InterfaceSettings } from "./settings/InterfaceSettings";
 import { PerformanceSettings } from "./settings/PerformanceSettings";
@@ -40,31 +32,14 @@ import { UpdatesSettings } from "./settings/UpdatesSettings";
 import { ToolsSettings } from "./settings/ToolsSettings";
 import { FilesSettings } from "./settings/FilesSettings";
 import { TranscriptionSettings } from "./settings/TranscriptionSettings";
-import { Backups } from "./settings/Backups";
 import { useDictionary } from "./settings/useDictionary";
 import { SettingsNavigation } from "./settings/SettingsNavigation";
-import { UpdateCheck } from "./settings/updates";
 import type {
   ToolCheck,
   Settings,
   DownloadComponent,
   DownloadProgress,
-  DictionaryEntry,
 } from "./types";
-
-/** The three palettes, in the order light grows in them: the system's own
- *  decision first, then the two that override it. */
-const THEMES = [
-  { value: "system", label: "settings.appearance.themeSystem" },
-  { value: "light", label: "settings.appearance.themeLight" },
-  { value: "dark", label: "settings.appearance.themeDark" },
-] as const satisfies ReadonlyArray<{ value: string; label: TranslationKey }>;
-
-/** Settings written by an older version have no theme at all, and a stored
- *  value we do not know is not a palette we can draw. Both are the system. */
-function themeChoice(stored: string): string {
-  return stored === "light" || stored === "dark" ? stored : "system";
-}
 
 interface Props {
   onComplete: () => void;
@@ -128,29 +103,6 @@ interface Props {
    to tell apart, and it would be a quality claim by a different means. */
 
 
-/* `COMPUTE_CHOICES` stood here — four cards, one per whisper.cpp build, and
-   two of them were CUDA and Vulkan. Those are not a question anybody should be
-   asked: they are two builds of the same thing for two kinds of graphics card,
-   and which suits the card in this machine is a fact about its drivers.
-   Choosing wrong was not merely useless, it was quiet — a stored `cuda` beside
-   an AMD card ran a build that found no device and transcribed on the
-   processor, while the screen went on saying `používá se` about the card.
-
-   What is left is the question the reader can answer: the processor, the card,
-   or neither — automatic, which takes the fastest build this machine can run
-   and is what a fresh installation has. Three positions of one value, so a
-   segmented control rather than three framed cards. */
-const COMPUTE_CHOICES = [
-  { value: "gpu", icon: "graphicsCard", title: "settings.compute.modeGpu",
-    note: "settings.compute.modeGpuNote" },
-  { value: "cpu", icon: "compute", title: "settings.compute.modeCpu",
-    note: "settings.compute.modeCpuNote" },
-] as const satisfies ReadonlyArray<{
-  value: string;
-  icon: LineIconName;
-  title: TranslationKey;
-  note: TranslationKey;
-}>;
 
 /* `computeMode` stood here, with the note about settings written before
    14 August naming a build. Both live in `compute.ts` now, beside the reading
@@ -158,12 +110,6 @@ const COMPUTE_CHOICES = [
    bar asks that second question, this card asks both, and two screens deciding
    the same thing separately is how they come to disagree about one machine. */
 
-/** Which downloadable module corresponds to which compute backend. */
-const COMPUTE_MODULES: Record<string, string> = {
-  cuda: "whisper-cuda",
-  vulkan: "whisper-vulkan",
-  cpu: "whisper-cpu",
-};
 
 
 
@@ -285,9 +231,8 @@ export default function SettingsScreen({
   fetching,
   fetchingComponent = "",
 }: Props) {
-  const labels = useLabels();
   const formats = useFormats();
-  const { language, setLanguage, t, tDynamic, tPlural, formatNumber } = useI18n();
+  const { t } = useI18n();
   const userMessage = useUserMessage();
   const [n, setN] = useState<Settings | null>(null);
   const [check, setCheck] = useState<ToolCheck | null>(null);
@@ -510,15 +455,6 @@ export default function SettingsScreen({
   const missingRequired = check?.issues ?? [];
   const installed = (id: string) => modules.some((module) => module.id === id && module.complete);
   const megabytes = (id: string) => modules.find((module) => module.id === id)?.megabytes ?? 0;
-  /** What this application offers, which is exactly what the by-hand listing
-   *  draws: the catalogue less the two middle models nothing offers — and those
-   *  two do appear once they are on the disk, because a machine set up before
-   *  14 August 2026 may be running on one. It is the denominator of the card's
-   *  fraction, so the number can be checked by counting rows on that screen
-   *  rather than being taken on trust. */
-  const offeredModules = modules.filter(
-    (module) => module.complete || !UNOFFERED_COMPONENTS.includes(module.id)
-  );
 
   /* ---------------------------------------------------- transcription model
      The two that are offered, plus whatever else is on the disk, in one list
@@ -683,34 +619,6 @@ export default function SettingsScreen({
     });
   };
 
-  /* --------------------------------------------------------- where it runs
-     `check.compute` is what `choose_compute` answered, which is the folder the
-     next transcription's `whisper-cli` comes out of — not what is stored. The
-     two differ exactly when the stored choice cannot be honoured here, and
-     saying that out loud is what this card is for. */
-  const computeRunning = check?.compute ?? "";
-  const onGraphicsCard = computeRunning === "cuda" || computeRunning === "vulkan";
-  const hasGraphicsDriver = !!(check?.nvidia_driver || check?.vulkan_driver);
-  const computeChoice = computeMode(n.compute);
-  const graphicsCardBackend = check?.nvidia_driver ? "cuda" : "vulkan";
-  /** Something was picked and is not what ran. The chosen card goes red for it —
-   *  the one case where the card has to contradict the choice drawn on it — and
-   *  the sentence under the cards carries the reason. The rule and the reason
-   *  it needs `checkedCompute` are in `compute.ts`. */
-  const computeRefused = computeWasRefused(n.compute, checkedCompute, check);
-  /** Which card is highlighted. With the switch on nothing was picked, so it is
-   *  what the drivers settled on — the switch's effect made visible, which is
-   *  the reason the cards stay on screen while it is on. With the switch off it
-   *  is the pick, honoured or not. */
-  const computeShown = computeChoice === "auto" ? (onGraphicsCard ? "gpu" : "cpu") : computeChoice;
-  /** The build for the graphics card was never downloaded, with a driver that
-   *  could have run it. The one reason for a card standing idle that the reader
-   *  can fix from here, so wherever it is said the row carries a button. */
-  const graphicsCardMissing =
-    hasGraphicsDriver &&
-    !onGraphicsCard &&
-    !!computeRunning &&
-    !(check?.available_compute_backends ?? []).includes(graphicsCardBackend);
 
   return (
     <>

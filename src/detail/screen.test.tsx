@@ -8,7 +8,7 @@
  * flashing a refusal, the folder button missing from an empty archive. Both
  * were two correct halves wired apart, and a test of either half alone passes.
  *
- * `docs/cleanup-plan-2026-08-28.md` point C named three places here where a
+ * The 2026-08-28 cleanup plan (point C) named three places here where a
  * selector and the data it selects from are set independently. Read against
  * the screen on 31 August, all three draw correctly today — so what these
  * tests pin is the behaviour that is right, and they are the thing that will

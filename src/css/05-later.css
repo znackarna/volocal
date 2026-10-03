@@ -332,7 +332,7 @@ button.current > .row-play { color: var(--accent); }
 
    The wizard's two quality cards were the third user and are not any more:
    their size moved into the card as part of a sentence about what the choice
-   costs on this machine — see `.choice-cost`. Nothing else changed for them,
+   costs on this machine. Nothing else changed for them,
    and the rule is left as it is because the Settings cards still need it. */
 .choice.with-icon > .badge,
 .choice.with-icon > .choice-size { flex: 0 0 auto; margin-left: auto; }
@@ -621,12 +621,6 @@ button.current > .row-play { color: var(--accent); }
 .document-save-menu.opens-above {
   top: auto; bottom: calc(100% + 6px);
 }
-.save-menu-group {
-  display: block; padding: 9px 12px 5px;
-  font-size: 11px; font-weight: 700; letter-spacing: 0.09em;
-  text-transform: uppercase; color: var(--text-quiet);
-}
-.save-menu-group:not(:first-child) { margin-top: 4px; border-top: 1px solid var(--line); }
 .save-list button {
   display: grid; grid-template-columns: 46px 1fr; align-items: baseline;
   gap: 10px; width: 100%; text-align: left; cursor: pointer;

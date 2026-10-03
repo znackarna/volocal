@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { api } from "./api";
 import ConfirmationDialog from "./ConfirmationDialog";
@@ -276,7 +276,7 @@ export default function SetupWizard({
   onError,
   alreadyFetching = false,
 }: Props) {
-  const { t, tDynamic, tPlural } = useI18n();
+  const { t, tDynamic } = useI18n();
   const { minutes, dataSize } = useFormats();
   const userMessage = useUserMessage();
   const progressMessage = useProgressMessage();

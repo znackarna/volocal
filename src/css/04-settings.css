@@ -667,31 +667,6 @@
    Weight is not what makes it findable, and at 600 beside a 15/600 title the
    two read as equals. */
 .choice-size { font-size: 13px; font-weight: 500; color: var(--text-quiet); white-space: nowrap; font-variant-numeric: tabular-nums; }
-/* What a choice costs, as a line inside the card rather than a figure in a
-   column at its edge. The wizard's two quality cards are the only cards that
-   need it: a size alone answers *how many megabytes*, and what somebody
-   choosing a transcription model is weighing is minutes against megabytes,
-   which is one sentence and not two columns.
-
-   It is `.choice-size`'s own type — 13 px, 500, `--text-quiet`, `tabular-nums`,
-   the pair documented above — and deliberately not that class, for the one
-   property it must not take: `.choice-size` is `nowrap`, which is right for a
-   figure in a column and wrong for a sentence that has to wrap at 520 px in
-   whatever language it is read in. */
-.choice-cost { font-size: 13px; font-weight: 500; color: var(--text-quiet); font-variant-numeric: tabular-nums; }
-/* Three points on top of `.choice-body`'s own three, so the card reads as a
-   name over its detail and then two statements of a different kind. At the
-   plain 3 px all four lines sat in one block: the description and the cost are
-   both 13 px and both quiet, and 500 against 400 is the whole of what tells
-   them apart within a line. Six is what separates them as blocks. */
-.choice-cost, .choice-reason { margin-top: 3px; }
-/* Why this card is the one for this computer. It replaced a `doporučeno` badge,
-   and the colour is the badge's accent kept: this is still the application
-   pointing at one of two cards, and losing the accent would have made the
-   recommendation quieter than the sentence above it, which is the wrong way
-   round. 600 rather than the 700 a badge carries — it is a sentence now, and
-   700 over three lines of it reads as shouting. */
-.choice-reason { font-size: 13px; font-weight: 600; color: var(--accent); line-height: 1.45; }
 
 .badge {
   font-style: normal; font-size: 11px; font-weight: 700;

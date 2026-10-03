@@ -29,16 +29,11 @@ import { SaveRecordingDialog } from "./SaveRecordingDialog";
 import { rememberSpeakerNames } from "./speakerNames";
 import { computeFellBack } from "./compute";
 import { useI18n } from "./i18n";
-import type { TranslationKey } from "./i18n";
-import { useProgressMessage, useUserMessage } from "./messages";
-import { useLabels } from "./labels";
-import { useFormats } from "./formats";
+import { useUserMessage } from "./messages";
 import type {
   DownloadComponent,
   ToolCheck,
   Recording,
-  TranscriptionProgress,
-  WatchFolderCandidate,
   Folder,
 } from "./types";
 
@@ -98,42 +93,11 @@ function usePreparedScreens() {
 
 const SUPPORTED_EXTENSIONS = ["mp3", "wav", "m4a", "aac", "flac", "ogg", "opus", "wma", "mp4", "mkv", "mov", "webm"];
 
-/** Sources that hold audio and nothing else: saving one in its own format is
- *  a copy rather than a re-encode. Everything else is a video container. */
-const AUDIO_ONLY_EXTENSIONS = ["mp3", "m4a", "wav", "flac", "ogg", "opus", "aac", "wma"];
-
-/** What the export can write, in the order the save dialog offers it. */
-const AUDIO_EXPORT_FORMATS = ["mp3", "m4a", "wav"];
-
-const AUDIO_FORMAT_LABELS: Record<string, TranslationKey> = {
-  mp3: "app.audioFormat.mp3",
-  m4a: "app.audioFormat.m4a",
-  wav: "app.audioFormat.wav",
-};
-
-
-
-
-
-/** Does the watch folder hold the same files as a moment ago? Compared by
- *  content, because every scan returns a fresh array and the poll runs every
- *  five seconds. The fingerprint carries size and modification time, so a file
- *  rewritten at the same path is a different candidate. */
-function sameCandidates(a: WatchFolderCandidate[], b: WatchFolderCandidate[]): boolean {
-  return (
-    a.length === b.length &&
-    a.every((one, i) => one.path === b[i].path && one.fingerprint === b[i].fingerprint)
-  );
-}
-
-
 /** How long the notice bar stays before it leaves on its own. The countdown
  *  ring in the bar is handed the same number, so the picture and the timer
  *  cannot disagree. */
 export default function App() {
   const { t, tPlural, tDynamic } = useI18n();
-  const labels = useLabels();
-  const formats = useFormats();
   usePreparedScreens();
   const [screen, setScreen] = useState<
     "library" | "detail" | "settings" | "wizard"
@@ -207,7 +171,6 @@ export default function App() {
 
   // Rust sends a code, not a sentence; these turn one into the other.
   const userMessage = useUserMessage();
-  const progressMessage = useProgressMessage();
 
   /* A download outlives the screen that started it, so the application holds
      it rather than the wizard — and so does everything else the backend
@@ -713,7 +676,6 @@ export default function App() {
   });
   const folders = foldersModel.state.folders;
   const openFolder = foldersModel.state.open;
-  const folderDialog = foldersModel.state.dialog;
   useEffect(() => {
     openFolderRef.current = openFolder;
   }, [openFolder]);

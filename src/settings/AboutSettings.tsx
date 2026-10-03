@@ -1,6 +1,4 @@
 // The `Informace` tab: the one page in the application that exists to be read.
-import { useEffect, useState } from "react";
-import { getVersion } from "@tauri-apps/api/app";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useI18n } from "../i18n";
 import type { TranslationKey } from "../i18n";

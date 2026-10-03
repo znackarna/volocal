@@ -1,4 +1,4 @@
-/* What site.yml does to the page on its way to Vercel, shared by the build
+/* What happens to the page on its way out, shared by the build
  * check (`next.config.mjs`) and the server (`app/[[...path]]/route.js`), so the
  * two cannot disagree about it. */
 
@@ -10,7 +10,7 @@ import { promisify } from "node:util";
 
 const run = promisify(execFile);
 
-/** The English page, written by `translate.mjs` exactly as site.yml writes it.
+/** The English page, written by `translate.mjs`.
  *  Rejects when a sentence has no English, with the generator's own message in
  *  `stderr`. */
 export async function englishPage(site) {
@@ -29,8 +29,8 @@ const MENTION = {
   en: { pattern: /Version \d+\.\d+\.\d+/g, word: "Version" },
 };
 
-/** The hero and the closing name the version. site.yml replaces both with the
- *  latest release and refuses a page where it finds anything but two. */
+/** The hero and the closing name the version. Both are replaced with the
+ *  latest release, and a page with anything but two is refused. */
 export function stampVersion(html, lang, version) {
   const { pattern, word } = MENTION[lang];
   let found = 0;

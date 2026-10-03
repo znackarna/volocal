@@ -1,9 +1,7 @@
 /* volocal-brand.js — the Volocal brand animation as one vanilla module.
  *
  * Outlines, pen paths and the smile generator are copied character for
- * character from src/brandArt.ts. Timings and staging are Brand.tsx's, which
- * wins wherever the tuning prototype (docs/prototypes/volocal-olo.html)
- * disagrees; each such place says so.
+ * character from src/brandArt.ts. Timings and staging are Brand.tsx's.
  */
 (function (global) {
   "use strict";

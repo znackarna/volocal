@@ -111,10 +111,9 @@ to the stylesheet; to force a palette, put `data-theme="light"` on `<html>`.
 
 ## Open, and waiting for a decision
 
-- **Where the page lives is decided.** It is committed, `site.yml` publishes it,
-  and it answers on **volocal.app**. The two bullets that stood here said the
-  opposite — nothing publishes it, nothing has committed it — and were true
-  until 24 August. *Publishing* below is the current shape.
+- **Where the page lives is decided.** It is committed, the company's server
+  publishes it, and it answers on **volocal.app**. *Publishing* below is the
+  current shape.
 - **The limits are parked.** *Co nedělá dobře* sits in an HTML comment in
   `index.html`, bound for a FAQ section. **Done on 25 August** — it is the
   `#faq` section, five `<details>` under the heading *Jaké má limity?*, and the
@@ -129,58 +128,36 @@ to the stylesheet; to force a palette, put `data-theme="light"` on `<html>`.
 
 ## Publishing
 
-`.github/workflows/site.yml` deploys `docs/site/` on every push that touches it,
-and on every published release. There is no build: what is served is these
-files, minus `_tokens.html`, `bundle.py` and `scope-app-css.py`, which are how
-the page is worked on rather than part of it.
-
-`_site` is assembled once and handed to Vercel. It went to GitHub Pages as well
-for three days; Pages was switched off on 27 August, once the page had its own
-address and both copies had been seen agreeing about which one it was.
+`znackarna-server2` serves the page through `site-server/`, a Next.js
+application of one route that serves these files from disk. Every push to
+`main` deploys it (a GitHub webhook; a failed build keeps the previous version
+running). There is no build of the page itself: what is served is these files,
+minus `_tokens.html`, `bundle.py` and `scope-app-css.py`, which are how the page
+is worked on rather than part of it. The English page is written by
+`translate.mjs`. Nothing here is copied into the server, so the page is still
+edited only in this folder.
 
 One thing is rewritten on the way out. The hero and the closing say *Verze
 X.Y.Z*, and the file carries a real number so that opening it locally never
-shows a placeholder; the workflow replaces it with the tag of the latest
-GitHub release, which is the version a reader can actually download. It
-asserts that it found exactly two mentions, so rewording that sentence fails
-the build instead of quietly shipping an old number.
-
-**Pages is off and turning it back on is a decision, not a retry.** Switching it
-on is an admin call the workflow token is refused — it was done by hand on
-25 August with `build_type: workflow`, and it would have to be done by hand
-again. The steps that fed it were removed rather than disabled: with Pages gone,
-`actions/deploy-pages` would fail the whole job and take the Vercel step down
-with it.
+shows a placeholder; the server replaces it with the tag of the latest GitHub
+release, asked for every ten minutes, so publishing a release needs no deploy.
+Its build fails if it does not find exactly two mentions, so rewording that
+sentence fails the build instead of quietly shipping an old number.
 
 The page is at **https://volocal.app/**, and English at **/en/**. That is the
 address the page names in its own `canonical`, its three `hreflang` links and
 its `og:url`, and `translate.mjs` carries it across to the English page — six
 places in two files, which is why moving it is a change rather than a setting.
 
-Vercel deploys with a token rather than a git connection: the project is not
-connected to the repository, `_site` arrives already built, and
-`VERCEL_TOKEN`, `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID` are repository secrets.
-Opening the `volocal-*.vercel.app` address asks for a Vercel login and that is
-not a fault — deployment protection is `all_except_custom_domains`, so the
-deployment URLs are private and volocal.app is public.
-
-**The same page from the company's own server.** `site-server/` is a Next.js
-application of one route that serves these files from disk as `site.yml`
-publishes them: the same list, the English page from `translate.mjs`, and the
-latest release in the version, asked of GitHub every ten minutes because the
-server is not told about releases. Its build fails where `site.yml` would.
-Nothing here is copied into it, so the page is still edited only in this folder.
-Until the address moves, Vercel is what answers on volocal.app, and the
-analytics script below answers only there. The reasoning is in
+Until 2 October 2026 the page was deployed to Vercel by a workflow, and before
+27 August to GitHub Pages as well. Both are gone; the reasoning is in
 [docs/history/2026-10-02.md](../history/2026-10-02.md).
 
-**How many people read it** is counted by Vercel's own Web Analytics, a single
-deferred script at the foot of `index.html`. No cookie and no identifier kept on
-the reader's machine, so the page asks for no consent and says nothing about it;
-the script is served from this domain, so the page makes no request to a third
-party at all. It is at the foot because `bundle.py` strips the head and then
-asserts nothing was left behind in it, and its address is absolute so the
-English page a directory deeper asks for the same one.
+**How many people read it** is counted by the company's own Umami, a single
+script at the foot of `index.html`, only on `volocal.app` and `www.volocal.app`.
+No cookie and nothing stored on the reader's machine, so the page asks for no
+consent. It is at the foot because `bundle.py` strips the head and then asserts
+nothing was left behind in it.
 
 `bundle.py` is unrelated to any of this. It makes one self-contained file for
 handing the page to somebody, and it strips the document skeleton because the
