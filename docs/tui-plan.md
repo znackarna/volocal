@@ -186,6 +186,10 @@ The window's look carried into a character grid, not a new terminal theme.
   a pass — and the live words come out beside it. A one-line, four-cell mill
   marks a running transcription in lists and the header. The header shows
   `volocal` closing to `olo` once at start, without holding a key back.
+- **The publisher's mark** is drawn the same way, from the geometry in
+  `ZnackarnaMark`: two rows, a triangle, a circle and a square of one size, each
+  in cells of its own. Never as the characters `▲●■`, whose sizes depend on the
+  font, so the three never match.
 - **Motion only while something works**, never before a key works. A loading
   screen appears only if the archive takes over 300 ms to open.
   `VOLOCAL_REDUCED_MOTION=1` keeps the face a face.
