@@ -43,6 +43,8 @@ pub struct Reader {
     matches: Vec<(usize, usize)>,
     current: usize,
     pub info: bool,
+    /// The block whose sound is playing or paused, if any.
+    sounding: Option<usize>,
 }
 
 impl Reader {
@@ -75,6 +77,7 @@ impl Reader {
             matches: Vec::new(),
             current: 0,
             info: false,
+            sounding: None,
         };
         if let Some(at) = at {
             reader.go_to(at);
@@ -102,6 +105,34 @@ impl Reader {
             .iter()
             .rposition(|s| s.start <= seconds + 0.01)
             .unwrap_or(0);
+    }
+
+    /// Where the block under the cursor starts and where the next one does:
+    /// what the space bar plays from, and the stretch a pause belongs to.
+    pub fn cursor_block(&self) -> Option<(f64, f64)> {
+        let block = self.segments.get(self.cursor)?;
+        let end = self
+            .segments
+            .get(self.cursor + 1)
+            .map(|next| next.start)
+            .unwrap_or_else(|| block.end.max(self.recording.duration));
+        Some((block.start, end.max(block.start)))
+    }
+
+    /// Where the sound is now, or `None` when nothing plays. When it reaches
+    /// another block the cursor goes with it, so that block stays on screen;
+    /// a cursor moved by hand stays where it was put until then.
+    pub fn sound_at(&mut self, at: Option<f64>) {
+        let block = at.and_then(|seconds| {
+            self.segments
+                .iter()
+                .rposition(|s| s.start <= seconds + 0.01)
+                .or((!self.segments.is_empty()).then_some(0))
+        });
+        if block.is_some() && block != self.sounding {
+            self.cursor = block.unwrap_or(self.cursor);
+        }
+        self.sounding = block;
     }
 
     fn find(&mut self) {
@@ -361,9 +392,14 @@ impl Reader {
         for (i, segment) in self.segments.iter().enumerate() {
             starts.push(lines.len());
             let chosen = i == self.cursor;
-            let bar = || {
+            let sounding = self.sounding == Some(i);
+            // The block that sounds has the play mark on its first line and
+            // the bar on the rest, whether or not the cursor is on it.
+            let bar = |first: bool| {
                 Span::styled(
-                    if chosen {
+                    if sounding && first {
+                        format!("  {}", g.playing)
+                    } else if chosen || sounding {
                         format!("  {}", g.bar)
                     } else {
                         "   ".into()
@@ -372,13 +408,13 @@ impl Reader {
                 )
             };
             let key = speaker_key(segment);
-            let time_style = if chosen {
+            let time_style = if chosen || sounding {
                 theme.accent().add_modifier(Modifier::BOLD)
             } else {
                 theme.muted()
             };
             let mut first = vec![
-                bar(),
+                bar(true),
                 Span::styled(format!("{:>8}  ", clock(segment.start)), time_style),
             ];
             let changed = key != previous;
@@ -392,7 +428,7 @@ impl Reader {
                         ));
                     }
                     lines.push((i, Line::from(first)));
-                    first = vec![bar(), Span::raw(" ".repeat(10))];
+                    first = vec![bar(false), Span::raw(" ".repeat(10))];
                 }
             }
             previous = key;
@@ -403,7 +439,7 @@ impl Reader {
                 let mut spans = if n == 0 {
                     first.clone()
                 } else {
-                    vec![bar(), Span::raw(" ".repeat(10))]
+                    vec![bar(false), Span::raw(" ".repeat(10))]
                 };
                 // Which occurrence of the hit falls on this piece, counted
                 // through the block.
@@ -492,19 +528,23 @@ impl Reader {
         frame.render_widget(Paragraph::new(lines), inner);
     }
 
-    pub fn footer(&self, ctx: &Ctx) -> FooterKeys {
+    /// The keys at the foot. `sound` is whether the sound plays, when
+    /// playback is offered at all; without it its keys are not shown.
+    pub fn footer(&self, ctx: &Ctx, sound: Option<bool>) -> FooterKeys {
         let w = ctx.words();
         let g = ctx.theme.glyphs();
-        (
-            vec![
-                (g.updown, w.key_block),
-                ("/", w.key_search),
-                ("m", w.key_speaker),
-                ("t", w.key_time),
-                ("e", w.key_save_as),
-            ],
-            vec![("?", w.key_help), ("q", w.key_back)],
-        )
+        let mut keys = vec![(g.updown, w.key_block)];
+        if let Some(playing) = sound {
+            keys.push((w.key_space, if playing { w.key_pause } else { w.key_play }));
+            keys.push((", .", w.key_skip));
+        }
+        keys.extend([
+            ("/", w.key_search),
+            ("m", w.key_speaker),
+            ("t", w.key_time),
+            ("e", w.key_save_as),
+        ]);
+        (keys, vec![("?", w.key_help), ("q", w.key_back)])
     }
 }
 

@@ -447,6 +447,9 @@ pub fn speaker_index(hex: &str) -> usize {
 
 pub struct Glyphs {
     pub bar: &'static str,
+    /// The block that is sounding, and the header while it plays or waits.
+    pub playing: &'static str,
+    pub paused: &'static str,
     pub done: &'static str,
     pub warning: &'static str,
     pub failed: &'static str,
@@ -477,6 +480,8 @@ pub struct Glyphs {
 
 const UNICODE: Glyphs = Glyphs {
     bar: "▌",
+    playing: "▶",
+    paused: "‖",
     done: "✓",
     warning: "!",
     failed: "✕",
@@ -517,6 +522,8 @@ const UNICODE: Glyphs = Glyphs {
 
 const ASCII: Glyphs = Glyphs {
     bar: ">",
+    playing: "*",
+    paused: "||",
     done: "+",
     warning: "!",
     failed: "x",

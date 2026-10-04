@@ -107,6 +107,10 @@ ratatui = { version = "0.30.2", default-features = false, features = ["crossterm
 # Asks the terminal whether its background is light, so `volocal-tui` picks the
 # window's light or dark palette by itself; only `volocal-tui` calls it.
 terminal-colorsaurus = "1.0.3"
+# Plays a transcript's sound in `volocal-tui`, and nothing else uses it. Only
+# its output to the sound card: the sound it is given is already PCM, made by
+# ffmpeg, so none of its decoders are built.
+rodio = { version = "0.22.2", default-features = false, features = ["playback"] }
 
 [profile.release]
 opt-level = "s"

@@ -26,6 +26,7 @@ mod archive;
 mod console;
 mod export;
 mod marks;
+mod playback;
 mod reader;
 mod status;
 mod theme;

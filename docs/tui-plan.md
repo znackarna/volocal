@@ -11,8 +11,9 @@ in a terminal is laid out better, but it never takes over the screen
 [prototypes/volocal-tui.html](prototypes/volocal-tui.html).
 
 `volocal-tui` runs only in a terminal. In a pipe it says so and exits 2. It
-offers no microphone, no playback and no hand editing, as `volocal-cli` does
-not ([cli-plan.md](cli-plan.md)).
+offers no microphone and no hand editing, as `volocal-cli` does not
+([cli-plan.md](cli-plan.md)). It plays a transcript's sound only on the
+computer it runs on.
 
 ## Screens
 
@@ -30,6 +31,12 @@ not ([cli-plan.md](cli-plan.md)).
   changes, in the window's colours. A block cursor; `m` `M` to the next
   speaker, `t` to a time (`39:07`), `/` with `n` `N` inside, `i` for the
   recording's details.
+- **Listening.** In the reader, the space bar plays from the block under the
+  cursor, pauses and resumes; `,` and `.` go 5 s back and on. The block that
+  sounds is marked and the cursor goes with it, so it stays on screen; moving
+  the cursor by hand does not stop the sound. The header shows where the sound
+  is. Leaving the transcript stops it. The first play of a recording shows
+  *Připravuji zvuk…* while ffmpeg makes the copy described below.
 - **New transcription.** `a`, or a file dropped onto the terminal. The file
   (Tab completes the path), the language and the speakers, the model shown.
   Then the phases ticking off with their times, the mill turning, a bar, the
@@ -54,7 +61,8 @@ as Ctrl+Alt is still the character.
 
 `↑↓` `jk` move, `←→` `hl` between panes, `PgUp` `PgDn`, `g` `G`, `Enter`,
 `Esc`; `/` search, `a` new transcription, `e` save as, `p` the running
-transcription, `s` status, `?` help, `q` back and on the archive quit.
+transcription, `s` status, `?` help, `q` back and on the archive quit. In the
+reader, the space bar, `,` and `.` for the sound.
 `Ctrl+C` stops a transcription after a question — a second Ctrl+C within two
 seconds stops it at once — and with nothing running quits.
 
@@ -77,6 +85,9 @@ The terminal that draws is the one at the other end, and it says what it is in
 - **Traffic:** the screen is drawn when something changes. It animates ten
   times a second only while a transcription runs, and then only the cells that
   change are sent.
+- **No sound.** Over SSH the sound would come out of the remote computer, so
+  where `SSH_CONNECTION`, `SSH_CLIENT` or `SSH_TTY` is set, playback is not
+  offered and its keys are not shown.
 - **A dropped connection** stops a running transcription and waits up to four
   seconds for the engine to write that down, so the recording is not left
   marked as transcribing. whisper ends with the program.
@@ -91,14 +102,16 @@ program waits for a transcription the window is running.
 ## How it is built
 
 `src-tauri/src/bin/volocal-tui/`, on ratatui 0.30 with crossterm 0.29 (MIT),
-and terminal-colorsaurus 1.0 (MIT or Apache-2.0) for the question about the
-background; the window and `volocal-cli` link none of them.
+terminal-colorsaurus 1.0 (MIT or Apache-2.0) for the question about the
+background, and rodio 0.22 (MIT or Apache-2.0) with nothing but its output to
+the sound card; the window and `volocal-cli` link none of them.
 
 | file | |
 |---|---|
 | `main.rs` | the terminal: raw mode and the alternate screen, restored on every way out; the event loop |
 | `app.rs` | the screen: what is open, what may start, questions, notices, help |
 | `archive.rs`, `reader.rs`, `transcribe.rs`, `export.rs`, `status.rs` | one feature each: its state, what can be done to it, how it is drawn |
+| `playback.rs` | the reader's sound: the copy, the sound card, play, pause, skip, where it is |
 | `theme.rs`, `words.rs`, `marks.rs`, `ui.rs` | colour roles and glyphs, the Czech and English words, the mark, shared drawing |
 | `console.rs` | the console closing under a running transcription |
 
@@ -107,11 +120,25 @@ The engine's messages are read from the window's dictionaries through
 a phase never moves backwards. A transcription runs `transcription::transcribe`
 on a thread of its own and reports through `Report::Callback`.
 
+**The sound is played from PCM.** Seeking inside a long VBR MP3 lands where
+its table says, which was 8 s from the word in the reproduction in
+`CLAUDE.md`. So the first play of a recording has ffmpeg write a 16-bit mono
+WAV at 48 kHz, on a thread of its own, and every seek is then the exact sample
+of that time. The copy goes into the window's `playback-cache` as
+`<id>-<fingerprint>.wav`, the fingerprint taken from the source's path, size
+and modification time as the window takes its own, so a changed source is
+copied again and the window's tidying of a deleted or moved recording takes
+the copy with it. The copies of the three most recently played recordings are
+kept; an hour is about 345 MB. Word times are not touched. No sound device, no
+ffmpeg or a copy that fails is said in one line, and playback is then no
+longer offered for that transcript.
+
 **Tests:** every screen is drawn over a small archive on ratatui's test
 terminal, at 100 × 30 and 80 × 24, in Czech and English, and the keys are fed in
 as a person would press them: the archive and its states, a search, the
-reader with a search and a jump, a running transcription and its question to
-stop, the end of a run with the second-language question answered, the
+reader with a search and a jump, playing, pausing and skipping with the
+cursor following the sound, no playback keys over SSH, a running
+transcription and its question to stop, the end of a run with the second-language question answered, the
 dialogs, the help, a terminal too small.
 
 ## Later

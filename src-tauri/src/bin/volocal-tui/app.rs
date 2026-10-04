@@ -9,6 +9,7 @@
 
 use crate::archive::{Archive, ArchiveAction};
 use crate::export::{Export, ExportAction, ExportMsg};
+use crate::playback::{self, Playback, Prepared};
 use crate::reader::{Reader, ReaderAction};
 use crate::status::Status;
 use crate::theme::Theme;
@@ -97,6 +98,7 @@ pub enum Msg {
     Input(Event),
     Job(JobMsg),
     Export(ExportMsg),
+    Playback(Prepared),
 }
 
 /// A running transcription, as the other screens mention it.
@@ -134,6 +136,9 @@ pub struct App {
     screen: Screen,
     archive: Archive,
     reader: Option<Reader>,
+    /// The open transcript's sound, where it would play on this computer.
+    playback: Option<Playback>,
+    sound_here: bool,
     run: Option<Run>,
     sheet: Option<Sheet>,
     export: Option<Export>,
@@ -179,6 +184,8 @@ impl App {
             screen: Screen::Archive,
             archive,
             reader: None,
+            playback: None,
+            sound_here: playback::here(|name| std::env::var(name).ok()),
             run: None,
             sheet: None,
             export: None,
@@ -199,7 +206,12 @@ impl App {
     /// Whether something on screen moves, so the loop draws ten times a second
     /// rather than once.
     pub fn animating(&self) -> bool {
-        self.run.as_ref().is_some_and(Run::animating) || self.archive.pending()
+        self.run.as_ref().is_some_and(Run::animating)
+            || self.archive.pending()
+            || self
+                .playback
+                .as_ref()
+                .is_some_and(|p| p.preparing() || p.state() == playback::State::Playing)
     }
 
     fn working(&self) -> bool {
@@ -215,6 +227,12 @@ impl App {
     pub fn tick(&mut self) {
         self.tick = self.tick.wrapping_add(1);
         self.archive.tick(&self.ctx.db);
+        if let Some(playback) = &mut self.playback {
+            playback.tick();
+            if let Some(reader) = &mut self.reader {
+                reader.sound_at(playback.position());
+            }
+        }
         if self
             .notice
             .as_ref()
@@ -259,6 +277,12 @@ impl App {
             Msg::Input(Event::Key(event)) => {
                 if let Some(key) = key_of(event) {
                     self.key(key);
+                }
+            }
+            Msg::Playback(done) => {
+                let job = self.sound_job();
+                if let Some(said) = self.playback.as_mut().and_then(|p| p.prepared(done, &job)) {
+                    self.notify(said, true);
                 }
             }
             Msg::Input(Event::Paste(text)) => self.paste(&text),
@@ -311,6 +335,14 @@ impl App {
     }
 
     fn key(&mut self, key: Key) {
+        self.answer_key(key);
+        // Leaving the transcript, by whichever key, stops its sound.
+        if self.screen != Screen::Reader {
+            self.playback = None;
+        }
+    }
+
+    fn answer_key(&mut self, key: Key) {
         let w = self.ctx.words();
         if let Some(question) = &self.question {
             let asked = question.asked;
@@ -438,6 +470,9 @@ impl App {
                 }
             }
             Screen::Reader => {
+                if !typing && self.sound_key(key) {
+                    return;
+                }
                 if let Some(reader) = &mut self.reader {
                     if let Some(ReaderAction::Back) = reader.key(key) {
                         self.screen = Screen::Archive;
@@ -620,8 +655,44 @@ impl App {
         );
     }
 
+    /// What preparing a sound needs from the screen.
+    fn sound_job(&self) -> playback::Job {
+        playback::Job {
+            tx: self.tx.clone(),
+            archive: self.ctx.archive.clone(),
+            settings: self.ctx.settings.clone(),
+            words: self.ctx.words(),
+        }
+    }
+
+    /// The space bar, `,` and `.` in a transcript, while playback is offered.
+    fn sound_key(&mut self, key: Key) -> bool {
+        if !matches!(key, Key::Char(' ' | ',' | '.')) {
+            return false;
+        }
+        let job = self.sound_job();
+        let block = self.reader.as_ref().and_then(Reader::cursor_block);
+        let Some(playback) = self.playback.as_mut().filter(|p| p.offered()) else {
+            return false;
+        };
+        let said = match key {
+            Key::Char(' ') => block.and_then(|block| playback.toggle(block, &job)),
+            Key::Char(',') => playback.skip(-playback::SKIP, &job),
+            _ => playback.skip(playback::SKIP, &job),
+        };
+        let at = playback.position();
+        if let Some(reader) = &mut self.reader {
+            reader.sound_at(at);
+        }
+        if let Some(said) = said {
+            self.notify(said, true);
+        }
+        true
+    }
+
     fn open_reader(&mut self, id: &str, at: Option<f64>) {
         if let Some(reader) = Reader::open(&self.ctx.db, id, at) {
+            self.playback = self.sound_here.then(|| Playback::new(&reader.recording));
             let query = self.archive.query.clone();
             self.reader = Some(if query.trim().is_empty() {
                 reader
@@ -718,16 +789,32 @@ impl App {
                 format!("{} %  ", b.percent),
                 theme.accent().add_modifier(Modifier::BOLD),
             )],
-            None if self.screen == Screen::Reader => vec![Span::styled(
-                format!(
-                    "{}  ",
-                    self.reader
-                        .as_ref()
-                        .map(|r| crate::common::clock(r.recording.duration))
-                        .unwrap_or_default()
-                ),
-                theme.muted(),
-            )],
+            None if self.screen == Screen::Reader => {
+                let length = self
+                    .reader
+                    .as_ref()
+                    .map(|r| crate::common::clock(r.recording.duration))
+                    .unwrap_or_default();
+                match self
+                    .playback
+                    .as_ref()
+                    .and_then(|p| Some((p.position()?, p.state())))
+                {
+                    Some((at, state)) => vec![Span::styled(
+                        format!(
+                            "{} {} / {length}  ",
+                            if state == playback::State::Playing {
+                                g.playing
+                            } else {
+                                g.paused
+                            },
+                            crate::common::clock(at)
+                        ),
+                        theme.accent(),
+                    )],
+                    None => vec![Span::styled(format!("{length}  "), theme.muted())],
+                }
+            }
             None => vec![Span::styled(
                 format!("{}  ", self.archive.totals(&self.ctx)),
                 theme.muted(),
@@ -771,6 +858,15 @@ impl App {
             }
         }
 
+        let preparing = self.screen == Screen::Reader
+            && self.playback.as_ref().is_some_and(Playback::preparing);
+        if self.notice.is_none() && preparing {
+            frame.render_widget(
+                Paragraph::new(ui::plain(format!("  {}", w.preparing_sound), theme.muted()))
+                    .style(theme.band()),
+                ui::rows(area, area.height - 2, 1),
+            );
+        }
         if let Some((text, error, _)) = &self.notice {
             let row = ui::rows(area, area.height - 2, 1);
             let style = if *error {
@@ -860,7 +956,7 @@ impl App {
             Screen::Reader => self
                 .reader
                 .as_ref()
-                .map(|r| r.footer(&self.ctx))
+                .map(|r| r.footer(&self.ctx, self.sound_offered()))
                 .unwrap_or_default(),
             Screen::Run => self
                 .run
@@ -869,6 +965,14 @@ impl App {
                 .unwrap_or_default(),
             Screen::Status => (vec![("r", w.key_recheck)], vec![("Esc", w.key_back)]),
         }
+    }
+
+    /// Whether the sound plays, when playback is offered at all.
+    fn sound_offered(&self) -> Option<bool> {
+        self.playback
+            .as_ref()
+            .filter(|p| p.offered())
+            .map(|p| p.state() == playback::State::Playing)
     }
 
     fn draw_question(&self, frame: &mut Frame, area: Rect, question: &Question) {
@@ -930,16 +1034,17 @@ impl App {
                 ("i", w.help_info),
             ],
         ));
-        let mut right = column(
-            w.help_reading,
-            &[
-                ("/", w.help_search_transcript),
-                ("n N", w.help_hits),
-                ("m M", w.help_speakers),
-                ("t", w.help_time),
-                ("i", w.help_info),
-            ],
-        );
+        let mut reading = vec![
+            ("/", w.help_search_transcript),
+            ("n N", w.help_hits),
+            ("m M", w.help_speakers),
+            ("t", w.help_time),
+            ("i", w.help_info),
+        ];
+        if self.sound_offered().is_some() {
+            reading.extend([(w.key_space, w.help_play), (", .", w.help_skip)]);
+        }
+        let mut right = column(w.help_reading, &reading);
         right.extend(column(
             w.help_everywhere,
             &[
@@ -1169,6 +1274,74 @@ mod tests {
         assert!(text.contains("rezer"), "{text}");
         assert!(text.contains("Ukázat v přepisu"), "{text}");
         assert!(!text.contains("Hovor s účetní"), "{text}");
+        let _ = std::fs::remove_dir_all(folder);
+    }
+
+    #[test]
+    fn the_transcript_plays_from_the_block_and_the_cursor_follows_the_sound() {
+        let (mut app, _rx, folder) = sample(words::Lang::Cs);
+        app.sound_here = true;
+        press(&mut app, &[Key::Enter]);
+        let sound = folder.join("sound.wav");
+        crate::playback::tests::wav(&sound, 100, 1, 80_000);
+        let recording = app.reader.as_ref().unwrap().recording.clone();
+        app.playback = Some(crate::playback::for_tests(
+            &recording,
+            crate::playback::Pcm::open(&sound).unwrap(),
+        ));
+        let at = |app: &App| app.playback.as_ref().and_then(Playback::position);
+        // The second block, 12:04.
+        press(&mut app, &[Key::Down, Key::Char(' ')]);
+        assert_eq!(at(&app), Some(724.0));
+        let text = screen(&app, 100, 30, "reader-playing");
+        assert!(text.contains("▶ 12:04 / 52:18"), "{text}");
+        assert!(text.contains("Mezerník  Pozastavit"), "{text}");
+        assert!(
+            text.contains("▶   12:04  Jana Bílá"),
+            "the block that sounds: {text}"
+        );
+        // Into the third block, 12:41: the cursor goes with the sound.
+        press(&mut app, &[Key::Char('.'); 8]);
+        app.tick();
+        assert_eq!(at(&app), Some(764.0));
+        assert_eq!(
+            app.reader.as_ref().unwrap().cursor_block(),
+            Some((761.0, 768.0))
+        );
+        // A hand on the cursor does not stop it, and `,` goes back.
+        press(&mut app, &[Key::Up, Key::Up, Key::Char(',')]);
+        assert_eq!(
+            app.playback.as_ref().unwrap().state(),
+            playback::State::Playing
+        );
+        assert_eq!(at(&app), Some(759.0));
+        press(&mut app, &[Key::Char(' ')]);
+        assert_eq!(
+            app.playback.as_ref().unwrap().state(),
+            playback::State::Paused
+        );
+        assert!(screen(&app, 100, 30, "reader-paused").contains("‖ 12:39 / 52:18"));
+        // Help names the keys while they work.
+        press(&mut app, &[Key::Char('?')]);
+        assert!(screen(&app, 100, 30, "help-sound").contains("5 s zpět, 5 s vpřed"));
+        press(&mut app, &[Key::Esc, Key::Char('q')]);
+        assert!(
+            app.playback.is_none(),
+            "leaving the transcript stops its sound"
+        );
+        let _ = std::fs::remove_dir_all(folder);
+    }
+
+    #[test]
+    fn over_ssh_playback_is_not_offered() {
+        let (mut app, _rx, folder) = sample(words::Lang::Cs);
+        app.sound_here = false;
+        press(&mut app, &[Key::Enter, Key::Char(' ')]);
+        assert!(app.playback.is_none());
+        let text = screen(&app, 100, 30, "reader-ssh");
+        assert!(!text.contains("Mezerník"), "{text}");
+        press(&mut app, &[Key::Char('?')]);
+        assert!(!screen(&app, 100, 30, "help-ssh").contains("5 s zpět"));
         let _ = std::fs::remove_dir_all(folder);
     }
 
