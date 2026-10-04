@@ -6,7 +6,8 @@
 //! `docs/tui-plan.md`). Three levels: the full colours where the terminal says
 //! it has them (`COLORTERM`, Windows Terminal), the sixteen of the terminal's
 //! theme elsewhere, and none at all with `NO_COLOR`, where bold, reverse and
-//! underline carry the meaning.
+//! underline carry the meaning. Light or dark follows the terminal's own
+//! background, which it is asked for at start.
 //!
 //! **The background is never painted.** Only surfaces are: the header and
 //! footer bands, dialogs, the selected row, fields, keycaps, search hits. The
@@ -160,6 +161,24 @@ fn rgb(value: u32) -> Color {
     Color::Rgb((value >> 16) as u8, (value >> 8) as u8, value as u8)
 }
 
+/// Whether the terminal's background is light: its own answer when it gives
+/// one, else `COLORFGBG` (`15;0` is light text on black), which some set.
+fn background_is_light(colorfgbg: &str) -> bool {
+    use terminal_colorsaurus::{theme_mode, QueryOptions, ThemeMode};
+    match theme_mode(QueryOptions::default()) {
+        Ok(mode) => mode == ThemeMode::Light,
+        Err(_) => colorfgbg_is_light(colorfgbg),
+    }
+}
+
+/// The background is the last number; 7 and 15 are the two whites.
+fn colorfgbg_is_light(colorfgbg: &str) -> bool {
+    matches!(
+        colorfgbg.rsplit(';').next().map(str::trim),
+        Some("7" | "15")
+    )
+}
+
 impl Theme {
     /// What this terminal can show, and in which language.
     pub fn detect(lang: Lang) -> Theme {
@@ -179,10 +198,19 @@ impl Theme {
         } else {
             Colours::Sixteen
         };
-        // A terminal does not say whether it is light without being asked a
-        // question the old console never answers; dark is what almost every
-        // terminal ships with, and `VOLOCAL_THEME=light` says otherwise.
-        let light = var("VOLOCAL_THEME").eq_ignore_ascii_case("light");
+        // `VOLOCAL_THEME` decides when it is set. Otherwise the terminal is
+        // asked for its background, which Windows Terminal answers from 1.22
+        // and most terminals over SSH answer too; only where the window's own
+        // colours will be painted, since the sixteen are the terminal's and
+        // already suit it. No answer means dark, what terminals ship with.
+        let light = match var("VOLOCAL_THEME").to_ascii_lowercase().as_str() {
+            "light" => true,
+            "dark" => false,
+            _ => {
+                matches!(colours, Colours::Full | Colours::Indexed)
+                    && background_is_light(&var("COLORFGBG"))
+            }
+        };
         // The old console's fonts have no braille and no ✓. Windows Terminal
         // and VS Code say who they are.
         // A remote terminal says what it is with `TERM`, and any that does
@@ -524,6 +552,14 @@ mod tests {
         assert_eq!(speaker_index("#c2410c"), 1);
         assert_eq!(speaker_index("#1f6feb"), 0);
         assert_eq!(speaker_index("rubbish"), 0);
+    }
+
+    #[test]
+    fn colorfgbg_says_light_only_for_a_white_background() {
+        assert!(colorfgbg_is_light("0;15"));
+        assert!(colorfgbg_is_light("0;default;7"));
+        assert!(!colorfgbg_is_light("15;0"));
+        assert!(!colorfgbg_is_light(""));
     }
 
     #[test]

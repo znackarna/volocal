@@ -104,6 +104,9 @@ clap = { version = "4", features = ["derive"] }
 # draw. crossterm comes through ratatui's own re-export, so the tree holds one
 # version of it.
 ratatui = { version = "0.30.2", default-features = false, features = ["crossterm"] }
+# Asks the terminal whether its background is light, so `volocal-tui` picks the
+# window's light or dark palette by itself; only `volocal-tui` calls it.
+terminal-colorsaurus = "1.0.3"
 
 [profile.release]
 opt-level = "s"

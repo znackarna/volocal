@@ -66,8 +66,12 @@ The terminal that draws is the one at the other end, and it says what it is in
 - **Colours:** the window's palette in full where `COLORTERM` says truecolor
   or Windows Terminal is local, the nearest of the 256 where `TERM` has
   `256color` (what SSH clients usually say), the sixteen of the terminal's
-  theme otherwise, and none with `NO_COLOR`. `VOLOCAL_THEME=light` for a light
-  terminal.
+  theme otherwise, and none with `NO_COLOR`.
+- **Light or dark:** the program asks the terminal what its background is and
+  takes the window's light or dark palette to match. Windows Terminal answers
+  from version 1.22, and so do most terminals at the other end of SSH; one that
+  does not answer gets the dark palette. `VOLOCAL_THEME=light` or `dark`
+  decides instead.
 - **Characters:** braille and ✓ wherever a terminal names itself; ASCII only in
   the old Windows console, which names nothing. `VOLOCAL_ASCII=1` forces it.
 - **Traffic:** the screen is drawn when something changes. It animates ten
@@ -87,7 +91,8 @@ program waits for a transcription the window is running.
 ## How it is built
 
 `src-tauri/src/bin/volocal-tui/`, on ratatui 0.30 with crossterm 0.29 (MIT),
-which the window and `volocal-cli` do not link.
+and terminal-colorsaurus 1.0 (MIT or Apache-2.0) for the question about the
+background; the window and `volocal-cli` link none of them.
 
 | file | |
 |---|---|
