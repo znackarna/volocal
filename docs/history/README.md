@@ -47,7 +47,7 @@ the time.
 | [2026-09-25](2026-09-25.md) | 1 | Settings stops offering itself … |
 | [2026-10-02](2026-10-02.md) | 13 | The page can be served from our own server, and Vercel keeps serving it until the address moves; volocal.app moved to the server, Umami instead of Vercel Analytics |
 | [2026-10-03](2026-10-03.md) | 13 | The audit: dead code and finished plans removed, small Rust duplicates folded, menus as popovers; volocal-cli looks better in a terminal; volocal-tui, the full screen for SSH; the window sees a run in either |
-| [2026-10-04](2026-10-04.md) | 2 | volocal-tui takes the light or dark palette from the terminal's own background; Volocal 1.3.0 prepared |
+| [2026-10-04](2026-10-04.md) | 3 | volocal-tui takes the light or dark palette from the terminal's own background; Volocal 1.3.0 prepared; the tests run again on Windows |
 
 ## What each day was about
 
