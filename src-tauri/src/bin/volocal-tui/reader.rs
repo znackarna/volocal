@@ -4,6 +4,7 @@
 
 use crate::app::{Ctx, Key};
 use crate::common::clock;
+use crate::spoken;
 use crate::ui::{self, cut, FooterKeys};
 use crate::words::{self, count};
 use ratatui::layout::Rect;
@@ -45,6 +46,8 @@ pub struct Reader {
     pub info: bool,
     /// The block whose sound is playing or paused, if any.
     sounding: Option<usize>,
+    /// Where its sound is, for colouring the words said so far.
+    sound: Option<f64>,
 }
 
 impl Reader {
@@ -78,6 +81,7 @@ impl Reader {
             current: 0,
             info: false,
             sounding: None,
+            sound: None,
         };
         if let Some(at) = at {
             reader.go_to(at);
@@ -133,6 +137,7 @@ impl Reader {
             self.cursor = block.unwrap_or(self.cursor);
         }
         self.sounding = block;
+        self.sound = at;
     }
 
     fn find(&mut self) {
@@ -435,6 +440,13 @@ impl Reader {
             let hit = current.filter(|(block, _)| *block == i).map(|(_, nth)| nth);
             let wrapped = ui::wrap(segment.text.trim(), text_width);
             let mut seen = 0;
+            // In the block that sounds, the words said so far take the accent,
+            // as in the window; counted through the block, line by line.
+            let said = self
+                .sound
+                .filter(|_| sounding)
+                .map(|at| spoken::said(&spoken::word_times(segment), at));
+            let mut words_before = 0;
             for (n, piece) in wrapped.iter().enumerate() {
                 let mut spans = if n == 0 {
                     first.clone()
@@ -452,13 +464,21 @@ impl Reader {
                 } else {
                     theme.text()
                 };
-                spans.extend(ui::highlighted(
+                let mut text = ui::highlighted(
                     piece,
                     &self.query,
                     style,
                     theme.hit(),
                     current_here.map(|nth| (nth, theme.current_hit())),
-                ));
+                );
+                let piece_words = piece.split_whitespace().count();
+                if let Some(said) = said {
+                    let here = said.saturating_sub(words_before).min(piece_words);
+                    let upto = spoken::chars_through(piece, here);
+                    text = spoken::colour(text, upto, style, theme.accent());
+                }
+                words_before += piece_words;
+                spans.extend(text);
                 lines.push((i, Line::from(spans)));
             }
             lines.push((i, Line::raw("")));

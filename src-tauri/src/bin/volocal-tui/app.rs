@@ -1300,8 +1300,21 @@ mod tests {
             text.contains("▶   12:04  Jana Bílá"),
             "the block that sounds: {text}"
         );
+        // The words said so far take the accent, as in the window: at 12:04
+        // only the first, two seconds on the first few.
+        let accent = app.ctx.theme.accent().fg;
+        assert_eq!(word_colours(&app, "Jen bych"), [accent, None]);
+        app.playback = Some(crate::playback::for_tests(
+            &recording,
+            crate::playback::Pcm::open(&sound).unwrap(),
+        ));
+        press(&mut app, &[Key::Char(' '), Key::Char('.')]);
+        app.tick();
+        assert_eq!(at(&app), Some(729.0));
+        assert_eq!(word_colours(&app, "Jen bych"), [accent, accent]);
+        assert_eq!(word_colours(&app, "procent."), [None]);
         // Into the third block, 12:41: the cursor goes with the sound.
-        press(&mut app, &[Key::Char('.'); 8]);
+        press(&mut app, &[Key::Char('.'); 7]);
         app.tick();
         assert_eq!(at(&app), Some(764.0));
         assert_eq!(
@@ -1330,6 +1343,34 @@ mod tests {
             "leaving the transcript stops its sound"
         );
         let _ = std::fs::remove_dir_all(folder);
+    }
+
+    /// The foreground of each word of `words` where it is drawn, `None` for
+    /// the text's own colour.
+    fn word_colours(app: &App, words: &str) -> Vec<Option<ratatui::style::Color>> {
+        let (width, height) = (100, 30);
+        let mut terminal = Terminal::new(TestBackend::new(width, height)).unwrap();
+        terminal.draw(|f| app.draw(f)).unwrap();
+        let buffer = terminal.backend().buffer().clone();
+        let text = app.ctx.theme.text().fg;
+        for y in 0..height {
+            let row: Vec<String> = (0..width)
+                .map(|x| buffer[(x, y)].symbol().to_string())
+                .collect();
+            let line = row.concat();
+            if let Some(at) = line.find(words) {
+                let mut x = line[..at].chars().count() as u16;
+                return words
+                    .split(' ')
+                    .map(|word| {
+                        let fg = buffer[(x, y)].fg;
+                        x += word.chars().count() as u16 + 1;
+                        (Some(fg) != text).then_some(fg)
+                    })
+                    .collect();
+            }
+        }
+        panic!("{words} is not on screen");
     }
 
     #[test]

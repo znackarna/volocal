@@ -33,7 +33,8 @@ computer it runs on.
   recording's details.
 - **Listening.** In the reader, the space bar plays from the block under the
   cursor, pauses and resumes; `,` and `.` go 5 s back and on. The block that
-  sounds is marked and the cursor goes with it, so it stays on screen; moving
+  sounds is marked, its words take the accent as they are said, as in the
+  window, and the cursor goes with it, so it stays on screen; moving
   the cursor by hand does not stop the sound. The header shows where the sound
   is. Leaving the transcript stops it. The first play of a recording shows
   *Připravuji zvuk…* while ffmpeg makes the copy described below.
@@ -112,6 +113,7 @@ the sound card; the window and `volocal-cli` link none of them.
 | `app.rs` | the screen: what is open, what may start, questions, notices, help |
 | `archive.rs`, `reader.rs`, `transcribe.rs`, `export.rs`, `status.rs` | one feature each: its state, what can be done to it, how it is drawn |
 | `playback.rs` | the reader's sound: the copy, the sound card, play, pause, skip, where it is |
+| `spoken.rs` | which words of the sounding block have been said: the window's reading of the stored word times |
 | `theme.rs`, `words.rs`, `marks.rs`, `ui.rs` | colour roles and glyphs, the Czech and English words, the mark, shared drawing |
 | `console.rs` | the console closing under a running transcription |
 

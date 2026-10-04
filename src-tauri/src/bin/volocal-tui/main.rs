@@ -28,6 +28,7 @@ mod export;
 mod marks;
 mod playback;
 mod reader;
+mod spoken;
 mod status;
 mod theme;
 mod transcribe;
