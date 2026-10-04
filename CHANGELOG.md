@@ -11,6 +11,13 @@ altered, not how, not which file. Entries before 1.2.6 are written the old way
 and are left as they are; they are not a model for the next one. The mechanism
 belongs in `docs/history/`, which is what that folder is for.
 
+## 1.3.0 — 4 October 2026
+
+- **Volocal in a terminal, over SSH too** — browse, search, read, transcribe and export on a full screen.
+- **The command line shows a transcription's progress clearly**, in Czech on a Czech system.
+- **The window no longer marks a transcription running in a terminal as failed.**
+- **Menus are no longer cut off inside a dialog**, and Escape closes only the menu.
+
 ## 1.2.27 — 2 October 2026
 
 - **Volocal works from the command line too** — transcribe, search and export from a script, in the same archive.
