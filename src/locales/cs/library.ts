@@ -224,7 +224,7 @@ export const csLibraryContext: Partial<Record<keyof typeof csLibrary, string>> =
   "library.card.phase.cancelled": "Průběh přepisu: přepis přerušil uživatel.",
   "library.card.phase.working": "Průběh přepisu, když není známo, co se právě děje.",
   "library.card.commandLine":
-    "Na kartě nahrávky místo průběhu, když ji právě přepisuje program volocal-cli nebo volocal-tui v terminálu. Průběh z nich do okna nepřichází.",
+    "Na kartě nahrávky místo průběhu, když ji právě přepisuje program volocal-cli v terminálu. Průběh z nich do okna nepřichází.",
   "library.card.aiEditing": "Průběh úpravy hotového přepisu jazykovým modelem.",
 
   "library.notice.concurrent":

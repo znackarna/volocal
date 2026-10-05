@@ -98,19 +98,13 @@ tauri-plugin-updater = "2.10.1"
 # `docs/cli.md` is generated from the help this produces, so the documentation
 # and the program cannot say different things.
 clap = { version = "4", features = ["derive"] }
-# The full-screen interface of `volocal-tui`, and nothing else uses it; the
-# window and `volocal-cli` never link it. Without default features: no
-# calendar widget, no macros, no underline colour, none of which the screens
-# draw. crossterm comes through ratatui's own re-export, so the tree holds one
-# version of it.
-ratatui = { version = "0.30.2", default-features = false, features = ["crossterm"] }
-# Asks the terminal whether its background is light, so `volocal-tui` picks the
-# window's light or dark palette by itself; only `volocal-tui` calls it.
-terminal-colorsaurus = "1.0.3"
-# Plays a transcript's sound in `volocal-tui`, and nothing else uses it. Only
-# its output to the sound card: the sound it is given is already PCM, made by
-# ffmpeg, so none of its decoders are built.
-rodio = { version = "0.22.2", default-features = false, features = ["playback"] }
+
+# Named, though cargo would find it in `src/bin` by itself: tauri-cli 2.11.4
+# lists a folder's programs without their paths and then skips every one after
+# the first, so a second program there would silently miss the installer.
+[[bin]]
+name = "volocal-cli"
+path = "src/bin/volocal-cli/main.rs"
 
 [profile.release]
 opt-level = "s"

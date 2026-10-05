@@ -1,10 +1,7 @@
-//! What both terminal programs share: the window's dictionaries read for
-//! the engine's messages, the clock the window writes times with, and the
-//! window's rule for the order of a run's phases.
-//!
-//! Lives in `volocal-cli`'s folder and is included by `volocal-tui` with
-//! `#[path]`: it belongs to neither program alone, and the engine — which
-//! would have been the other home — never says anything in words.
+//! What the command line takes from the window: its dictionaries read for
+//! the engine's messages, the clock it writes times with, and its rule for
+//! the order of a run's phases. The engine itself never says anything in
+//! words, so this lives with the program that does.
 
 use std::collections::HashMap;
 use std::sync::OnceLock;

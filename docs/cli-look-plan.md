@@ -2,8 +2,8 @@
 
 Built on 3 October 2026. It replaces a proposal for a full-screen interface
 inside `volocal-cli`: the command line deserves a better picture of its
-progress, and the full screen belongs to a program of its own, `volocal-tui`
-([tui-plan.md](tui-plan.md)).
+progress, and the full screen was tried as a program of its own, `volocal-tui`,
+archived on 5 October 2026 (see `docs/history/2026-10-05.md`).
 
 The output is drawn in [prototypes/volocal-cli-look.html](prototypes/volocal-cli-look.html).
 
