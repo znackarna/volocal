@@ -372,7 +372,7 @@ pub const EN: Words = Words {
     help_hits: "Next, previous hit",
     help_speakers: "Next, previous speaker",
     help_time: "Go to a time",
-    help_play: "Play from the block, pause",
+    help_play: "Play, pause",
     help_skip: "5 s back, 5 s on",
     help_info: "About the recording",
     help_running: "The running transcription",
@@ -558,7 +558,7 @@ pub const CS: Words = Words {
     help_hits: "Další, předchozí výsledek",
     help_speakers: "Další, předchozí mluvčí",
     help_time: "Přejít na čas",
-    help_play: "Přehrát od úseku, pozastavit",
+    help_play: "Přehrát, pozastavit",
     help_skip: "5 s zpět, 5 s vpřed",
     help_info: "O nahrávce",
     help_running: "Běžící přepis",
@@ -740,6 +740,10 @@ pub fn compute(lang: Lang, compute: &str) -> String {
         (Lang::En, "cuda") => "graphics card (CUDA)".into(),
         (Lang::En, "vulkan") => "graphics card (Vulkan)".into(),
         (Lang::En, "cpu") => "processor".into(),
+        // A whisper with no build of its own for a device (`vychozi`, see
+        // `tools::choose_compute`) decides itself where it computes.
+        (Lang::Cs, "vychozi") => "zařízení, které zvolí whisper".into(),
+        (Lang::En, "vychozi") => "device whisper chooses".into(),
         (_, other) => other.to_string(),
     }
 }
@@ -749,6 +753,7 @@ pub fn runs_on(lang: Lang, value: &str) -> String {
         (Lang::Cs, "cpu") => "přepisuje procesor".into(),
         (Lang::Cs, "cuda") => "přepisuje grafická karta (CUDA)".into(),
         (Lang::Cs, "vulkan") => "přepisuje grafická karta (Vulkan)".into(),
+        (Lang::Cs, "vychozi") => "zařízení volí whisper".into(),
         (Lang::En, _) => format!("on the {}", compute(lang, value)),
         (_, other) => other.to_string(),
     }
@@ -847,6 +852,19 @@ pub fn enlarge(lang: Lang, width: u16, height: u16) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_whisper_without_a_device_build_is_named_in_words() {
+        assert_eq!(
+            compute(Lang::Cs, "vychozi"),
+            "zařízení, které zvolí whisper"
+        );
+        assert_eq!(runs_on(Lang::Cs, "vychozi"), "zařízení volí whisper");
+        assert_eq!(
+            runs_on(Lang::En, "vychozi"),
+            "on the device whisper chooses"
+        );
+    }
 
     #[test]
     fn counts_choose_the_czech_form() {

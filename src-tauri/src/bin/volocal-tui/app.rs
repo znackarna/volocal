@@ -999,7 +999,14 @@ impl App {
         let theme = &self.ctx.theme;
         let w = self.ctx.words();
         let g = theme.glyphs();
-        let inner = ui::dialog(frame, area, theme, 78, 22);
+        // Two rows taller when the playback keys are listed, or the last
+        // group loses its last two.
+        let height = if self.sound_offered().is_some() {
+            24
+        } else {
+            22
+        };
+        let inner = ui::dialog(frame, area, theme, 78, height);
         let column = |title: &str, rows: &[(&str, &str)]| -> Vec<Line<'static>> {
             let mut lines = vec![ui::plain(
                 title.to_string(),
@@ -1336,7 +1343,13 @@ mod tests {
         assert!(screen(&app, 100, 30, "reader-paused").contains("‖ 12:39 / 52:18"));
         // Help names the keys while they work.
         press(&mut app, &[Key::Char('?')]);
-        assert!(screen(&app, 100, 30, "help-sound").contains("5 s zpět, 5 s vpřed"));
+        let help = screen(&app, 100, 30, "help-sound");
+        assert!(help.contains("Přehrát, pozastavit"), "{help}");
+        assert!(help.contains("5 s zpět, 5 s vpřed"), "{help}");
+        assert!(
+            help.contains("Zpět, v archivu konec"),
+            "the last row still fits: {help}"
+        );
         press(&mut app, &[Key::Esc, Key::Char('q')]);
         assert!(
             app.playback.is_none(),
