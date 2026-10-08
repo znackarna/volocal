@@ -15,10 +15,12 @@
 //! behind to lie. Asking is trying to open it: a sharing violation means a
 //! program is holding it right now.
 //!
-//! **The window holds none.** Its own runs are in its own queue already; what
-//! it needs to know is only what the other program is doing. With no command
-//! line running, the folder is empty or absent and every answer here is
-//! "nothing", so the window behaves exactly as it did before this existed.
+//! **The window holds one file of its own, for as long as it is open**:
+//! `running\window.open`, by the same rule. Its runs are in its own queue
+//! already; what the command line needs from it is only whether it is there.
+//! A row marked as transcribing with neither a command line holding it nor a
+//! window open is then known to be a leftover of a crash (2026-10-08). With
+//! no command line running the window behaves exactly as it did before.
 //!
 //! Windows only, like the program. Elsewhere nothing is held and nothing is
 //! found.
@@ -38,11 +40,28 @@ fn folder(archive: &Path) -> PathBuf {
         .join("running")
 }
 
+/// The window's presence, beside the recordings' locks. Not ending in
+/// `.lock`, so it is never taken for a run.
+const WINDOW: &str = "window.open";
+
 /// Takes the lock for one recording. `None` when it could not be taken, in
 /// which case the run goes ahead as it always did — the lock only ever adds
 /// protection, it never stands in the way of a transcription.
 #[cfg(windows)]
 pub fn hold(archive: &Path, recording_id: &str) -> Option<Held> {
+    take(archive, &format!("{recording_id}.lock"))
+}
+
+/// Says that the window is open, until the returned value is dropped — which
+/// the window does by exiting. `None` when it could not be taken; the command
+/// line then simply does not learn that the window is there.
+#[cfg(windows)]
+pub fn hold_window(archive: &Path) -> Option<Held> {
+    take(archive, WINDOW)
+}
+
+#[cfg(windows)]
+fn take(archive: &Path, name: &str) -> Option<Held> {
     use std::os::windows::fs::OpenOptionsExt;
     const GENERIC_READ: u32 = 0x8000_0000;
     const GENERIC_WRITE: u32 = 0x4000_0000;
@@ -52,7 +71,7 @@ pub fn hold(archive: &Path, recording_id: &str) -> Option<Held> {
 
     let directory = folder(archive);
     std::fs::create_dir_all(&directory).ok()?;
-    let path = directory.join(format!("{recording_id}.lock"));
+    let path = directory.join(name);
     // A window looking at the same moment holds it open for a few
     // microseconds; one more try after a pause is enough.
     for _ in 0..10 {
@@ -77,15 +96,72 @@ pub fn hold(_archive: &Path, _recording_id: &str) -> Option<Held> {
     None
 }
 
-/// The recordings some program is transcribing right now with a lock held.
-///
-/// A lock file that opens is nobody's — a handle can only have gone without
-/// the file going with it if the disk was pulled away — and is removed.
+#[cfg(not(windows))]
+pub fn hold_window(_archive: &Path) -> Option<Held> {
+    None
+}
+
+/// Whether the window is open right now.
 #[cfg(windows)]
-pub fn held_elsewhere(archive: &Path) -> Vec<String> {
+pub fn window_open(archive: &Path) -> bool {
+    is_held(&folder(archive).join(WINDOW))
+}
+
+#[cfg(not(windows))]
+pub fn window_open(_archive: &Path) -> bool {
+    false
+}
+
+/// A file somebody holds open without sharing. One that opens is nobody's —
+/// a handle can only have gone without the file going with it if the disk was
+/// pulled away — and is removed.
+#[cfg(windows)]
+fn is_held(path: &Path) -> bool {
     use std::os::windows::fs::OpenOptionsExt;
     const ERROR_SHARING_VIOLATION: i32 = 32;
+    match std::fs::OpenOptions::new()
+        .read(true)
+        .share_mode(0)
+        .open(path)
+    {
+        Err(e) => e.raw_os_error() == Some(ERROR_SHARING_VIOLATION),
+        Ok(file) => {
+            drop(file);
+            let _ = std::fs::remove_file(path);
+            false
+        }
+    }
+}
 
+/// The recordings some program is transcribing right now with a lock held.
+#[cfg(windows)]
+pub fn held_elsewhere(archive: &Path) -> Vec<String> {
+    let mut held: Vec<String> = held_since(archive).into_iter().map(|(id, _)| id).collect();
+    held.sort();
+    held
+}
+
+/// The runs the run holding `mine` has to wait for: those whose lock was
+/// taken before its own, so that two command lines started together queue in
+/// the order they arrived instead of each waiting for the other for ever, as
+/// both did until 2026-10-08. Two locks taken in the same instant are put in
+/// order by id. Without a lock of its own, a run waits for every one there is.
+#[cfg(windows)]
+pub fn held_before(archive: &Path, mine: &str) -> Vec<String> {
+    let held = held_since(archive);
+    let Some(own) = held.iter().find(|(id, _)| id == mine).map(|(_, at)| *at) else {
+        return held.into_iter().map(|(id, _)| id).collect();
+    };
+    held.into_iter()
+        .filter(|(id, at)| id != mine && (*at < own || (*at == own && id.as_str() < mine)))
+        .map(|(id, _)| id)
+        .collect()
+}
+
+/// Every held lock with the moment it was taken. The time comes from the
+/// folder listing, which needs no handle on a file nobody may open.
+#[cfg(windows)]
+fn held_since(archive: &Path) -> Vec<(String, std::time::SystemTime)> {
     let Ok(entries) = std::fs::read_dir(folder(archive)) else {
         return Vec::new();
     };
@@ -96,31 +172,29 @@ pub fn held_elsewhere(archive: &Path) -> Vec<String> {
             .file_name()
             .and_then(|n| n.to_str())
             .and_then(|n| n.strip_suffix(".lock"))
+            .map(str::to_string)
         else {
             continue;
         };
-        match std::fs::OpenOptions::new()
-            .read(true)
-            .share_mode(0)
-            .open(&path)
-        {
-            Err(e) if e.raw_os_error() == Some(ERROR_SHARING_VIOLATION) => {
-                held.push(id.to_string())
-            }
-            Ok(file) => {
-                drop(file);
-                let _ = std::fs::remove_file(&path);
-            }
-            // Being deleted as we look, or unreadable: not a run.
-            Err(_) => {}
+        let taken = entry
+            .metadata()
+            .and_then(|m| m.created())
+            .unwrap_or(std::time::UNIX_EPOCH);
+        // Being deleted as we look, or unreadable: not a run.
+        if is_held(&path) {
+            held.push((id, taken));
         }
     }
-    held.sort();
     held
 }
 
 #[cfg(not(windows))]
 pub fn held_elsewhere(_archive: &Path) -> Vec<String> {
+    Vec::new()
+}
+
+#[cfg(not(windows))]
+pub fn held_before(_archive: &Path, _mine: &str) -> Vec<String> {
     Vec::new()
 }
 
@@ -167,6 +241,45 @@ mod tests {
             !folder(&archive).join("rec-1.lock").exists(),
             "deleted on close"
         );
+    }
+
+    #[test]
+    fn two_runs_queue_in_the_order_they_took_their_locks() {
+        let (_directory, archive) = archive();
+        let first = hold(&archive, "rec-b").expect("first");
+        // File times on Windows are 100 ns; a pause keeps the two apart.
+        std::thread::sleep(std::time::Duration::from_millis(30));
+        let second = hold(&archive, "rec-a").expect("second");
+        assert!(
+            held_before(&archive, "rec-b").is_empty(),
+            "the first waits for nobody"
+        );
+        assert_eq!(held_before(&archive, "rec-a"), vec!["rec-b".to_string()]);
+        drop(first);
+        assert!(
+            held_before(&archive, "rec-a").is_empty(),
+            "then the second goes"
+        );
+        drop(second);
+    }
+
+    #[test]
+    fn a_run_without_a_lock_waits_for_every_one() {
+        let (_directory, archive) = archive();
+        let held = hold(&archive, "rec-1").expect("taken");
+        assert_eq!(held_before(&archive, "other"), vec!["rec-1".to_string()]);
+        drop(held);
+    }
+
+    #[test]
+    fn the_window_is_seen_while_it_is_open_and_is_never_a_run() {
+        let (_directory, archive) = archive();
+        assert!(!window_open(&archive));
+        let open = hold_window(&archive).expect("taken");
+        assert!(window_open(&archive));
+        assert!(held_elsewhere(&archive).is_empty(), "not a recording");
+        drop(open);
+        assert!(!window_open(&archive));
     }
 
     #[test]

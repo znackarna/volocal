@@ -420,8 +420,8 @@ fn status(archive: &Path, settings: &db::Settings) -> Result<(), Problem> {
 /// **One at a time, across both programs.** The window queues its own runs,
 /// but it cannot see this one, and two whisper processes on one machine take
 /// memory from each other — a memory failure is what a user hit on
-/// 24 September. So this refuses while the archive says something is being
-/// transcribed, before the file is added, so a refusal leaves nothing behind.
+/// 24 September. So this refuses while something is being transcribed, before
+/// the file is added, so a refusal leaves nothing behind (`busy_or_tidy`).
 fn transcribe(
     archive: &Path,
     connection: &rusqlite::Connection,
@@ -430,13 +430,7 @@ fn transcribe(
     language: Option<String>,
     speakers: Option<i64>,
 ) -> Result<(), Problem> {
-    let recordings = db::list_recordings(connection).map_err(|e| e.to_string())?;
-    if let Some(busy) = recordings
-        .iter()
-        .find(|r| r.status == db::status::TRANSCRIBING)
-    {
-        return Err(Problem::Busy(busy.title.clone()));
-    }
+    busy_or_tidy(archive, connection)?;
     if !file.is_file() {
         return Err(Problem::NotAFile(file));
     }
@@ -641,6 +635,33 @@ fn drawn(live: Option<&Shown>) -> (Report, Ended) {
         }))
     };
     (report, ending)
+}
+
+/// Refuses while a transcription is alive, and clears what a crash left.
+///
+/// **A row saying "transcribing" is alive only if something is behind it**:
+/// a command line holding its lock, or a window that is open — the window's
+/// own runs hold no lock, but the window holds one for being open. A row with
+/// neither is a leftover of a run that died, and it used to stop this program
+/// for good, telling the person to wait for a transcription that did not
+/// exist; only starting the window cleared it. Now it is cleared here, by the
+/// window's own rule: a transcript there means done, none means failed.
+fn busy_or_tidy(archive: &Path, connection: &rusqlite::Connection) -> Result<(), Problem> {
+    let recordings = db::list_recordings(connection).map_err(|e| e.to_string())?;
+    let held = volocal_lib::run_lock::held_elsewhere(archive);
+    let window = volocal_lib::run_lock::window_open(archive);
+    let marked = || {
+        recordings
+            .iter()
+            .filter(|r| r.status == db::status::TRANSCRIBING)
+    };
+    if let Some(busy) = marked().find(|r| window || held.contains(&r.id)) {
+        return Err(Problem::Busy(busy.title.clone()));
+    }
+    if marked().next().is_some() {
+        db::recover_interrupted(connection, &held).map_err(|e| e.to_string())?;
+    }
+    Ok(())
 }
 
 /// Ctrl+C asks the run to stop, the way the window's `Zrušit` does, rather
@@ -893,7 +914,12 @@ fn reference() -> String {
     const INTRO: &[&str] = &[
         "# volocal-cli",
         "",
-        "Installed beside the application, in the same folder.",
+        "Installed with the application, in `%LOCALAPPDATA%\\Volocal`. That folder is not on",
+        "the `PATH`, so start it from there or by its full path, in PowerShell:",
+        "",
+        "```powershell",
+        "& \"$env:LOCALAPPDATA\\Volocal\\volocal-cli.exe\" status",
+        "```",
         "",
         "*Generated from the program's own help. After changing a command, run*",
         "`UPDATE_CLI_DOCS=1 cargo test --manifest-path src-tauri/Cargo.toml --bin volocal-cli`.",
@@ -959,6 +985,73 @@ fn reference() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn archive_with(status: &str) -> (PathBuf, rusqlite::Connection) {
+        let folder =
+            std::env::temp_dir().join(format!("volocal-cli-busy-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&folder).unwrap();
+        let archive = folder.join("volocal.db");
+        let connection = db::open(&archive).unwrap();
+        let recording: Recording = serde_json::from_value(serde_json::json!({
+            "id": "rec-1", "path": "C:/Porada.m4a", "title": "Porada", "duration": 60.0,
+            "created_at": "2026-10-08T09:00:00", "status": status, "model": "", "language": "",
+            "language_choice": "", "second_language_choice": "",
+            "second_language_by_reader": false, "error": null, "segment_count": 0,
+        }))
+        .unwrap();
+        db::insert_recording(&connection, &recording).unwrap();
+        (archive, connection)
+    }
+
+    fn status_of(connection: &rusqlite::Connection) -> String {
+        db::recording(connection, "rec-1").unwrap().status
+    }
+
+    #[test]
+    fn a_leftover_of_a_crash_is_cleared_instead_of_blocking() {
+        let (archive, connection) = archive_with(db::status::TRANSCRIBING);
+        assert!(busy_or_tidy(&archive, &connection).is_ok());
+        assert_eq!(
+            status_of(&connection),
+            db::status::FAILED,
+            "no transcript: failed"
+        );
+        let _ = std::fs::remove_dir_all(archive.parent().unwrap());
+    }
+
+    #[test]
+    fn a_run_another_command_line_holds_is_waited_for() {
+        let (archive, connection) = archive_with(db::status::TRANSCRIBING);
+        let held = volocal_lib::run_lock::hold(&archive, "rec-1").unwrap();
+        assert!(matches!(
+            busy_or_tidy(&archive, &connection),
+            Err(Problem::Busy(_))
+        ));
+        assert_eq!(
+            status_of(&connection),
+            db::status::TRANSCRIBING,
+            "left alone"
+        );
+        drop(held);
+        let _ = std::fs::remove_dir_all(archive.parent().unwrap());
+    }
+
+    #[test]
+    fn with_the_window_open_a_marked_row_is_the_window_working() {
+        let (archive, connection) = archive_with(db::status::TRANSCRIBING);
+        let open = volocal_lib::run_lock::hold_window(&archive).unwrap();
+        assert!(matches!(
+            busy_or_tidy(&archive, &connection),
+            Err(Problem::Busy(_))
+        ));
+        assert_eq!(
+            status_of(&connection),
+            db::status::TRANSCRIBING,
+            "left alone"
+        );
+        drop(open);
+        let _ = std::fs::remove_dir_all(archive.parent().unwrap());
+    }
     use crate::common::{czech_errors, czech_progress, english_errors, parse_dictionary};
 
     #[test]

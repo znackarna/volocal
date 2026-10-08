@@ -150,6 +150,17 @@ pub fn delete_recording(app: State<'_, AppState>, id: String) -> Reported<()> {
 /// be started beside a speaker recognition standing in line. The row in turn
 /// outlives the process, so it is what catches a run interrupted by a crash
 /// before `recover_interrupted` has had its say.
+/// Whether a worker holds this recording now: this window's queue, or
+/// `volocal-cli` with its lock on it. Between the command line's phases the
+/// row can read `done` for a moment, and until 2026-10-08 the window would
+/// then start a second piece of work on the same recording.
+pub(crate) fn worked_on(app: &AppState, id: &str) -> bool {
+    app.bezici.is_running(id)
+        || crate::run_lock::held_elsewhere(&app.db_path)
+            .iter()
+            .any(|held| held == id)
+}
+
 pub(crate) fn recording_is_busy(running: bool, status: &str) -> bool {
     running || status == db::status::TRANSCRIBING
 }
@@ -163,7 +174,7 @@ pub fn start_transcription(
 ) -> Reported<()> {
     // Starting the same transcription twice would write the segments twice.
     {
-        let running = app.bezici.is_running(&id);
+        let running = worked_on(&app, &id);
         let db = app.db.lock().unwrap();
         let n = reported(db::recording(&db, &id))?;
         if recording_is_busy(running, &n.status) {
@@ -191,7 +202,7 @@ pub fn transcribe_in_language(
     speaker_count: Option<i64>,
 ) -> Reported<()> {
     {
-        let running = app.bezici.is_running(&id);
+        let running = worked_on(&app, &id);
         let db = app.db.lock().unwrap();
         let n = reported(db::recording(&db, &id))?;
         if recording_is_busy(running, &n.status) {
@@ -276,7 +287,7 @@ pub fn diarize_speakers(
     speaker_count: Option<i64>,
 ) -> Reported<()> {
     {
-        let running = app.bezici.is_running(&id);
+        let running = worked_on(&app, &id);
         let db = app.db.lock().unwrap();
         let n = reported(db::recording(&db, &id))?;
         if recording_is_busy(running, &n.status) {

@@ -40,8 +40,9 @@ toho, které modely si vyberete — a po tom už je internet nepovinný.
 - **Nahraje z mikrofonu**, vezme zvuk z online služby, nebo hlídá složku, kterou
   si zvolíte.
 - **Uloží** do TXT, Markdownu, SRT, VTT nebo JSON — a zvuk do MP3, M4A či WAV.
-- **Funguje i z příkazové řádky.** `volocal-cli` přepisuje, vyhledává a ukládá
-  ze skriptu, ve stejném archivu — viz [docs/cli.md](docs/cli.md).
+- **Funguje i z příkazové řádky.** `volocal-cli`, který se instaluje vedle
+  aplikace, přepisuje, vyhledává a ukládá ze skriptu, ve stejném archivu — viz
+  [docs/cli.md](docs/cli.md).
 
 ## Vaše nahrávky zůstávají u vás
 

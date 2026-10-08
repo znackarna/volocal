@@ -346,19 +346,16 @@ pub fn transcribe(
 /// whisper processes take memory from each other — a memory failure is what a
 /// user hit on 24 September. The command line refuses to start while anything
 /// is being transcribed; this is the same rule the other way round, except
-/// that the window waits rather than refusing, as its queue always has. Its
-/// own lock is not counted, so the command line does not wait for itself.
+/// that the window waits rather than refusing, as its queue always has.
 /// With no command line running nothing is held, and this is the queue alone.
 fn take_turn(app: &Report, db_path: &Path, id: &str, task: &TranscriptionTask) -> bool {
     if !task.wait_for_turn(id) {
         return false;
     }
+    let window = matches!(app, Report::Window(_));
     let mut said = false;
     loop {
-        let others = crate::run_lock::held_elsewhere(db_path)
-            .into_iter()
-            .any(|held| held != id);
-        if !others {
+        if waits_for(db_path, id, window).is_empty() {
             return true;
         }
         if task.was_cancelled(id) {
@@ -375,6 +372,24 @@ fn take_turn(app: &Report, db_path: &Path, id: &str, task: &TranscriptionTask) -
             said = true;
         }
         std::thread::sleep(std::time::Duration::from_secs(2));
+    }
+}
+
+/// The command-line runs a turn has to wait for.
+///
+/// **The window waits for every one**, its own recording's included: the
+/// window holds no lock for a run, so a lock on the same id is the command
+/// line working on that recording, and the two would write one transcript.
+/// Until 2026-10-08 the window skipped it, as the command line does.
+///
+/// **A command line waits only for those that started before it**, and never
+/// for its own lock. It used to wait for every other lock, so two started
+/// together each waited for the other for ever.
+fn waits_for(db_path: &Path, id: &str, window: bool) -> Vec<String> {
+    if window {
+        crate::run_lock::held_elsewhere(db_path)
+    } else {
+        crate::run_lock::held_before(db_path, id)
     }
 }
 
@@ -1716,6 +1731,46 @@ mod command_line_turn_tests {
         assert!(take_turn(&report, &db_path, "cli-run", &task));
         assert!(heard.lock().unwrap().is_empty());
         drop(held);
+        let _ = std::fs::remove_dir_all(db_path.parent().unwrap());
+    }
+
+    #[test]
+    fn the_window_waits_for_a_command_line_on_the_same_recording() {
+        let db_path = archive("same");
+        let held = crate::run_lock::hold(&db_path, "rec-1").unwrap();
+        assert_eq!(
+            waits_for(&db_path, "rec-1", true),
+            vec!["rec-1".to_string()]
+        );
+        assert!(
+            waits_for(&db_path, "rec-1", false).is_empty(),
+            "the holder does not wait for itself"
+        );
+        drop(held);
+        assert!(waits_for(&db_path, "rec-1", true).is_empty());
+        let _ = std::fs::remove_dir_all(db_path.parent().unwrap());
+    }
+
+    #[test]
+    fn two_command_lines_queue_instead_of_waiting_for_each_other() {
+        let db_path = archive("two");
+        let first = crate::run_lock::hold(&db_path, "rec-b").unwrap();
+        std::thread::sleep(Duration::from_millis(30));
+        let second = crate::run_lock::hold(&db_path, "rec-a").unwrap();
+        assert!(
+            waits_for(&db_path, "rec-b", false).is_empty(),
+            "the first runs"
+        );
+        assert_eq!(
+            waits_for(&db_path, "rec-a", false),
+            vec!["rec-b".to_string()]
+        );
+        drop(first);
+        assert!(
+            waits_for(&db_path, "rec-a", false).is_empty(),
+            "then the second"
+        );
+        drop(second);
         let _ = std::fs::remove_dir_all(db_path.parent().unwrap());
     }
 

@@ -1260,21 +1260,77 @@ const TEMPORARY_FOLDERS: [&str; 4] = [
 /// it. What stays behind is what a crash or a forced quit interrupted — and
 /// a converted hour of audio is around 115 MB, so it adds up.
 ///
-/// Safe to call only at startup, before anything has been started: at that
-/// moment nothing can be using these folders. Returns the bytes reclaimed.
-pub fn clear_leftover_temporary() -> u64 {
+/// Called at the window's start, before it has started anything. **Except
+/// for `keep`**: the recordings `volocal-cli` is transcribing right now work
+/// in `whisp\<id>` and `whisp-speakers\<id>` too, and until 2026-10-08 this
+/// deleted their converted audio mid-run, so the run lost its speakers or its
+/// second language without saying so. Those subfolders stay; everything else
+/// goes, as before. Returns the bytes reclaimed.
+pub fn clear_leftover_temporary(keep: &[String]) -> u64 {
+    TEMPORARY_FOLDERS
+        .iter()
+        .map(|name| clear_folder(&std::env::temp_dir().join(name), keep))
+        .sum()
+}
+
+/// One temporary folder: all of it, or, while something is kept, every
+/// subfolder but those named in `keep`.
+fn clear_folder(folder: &Path, keep: &[String]) -> u64 {
+    if !folder.is_dir() {
+        return 0;
+    }
+    if keep.is_empty() {
+        let size = crate::download::directory_size(folder);
+        return if std::fs::remove_dir_all(folder).is_ok() {
+            size
+        } else {
+            0
+        };
+    }
+    let Ok(entries) = std::fs::read_dir(folder) else {
+        return 0;
+    };
     let mut reclaimed = 0;
-    for name in TEMPORARY_FOLDERS {
-        let folder = std::env::temp_dir().join(name);
-        if !folder.is_dir() {
+    for entry in entries.flatten() {
+        let name = entry.file_name().to_string_lossy().to_string();
+        if keep.contains(&name) {
             continue;
         }
-        let size = crate::download::directory_size(&folder);
-        if std::fs::remove_dir_all(&folder).is_ok() {
-            reclaimed += size;
+        let path = entry.path();
+        if path.is_dir() {
+            let size = crate::download::directory_size(&path);
+            if std::fs::remove_dir_all(&path).is_ok() {
+                reclaimed += size;
+            }
+        } else if let Ok(metadata) = entry.metadata() {
+            if std::fs::remove_file(&path).is_ok() {
+                reclaimed += metadata.len();
+            }
         }
     }
     reclaimed
+}
+
+#[cfg(test)]
+mod leftover_tests {
+    use super::*;
+
+    #[test]
+    fn a_run_in_the_command_line_keeps_its_working_folder() {
+        let folder = std::env::temp_dir().join(format!("volocal-sweep-{}", uuid::Uuid::new_v4()));
+        for id in ["alive", "crashed"] {
+            std::fs::create_dir_all(folder.join(id)).unwrap();
+            std::fs::write(folder.join(id).join("zvuk.wav"), b"audio").unwrap();
+        }
+        clear_folder(&folder, &["alive".to_string()]);
+        assert!(
+            folder.join("alive").join("zvuk.wav").exists(),
+            "the live run keeps its audio"
+        );
+        assert!(!folder.join("crashed").exists(), "the leftover goes");
+        clear_folder(&folder, &[]);
+        assert!(!folder.exists(), "with nothing running, all of it goes");
+    }
 }
 
 /// Throws away the working folders an interrupted online import left behind.

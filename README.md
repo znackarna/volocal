@@ -38,8 +38,9 @@ depending on which models you choose — and after that the internet is optional
   a folder you choose.
 - **Exports** to TXT, Markdown, SRT, VTT or JSON — and the audio to MP3, M4A or
   WAV.
-- **Works from the command line too.** `volocal-cli` transcribes, searches and
-  exports from a script, in the same archive — see [docs/cli.md](docs/cli.md).
+- **Works from the command line too.** `volocal-cli`, installed beside the
+  application, transcribes, searches and exports from a script, in the same
+  archive — see [docs/cli.md](docs/cli.md).
 
 ## Your recordings stay with you
 

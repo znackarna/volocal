@@ -49,6 +49,7 @@ the time.
 | [2026-10-03](2026-10-03.md) | 13 | The audit: dead code and finished plans removed, small Rust duplicates folded, menus as popovers; volocal-cli looks better in a terminal; volocal-tui, the full screen for SSH; the window sees a run in either |
 | [2026-10-04](2026-10-04.md) | 5 | volocal-tui takes the light or dark palette from the terminal's own background; Volocal 1.3.0 prepared; the tests run again on Windows; volocal-tui plays the sound where it runs locally, its words coloured as they are said |
 | [2026-10-05](2026-10-05.md) | 1 | volocal-tui archived; the command line stays |
+| [2026-10-08](2026-10-08.md) | 1 | The window and the command line side by side: runs queue, the sweep spares a live run, the window waits for the same recording, a crash leftover no longer blocks |
 
 ## What each day was about
 
@@ -123,3 +124,5 @@ the time.
 **[2026-10-04](2026-10-04.md)** — `volocal-tui` asks the terminal whether its background is light, and a light terminal no longer gets black bands. Then Volocal 1.3.0, with the terminal programs and the audit of the day before. And `volocal-tui` plays a transcript's sound where it runs locally, from a PCM copy so that a seek lands on the exact sample.
 
 **[2026-10-05](2026-10-05.md)** — `volocal-tui` archived at the owner's word: a gimmick for now, its one unique use being SSH. Removed from `dev` with its dependencies and plan; the last commit that has it, and how to bring it back, are in the day's entry. `volocal-cli` stays, now named in `Cargo.toml` so the installer cannot drop it.
+
+**[2026-10-08](2026-10-08.md)** — Four findings of the release review fixed, all about the window and `volocal-cli` at the same time: two command lines queue instead of waiting for each other for ever, the window's start no longer deletes a running command line's working files, the window waits for a command line on the same recording, and a row a crash left on "transcribing" is cleared by the command line itself once nothing is behind it — the window now says it is open with a lock of its own. Where the command line is installed is written down.

@@ -59,7 +59,7 @@ pub async fn set_second_language_choice(
     language: String,
 ) -> Reported<()> {
     let has_transcript = {
-        let running = app.bezici.is_running(&id);
+        let running = crate::commands::folders::worked_on(&app, &id);
         let db = app.db.lock().unwrap();
         let recording = reported(db::recording(&db, &id))?;
         if crate::commands::folders::recording_is_busy(running, &recording.status) {
@@ -211,7 +211,7 @@ pub async fn fill_second_language(
     id: String,
 ) -> Reported<usize> {
     {
-        let running = app.bezici.is_running(&id);
+        let running = crate::commands::folders::worked_on(&app, &id);
         let db = app.db.lock().unwrap();
         let recording = reported(db::recording(&db, &id))?;
         if crate::commands::folders::recording_is_busy(running, &recording.status) {

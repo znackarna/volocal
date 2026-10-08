@@ -1,6 +1,11 @@
 # volocal-cli
 
-Installed beside the application, in the same folder.
+Installed with the application, in `%LOCALAPPDATA%\Volocal`. That folder is not on
+the `PATH`, so start it from there or by its full path, in PowerShell:
+
+```powershell
+& "$env:LOCALAPPDATA\Volocal\volocal-cli.exe" status
+```
 
 *Generated from the program's own help. After changing a command, run*
 `UPDATE_CLI_DOCS=1 cargo test --manifest-path src-tauri/Cargo.toml --bin volocal-cli`.

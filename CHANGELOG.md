@@ -11,10 +11,10 @@ altered, not how, not which file. Entries before 1.2.6 are written the old way
 and are left as they are; they are not a model for the next one. The mechanism
 belongs in `docs/history/`, which is what that folder is for.
 
-## 1.3.0 — 4 October 2026
+## 1.3.0 — 8 October 2026
 
-- **The command line shows a transcription's progress clearly**, in Czech on a Czech system.
-- **The window no longer marks a transcription running in a terminal as failed.**
+- **The command line looks good in a terminal** — a transcription's progress at a glance, in Czech on a Czech system.
+- **The window and the command line work side by side** — neither marks the other's transcription as failed, and two never run at once.
 - **Menus are no longer cut off inside a dialog**, and Escape closes only the menu.
 
 ## 1.2.27 — 2 October 2026

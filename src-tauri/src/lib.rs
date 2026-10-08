@@ -789,6 +789,10 @@ const PROFILE_FOLDER_BEFORE_THE_RENAME: &str = "cz.znackarna.whisp";
 /// only to a stderr nobody sees in a released build.
 static PROFILE_MOVE: std::sync::OnceLock<String> = std::sync::OnceLock::new();
 
+/// The window's presence for the command line, held for the life of the
+/// process; see `run_lock::hold_window`.
+static WINDOW_OPEN: std::sync::OnceLock<run_lock::Held> = std::sync::OnceLock::new();
+
 fn profile_folder(profile: PathBuf) -> PathBuf {
     let Some(old) = profile
         .parent()
@@ -1044,6 +1048,13 @@ fn connect_database(app: &tauri::App, db_path: PathBuf) -> Result<()> {
         follow_the_tools_folder(&connection, &before, &after);
     }
 
+    // Held until the window exits: the command line reads it to tell a run of
+    // this window from a leftover of a crash, which only this start used to
+    // be able to clear. See `run_lock`.
+    if let Some(open) = run_lock::hold_window(&db_path) {
+        let _ = WINDOW_OPEN.set(open);
+    }
+
     // Anything still marked as running belongs to a session that never
     // finished. Without this the recording would sit there for ever showing a
     // progress bar that goes nowhere, with no way to start over.
@@ -1107,9 +1118,9 @@ fn connect_database(app: &tauri::App, db_path: PathBuf) -> Result<()> {
     }
 
     // The same crash also leaves the converted audio in the temp folder —
-    // roughly 115 MB per hour of recording. Nothing can be using those folders
-    // at this point, so clearing them is safe.
-    let reclaimed = tools::clear_leftover_temporary();
+    // roughly 115 MB per hour of recording. Nothing of this window is using
+    // those folders yet; what the command line is running keeps its own.
+    let reclaimed = tools::clear_leftover_temporary(&still_running);
     if reclaimed > 0 {
         crate::note!(
             "reclaimed {} MB of leftover temporary files",
