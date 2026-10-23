@@ -17,7 +17,7 @@ připojení.
 **Windows 10 nebo 11.** [Stáhněte si instalátor](../../releases/latest) —
 instaluje se jen pro vás a nechce práva správce.
 
-**Stav: vydáno, 1.3.1.** Autor ho používá denně.
+**Stav: vydáno, 1.3.2.** Autor ho používá denně.
 
 Jedna věc, na kterou se připravte při prvním spuštění: instalátor není
 podepsaný, takže Windows ukážou *Windows ochránil váš počítač*. Zvolte **Další
